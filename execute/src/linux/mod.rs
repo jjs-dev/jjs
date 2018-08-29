@@ -16,18 +16,29 @@ fn err_exit(func_name: &str, syscall_name: &str) -> ! {
     panic!("{}: {}() failed with error {}: {}", func_name, syscall_name, e.0, e);
 }
 
+pub fn setup() -> Result<()> {
+    unsafe {
+        //let mut act: libc::sigaction = std::mem::zeroed();
+        //act.sa_handler = libc::SIG_IGN;
+        //act.sa_flags = libc::SA_RESTART;
+        //libc::sigaction(libc::SIGCHLD, ((&mut act).as_mut_ptr() as *mut libc::sigaction), ptr::null());
+    }
+    Ok(())
+}
 
 struct LinuxReadPipe {
     handle: H,
 }
 
 impl std::io::Read for LinuxReadPipe {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         unsafe {
+            //println!("reading up to {} bytes from {}", buf.len(), self.handle);
             let ret = libc::read(self.handle, buf.as_mut_ptr() as *mut c_void, buf.len());
             if ret == -1 {
-                return Err(std::io::Error::last_os_error());
+                err_exit("LinuxReadPipe::read", "read");
             }
+            //println!("got {} bytes", ret);
             Ok(ret as usize)
         }
     }
@@ -38,21 +49,23 @@ struct LinuxWritePipe {
 }
 
 impl io::Write for LinuxWritePipe {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         unsafe {
             let ret = libc::write(self.handle, buf.as_ptr() as *const c_void, buf.len());
             if ret == -1 {
-                return Err(std::io::Error::last_os_error());
+                err_exit("LinuxWritePipe::write()", "write");
+                //return Err(std::io::Error::last_os_error());
             }
             Ok(ret as usize)
         }
     }
 
-    fn flush(&mut self) -> Result<(), io::Error> {
+    fn flush(&mut self) -> io::Result<()> {
         unsafe {
             let ret = libc::fsync(self.handle);
             if ret == -1 {
-                return Err(io::Error::last_os_error());
+                err_exit("LinuxWritePipe::flush", "fsync");
+                //return Err(io::Error::last_os_error());
             }
             Ok(())
         }
@@ -113,12 +126,16 @@ fn timed_wait(pid: Pid, timeout: std::time::Duration) -> Option<i32> {
             if wcode == -1 {
                 err_exit("timed_wait", "waitpid");
             }
+            //eprintln!("waiter: child process returned!!");
             {
-                let mut datag = m.lock().unwrap();
+                //let mut datag = m.lock().unwrap();
                 SYNC!(m).exit_code = 228;
                 SYNC!(m).exited = true;
+                //eprintln!("set first mutex");
                 *SYNC!(lock) = true;
+                //eprintln!("set muticies");
                 cv.notify_all();
+                //eprintln!("notified condvar");
             }
         });
         let mtimeouter = m.clone();
@@ -137,10 +154,16 @@ fn timed_wait(pid: Pid, timeout: std::time::Duration) -> Option<i32> {
         });
         {
             let &(ref lock, ref cv) = &*cv_should_return;
-            while !*SYNC!(lock) {
-                cv.wait(lock.lock().unwrap()).unwrap();
+            loop {
+                let grd = lock.lock().unwrap();
+                if *grd == true {
+                    break;
+                }
+                cv.wait(grd).unwrap();
             }
         }
+        //eprintln!("child is exited or killed.");
+        return Some(SYNC!(m).exit_code);
     }
     None
 }
@@ -162,12 +185,13 @@ impl ChildProcess for LinuxChildProcess {
         &mut self.stderr
     }
 
-    fn wait_for_exit(&mut self, timeout: std::time::Duration) -> Result<WaitResult, io::Error> {
+    fn wait_for_exit(&mut self, timeout: std::time::Duration) -> Result<WaitResult> {
         unsafe {
             if self.is_finished() {
                 return Ok(WaitResult::AlreadyFinished);
             }
             let wait_result = timed_wait(self.pid, timeout);
+            //println!("timed_wait() returned {:?}", wait_result);
             match wait_result {
                 None => {
                     Ok(WaitResult::Timeout)
@@ -226,6 +250,7 @@ fn allocate_memory(num: usize) -> *mut c_char {
 }
 
 extern "C" fn do_exec(arg: *mut c_void) -> i32 {
+    use std::iter::FromIterator;
     unsafe {
         let arg = &*(arg as *mut DoExecArg);
         //let zpath = CString::new(arg.path.clone()).expect("path to executable contains zero byte");
@@ -237,7 +262,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
 
 
         let num_argv_items = argv_with_path.len() + 1;
-        let argv = allocate_memory(num_argv_items * POINTER_SIZE)as *mut *const c_char;
+        let argv = allocate_memory(num_argv_items * POINTER_SIZE) as *mut *const c_char;
         //let argv = libc::malloc(num_argv_items * POINTER_SIZE) as *mut *const c_char;
         for (i, argument) in argv_with_path.iter().enumerate() {
             *(argv.offset(i as isize) as *mut *const c_char) = duplicate_string(argument);
@@ -245,9 +270,9 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         ptr_subscript_set!(argv, num_argv_items-1, ptr::null());
         //ptr::write(argv.offset((num_argv_items - 1) as isize), ptr::null());
         //*(argv.offset(num_argv_items - 1)) = std::ptr::null();
-        println!("{} items in argv buffer", num_argv_items);
+        //println!("{} items in argv buffer", num_argv_items);
         for i in 0..num_argv_items {
-            println!("item #{} : address={}", i, *argv.offset(i as isize) as usize);
+            //println!("item #{} : address={}", i, *argv.offset(i as isize) as usize);
         }
         let num_envp_items = arg.environment.len() + 1;
         let envp = libc::malloc(num_envp_items * POINTER_SIZE) as *mut *const c_char;
@@ -259,13 +284,20 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         //ptr::write(pt)
 
         //now we need mark all FDs as CLOEXEC for not to expose them to judgee
-        println!("My pid is {}", std::process::id());
+        //println!("My pid is {}", std::process::id());
+
+        let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
+        let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
+
         let fd_list_path = format!("/proc/{}/fd", std::process::id());
         let fd_list = std::fs::read_dir(fd_list_path).unwrap();
         for fd in fd_list {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
             let fd: H = fd.parse().unwrap();
+            if fds_to_keep.contains(&fd) {
+                continue;
+            }
             if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 panic!("couldn't cloexec fd: {}", fd);
             }
@@ -276,6 +308,10 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         libc::dup2(arg.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stderr, libc::STDERR_FILENO);
 
+        libc::close(arg.stdin);
+        libc::close(arg.stdout);
+        libc::close(arg.stderr);
+
         let ret = libc::execve(path, argv as *const *const c_char, envp as *const *const c_char);
         if ret == -1 {
             err_exit("do_exec", "execve");
@@ -284,7 +320,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
     0
 }
 
-fn setup_pipe(read_end: &mut H, write_end: &mut H) -> Result<(), io::Error> {
+fn setup_pipe(read_end: &mut H, write_end: &mut H) -> Result<()> {
     unsafe {
         let mut sl = [0 as H; 2];
         let ret = libc::pipe(sl.as_mut_ptr());
@@ -312,7 +348,7 @@ unsafe impl Sync for ThreadSafePointer {}
 
 unsafe impl Send for ThreadSafePointer {}
 
-pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>, Error> {
+pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
     unsafe {
         let mut in_r = 0;
         let mut in_w = 0;
@@ -342,12 +378,18 @@ pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>, Erro
         let dea_box = ThreadSafePointer(dea_ptr as *mut c_void);
         let thr = thread::spawn(move || {
             //use std::borrow::BorrowMut;=
-                let ptr = child_pid_box.0;
-                let ptr = ptr as *mut c_int;
-                *(ptr.as_mut().unwrap()) =
-                    libc::clone(do_exec, child_stack_top.0, 0, dea_box.0);
+            let ptr = child_pid_box.0;
+            let ptr = ptr as *mut c_int;
+            *(ptr.as_mut().unwrap()) =
+                libc::clone(do_exec, child_stack_top.0, 0, dea_box.0);
         });
         thr.join().expect("Couldn't join a thread");
+
+        //now we should close handles intended for use by child process
+        libc::close(in_r);
+        libc::close(out_w);
+        libc::close(err_w);
+
         Ok(Box::new(LinuxChildProcess {
             //handle: 0,
             exit_code: None,

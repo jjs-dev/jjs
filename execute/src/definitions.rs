@@ -12,10 +12,12 @@ pub struct ChildProcessOptions {
 #[derive(Debug)]
 pub enum Error {}
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 pub enum WaitResult {
     Exited,
     AlreadyFinished,
-    Timeout
+    Timeout,
 }
 
 pub trait ChildProcess {
@@ -27,7 +29,7 @@ pub trait ChildProcess {
 
     fn get_stderr(&mut self) -> &mut Read;
 
-    fn wait_for_exit(&mut self, timeout: Duration) -> Result<WaitResult, std::io::Error>;
+    fn wait_for_exit(&mut self, timeout: Duration) -> Result<WaitResult>;
 
     fn is_finished(&self) -> bool;
 }

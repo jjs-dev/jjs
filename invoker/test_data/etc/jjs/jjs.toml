@@ -2,7 +2,7 @@
 toolchain_name="cpp"
 extension="cpp"
 [[toolchains.build_commands]]
-env={}
+env= {}
 argv=["g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-DJJS"]
 cwd="."
 [toolchains.run_command]

@@ -4,7 +4,9 @@
 use ::object;
 use ::invoker;
 
-fn judge(submission: object::Submission) -> invoker::Status {
+pub fn judge(submission: object::Submission) -> invoker::Status {
+
+
     invoker::Status {
         kind: invoker::StatusKind::Accepted,
         code: "OK".to_owned(),

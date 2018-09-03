@@ -13,7 +13,7 @@ pub struct Submission {
 }
 
 impl Submission {
-    fn from_file_path(p: &Path) -> Submission {
+    pub fn from_file_path(p: &Path) -> Submission {
         Submission {
             content: SubmissionContent::File(
                 FileSubmissionContent {
@@ -23,7 +23,7 @@ impl Submission {
         }
     }
 
-    fn get_file_path(&self) -> Option<&Path> {
+    pub fn get_file_path(&self) -> Option<&Path> {
         match self.content {
             SubmissionContent::File(ref fsc) => Some(&(fsc.path)),
             _ => None

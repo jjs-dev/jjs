@@ -154,12 +154,12 @@ fn timed_wait(pid: Pid, timeout: std::time::Duration) -> Option<i32> {
         });
         {
             let &(ref lock, ref cv) = &*cv_should_return;
+            let mut grd = lock.lock().unwrap();
             loop {
-                let grd = lock.lock().unwrap();
                 if *grd == true {
                     break;
                 }
-                cv.wait(grd).unwrap();
+                grd = cv.wait(grd).unwrap();
             }
         }
         //eprintln!("child is exited or killed.");

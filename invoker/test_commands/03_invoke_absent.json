@@ -1,5 +1,6 @@
 {
   "Invoke": {
-    "submission_name": "no_such_sm"
+    "submission_name": "no_such_sm",
+    "toolchain_name": "no_tc"
   }
 }

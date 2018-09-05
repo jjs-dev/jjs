@@ -1,5 +1,5 @@
 [[toolchains]]
-toolchain_name="cpp"
+name="cpp"
 extension="cpp"
 [[toolchains.build_commands]]
 env= {}

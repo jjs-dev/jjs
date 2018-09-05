@@ -1,5 +1,6 @@
 {
   "Invoke": {
-    "submission_name": "s_ok.cpp"
+    "submission_name": "s_ok.cpp",
+    "toolchain_name": "cpp"
   }
 }

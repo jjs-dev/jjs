@@ -7,6 +7,7 @@ use self::libc::{c_int, c_char, c_void};
 use ::definitions::*;
 use std::ffi::CString;
 use std::{io, sync::{Mutex, Arc, Condvar}, thread, ptr};
+use std::time;
 
 type H = c_int;
 type Pid = libc::pid_t;
@@ -92,7 +93,7 @@ macro_rules! SYNC {
 }
 }
 
-fn timed_wait(pid: Pid, timeout: std::time::Duration) -> Option<i32> {
+fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
     use std::{
         os::{
             unix::thread::JoinHandleExt
@@ -209,7 +210,31 @@ impl ChildProcess for LinuxChildProcess {
     }
 
     fn is_finished(&self) -> bool {
-        return self.has_finished;
+        return match self.exit_code {
+            Some(_) => true,
+            None => false,
+        };
+    }
+
+    fn kill(&mut self) {
+        unsafe {
+            if self.has_finished {
+                return;
+            }
+            if libc::kill(self.pid, libc::SIGKILL) == -1 {
+                err_exit("LinuxChildProcess::kill", "kill");
+            }
+        }
+    }
+}
+
+impl Drop for LinuxChildProcess {
+    fn drop(&mut self) {
+        if self.has_finished {
+            return;
+        }
+        self.kill();
+        self.wait_for_exit(time::Duration::from_millis(100));
     }
 }
 

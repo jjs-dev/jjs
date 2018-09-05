@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 pub struct FileSubmissionContent {
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 pub enum SubmissionContent {
@@ -9,24 +9,26 @@ pub enum SubmissionContent {
 }
 
 pub struct Submission {
-    content: SubmissionContent,
+    pub content: SubmissionContent,
+    pub toolchain_name: String,
 }
 
 impl Submission {
-    pub fn from_file_path(p: &Path) -> Submission {
+    pub fn from_file_path(p: &Path, tc_name: &str) -> Submission {
         Submission {
             content: SubmissionContent::File(
                 FileSubmissionContent {
                     path: PathBuf::from(p),
                 }
-            )
+            ),
+            toolchain_name: String::from(tc_name),
         }
     }
 
-    pub fn get_file_path(&self) -> Option<&Path> {
+    /*pub fn get_file_path(&self) -> Option<&Path> {
         match self.content {
             SubmissionContent::File(ref fsc) => Some(&(fsc.path)),
-            _ => None
+            //_ => None
         }
-    }
+    }*/
 }

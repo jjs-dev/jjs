@@ -1,10 +1,11 @@
 #[derive(Debug)]
 pub enum StatusKind {
-    Rejected,
-     /// e.g. Coding Style Violation
+    //Rejected,
+    /// e.g. Coding Style Violation
     CompilationError,
-    Partial,
-    Accepted,
+    //Partial,
+    //Accepted,
+    NotSet,
 }
 
 #[derive(Debug)]

@@ -5,10 +5,11 @@ use ::object;
 use ::invoker;
 use config::*;
 use execute as minion;
-use object::{Submission, /*SubmissionContent, FileSubmissionContent,*/};
+use object::{Submission /*SubmissionContent, FileSubmissionContent,*/};
 use invoker::{StatusKind, Status};
 use std::collections;
 use std::time::Duration;
+
 //use std::path::{Path, PathBuf};
 struct BuildResult {
     //submission: Option<Submission>,
@@ -74,8 +75,18 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                         code: "COMPILATION_TIMED_OUT".to_string(),
                     },
                 };
-            }
-            _ => (),
+            },
+            minion::WaitResult::AlreadyFinished => panic!("not expected other to wait"),
+            minion::WaitResult::Exited => {
+                if cp.get_exit_code().unwrap() != 0 {
+                    return BuildResult {
+                        status: Status {
+                            kind: StatusKind::CompilationError,
+                            code: "COMPILER_FAILED".to_string(),
+                        },
+                    }
+                }
+            },
         };
     }
 

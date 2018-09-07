@@ -18,12 +18,12 @@ fn err_exit(func_name: &str, syscall_name: &str) -> ! {
 }
 
 pub fn setup() -> Result<()> {
-    unsafe {
+    //unsafe {
         //let mut act: libc::sigaction = std::mem::zeroed();
         //act.sa_handler = libc::SIG_IGN;
         //act.sa_flags = libc::SA_RESTART;
         //libc::sigaction(libc::SIGCHLD, ((&mut act).as_mut_ptr() as *mut libc::sigaction), ptr::null());
-    }
+    //}
     Ok(())
 }
 
@@ -80,7 +80,6 @@ struct LinuxChildProcess {
     stdout: LinuxReadPipe,
     stderr: LinuxReadPipe,
     pid: Pid,
-    has_finished: bool,
 }
 
 //unsafe impl Copy for Pid {}
@@ -164,9 +163,13 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             }
         }
         //eprintln!("child is exited or killed.");
+        let was_exited = SYNC!(m).exited;
+        if !was_exited {
+            return None
+        }
         return Some(SYNC!(m).exit_code);
     }
-    None
+
 }
 
 impl ChildProcess for LinuxChildProcess {
@@ -198,6 +201,7 @@ impl ChildProcess for LinuxChildProcess {
                     Ok(WaitResult::Timeout)
                 }
                 Some(w) => {
+                    //eprintln!("DEV: marking cp as exited");
                     if libc::WIFEXITED(w) {
                         self.exit_code = Some(i64::from(libc::WEXITSTATUS(w)));
                     } else {
@@ -218,7 +222,7 @@ impl ChildProcess for LinuxChildProcess {
 
     fn kill(&mut self) {
         unsafe {
-            if self.has_finished {
+            if self.is_finished() {
                 return;
             }
             if libc::kill(self.pid, libc::SIGKILL) == -1 {
@@ -230,11 +234,12 @@ impl ChildProcess for LinuxChildProcess {
 
 impl Drop for LinuxChildProcess {
     fn drop(&mut self) {
-        if self.has_finished {
+        if self.is_finished() {
             return;
         }
+        //eprintln!("this cp hasn't exited yet");
         self.kill();
-        self.wait_for_exit(time::Duration::from_millis(100));
+        self.wait_for_exit(time::Duration::from_millis(100)).unwrap();
     }
 }
 
@@ -296,7 +301,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         //ptr::write(argv.offset((num_argv_items - 1) as isize), ptr::null());
         //*(argv.offset(num_argv_items - 1)) = std::ptr::null();
         //println!("{} items in argv buffer", num_argv_items);
-        for i in 0..num_argv_items {
+        for _i in 0..num_argv_items {
             //println!("item #{} : address={}", i, *argv.offset(i as isize) as usize);
         }
         let num_envp_items = arg.environment.len() + 1;
@@ -428,7 +433,6 @@ pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
                 handle: err_r,
             },
             pid: child_pid,
-            has_finished: false,
         }))
     }
 }

@@ -1,0 +1,11 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+rocket = "0.3.16"
+rocket_codegen = "0.3.16"
+capnp = "0.9.0"
+frontend_api = {path = "../frontend_api"}

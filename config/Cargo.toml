@@ -1,0 +1,9 @@
+[package]
+name = "config"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+
+[dependencies]
+serde = "1.0.75"
+serde_derive = "1.0.75"
+toml = "0.4.6"

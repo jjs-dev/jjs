@@ -1,0 +1,6 @@
+[package]
+name = "init_jjs_root"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+
+[dependencies]

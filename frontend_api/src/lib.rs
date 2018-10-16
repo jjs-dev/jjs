@@ -1,41 +1,34 @@
 #[macro_use]
 extern crate serde_derive;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PingRequest {
-    pub data: String,
-}
+pub mod base;
+pub mod util;
+pub mod auth;
+pub mod submission;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PingSuccess {
-    pub data: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PingFail {}
-
-//#[derive(Debug, Serialize, Deserialize)]
-pub type PingResult = Result<PingSuccess, PingFail>;
+pub use self::base::*;
+pub use self::submission::{SubmissionRequest, SubmissionResult};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum RequestBody {
-    Ping(PingRequest),
+    Ping(util::PingRequest),
+    PasswordAuth(auth::PasswordAuthRequest),
+    Submission(SubmissionRequest),
 }
 
+
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Auth {
-    Guest,
+pub enum ResponseBody {
+    Ping(util::PingResult),
+    PasswordAuth(auth::PasswordAuthResult),
+    Submission(SubmissionResult),
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
     pub query: RequestBody,
     pub auth: Auth,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ResponseBody {
-    Ping(PingResult),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,2 +1,2 @@
 [workspace]
-members=["invoker", "execute", "config", "init_jjs_root", "frontend", "invoker_task", "frontend_api"]
+members=["db", "invoker", "execute", "config", "init_jjs_root", "frontend", "invoker_task", "frontend_api", "objects"]

@@ -1,14 +1,17 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use ::object;
-use ::invoker;
+use object;
+use invoker;
 use config::*;
-use execute as minion;
+use execute::{self as minion, ExecutionManager, ChildProcess};
 use object::{Submission /*SubmissionContent, FileSubmissionContent,*/};
 use invoker::{StatusKind, Status};
-use std::collections;
-use std::time::Duration;
+use std::{
+    collections,
+    time::Duration,
+    //sync::{Arc, Mutex},
+};
 
 //use std::path::{Path, PathBuf};
 struct BuildResult {
@@ -17,10 +20,17 @@ struct BuildResult {
 }
 
 fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
+    let mut em = minion::setup();
+    let dmn = em.new_dominion(minion::DominionOptions {
+        allow_network: false,
+        allow_file_io: false,
+        max_alive_process_count: 16,
+    });
     minion::ChildProcessOptions {
         path: String::new(),
         arguments: vec![],
         environment: collections::HashMap::new(),
+        dominion: dmn,
     }
 }
 
@@ -60,9 +70,10 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         let mut nargs = cmd.argv.clone();
         opts.path = nargs[0].clone();
         opts.arguments = nargs.split_off(1);
-        opts.environment = cmd.env.clone();
 
-        let mut cp = minion::spawn(opts).unwrap();
+        let mut em = minion::setup();
+
+        let mut cp = em.spawn(opts);
         let wres = cp.wait_for_exit(Duration::from_secs(3)).unwrap();
 
         match wres {
@@ -75,7 +86,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                         code: "COMPILATION_TIMED_OUT".to_string(),
                     },
                 };
-            },
+            }
             minion::WaitResult::AlreadyFinished => panic!("not expected other to wait"),
             minion::WaitResult::Exited => {
                 if cp.get_exit_code().unwrap() != 0 {
@@ -84,9 +95,9 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                             kind: StatusKind::CompilationError,
                             code: "COMPILER_FAILED".to_string(),
                         },
-                    }
+                    };
                 }
-            },
+            }
         };
     }
 

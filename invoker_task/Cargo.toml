@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 
 [dependencies]
-serde = "1.0.75"
-serde_derive = "1.0.75"
+serde = "1.0.80"
+serde_derive = "1.0.80"

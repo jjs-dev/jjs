@@ -1,52 +1,59 @@
-extern crate libc;
-extern crate std;
-extern crate errno;
-extern crate core;
+mod dominion;
+//mod cgroup;
 
-use self::libc::{c_int, c_char, c_void};
-use ::definitions::*;
+pub use crate::linux::dominion::LinuxDominion;
+use libc::{c_int, c_char, c_void};
+//use ::definitions::*;
 use std::ffi::CString;
-use std::{io, sync::{Mutex, Arc, Condvar}, thread, ptr};
+use std::{io, sync::{Mutex, Arc, Condvar}, thread, ptr, mem};
 use std::time;
+use crate::*;
+
+const LINUX_DOMINION_SANITY_CHECK_ID: usize = 0xDEADF00DDEADBEEF;
 
 type H = c_int;
 type Pid = libc::pid_t;
 
 fn err_exit(func_name: &str, syscall_name: &str) -> ! {
     let e = errno::errno();
-    panic!("{}: {}() failed with error {}: {}", func_name, syscall_name, e.0, e);
+    panic!("{}: {}(2) failed with error {}: {}", func_name, syscall_name, e.0, e);
 }
 
-pub fn setup() -> Result<()> {
-    //unsafe {
-        //let mut act: libc::sigaction = std::mem::zeroed();
-        //act.sa_handler = libc::SIG_IGN;
-        //act.sa_flags = libc::SA_RESTART;
-        //libc::sigaction(libc::SIGCHLD, ((&mut act).as_mut_ptr() as *mut libc::sigaction), ptr::null());
-    //}
-    Ok(())
-}
 
-struct LinuxReadPipe {
+pub struct LinuxReadPipe {
     handle: H,
 }
 
 impl std::io::Read for LinuxReadPipe {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         unsafe {
-            //println!("reading up to {} bytes from {}", buf.len(), self.handle);
             let ret = libc::read(self.handle, buf.as_mut_ptr() as *mut c_void, buf.len());
             if ret == -1 {
                 err_exit("LinuxReadPipe::read", "read");
             }
-            //println!("got {} bytes", ret);
             Ok(ret as usize)
         }
     }
 }
 
-struct LinuxWritePipe {
+impl LinuxReadPipe {
+    fn new(handle: H) -> LinuxReadPipe {
+        LinuxReadPipe {
+            handle
+        }
+    }
+}
+
+pub struct LinuxWritePipe {
     handle: H,
+}
+
+impl LinuxWritePipe {
+    fn new(handle: H) -> LinuxWritePipe {
+        LinuxWritePipe {
+            handle
+        }
+    }
 }
 
 impl io::Write for LinuxWritePipe {
@@ -55,7 +62,6 @@ impl io::Write for LinuxWritePipe {
             let ret = libc::write(self.handle, buf.as_ptr() as *const c_void, buf.len());
             if ret == -1 {
                 err_exit("LinuxWritePipe::write()", "write");
-                //return Err(std::io::Error::last_os_error());
             }
             Ok(ret as usize)
         }
@@ -66,23 +72,22 @@ impl io::Write for LinuxWritePipe {
             let ret = libc::fsync(self.handle);
             if ret == -1 {
                 err_exit("LinuxWritePipe::flush", "fsync");
-                //return Err(io::Error::last_os_error());
             }
             Ok(())
         }
     }
 }
 
-struct LinuxChildProcess {
-    //handle: libc::c_int,
+pub struct LinuxChildProcess {
     exit_code: Option<i64>,
-    stdin: LinuxWritePipe,
-    stdout: LinuxReadPipe,
-    stderr: LinuxReadPipe,
+
+    stdin: H,
+    stdout: H,
+    stderr: H,
+    stdio_wasted: bool,
+
     pid: Pid,
 }
-
-//unsafe impl Copy for Pid {}
 
 macro_rules! SYNC {
 ($mutex_name:ident) => {
@@ -106,9 +111,6 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
         exit_code: i32,
     }
     unsafe {
-        //let timeout_millis = (timeout.as_secs() as i32).checked_mul(1000i32).unwrap()
-        //  .checked_add((timeout.subsec_nanos() as i32).checked_div(1000i32).unwrap())
-        //.unwrap();
         let m = Arc::new(Mutex::new(Inter {
             pid,
             exited: false,
@@ -126,16 +128,11 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             if wcode == -1 {
                 err_exit("timed_wait", "waitpid");
             }
-            //eprintln!("waiter: child process returned!!");
             {
-                //let mut datag = m.lock().unwrap();
                 SYNC!(m).exit_code = 228;
                 SYNC!(m).exited = true;
-                //eprintln!("set first mutex");
                 *SYNC!(lock) = true;
-                //eprintln!("set muticies");
                 cv.notify_all();
-                //eprintln!("notified condvar");
             }
         });
         let mtimeouter = m.clone();
@@ -162,31 +159,35 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
                 grd = cv.wait(grd).unwrap();
             }
         }
-        //eprintln!("child is exited or killed.");
         let was_exited = SYNC!(m).exited;
         if !was_exited {
-            return None
+            return None;
         }
         return Some(SYNC!(m).exit_code);
     }
-
 }
 
 impl ChildProcess for LinuxChildProcess {
+    type In = LinuxReadPipe;
+
+    type Out = LinuxWritePipe;
+
     fn get_exit_code(&self) -> Option<i64> {
         self.exit_code
     }
 
-    fn get_stdin(&mut self) -> &mut io::Write {
-        &mut self.stdin
-    }
-
-    fn get_stdout(&mut self) -> &mut io::Read {
-        &mut self.stdout
-    }
-
-    fn get_stderr(&mut self) -> &mut io::Read {
-        &mut self.stderr
+    fn get_stdio(&mut self) -> Option<ChildProcessStdio<LinuxReadPipe, LinuxWritePipe>> {
+        match self.stdio_wasted {
+            true => None,
+            false => {
+                self.stdio_wasted = true;
+                Some(ChildProcessStdio {
+                    stdin: LinuxWritePipe::new(self.stdin),
+                    stdout: LinuxReadPipe::new(self.stdout),
+                    stderr: LinuxReadPipe::new(self.stderr),
+                })
+            }
+        }
     }
 
     fn wait_for_exit(&mut self, timeout: std::time::Duration) -> Result<WaitResult> {
@@ -195,7 +196,6 @@ impl ChildProcess for LinuxChildProcess {
                 return Ok(WaitResult::AlreadyFinished);
             }
             let wait_result = timed_wait(self.pid, timeout);
-            //println!("timed_wait() returned {:?}", wait_result);
             match wait_result {
                 None => {
                     Ok(WaitResult::Timeout)
@@ -253,6 +253,8 @@ struct DoExecArg {
     stdin: H,
     stdout: H,
     stderr: H,
+    //mutex: *mut libc::pthread_mutex_t,
+    ready_fd: H,
     //out
 }
 
@@ -274,17 +276,20 @@ macro_rules! ptr_subscript_set {
 fn allocate_memory(num: usize) -> *mut c_char {
     unsafe {
         let p = libc::malloc(num) as *mut c_char;
-        ptr::write_bytes(p, 0xCD, num);
+        ptr::write_bytes(p, 0xDC, num);
         return p;
     }
 }
 
+fn allocate_heap_variable<T>() -> *mut T {
+    allocate_memory(mem::size_of::<T>()) as *mut T
+}
+
+#[allow(unreachable_code)]
 extern "C" fn do_exec(arg: *mut c_void) -> i32 {
     use std::iter::FromIterator;
     unsafe {
         let arg = &*(arg as *mut DoExecArg);
-        //let zpath = CString::new(arg.path.clone()).expect("path to executable contains zero byte");
-        //let path = libc::strdup(zpath.as_ptr());
         let path = duplicate_string(&arg.path);
 
         let mut argv_with_path = vec![arg.path.clone()];
@@ -292,29 +297,23 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
 
 
         let num_argv_items = argv_with_path.len() + 1;
-        let argv = allocate_memory(num_argv_items * POINTER_SIZE) as *mut *const c_char;
-        //let argv = libc::malloc(num_argv_items * POINTER_SIZE) as *mut *const c_char;
+        let argv = allocate_memory(num_argv_items * POINTER_SIZE)
+            as *mut *const c_char;
         for (i, argument) in argv_with_path.iter().enumerate() {
             *(argv.offset(i as isize) as *mut *const c_char) = duplicate_string(argument);
         }
         ptr_subscript_set!(argv, num_argv_items-1, ptr::null());
-        //ptr::write(argv.offset((num_argv_items - 1) as isize), ptr::null());
-        //*(argv.offset(num_argv_items - 1)) = std::ptr::null();
-        //println!("{} items in argv buffer", num_argv_items);
-        for _i in 0..num_argv_items {
-            //println!("item #{} : address={}", i, *argv.offset(i as isize) as usize);
-        }
         let num_envp_items = arg.environment.len() + 1;
-        let envp = libc::malloc(num_envp_items * POINTER_SIZE) as *mut *const c_char;
+        let envp = allocate_memory(num_envp_items * POINTER_SIZE)
+            as *mut *const c_char;
         for (i, (name, value)) in arg.environment.iter().enumerate() {
-            let mut envp_item = format!("{}={}", name, value);
-            *(envp.offset(i as isize) as *mut *const c_char) = duplicate_string(&envp_item);
+            let envp_item = format!("{}={}", name, value);
+            *(envp.offset(i as isize) as *mut *const c_char) =
+                duplicate_string(&envp_item);
         }
         ptr_subscript_set!(envp, num_envp_items-1, ptr::null());
-        //ptr::write(pt)
 
-        //now we need mark all FDs as CLOEXEC for not to expose them to judgee
-        //println!("My pid is {}", std::process::id());
+        //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
 
         let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
         let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
@@ -332,6 +331,15 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
                 panic!("couldn't cloexec fd: {}", fd);
             }
         }
+
+        //now we pause ourselves until parent process places us into appropriate groups
+        eprintln!("[child] waiting on sem");
+        let mut buf = Vec::with_capacity(READY_MSG.len());
+        libc::read(arg.ready_fd, buf.as_mut_ptr() as *mut _, READY_MSG.len());
+        eprintln!("[child] execution permitted");
+
+        //cleanup (empty)
+
         //dup2 as late as possible for all panics to write to normal stdio instead of pipes
 
         libc::dup2(arg.stdin, libc::STDIN_FILENO);
@@ -345,6 +353,8 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         let ret = libc::execve(path, argv as *const *const c_char, envp as *const *const c_char);
         if ret == -1 {
             err_exit("do_exec", "execve");
+        } else {
+            unreachable!("execve succeded, but execution of old image continued")
         }
     }
     0
@@ -352,14 +362,14 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
 
 fn setup_pipe(read_end: &mut H, write_end: &mut H) -> Result<()> {
     unsafe {
-        let mut sl = [0 as H; 2];
-        let ret = libc::pipe(sl.as_mut_ptr());
+        let mut ends = [0 as H; 2];
+        let ret = libc::pipe(ends.as_mut_ptr());
         if ret == -1 {
             err_exit("setup_pipe", "pipe");
             //return Err(io::Error::last_os_error());
         }
-        *read_end = sl[0];
-        *write_end = sl[1];
+        *read_end = ends[0];
+        *write_end = ends[1];
         Ok(())
     }
 }
@@ -368,17 +378,13 @@ const CHILD_STACK_SIZE: usize = 1024 * 1024;
 
 struct ThreadSafePointer(*mut libc::c_void);
 
-impl ThreadSafePointer {
-    //fn from<T>(rf: &mut T) -> ThreadSafePointer {
-    //    ThreadSafePointer(rf as *mut c_void)
-    //}
-}
-
 unsafe impl Sync for ThreadSafePointer {}
 
 unsafe impl Send for ThreadSafePointer {}
 
-pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
+const READY_MSG: &str = "gl_hf";
+
+fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
     unsafe {
         let mut in_r = 0;
         let mut in_w = 0;
@@ -390,6 +396,18 @@ pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
         setup_pipe(&mut in_r, &mut in_w).unwrap();
         setup_pipe(&mut out_r, &mut out_w).unwrap();
         setup_pipe(&mut err_r, &mut err_w).unwrap();
+
+        let mutex: *mut libc::pthread_mutex_t = allocate_heap_variable();
+
+        if libc::pthread_mutex_init(mutex, 0 as _) != 0 {
+            panic!("pthread error during init\n");
+        }
+
+        let mut ready_r = 0;
+        let mut ready_w = 0;
+        setup_pipe(&mut ready_r, &mut ready_w).unwrap();
+
+        //will be passed to child process
         let mut dea = DoExecArg {
             path: options.path,
             arguments: options.arguments,
@@ -397,17 +415,19 @@ pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
             stdin: in_r,
             stdout: out_w,
             stderr: err_w,
+            ready_fd: ready_r,
         };
+
         let child_stack = libc::malloc(CHILD_STACK_SIZE);
         let child_stack_top = ThreadSafePointer(((child_stack as usize) + CHILD_STACK_SIZE) as
             *mut c_void);
         let dea_ptr = &mut dea as *mut DoExecArg;
-        //we need to wrap do_exec process into a thread
+
+        //we need to wrap do_exec call into a thread
         let mut child_pid: c_int = 0;
         let child_pid_box = ThreadSafePointer(&mut child_pid as *mut c_int as *mut c_void);
         let dea_box = ThreadSafePointer(dea_ptr as *mut c_void);
         let thr = thread::spawn(move || {
-            //use std::borrow::BorrowMut;=
             let ptr = child_pid_box.0;
             let ptr = ptr as *mut c_int;
             *(ptr.as_mut().unwrap()) =
@@ -420,19 +440,46 @@ pub fn spawn(options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>> {
         libc::close(out_w);
         libc::close(err_w);
 
-        Ok(Box::new(LinuxChildProcess {
-            //handle: 0,
+        //finally we can set up security
+        let dmn = (options.dominion.d as *mut LinuxDominion).as_mut().unwrap();
+        //is's unsafe so in case of some error we check it's really LinuxDominion
+        //though whole situation is UB, this check doesn't seem to be deleted by compiler
+        if dmn.sanity_check() != LINUX_DOMINION_SANITY_CHECK_ID {
+            panic!("FATAL ERROR: options.dominion doesn't point on valid LinuxDominion object");
+        }
+        dmn.add_process(child_pid);
+
+        //now we can allow child to execve()
+        libc::write(ready_w, READY_MSG.as_ptr() as *const _, READY_MSG.len());
+
+        LinuxChildProcess {
             exit_code: None,
-            stdin: LinuxWritePipe {
-                handle: in_w,
-            },
-            stdout: LinuxReadPipe {
-                handle: out_r,
-            },
-            stderr: LinuxReadPipe {
-                handle: err_r,
-            },
+            stdin: in_w,
+            stdout: out_r,
+            stderr: err_r,
+            stdio_wasted: false,
             pid: child_pid,
-        }))
+        }
     }
+}
+
+pub struct LinuxEM {}
+
+
+impl ExecutionManager for LinuxEM {
+    type ChildProcess = LinuxChildProcess;
+    fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
+        let d = linux::dominion::LinuxDominion::create(options);
+        DominionRef {
+            d,
+        }
+    }
+
+    fn spawn(&mut self, options: ChildProcessOptions) -> LinuxChildProcess {
+        spawn(options)
+    }
+}
+
+pub fn setup_execution_manager() -> LinuxEM {
+    LinuxEM {}
 }

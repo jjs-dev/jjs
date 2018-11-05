@@ -12,14 +12,13 @@ use rocket::Data;
 use std::{io, time::Duration};
 
 #[derive(Fail, Debug)]
-enum TransportError {
+pub enum TransportError {
     #[fail(display = "Error occured while parsing: {:?}", _0)]
     Parse(#[cause] serde_json::Error),
     #[fail(display = "Couldn't decode request body: {:?}", _0)]
     Decode(#[cause] std::string::FromUtf8Error),
     #[fail(display = "IO error: {:?}", _0)]
     Io(#[cause] io::Error),
-
 }
 
 impl From<serde_json::Error> for TransportError {
@@ -52,7 +51,7 @@ impl<'a> rocket::response::Responder<'a> for TransportError {
 type ApiResult<Res> = Result<Res, TransportError>;
 
 
-pub(crate) struct ApiFunContext<'a> {
+pub struct ApiFunContext<'a> {
     db: &'a mut db::Db,
 }
 
@@ -63,7 +62,8 @@ fn api_fun_ping(q: &frontend_api::util::PingRequest) -> ApiResult<frontend_api::
     }))
 }
 
-fn api_fun_passwd_auth(q: &frontend_api::auth::PasswordAuthRequest) -> ApiResult<frontend_api::auth::PasswordAuthResult> {
+fn api_fun_passwd_auth(q: &frontend_api::auth::PasswordAuthRequest)
+                       -> ApiResult<frontend_api::auth::PasswordAuthResult> {
     //TODO check password
     let token = security::Token::create_for_user(q.login.clone(), Duration::from_secs(3600));
     let succ = frontend_api::auth::PasswordAuthSuccess {
@@ -72,8 +72,12 @@ fn api_fun_passwd_auth(q: &frontend_api::auth::PasswordAuthRequest) -> ApiResult
     Ok(Ok(succ))
 }
 
-fn api_fun_s8n<'a>(q: &frontend_api::SubmissionResult, ctx: ApiFunContext<'a>) -> ApiResult<&frontend_api::SubmissionResult> {
-    unimplemented!()
+fn api_fun_s8n<'a>(q: &frontend_api::SubmissionRequest, ctx: ApiFunContext<'a>) -> ApiResult<frontend_api::SubmissionResult> {
+    Ok(match q {
+        frontend_api::SubmissionRequest::Declare(ref q) =>
+            frontend_api::SubmissionResult::Declare(submission::api_fun_s8n_declare(q, ctx)?),
+        _ => unimplemented!()
+    })
 }
 
 #[post("/api", data = "<raw_query>")]

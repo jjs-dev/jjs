@@ -22,7 +22,7 @@ pub enum DeclareFail {
     Other,
 }
 
-type DeclareResult = Result<DeclareSuccess, DeclareFail>;
+pub type DeclareResult = Result<DeclareSuccess, DeclareFail>;
 
 
 
@@ -42,7 +42,7 @@ pub enum PutChunkFail {
     Timeout,
 }
 
-type PutChunkResult = Result<PutChunkSuccess, PutChunkFail>;
+pub type PutChunkResult = Result<PutChunkSuccess, PutChunkFail>;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ pub enum FinishFail {
     IncorrectDigest,
 }
 
-type FinishResult = Result<FinishSuccess, FinishFail>;
+pub type FinishResult = Result<FinishSuccess, FinishFail>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SubmissionRequest {
@@ -78,5 +78,3 @@ pub enum SubmissionResult {
     PutChunk(PutChunkResult),
     Finish(FinishResult),
 }
-
-

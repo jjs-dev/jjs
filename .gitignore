@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+Cargo.lock
+/docker-build-cache
+/venv
+/.idea

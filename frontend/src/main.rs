@@ -9,6 +9,7 @@ mod security;
 mod submission;
 
 use rocket::Data;
+use rocket_contrib::json::Json;
 use std::{io, time::Duration};
 
 #[derive(Fail, Debug)]
@@ -72,15 +73,24 @@ fn api_fun_passwd_auth(q: &frontend_api::auth::PasswordAuthRequest)
     Ok(Ok(succ))
 }
 
-fn api_fun_s8n<'a>(q: &frontend_api::SubmissionRequest, ctx: ApiFunContext<'a>) -> ApiResult<frontend_api::SubmissionResult> {
+/*fn api_fun_s8n<'a>(q: &frontend_api::SubmissionRequest, ctx: ApiFunContext<'a>) -> ApiResult<frontend_api::SubmissionResult> {
     Ok(match q {
         frontend_api::SubmissionRequest::Declare(ref q) =>
             frontend_api::SubmissionResult::Declare(submission::api_fun_s8n_declare(q, ctx)?),
         _ => unimplemented!()
     })
+}*/
+
+#[post("/api/auth/login", data = "<q>")]
+fn route_api_auth_login(q: Json<frontend_api::auth::PasswordAuthRequest>) -> ApiResult<frontend_api::auth::PasswordAuthResult> {
+    let token = security::Token::create_for_user(q.login.clone(), Duration::from_secs(3600));
+    let succ = frontend_api::auth::PasswordAuthSuccess {
+        new_token: token.key,
+    };
+    Ok(Ok(succ))
 }
 
-#[post("/api", data = "<raw_query>")]
+/*#[post("/api", data = "<raw_query>")]
 fn route_api(raw_query: Data) -> ApiResult<String> {
     let mut stream = raw_query.open();
 
@@ -106,11 +116,10 @@ fn route_api(raw_query: Data) -> ApiResult<String> {
 
     let response = serde_json::to_string(&response)?;
 
-
     Ok(response)
-}
+}*/
 
 
 fn main() {
-    rocket::ignite().mount("/", routes![route_api]).launch();
+    rocket::ignite().mount("/", routes![route_api_auth_login]).launch();
 }

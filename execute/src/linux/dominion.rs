@@ -38,18 +38,29 @@ impl LinuxDominion {
         self.sanity_tag
     }
 
-    fn get_path_for_subsystem(&self, subsys_name: &str) -> String {
-        format!("/sys/fs/cgroup/{}/jjs/g-{}", subsys_name, &self.cgroup_id)
+    fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {
+        format!("/sys/fs/cgroup/{}/jjs/g-{}", subsys_name, cgroup_id)
     }
 
     pub fn create(options: DominionOptions) -> *mut LinuxDominion {
         let cgroup_id = gen_id();
-        let cgroup_path = format!("/sys/fs/cgroup/pids/jjs/g-{}", &cgroup_id);
-        fs::create_dir_all(&cgroup_path).unwrap();
 
         //configure pids subsystem
-        fs::write(format!("{}/pids.max", &cgroup_path),
+        let pids_cgroup_path = format!("/sys/fs/cgroup/pids/jjs/g-{}", &cgroup_id);
+        fs::create_dir_all(&pids_cgroup_path).unwrap();
+
+        fs::write(format!("{}/pids.max", &pids_cgroup_path),
                   format!("{}", options.max_alive_process_count)).unwrap();
+
+        //configure memory subsystem
+        let mem_cgroup_path = LinuxDominion::get_path_for_subsystem("memory", &cgroup_id);
+
+        fs::create_dir_all(&mem_cgroup_path).unwrap();
+        fs::write(format!("{}/memory.swappiness", &mem_cgroup_path), "0").unwrap();
+
+        fs::write(format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
+            format!("{}", options.memory_limit)).unwrap();
+
 
         let dmem = allocate_heap_variable::<LinuxDominion>();
         unsafe {
@@ -59,18 +70,24 @@ impl LinuxDominion {
             let cgroup_ptr = offset_of!(LinuxDominion => cgroup_id).apply_ptr(dmem);
             let cgroup_ptr = cgroup_ptr as *mut String;
             std::ptr::write(cgroup_ptr, cgroup_id);
-
-            //d.cgroup_id = cgroup_id;
         }
         dmem
     }
 
-    pub fn add_process(&mut self, pid: Pid) {
-        let tasks_file_path = format!("{}/tasks", self.get_path_for_subsystem("pids"));
+    fn add_to_subsys(&mut self, pid: Pid, subsys: &str) {
+        let cgroup_path = LinuxDominion::get_path_for_subsystem(subsys,
+                                                                &self.cgroup_id);
+        let tasks_file_path = format!("{}/tasks", cgroup_path);
         let mut f = OpenOptions::new()
             .append(true)
             .open(tasks_file_path)
             .unwrap();
         write!(f, "{}\n", pid);
+    }
+
+    pub fn add_process(&mut self, pid: Pid) {
+        for subsys in vec!["pids", "memory"] {
+            self.add_to_subsys(pid, subsys);
+        }
     }
 }

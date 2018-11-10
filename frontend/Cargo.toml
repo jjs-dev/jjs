@@ -16,3 +16,6 @@ rand = "0.5.5"
 uuid = { version = "0.7.1", features = ["v4"] }
 db = {path = "../db"}
 postgres = "0.15.2"
+[dependencies.rocket_contrib]
+version = "0.3.17"
+features = ["json"]

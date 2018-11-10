@@ -24,8 +24,6 @@ pub enum DeclareFail {
 
 pub type DeclareResult = Result<DeclareSuccess, DeclareFail>;
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PutChunkRequest {
     pub upload_token: u64,
@@ -43,7 +41,6 @@ pub enum PutChunkFail {
 }
 
 pub type PutChunkResult = Result<PutChunkSuccess, PutChunkFail>;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinishRequest {
@@ -64,6 +61,24 @@ pub enum FinishFail {
 }
 
 pub type FinishResult = Result<FinishSuccess, FinishFail>;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadRequest {
+    ///base64
+    pub data: String,
+    pub toolchain: String,
+}
+
+/*
+#[derive(Debug, Serialize, Deserialize)]
+pub enum UploadFail {
+    ContestOver,
+    Denied,
+    UnknownToolchain,
+    SizeLimitExceeded,
+    Other,
+}*/
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SubmissionRequest {

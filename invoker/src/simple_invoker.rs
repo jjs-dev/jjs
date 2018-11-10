@@ -25,6 +25,7 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
         allow_network: false,
         allow_file_io: false,
         max_alive_process_count: 16,
+        memory_limit: 0,
     });
     minion::ChildProcessOptions {
         path: String::new(),

@@ -21,6 +21,7 @@ pub struct DominionOptions {
     pub allow_network: bool,
     pub allow_file_io: bool,
     pub max_alive_process_count: usize,
+    pub memory_limit: usize,
 }
 
 ///RAII object which represents highly-isolated sandbox

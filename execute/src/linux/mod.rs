@@ -276,6 +276,9 @@ macro_rules! ptr_subscript_set {
 fn allocate_memory(num: usize) -> *mut c_char {
     unsafe {
         let p = libc::malloc(num) as *mut c_char;
+        if p as usize == 0 {
+            panic!("OutOfMemory: malloc returned null");
+        }
         ptr::write_bytes(p, 0xDC, num);
         return p;
     }
@@ -295,7 +298,8 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         let mut argv_with_path = vec![arg.path.clone()];
         argv_with_path.append(&mut (arg.arguments.clone()));
 
-
+        //TODO consider refactoring
+        //duplicate argv
         let num_argv_items = argv_with_path.len() + 1;
         let argv = allocate_memory(num_argv_items * POINTER_SIZE)
             as *mut *const c_char;
@@ -303,6 +307,8 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             *(argv.offset(i as isize) as *mut *const c_char) = duplicate_string(argument);
         }
         ptr_subscript_set!(argv, num_argv_items-1, ptr::null());
+
+        //duplicate envp
         let num_envp_items = arg.environment.len() + 1;
         let envp = allocate_memory(num_envp_items * POINTER_SIZE)
             as *mut *const c_char;
@@ -314,7 +320,6 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         ptr_subscript_set!(envp, num_envp_items-1, ptr::null());
 
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
-
         let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
         let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
 
@@ -332,16 +337,39 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             }
         }
 
+        //some security
+
+        {
+            let mut cwd_buf_size = 16;
+            let mut cwd_buffer;
+            loop {
+                cwd_buffer = allocate_memory(cwd_buf_size);
+                let ret = libc::getcwd(cwd_buffer, cwd_buf_size);
+                if ret as usize == 0 {
+                    let err = errno::errno().0;
+                    if err == libc::ERANGE {
+                        cwd_buf_size *= 2;
+                        libc::free(cwd_buffer as *mut _);
+                    } else {
+                        err_exit("do_exec", "getcwd");
+                    }
+                } else {
+                    break;
+                }
+            }
+            libc::chroot(cwd_buffer);
+        }
+
+        if libc::setuid(1001) != 0 { //TODO: hardcoded uid
+            err_exit("do_exec", "setuid");
+        }
         //now we pause ourselves until parent process places us into appropriate groups
-        eprintln!("[child] waiting on sem");
         let mut buf = Vec::with_capacity(READY_MSG.len());
         libc::read(arg.ready_fd, buf.as_mut_ptr() as *mut _, READY_MSG.len());
-        eprintln!("[child] execution permitted");
 
         //cleanup (empty)
 
         //dup2 as late as possible for all panics to write to normal stdio instead of pipes
-
         libc::dup2(arg.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stderr, libc::STDERR_FILENO);
@@ -399,7 +427,7 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
 
         let mutex: *mut libc::pthread_mutex_t = allocate_heap_variable();
 
-        if libc::pthread_mutex_init(mutex, 0 as _) != 0 {
+        if libc::pthread_mutex_init(mutex, ptr::null()) != 0 {
             panic!("pthread error during init\n");
         }
 
@@ -431,7 +459,8 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
             let ptr = child_pid_box.0;
             let ptr = ptr as *mut c_int;
             *(ptr.as_mut().unwrap()) =
-                libc::clone(do_exec, child_stack_top.0, 0, dea_box.0);
+                libc::clone(do_exec, child_stack_top.0, libc::CLONE_NEWNS,
+                            dea_box.0);
         });
         thr.join().expect("Couldn't join a thread");
 

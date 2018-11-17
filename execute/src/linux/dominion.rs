@@ -82,7 +82,7 @@ impl LinuxDominion {
             .append(true)
             .open(tasks_file_path)
             .unwrap();
-        write!(f, "{}\n", pid);
+        write!(f, "{}\n", pid).unwrap();
     }
 
     pub fn add_process(&mut self, pid: Pid) {

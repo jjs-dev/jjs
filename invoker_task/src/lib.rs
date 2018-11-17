@@ -3,8 +3,6 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExitRequest {
 
@@ -22,8 +20,7 @@ pub  struct NoopRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InvokeRequest {
-    pub submission_name: String,
-    pub toolchain_name: String,
+    pub submission_id: usize,
     //pub mask: Mask,
 }
 

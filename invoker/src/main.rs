@@ -24,21 +24,23 @@ use std::path::{PathBuf};
 const AMQP_URL: &str = "amqp://localhost//";
 const QUEUE_NAME: &str = "jjs_invoker";
 
-fn handle_judge_task(task: InvokeRequest, cfg: &config::Config) {
-    let file_path = PathBuf::from(format!("{}/var/jjs/submits/{}", cfg.sysroot.to_string_lossy(), task.submission_name));
+fn handle_judge_task(task: InvokeRequest, cfg: &config::Config, db: &db::Db) {
+    let file_path = PathBuf::from(format!("{}/var/jjs/submits/{}", cfg.sysroot.to_string_lossy(), task.submission_id));
     if !file_path.exists() {
         println!("file not exists");
         return;
     }
 
-    let submission = object::Submission::from_file_path(&file_path, &task.toolchain_name);
+    let toolchain_name = db.submissions.find_by_id(task.submission_id).toolchain;
+
+    let submission = object::Submission::from_file_path(&file_path, &toolchain_name);
 
     let status = simple_invoker::judge(submission, cfg);
 
     println!("Judging result: {:#?}", status);
 }
 
-fn handle_task(task: Request, cfg: &config::Config) {
+fn handle_task(task: Request, cfg: &config::Config, db: &db::Db) {
     match task {
         Request::Print(req) => {
             println!("print: {}", req.data);
@@ -48,8 +50,8 @@ fn handle_task(task: Request, cfg: &config::Config) {
             std::process::exit(0);
         }
         Request::Invoke(req) => {
-            println!("judging {}", &req.submission_name);
-            handle_judge_task(req, cfg);
+            println!("judging {}", &req.submission_id);
+            handle_judge_task(req, cfg, db);
         }
         Request::Noop(_req) => {}
     }
@@ -57,6 +59,7 @@ fn handle_task(task: Request, cfg: &config::Config) {
 
 fn main() {
     let config = config::get_config();
+    let db_conn = db_conn::connect_pg();
     println!("{:#?}", config);
     let mut session = Session::open_url(AMQP_URL).unwrap();
     let mut channel = session.open_channel(1).unwrap();
@@ -71,7 +74,7 @@ fn main() {
             let body = String::from_utf8(get_result.body.clone()).unwrap();
             println!("got query: {}", body);
             let request: invoker_task::Request = serde_json::from_str(&body).unwrap();
-            handle_task(request, &config);
+            handle_task(request, &config, &db_conn);
         }
     }
 }

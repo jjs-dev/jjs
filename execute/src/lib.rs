@@ -1,4 +1,4 @@
-mod linux;
+#[cfg(target_os = "linux")] mod linux;
 
 
 use std::{

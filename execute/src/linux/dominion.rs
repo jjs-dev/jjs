@@ -7,7 +7,7 @@ use std::{
     io::Write,
     //mem::size_of,
 };
-
+use rand::seq::SliceRandom;
 use field_offset::offset_of;
 
 #[derive(Debug)]
@@ -23,11 +23,10 @@ const ID_CHARS: &[u8] = b"qwertyuiopasdfghjklzxcvbnm1234567890";
 const ID_SIZE: usize = 8;
 
 fn gen_id() -> String {
-    use rand::Rng;
     let mut gen = rand::thread_rng();
     let mut out = Vec::new();
     for _i in 0..ID_SIZE {
-        let ch = gen.choose(ID_CHARS).cloned().unwrap();
+        let ch = ID_CHARS.choose(&mut gen).unwrap().clone();
         out.push(ch);
     }
     String::from_utf8_lossy(&out[..]).to_string()

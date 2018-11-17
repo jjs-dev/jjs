@@ -1,31 +1,20 @@
-//#![feature(plugin)]
-//#![plugin(rocket_codegen)]
-
-extern crate execute;
-extern crate config;
-extern crate invoker_task;
-//extern crate rocket;
-extern crate futures;
-extern crate serde;
-//#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate amqp;
-
 mod invoker;
 mod object;
 mod simple_invoker;
 
 use amqp::{Basic, Session, Table};
 use invoker_task::*;
-//use std::fs;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 const AMQP_URL: &str = "amqp://localhost//";
 const QUEUE_NAME: &str = "jjs_invoker";
 
 fn handle_judge_task(task: InvokeRequest, cfg: &config::Config, db: &db::Db) {
-    let file_path = PathBuf::from(format!("{}/var/jjs/submits/{}", cfg.sysroot.to_string_lossy(), task.submission_id));
+    let file_path = PathBuf::from(format!(
+        "{}/var/jjs/submits/{}",
+        cfg.sysroot.to_string_lossy(),
+        task.submission_id
+    ));
     if !file_path.exists() {
         println!("file not exists");
         return;
@@ -63,10 +52,8 @@ fn main() {
     println!("{:#?}", config);
     let mut session = Session::open_url(AMQP_URL).unwrap();
     let mut channel = session.open_channel(1).unwrap();
-    let queue_declare = channel.queue_declare(QUEUE_NAME,
-                                              false, true, false,
-                                              false, false,
-                                              Table::new());
+    let queue_declare =
+        channel.queue_declare(QUEUE_NAME, false, true, false, false, false, Table::new());
     queue_declare.unwrap();
     loop {
         std::thread::sleep(std::time::Duration::from_millis(200));

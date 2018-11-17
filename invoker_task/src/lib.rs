@@ -4,9 +4,7 @@ extern crate serde;
 extern crate serde_derive;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ExitRequest {
-
-}
+pub struct ExitRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrintRequest {
@@ -14,9 +12,7 @@ pub struct PrintRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub  struct NoopRequest {
-
-}
+pub struct NoopRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InvokeRequest {

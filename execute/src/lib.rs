@@ -1,15 +1,15 @@
-#[cfg(target_os = "linux")] mod linux;
+#[cfg(target_os = "linux")]
+mod linux;
 
-
+use cfg_if::cfg_if;
 use std::{
-    io::{Read, Write},
-    //sync::{Mutex, Arc},
-    time::Duration,
     collections::HashMap,
     fmt::Debug,
-    mem::{self},
+    io::{Read, Write},
+    mem,
+    //sync::{Mutex, Arc},
+    time::Duration,
 };
-use cfg_if::cfg_if;
 
 pub trait ExecutionManager {
     type ChildProcess: ChildProcess;
@@ -54,7 +54,6 @@ impl Drop for DominionRef {
 
 //pub type Dominion = linux::LinuxDominion;
 
-
 #[derive(Debug)]
 pub struct ChildProcessOptions {
     pub path: String,
@@ -65,7 +64,6 @@ pub struct ChildProcessOptions {
 
 #[derive(Debug)]
 pub enum Error {}
-
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -92,7 +90,6 @@ pub trait ChildProcess: Drop {
     type In: Read;
 
     type Out: Write;
-
 
     ///returns exit code, it process had exited by the moment of call, or None otherwise.
     fn get_exit_code(&self) -> Option<i64>;

@@ -1,5 +1,5 @@
-use postgres::GenericConnection;
 use objects::Submission;
+use postgres::GenericConnection;
 
 pub trait Submissions {
     fn create_submission(&self, toolchain: &str) -> Submission;
@@ -12,9 +12,7 @@ pub struct PgSubmissions {
 
 impl PgSubmissions {
     pub fn new(conn: Box<dyn GenericConnection>) -> PgSubmissions {
-        PgSubmissions {
-            conn,
-        }
+        PgSubmissions { conn }
     }
 }
 
@@ -34,9 +32,6 @@ impl Submissions for PgSubmissions {
         let query = "SELECT toolchain FROM submissions WHERE id = $1";
         let res = self.conn.query(query, &[&(id as i32)]).unwrap();
         let toolchain = res.get(0).get(0);
-        Submission {
-            id,
-            toolchain,
-        }
+        Submission { id, toolchain }
     }
 }

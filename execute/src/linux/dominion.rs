@@ -1,14 +1,14 @@
 use crate::{
+    linux::{allocate_heap_variable, Pid, LINUX_DOMINION_SANITY_CHECK_ID},
     Dominion, DominionOptions,
-    linux::{Pid, LINUX_DOMINION_SANITY_CHECK_ID, allocate_heap_variable},
 };
+use field_offset::offset_of;
+use rand::seq::SliceRandom;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
     //mem::size_of,
 };
-use rand::seq::SliceRandom;
-use field_offset::offset_of;
 
 #[derive(Debug)]
 #[repr(C)]
@@ -48,8 +48,11 @@ impl LinuxDominion {
         let pids_cgroup_path = format!("/sys/fs/cgroup/pids/jjs/g-{}", &cgroup_id);
         fs::create_dir_all(&pids_cgroup_path).unwrap();
 
-        fs::write(format!("{}/pids.max", &pids_cgroup_path),
-                  format!("{}", options.max_alive_process_count)).unwrap();
+        fs::write(
+            format!("{}/pids.max", &pids_cgroup_path),
+            format!("{}", options.max_alive_process_count),
+        )
+        .unwrap();
 
         //configure memory subsystem
         let mem_cgroup_path = LinuxDominion::get_path_for_subsystem("memory", &cgroup_id);
@@ -57,9 +60,11 @@ impl LinuxDominion {
         fs::create_dir_all(&mem_cgroup_path).unwrap();
         fs::write(format!("{}/memory.swappiness", &mem_cgroup_path), "0").unwrap();
 
-        fs::write(format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
-            format!("{}", options.memory_limit)).unwrap();
-
+        fs::write(
+            format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
+            format!("{}", options.memory_limit),
+        )
+        .unwrap();
 
         let dmem = allocate_heap_variable::<LinuxDominion>();
         unsafe {
@@ -74,8 +79,7 @@ impl LinuxDominion {
     }
 
     fn add_to_subsys(&mut self, pid: Pid, subsys: &str) {
-        let cgroup_path = LinuxDominion::get_path_for_subsystem(subsys,
-                                                                &self.cgroup_id);
+        let cgroup_path = LinuxDominion::get_path_for_subsystem(subsys, &self.cgroup_id);
         let tasks_file_path = format!("{}/tasks", cgroup_path);
         let mut f = OpenOptions::new()
             .append(true)

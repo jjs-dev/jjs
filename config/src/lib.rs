@@ -3,16 +3,7 @@ extern crate toml;
 #[macro_use]
 extern crate serde_derive;
 
-use std::{
-    collections::{
-        HashMap,
-    },
-    path::{
-        PathBuf
-    },
-    fs,
-    env,
-};
+use std::{collections::HashMap, env, fs, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Command {
@@ -36,19 +27,20 @@ pub struct Config {
     pub sysroot: PathBuf,
 }
 
-pub fn parse_file(path: PathBuf) -> Config  {
+pub fn parse_file(path: PathBuf) -> Config {
     let file_content = fs::read_to_string(path).unwrap();
-    let raw_data :toml::Value =  file_content.parse().unwrap() ;
-    match toml::from_str(&file_content){
+    let raw_data: toml::Value = file_content.parse().unwrap();
+    match toml::from_str(&file_content) {
         Ok(x) => x,
-        Err(e) => {
-            panic!("Error ocured when parsing config: {:?}.\nRaw config:\n{:#?}", e, raw_data)
-        }
+        Err(e) => panic!(
+            "Error ocured when parsing config: {:?}.\nRaw config:\n{:#?}",
+            e, raw_data
+        ),
     }
 }
 
 pub fn get_config() -> Config {
-    let args :Vec<_>= env::args().collect();
+    let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: {} path/to/sysroot", args[0]);
         std::process::exit(1);

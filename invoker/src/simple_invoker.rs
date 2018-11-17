@@ -1,12 +1,12 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use object;
-use invoker;
 use config::*;
-use execute::{self as minion, ExecutionManager, ChildProcess};
-use object::{Submission /*SubmissionContent, FileSubmissionContent,*/};
-use invoker::{StatusKind, Status};
+use crate::{
+    object::{self, Submission},
+    invoker::{Status, StatusKind},
+};
+use execute::{self as minion, ChildProcess, ExecutionManager};
 use std::{
     collections,
     time::Duration,
@@ -40,7 +40,7 @@ fn get_toolchain<'a>(submission: &object::Submission, cfg: &'a Config) -> Option
         if submission.toolchain_name == t.name {
             return Some(t);
         }
-    };
+    }
     None
 }
 
@@ -64,7 +64,8 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                 },
             };
         }
-    }.clone();
+    }
+    .clone();
 
     for ref cmd in toolchain.build_commands {
         let mut opts = prepare_options(cfg);
@@ -107,10 +108,13 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             content: SubmissionContent::File(FileSubmissionContent { path: PathBuf::from("/") }),
             toolchain_name: String::new(),
         }),*/
-        status: Status { kind: StatusKind::NotSet, code: "BUILT".to_string() },
+        status: Status {
+            kind: StatusKind::NotSet,
+            code: "BUILT".to_string(),
+        },
     }
 }
 
-pub fn judge(submission: object::Submission, cfg: &Config) -> invoker::Status {
+pub fn judge(submission: object::Submission, cfg: &Config) -> crate::invoker::Status {
     build(&submission, cfg).status
 }

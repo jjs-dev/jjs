@@ -2,12 +2,16 @@ mod dominion;
 //mod cgroup;
 
 pub use crate::linux::dominion::LinuxDominion;
-use libc::{c_int, c_char, c_void};
+use libc::{c_char, c_int, c_void};
 //use ::definitions::*;
-use std::ffi::CString;
-use std::{io, sync::{Mutex, Arc, Condvar}, thread, ptr, mem};
-use std::time;
 use crate::*;
+use std::ffi::CString;
+use std::time;
+use std::{
+    io, mem, ptr,
+    sync::{Arc, Condvar, Mutex},
+    thread,
+};
 
 const LINUX_DOMINION_SANITY_CHECK_ID: usize = 0xDEADF00DDEADBEEF;
 
@@ -16,9 +20,11 @@ type Pid = libc::pid_t;
 
 fn err_exit(func_name: &str, syscall_name: &str) -> ! {
     let e = errno::errno();
-    panic!("{}: {}(2) failed with error {}: {}", func_name, syscall_name, e.0, e);
+    panic!(
+        "{}: {}(2) failed with error {}: {}",
+        func_name, syscall_name, e.0, e
+    );
 }
-
 
 pub struct LinuxReadPipe {
     handle: H,
@@ -38,9 +44,7 @@ impl std::io::Read for LinuxReadPipe {
 
 impl LinuxReadPipe {
     fn new(handle: H) -> LinuxReadPipe {
-        LinuxReadPipe {
-            handle
-        }
+        LinuxReadPipe { handle }
     }
 }
 
@@ -50,9 +54,7 @@ pub struct LinuxWritePipe {
 
 impl LinuxWritePipe {
     fn new(handle: H) -> LinuxWritePipe {
-        LinuxWritePipe {
-            handle
-        }
+        LinuxWritePipe { handle }
     }
 }
 
@@ -90,19 +92,13 @@ pub struct LinuxChildProcess {
 }
 
 macro_rules! SYNC {
-($mutex_name:ident) => {
-
-(*$mutex_name).lock().unwrap()
-
-}
+    ($mutex_name:ident) => {
+        (*$mutex_name).lock().unwrap()
+    };
 }
 
 fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
-    use std::{
-        os::{
-            unix::thread::JoinHandleExt
-        }
-    };
+    use std::os::unix::thread::JoinHandleExt;
     struct Inter {
         //in
         pid: Pid,
@@ -197,9 +193,7 @@ impl ChildProcess for LinuxChildProcess {
             }
             let wait_result = timed_wait(self.pid, timeout);
             match wait_result {
-                None => {
-                    Ok(WaitResult::Timeout)
-                }
+                None => Ok(WaitResult::Timeout),
                 Some(w) => {
                     //eprintln!("DEV: marking cp as exited");
                     if libc::WIFEXITED(w) {
@@ -239,7 +233,8 @@ impl Drop for LinuxChildProcess {
         }
         //eprintln!("this cp hasn't exited yet");
         self.kill();
-        self.wait_for_exit(time::Duration::from_millis(100)).unwrap();
+        self.wait_for_exit(time::Duration::from_millis(100))
+            .unwrap();
     }
 }
 
@@ -270,7 +265,7 @@ fn duplicate_string(arg: &str) -> *mut c_char {
 macro_rules! ptr_subscript_set {
     ($ptr: ident,  $ind: expr, $val: expr) => {
         *($ptr.offset(($ind) as isize)) = $val;
-    }
+    };
 }
 
 fn allocate_memory(num: usize) -> *mut c_char {
@@ -301,23 +296,20 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         //TODO consider refactoring
         //duplicate argv
         let num_argv_items = argv_with_path.len() + 1;
-        let argv = allocate_memory(num_argv_items * POINTER_SIZE)
-            as *mut *const c_char;
+        let argv = allocate_memory(num_argv_items * POINTER_SIZE) as *mut *const c_char;
         for (i, argument) in argv_with_path.iter().enumerate() {
             *(argv.offset(i as isize) as *mut *const c_char) = duplicate_string(argument);
         }
-        ptr_subscript_set!(argv, num_argv_items-1, ptr::null());
+        ptr_subscript_set!(argv, num_argv_items - 1, ptr::null());
 
         //duplicate envp
         let num_envp_items = arg.environment.len() + 1;
-        let envp = allocate_memory(num_envp_items * POINTER_SIZE)
-            as *mut *const c_char;
+        let envp = allocate_memory(num_envp_items * POINTER_SIZE) as *mut *const c_char;
         for (i, (name, value)) in arg.environment.iter().enumerate() {
             let envp_item = format!("{}={}", name, value);
-            *(envp.offset(i as isize) as *mut *const c_char) =
-                duplicate_string(&envp_item);
+            *(envp.offset(i as isize) as *mut *const c_char) = duplicate_string(&envp_item);
         }
-        ptr_subscript_set!(envp, num_envp_items-1, ptr::null());
+        ptr_subscript_set!(envp, num_envp_items - 1, ptr::null());
 
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
@@ -360,7 +352,8 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             libc::chroot(cwd_buffer);
         }
 
-        if libc::setuid(1001) != 0 { //TODO: hardcoded uid
+        if libc::setuid(1001) != 0 {
+            //TODO: hardcoded uid
             err_exit("do_exec", "setuid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
@@ -378,7 +371,11 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         libc::close(arg.stdout);
         libc::close(arg.stderr);
 
-        let ret = libc::execve(path, argv as *const *const c_char, envp as *const *const c_char);
+        let ret = libc::execve(
+            path,
+            argv as *const *const c_char,
+            envp as *const *const c_char,
+        );
         if ret == -1 {
             err_exit("do_exec", "execve");
         } else {
@@ -447,8 +444,8 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         };
 
         let child_stack = libc::malloc(CHILD_STACK_SIZE);
-        let child_stack_top = ThreadSafePointer(((child_stack as usize) + CHILD_STACK_SIZE) as
-            *mut c_void);
+        let child_stack_top =
+            ThreadSafePointer(((child_stack as usize) + CHILD_STACK_SIZE) as *mut c_void);
         let dea_ptr = &mut dea as *mut DoExecArg;
 
         //we need to wrap do_exec call into a thread
@@ -459,8 +456,7 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
             let ptr = child_pid_box.0;
             let ptr = ptr as *mut c_int;
             *(ptr.as_mut().unwrap()) =
-                libc::clone(do_exec, child_stack_top.0, libc::CLONE_NEWNS,
-                            dea_box.0);
+                libc::clone(do_exec, child_stack_top.0, libc::CLONE_NEWNS, dea_box.0);
         });
         thr.join().expect("Couldn't join a thread");
 
@@ -494,14 +490,11 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
 
 pub struct LinuxEM {}
 
-
 impl ExecutionManager for LinuxEM {
     type ChildProcess = LinuxChildProcess;
     fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
         let d = linux::dominion::LinuxDominion::create(options);
-        DominionRef {
-            d,
-        }
+        DominionRef { d }
     }
 
     fn spawn(&mut self, options: ChildProcessOptions) -> LinuxChildProcess {

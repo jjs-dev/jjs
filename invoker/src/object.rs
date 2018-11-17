@@ -16,11 +16,9 @@ pub struct Submission {
 impl Submission {
     pub fn from_file_path(p: &Path, tc_name: &str) -> Submission {
         Submission {
-            content: SubmissionContent::File(
-                FileSubmissionContent {
-                    path: PathBuf::from(p),
-                }
-            ),
+            content: SubmissionContent::File(FileSubmissionContent {
+                path: PathBuf::from(p),
+            }),
             toolchain_name: String::from(tc_name),
         }
     }

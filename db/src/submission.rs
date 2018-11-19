@@ -29,7 +29,7 @@ impl Submissions for PgSubmissions {
     }
 
     fn find_by_id(&self, id: usize) -> Submission {
-        let query = "SELECT toolchain FROM submissions WHERE id = $1";
+        let query = "SELECT toolchain FROM submissions WHERE submission_id = $1";
         let res = self.conn.query(query, &[&(id as i32)]).unwrap();
         let toolchain = res.get(0).get(0);
         Submission { id, toolchain }

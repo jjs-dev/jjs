@@ -7,7 +7,7 @@ use std::{
     fmt::Debug,
     io::{Read, Write},
     mem,
-    //sync::{Mutex, Arc},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -17,11 +17,23 @@ pub trait ExecutionManager {
     fn spawn(&mut self, options: ChildProcessOptions) -> Self::ChildProcess;
 }
 
+#[derive(Debug)]
+pub struct PathExpositionOptions {
+    pub src: String,
+    pub dest: String,
+    pub allow_read: bool,
+    pub allow_write: bool,
+    pub allow_execute: bool,
+}
+
+#[derive(Debug)]
 pub struct DominionOptions {
     pub allow_network: bool,
     pub allow_file_io: bool,
     pub max_alive_process_count: usize,
     pub memory_limit: usize,
+    pub isolation_root: PathBuf,
+    pub exposed_paths: Vec<PathExpositionOptions>,
 }
 
 ///RAII object which represents highly-isolated sandbox
@@ -32,12 +44,17 @@ pub type SelectedDominion = linux::LinuxDominion;
 
 #[derive(Clone, Debug)]
 pub struct DominionRef {
+    ref_cnt: usize,
     d: *mut SelectedDominion,
 }
 
 cfg_if! {
     if #[cfg(target_os = "linux")] {
         fn drop_dom_ref(dref: &mut DominionRef) {
+            dref.ref_cnt -= 1;
+            if dref.ref_cnt > 0 {
+                return;
+            }
             let inner = dref.d as *mut SelectedDominion;
             unsafe {
                 mem::drop(&mut *inner);

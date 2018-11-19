@@ -13,17 +13,14 @@ use std::{
     thread,
 };
 
-const LINUX_DOMINION_SANITY_CHECK_ID: usize = 0xDEADF00DDEADBEEF;
+const LINUX_DOMINION_SANITY_CHECK_ID: u64 = 0xDEADF00DDEADBEEF;
 
 type H = c_int;
 type Pid = libc::pid_t;
 
-fn err_exit(func_name: &str, syscall_name: &str) -> ! {
+fn err_exit(_func_name: &str, syscall_name: &str) -> ! {
     let e = errno::errno();
-    panic!(
-        "{}: {}(2) failed with error {}: {}",
-        func_name, syscall_name, e.0, e
-    );
+    panic!("{}(2) failed with error {}: {}", syscall_name, e.0, e)
 }
 
 pub struct LinuxReadPipe {
@@ -91,7 +88,7 @@ pub struct LinuxChildProcess {
     pid: Pid,
 }
 
-macro_rules! SYNC {
+macro_rules! sync {
     ($mutex_name:ident) => {
         (*$mutex_name).lock().unwrap()
     };
@@ -120,14 +117,14 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             let &(ref lock, ref cv) = &*cv_waiter;
             let m = mwaiter;
             let mut waitstatus = 0;
-            let wcode = libc::waitpid(SYNC!(m).pid, &mut waitstatus, libc::__WALL);
+            let wcode = libc::waitpid(sync!(m).pid, &mut waitstatus, libc::__WALL);
             if wcode == -1 {
                 err_exit("timed_wait", "waitpid");
             }
             {
-                SYNC!(m).exit_code = 228;
-                SYNC!(m).exited = true;
-                *SYNC!(lock) = true;
+                sync!(m).exit_code = 228;
+                sync!(m).exited = true;
+                *sync!(lock) = true;
                 cv.notify_all();
             }
         });
@@ -137,12 +134,12 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             let m = mtimeouter.clone();
             let &(ref lock, ref cv) = &*cvtimeouter;
             thread::sleep(timeout.clone());
-            if SYNC!(m).exited {
+            if sync!(m).exited {
                 return;
             }
             let waiter_handle = waiter.as_pthread_t();
             libc::pthread_cancel(waiter_handle);
-            *SYNC!(lock) = true;
+            *sync!(lock) = true;
             cv.notify_all();
         });
         {
@@ -155,11 +152,11 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
                 grd = cv.wait(grd).unwrap();
             }
         }
-        let was_exited = SYNC!(m).exited;
+        let was_exited = sync!(m).exited;
         if !was_exited {
             return None;
         }
-        return Some(SYNC!(m).exit_code);
+        return Some(sync!(m).exit_code);
     }
 }
 
@@ -248,9 +245,10 @@ struct DoExecArg {
     stdin: H,
     stdout: H,
     stderr: H,
-    //mutex: *mut libc::pthread_mutex_t,
-    ready_fd: H,
-    //out
+    root: String,
+    uid: u64,
+    ready_fd: H, //used for sync: parent writes to ready_fd when child can execve()
+                 //out
 }
 
 fn duplicate_string(arg: &str) -> *mut c_char {
@@ -329,31 +327,15 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             }
         }
 
-        //some security
+        //change root (we assume all required binaries, DLLs etc will be made availible via expose
 
         {
-            let mut cwd_buf_size = 16;
-            let mut cwd_buffer;
-            loop {
-                cwd_buffer = allocate_memory(cwd_buf_size);
-                let ret = libc::getcwd(cwd_buffer, cwd_buf_size);
-                if ret as usize == 0 {
-                    let err = errno::errno().0;
-                    if err == libc::ERANGE {
-                        cwd_buf_size *= 2;
-                        libc::free(cwd_buffer as *mut _);
-                    } else {
-                        err_exit("do_exec", "getcwd");
-                    }
-                } else {
-                    break;
-                }
-            }
-            libc::chroot(cwd_buffer);
+            let new_root = CString::new(arg.root.as_str()).unwrap();
+            libc::chroot(new_root.as_ptr());
         }
 
-        if libc::setuid(1001) != 0 {
-            //TODO: hardcoded uid
+        let sandbox_user_id = arg.uid;
+        if libc::setuid(sandbox_user_id as u32) != 0 {
             err_exit("do_exec", "setuid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
@@ -379,10 +361,9 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         if ret == -1 {
             err_exit("do_exec", "execve");
         } else {
-            unreachable!("execve succeded, but execution of old image continued")
+            unreachable!("execve succeeded, but execution of old image continued")
         }
     }
-    0
 }
 
 fn setup_pipe(read_end: &mut H, write_end: &mut H) -> Result<()> {
@@ -411,6 +392,13 @@ const READY_MSG: &str = "gl_hf";
 
 fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
     unsafe {
+        let dmn = (options.dominion.d as *mut LinuxDominion).as_mut().unwrap();
+        //is's unsafe so in case of some error we check it's really LinuxDominion
+        //though whole situation is UB, this check doesn't seem to be deleted by compiler
+        if dmn.sanity_check() != LINUX_DOMINION_SANITY_CHECK_ID {
+            panic!("FATAL ERROR: options.dominion doesn't point on valid LinuxDominion object");
+        }
+
         let mut in_r = 0;
         let mut in_w = 0;
         let mut out_r = 0;
@@ -432,6 +420,9 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         let mut ready_w = 0;
         setup_pipe(&mut ready_r, &mut ready_w).unwrap();
 
+        let root = dmn.dir();
+        println!("isolation root is {}", root);
+
         //will be passed to child process
         let mut dea = DoExecArg {
             path: options.path,
@@ -441,6 +432,8 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
             stdout: out_w,
             stderr: err_w,
             ready_fd: ready_r,
+            root: String::from(root),
+            uid: dmn.get_user_id()
         };
 
         let child_stack = libc::malloc(CHILD_STACK_SIZE);
@@ -466,12 +459,7 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         libc::close(err_w);
 
         //finally we can set up security
-        let dmn = (options.dominion.d as *mut LinuxDominion).as_mut().unwrap();
-        //is's unsafe so in case of some error we check it's really LinuxDominion
-        //though whole situation is UB, this check doesn't seem to be deleted by compiler
-        if dmn.sanity_check() != LINUX_DOMINION_SANITY_CHECK_ID {
-            panic!("FATAL ERROR: options.dominion doesn't point on valid LinuxDominion object");
-        }
+
         dmn.add_process(child_pid);
 
         //now we can allow child to execve()
@@ -494,7 +482,7 @@ impl ExecutionManager for LinuxEM {
     type ChildProcess = LinuxChildProcess;
     fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
         let d = linux::dominion::LinuxDominion::create(options);
-        DominionRef { d }
+        DominionRef { d, ref_cnt: 1 }
     }
 
     fn spawn(&mut self, options: ChildProcessOptions) -> LinuxChildProcess {

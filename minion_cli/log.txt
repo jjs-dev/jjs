@@ -1,0 +1,761 @@
+5477  execve("../target/debug/minion_cli", ["../target/debug/minion_cli", "--isolation-root=/tmp/ir", "/bin/ls", "--expose=/:r-x:/"], 0x7ffcdca90de0 /* 33 vars */) = 0
+5477  brk(NULL)                         = 0x5592fcbe4000
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  access("/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=176166, ...}) = 0
+5477  mmap(NULL, 176166, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f8a497d6000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libdl.so.2", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0000\21\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=18656, ...}) = 0
+5477  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a497d4000
+5477  mmap(NULL, 20752, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a497ce000
+5477  mmap(0x7f8a497cf000, 8192, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1000) = 0x7f8a497cf000
+5477  mmap(0x7f8a497d1000, 4096, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x3000) = 0x7f8a497d1000
+5477  mmap(0x7f8a497d2000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x3000) = 0x7f8a497d2000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/librt.so.1", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260#\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=35776, ...}) = 0
+5477  mmap(NULL, 39904, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a497c4000
+5477  mmap(0x7f8a497c6000, 16384, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2000) = 0x7f8a497c6000
+5477  mmap(0x7f8a497ca000, 8192, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x6000) = 0x7f8a497ca000
+5477  mmap(0x7f8a497cc000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x7000) = 0x7f8a497cc000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libpthread.so.0", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0`l\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0755, st_size=149696, ...}) = 0
+5477  mmap(NULL, 132288, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a497a3000
+5477  mmap(0x7f8a497a9000, 61440, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x6000) = 0x7f8a497a9000
+5477  mmap(0x7f8a497b8000, 24576, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x15000) = 0x7f8a497b8000
+5477  mmap(0x7f8a497be000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1a000) = 0x7f8a497be000
+5477  mmap(0x7f8a497c0000, 13504, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f8a497c0000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libgcc_s.so.1", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\3402\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=100712, ...}) = 0
+5477  mmap(NULL, 103472, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a49789000
+5477  mprotect(0x7f8a4978c000, 86016, PROT_NONE) = 0
+5477  mmap(0x7f8a4978c000, 69632, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x3000) = 0x7f8a4978c000
+5477  mmap(0x7f8a4979d000, 12288, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x14000) = 0x7f8a4979d000
+5477  mmap(0x7f8a497a1000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x17000) = 0x7f8a497a1000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260A\2\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0755, st_size=1996592, ...}) = 0
+5477  mmap(NULL, 2004992, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a4959f000
+5477  mprotect(0x7f8a495c1000, 1826816, PROT_NONE) = 0
+5477  mmap(0x7f8a495c1000, 1511424, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x22000) = 0x7f8a495c1000
+5477  mmap(0x7f8a49732000, 311296, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x193000) = 0x7f8a49732000
+5477  mmap(0x7f8a4977f000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1df000) = 0x7f8a4977f000
+5477  mmap(0x7f8a49785000, 14336, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f8a49785000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libm.so.6", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\220\322\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=1623216, ...}) = 0
+5477  mmap(NULL, 1622360, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a49412000
+5477  mmap(0x7f8a4941f000, 700416, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xd000) = 0x7f8a4941f000
+5477  mmap(0x7f8a494ca000, 864256, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xb8000) = 0x7f8a494ca000
+5477  mmap(0x7f8a4959d000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x18a000) = 0x7f8a4959d000
+5477  close(3)                          = 0
+5477  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a49410000
+5477  mmap(NULL, 16384, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a4940c000
+5477  arch_prctl(ARCH_SET_FS, 0x7f8a4940d8c0) = 0
+5477  mprotect(0x7f8a4977f000, 16384, PROT_READ) = 0
+5477  mprotect(0x7f8a4959d000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a497a1000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a497be000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a497cc000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a497d2000, 4096, PROT_READ) = 0
+5477  mprotect(0x5592fc1d7000, 110592, PROT_READ) = 0
+5477  mprotect(0x7f8a4982b000, 4096, PROT_READ) = 0
+5477  munmap(0x7f8a497d6000, 176166)    = 0
+5477  set_tid_address(0x7f8a4940db90)   = 5477
+5477  set_robust_list(0x7f8a4940dba0, 24) = 0
+5477  rt_sigaction(SIGRTMIN, {sa_handler=0x7f8a497a96c0, sa_mask=[], sa_flags=SA_RESTORER|SA_SIGINFO, sa_restorer=0x7f8a497b5dd0}, NULL, 8) = 0
+5477  rt_sigaction(SIGRT_1, {sa_handler=0x7f8a497a9750, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART|SA_SIGINFO, sa_restorer=0x7f8a497b5dd0}, NULL, 8) = 0
+5477  rt_sigprocmask(SIG_UNBLOCK, [RTMIN RT_1], NULL, 8) = 0
+5477  prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+5477  rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f8a495e0100}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+5477  brk(NULL)                         = 0x5592fcbe4000
+5477  brk(0x5592fcc05000)               = 0x5592fcc05000
+5477  openat(AT_FDCWD, "/proc/self/maps", O_RDONLY|O_CLOEXEC) = 3
+5477  prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+5477  fstat(3, {st_mode=S_IFREG|0444, st_size=0, ...}) = 0
+5477  read(3, "5592fbe6e000-5592fbea6000 r--p 0"..., 1024) = 1024
+5477  read(3, "-linux-gnu/libm-2.28.so\n7f8a4959"..., 1024) = 1024
+5477  read(3, "nux-gnu/libgcc_s.so.1\n7f8a4978c0"..., 1024) = 1024
+5477  read(3, "f8a497bf000-7f8a497c0000 rw-p 00"..., 1024) = 1024
+5477  read(3, "l-2.28.so\n7f8a497d2000-7f8a497d3"..., 1024) = 1024
+5477  close(3)                          = 0
+5477  sched_getaffinity(5477, 32, [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5477  rt_sigaction(SIGSEGV, {sa_handler=0x5592fc1304c0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x7f8a497b5dd0}, NULL, 8) = 0
+5477  rt_sigaction(SIGBUS, {sa_handler=0x5592fc1304c0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x7f8a497b5dd0}, NULL, 8) = 0
+5477  sigaltstack(NULL, {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5477  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a49800000
+5477  sigaltstack({ss_sp=0x7f8a49800000, ss_flags=0, ss_size=8192}, NULL) = 0
+5477  geteuid()                         = 0
+5477  socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
+5477  connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+5477  close(3)                          = 0
+5477  socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
+5477  connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+5477  close(3)                          = 0
+5477  openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=556, ...}) = 0
+5477  read(3, "# /etc/nsswitch.conf\n#\n# Example"..., 4096) = 556
+5477  read(3, "", 4096)                 = 0
+5477  close(3)                          = 0
+5477  openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=176166, ...}) = 0
+5477  mmap(NULL, 176166, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f8a493e0000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libnss_compat.so.2", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 \"\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=39712, ...}) = 0
+5477  mmap(NULL, 43168, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a497f5000
+5477  mmap(0x7f8a497f7000, 24576, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2000) = 0x7f8a497f7000
+5477  mmap(0x7f8a497fd000, 4096, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x8000) = 0x7f8a497fd000
+5477  mmap(0x7f8a497fe000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x8000) = 0x7f8a497fe000
+5477  close(3)                          = 0
+5477  mprotect(0x7f8a497fe000, 4096, PROT_READ) = 0
+5477  munmap(0x7f8a493e0000, 176166)    = 0
+5477  openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=176166, ...}) = 0
+5477  mmap(NULL, 176166, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f8a493e0000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libnss_nis.so.2", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\340\"\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=51672, ...}) = 0
+5477  mmap(NULL, 54664, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a497e7000
+5477  mmap(0x7f8a497e9000, 32768, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2000) = 0x7f8a497e9000
+5477  mmap(0x7f8a497f1000, 8192, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xa000) = 0x7f8a497f1000
+5477  mmap(0x7f8a497f3000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xb000) = 0x7f8a497f3000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libnsl.so.1", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260F\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=97176, ...}) = 0
+5477  mmap(NULL, 109144, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a493c5000
+5477  mmap(0x7f8a493c9000, 57344, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x4000) = 0x7f8a493c9000
+5477  mmap(0x7f8a493d7000, 20480, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x12000) = 0x7f8a493d7000
+5477  mmap(0x7f8a493dc000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x16000) = 0x7f8a493dc000
+5477  mmap(0x7f8a493de000, 6744, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f8a493de000
+5477  close(3)                          = 0
+5477  access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+5477  openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libnss_files.so.2", O_RDONLY|O_CLOEXEC) = 3
+5477  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\0003\0\0\0\0\0\0"..., 832) = 832
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=55768, ...}) = 0
+5477  mmap(NULL, 83768, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f8a493b0000
+5477  mmap(0x7f8a493b3000, 28672, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x3000) = 0x7f8a493b3000
+5477  mmap(0x7f8a493ba000, 12288, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xa000) = 0x7f8a493ba000
+5477  mmap(0x7f8a493bd000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0xc000) = 0x7f8a493bd000
+5477  mmap(0x7f8a493bf000, 22328, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f8a493bf000
+5477  close(3)                          = 0
+5477  mprotect(0x7f8a493bd000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a493dc000, 4096, PROT_READ) = 0
+5477  mprotect(0x7f8a497f3000, 4096, PROT_READ) = 0
+5477  munmap(0x7f8a493e0000, 176166)    = 0
+5477  openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+5477  lseek(3, 0, SEEK_CUR)             = 0
+5477  fstat(3, {st_mode=S_IFREG|0644, st_size=3239, ...}) = 0
+5477  mmap(NULL, 3239, PROT_READ, MAP_SHARED, 3, 0) = 0x7f8a497e6000
+5477  lseek(3, 3239, SEEK_SET)          = 3239
+5477  munmap(0x7f8a497e6000, 3239)      = 0
+5477  close(3)                          = 0
+5477  getrandom("\xea\x4b\x8c\x11\x64\xfb\xb9\x38\x53\xbd\xec\x0f\x9d\x9d\xb4\x25", 16, GRND_NONBLOCK) = 16
+5477  getrandom("", 0, GRND_NONBLOCK)   = 0
+5477  getrandom("\x9e\x9a\x13\x9d\xcb\xc1\xda\x15\xd0\x52\x67\x40\xf6\x69\x50\x80\xc3\x46\x11\xb1\x9a\x92\xa9\x5a\xe8\x1d\x1f\x11\xc4\x7f\x26\x00", 32, GRND_NONBLOCK) = 32
+5477  mkdir("/sys/fs/cgroup/pids/jjs/g-ey1c0atk", 0777) = 0
+5477  openat(AT_FDCWD, "/sys/fs/cgroup/pids/jjs/g-ey1c0atk/pids.max", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+5477  fcntl(3, F_GETFD)                 = 0x1 (flags FD_CLOEXEC)
+5477  write(3, "16", 2)                 = 2
+5477  close(3)                          = 0
+5477  mkdir("/sys/fs/cgroup/memory/jjs/g-ey1c0atk", 0777) = 0
+5477  openat(AT_FDCWD, "/sys/fs/cgroup/memory/jjs/g-ey1c0atk/memory.swappiness", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+5477  write(3, "0", 1)                  = 1
+5477  close(3)                          = 0
+5477  openat(AT_FDCWD, "/sys/fs/cgroup/memory/jjs/g-ey1c0atk/memory.limit_in_bytes", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+5477  write(3, "256000000", 9)          = 9
+5477  close(3)                          = 0
+5477  pipe([3, 4])                      = 0
+5477  pipe([5, 6])                      = 0
+5477  pipe([7, 8])                      = 0
+5477  pipe([9, 10])                     = 0
+5477  write(1, "isolation root is /tmp/ir\n", 26) = 26
+5477  mmap(NULL, 1052672, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a492af000
+5477  futex(0x7f8a497d30c8, FUTEX_WAKE_PRIVATE, 2147483647) = 0
+5477  mmap(NULL, 2101248, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = 0x7f8a490ae000
+5477  mprotect(0x7f8a490af000, 2097152, PROT_READ|PROT_WRITE) = 0
+5477  clone(child_stack=0x7f8a492ace30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a492ae9d0, tls=0x7f8a492ae700, child_tidptr=0x7f8a492ae9d0) = 5478
+5477  futex(0x7f8a492ae9d0, FUTEX_WAIT, 5478, NULL <unfinished ...>
+5478  set_robust_list(0x7f8a492ae9e0, 24) = 0
+5478  sigaltstack(NULL, {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5478  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8a497e5000
+5478  sigaltstack({ss_sp=0x7f8a497e5000, ss_flags=0, ss_size=8192}, NULL) = 0
+5478  mmap(NULL, 134217728, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0) = 0x7f8a410ae000
+5478  munmap(0x7f8a410ae000, 49618944)  = 0
+5478  munmap(0x7f8a48000000, 17489920)  = 0
+5478  mprotect(0x7f8a44000000, 135168, PROT_READ|PROT_WRITE) = 0
+5478  sched_getaffinity(5478, 32, [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5478  clone(child_stack=0x7f8a493af000, flags=CLONE_NEWNS) = 5479
+5478  sigaltstack({ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=8192}, NULL) = 0
+5479  getpid( <unfinished ...>
+5478  munmap(0x7f8a497e5000, 8192 <unfinished ...>
+5479  <... getpid resumed> )            = 5479
+5478  <... munmap resumed> )            = 0
+5479  openat(AT_FDCWD, "/proc/5479/fd", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY <unfinished ...>
+5478  madvise(0x7f8a490ae000, 2072576, MADV_DONTNEED) = 0
+5479  <... openat resumed> )            = 11
+5478  exit(0 <unfinished ...>
+5479  fstat(11,  <unfinished ...>
+5478  <... exit resumed>)               = ?
+5479  <... fstat resumed> {st_mode=S_IFDIR|0500, st_size=0, ...}) = 0
+5477  <... futex resumed> )             = 0
+5479  getdents64(11 <unfinished ...>
+5478  +++ exited with 0 +++
+5477  close(3 <unfinished ...>
+5479  <... getdents64 resumed> , /* 14 entries */, 32768) = 336
+5477  <... close resumed> )             = 0
+5477  close(6 <unfinished ...>
+5479  fcntl(0, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  <... close resumed> )             = 0
+5479  <... fcntl resumed> )             = 0
+5477  close(8)                          = 0
+5479  fcntl(1, F_SETFD, FD_CLOEXEC)     = 0
+5477  openat(AT_FDCWD, "/sys/fs/cgroup/pids/jjs/g-ey1c0atk/tasks", O_WRONLY|O_CREAT|O_APPEND|O_CLOEXEC, 0666 <unfinished ...>
+5479  fcntl(2, F_SETFD, FD_CLOEXEC)     = 0
+5477  <... openat resumed> )            = 3
+5479  fcntl(4, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  write(3, "5479", 4 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... write resumed> )             = 4
+5479  fcntl(5, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  close(3 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... close resumed> )             = 0
+5479  fcntl(7, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  openat(AT_FDCWD, "/sys/fs/cgroup/memory/jjs/g-ey1c0atk/tasks", O_WRONLY|O_CREAT|O_APPEND|O_CLOEXEC, 0666 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... openat resumed> )            = 3
+5479  fcntl(9, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  write(3, "5479", 4 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... write resumed> )             = 4
+5479  fcntl(10, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  close(3 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... close resumed> )             = 0
+5479  fcntl(11, F_SETFD, FD_CLOEXEC <unfinished ...>
+5477  write(10, "gl_hf", 5 <unfinished ...>
+5479  <... fcntl resumed> )             = 0
+5477  <... write resumed> )             = 5
+5479  getdents64(11, /* 0 entries */, 32768) = 0
+5479  close(11)                         = 0
+5477  clone( <unfinished ...>
+5479  chroot("/tmp/ir")                 = 0
+5477  <... clone resumed> child_stack=0x7f8a492ace30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a492ae9d0, tls=0x7f8a492ae700, child_tidptr=0x7f8a492ae9d0) = 5480
+5480  set_robust_list(0x7f8a492ae9e0, 24 <unfinished ...>
+5477  mmap(NULL, 2101248, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0 <unfinished ...>
+5480  <... set_robust_list resumed> )   = 0
+5477  <... mmap resumed> )              = 0x7f8a48ead000
+5480  sigaltstack(NULL,  <unfinished ...>
+5477  mprotect(0x7f8a48eae000, 2097152, PROT_READ|PROT_WRITE <unfinished ...>
+5480  <... sigaltstack resumed> {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5477  <... mprotect resumed> )          = 0
+5480  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 <unfinished ...>
+5479  getpid( <unfinished ...>
+5480  <... mmap resumed> )              = 0x7f8a497e5000
+5477  clone( <unfinished ...>
+5480  sigaltstack({ss_sp=0x7f8a497e5000, ss_flags=0, ss_size=8192}, NULL) = 0
+5477  <... clone resumed> child_stack=0x7f8a490abe30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a490ad9d0, tls=0x7f8a490ad700, child_tidptr=0x7f8a490ad9d0) = 5481
+5480  sched_getaffinity(5480, 32,  <unfinished ...>
+5481  set_robust_list(0x7f8a490ad9e0, 24 <unfinished ...>
+5477  mmap(NULL, 2101248, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0 <unfinished ...>
+5481  <... set_robust_list resumed> )   = 0
+5477  <... mmap resumed> )              = 0x7f8a48cac000
+5481  sigaltstack(NULL,  <unfinished ...>
+5477  mprotect(0x7f8a48cad000, 2097152, PROT_READ|PROT_WRITE <unfinished ...>
+5481  <... sigaltstack resumed> {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5477  <... mprotect resumed> )          = 0
+5481  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 <unfinished ...>
+5480  <... sched_getaffinity resumed> [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5479  <... getpid resumed> )            = 5479
+5477  clone( <unfinished ...>
+5481  <... mmap resumed> )              = 0x7f8a497e3000
+5480  futex(0x5592fcbe6c98, FUTEX_WAIT_PRIVATE, 0, NULL <unfinished ...>
+5481  sigaltstack({ss_sp=0x7f8a497e3000, ss_flags=0, ss_size=8192}, NULL) = 0
+5477  <... clone resumed> child_stack=0x7f8a48eaae30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a48eac9d0, tls=0x7f8a48eac700, child_tidptr=0x7f8a48eac9d0) = 5482
+5481  mmap(NULL, 134217728, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0 <unfinished ...>
+5477  futex(0x5592fcbe6c98, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5481  <... mmap resumed> )              = 0x7f8a3c000000
+5477  <... futex resumed> )             = 1
+5481  munmap(0x7f8a40000000, 67108864 <unfinished ...>
+5480  <... futex resumed> )             = 0
+5481  <... munmap resumed> )            = 0
+5480  futex(0x5592fcbea430, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5477  futex(0x5592fcbe4998, FUTEX_WAIT_PRIVATE, 0, NULL <unfinished ...>
+5481  mprotect(0x7f8a3c000000, 135168, PROT_READ|PROT_WRITE <unfinished ...>
+5480  <... futex resumed> )             = 0
+5481  <... mprotect resumed> )          = 0
+5480  read(5,  <unfinished ...>
+5479  tgkill(5479, 5477, SIGRT_1 <unfinished ...>
+5482  set_robust_list(0x7f8a48eac9e0, 24 <unfinished ...>
+5481  sched_getaffinity(5481, 32,  <unfinished ...>
+5482  <... set_robust_list resumed> )   = 0
+5481  <... sched_getaffinity resumed> [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5482  sigaltstack(NULL,  <unfinished ...>
+5479  <... tgkill resumed> )            = -1 ESRCH (No such process)
+5482  <... sigaltstack resumed> {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5481  read(7,  <unfinished ...>
+5482  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 <unfinished ...>
+5479  futex(0x7f8a4940dedc, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5482  <... mmap resumed> )              = 0x7f8a497e1000
+5479  <... futex resumed> )             = 0
+5482  sigaltstack({ss_sp=0x7f8a497e1000, ss_flags=0, ss_size=8192},  <unfinished ...>
+5479  setuid(1001 <unfinished ...>
+5482  <... sigaltstack resumed> NULL)   = 0
+5482  mmap(0x7f8a40000000, 67108864, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0) = 0x7f8a40000000
+5482  mprotect(0x7f8a40000000, 135168, PROT_READ|PROT_WRITE) = 0
+5479  <... setuid resumed> )            = 0
+5482  sched_getaffinity(5482, 32,  <unfinished ...>
+5479  read(9,  <unfinished ...>
+5482  <... sched_getaffinity resumed> [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5479  <... read resumed> "gl_hf", 5)    = 5
+5479  dup2(3, 0 <unfinished ...>
+5482  read(0,  <unfinished ...>
+5479  <... dup2 resumed> )              = 0
+5479  dup2(6, 1)                        = 1
+5479  dup2(8, 2)                        = 2
+5479  close(3)                          = 0
+5479  close(6)                          = 0
+5479  close(8)                          = 0
+5479  execve("/bin/ls", ["/bin/ls"], 0x7f8a44000c00 /* 0 vars */) = -1 ENOENT (No such file or directory)
+5479  write(2, "thread '", 8 <unfinished ...>
+5481  <... read resumed> "thread '", 1024) = 8
+5479  <... write resumed> )             = 8
+5479  write(2, "<unnamed>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unnamed>", 1024) = 9
+5479  write(2, "' panicked at '", 15 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 15
+5481  <... read resumed> "' panicked at '", 1024) = 15
+5479  write(2, "execve(2) failed with error 2: N"..., 56 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 56
+5481  <... read resumed> "execve(2) failed with error 2: N"..., 1024) = 56
+5479  write(2, "', ", 3 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 3
+5481  <... read resumed> "', ", 1024)   = 3
+5479  write(2, "execute/src/linux/mod.rs", 24 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 24
+5481  <... read resumed> "execute/src/linux/mod.rs", 1024) = 24
+5479  write(2, ":", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> ":", 1024)     = 1
+5479  write(2, "23", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> "23", 1024)    = 2
+5479  write(2, ":", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> ":", 1024)     = 1
+5479  write(2, "5", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "5", 1024)     = 1
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5481  write(1, "thread '<unnamed>' panicked at '"..., 121 <unfinished ...>
+5479  futex(0x7f8a497a21a0, FUTEX_WAKE_PRIVATE, 2147483647 <unfinished ...>
+5481  <... write resumed> )             = 121
+5479  <... futex resumed> )             = 0
+5481  read(7,  <unfinished ...>
+5479  openat(AT_FDCWD, "/proc/self/exe", O_RDONLY) = -1 ENOENT (No such file or directory)
+5479  openat(AT_FDCWD, "/proc/curproc/file", O_RDONLY) = -1 ENOENT (No such file or directory)
+5479  getpid()                          = 5479
+5479  openat(AT_FDCWD, "/proc/5479/object/a.out", O_RDONLY) = -1 ENOENT (No such file or directory)
+5479  write(2, "stack backtrace:\n", 17 <unfinished ...>
+5481  <... read resumed> "stack backtrace:\n", 1024) = 17
+5479  <... write resumed> )             = 17
+5481  write(1, "stack backtrace:\n", 17 <unfinished ...>
+5479  write(2, "  ", 2 <unfinished ...>
+5481  <... write resumed> )             = 17
+5479  <... write resumed> )             = 2
+5481  read(7,  <unfinished ...>
+5479  write(2, " ", 1 <unfinished ...>
+5481  <... read resumed> "  ", 1024)    = 2
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  write(2, "0", 1 <unfinished ...>
+5481  <... read resumed> " ", 1024)     = 1
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  write(2, ": ", 2 <unfinished ...>
+5481  <... read resumed> "0", 1024)     = 1
+5479  <... write resumed> )             = 2
+5481  read(7,  <unfinished ...>
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  <... read resumed> ": ", 1024)    = 2
+5479  <... write resumed> )             = 9
+5481  read(7,  <unfinished ...>
+5479  write(2, "\n", 1 <unfinished ...>
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  write(2, "  ", 2 <unfinished ...>
+5481  <... read resumed> "\n", 1024)    = 1
+5481  write(1, "   0: <unknown>\n", 16) = 16
+5479  <... write resumed> )             = 2
+5481  read(7,  <unfinished ...>
+5479  write(2, " ", 1 <unfinished ...>
+5481  <... read resumed> "  ", 1024)    = 2
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  write(2, "1", 1 <unfinished ...>
+5481  <... read resumed> " ", 1024)     = 1
+5479  <... write resumed> )             = 1
+5481  read(7, "1", 1024)                = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   1: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "2", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "2", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   2: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "3", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "3", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   3: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "4", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "4", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   4: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "5", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "5", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   5: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "6", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "6", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   6: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "7", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "7", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5479  write(2, "  ", 2 <unfinished ...>
+5481  write(1, "   7: <unknown>\n", 16 <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... write resumed> )             = 16
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "   ", 1024)   = 3
+5479  write(2, "8", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "8", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "<unknown>", 9 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 9
+5481  <... read resumed> "<unknown>", 1024) = 9
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5481  write(1, "   8: <unknown>\n", 16) = 16
+5479  write(2, "  ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> "  ", 1024)    = 2
+5479  write(2, " ", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> " ", 1024)     = 1
+5479  write(2, "9", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "9", 1024)     = 1
+5479  write(2, ": ", 2 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 2
+5481  <... read resumed> ": ", 1024)    = 2
+5479  write(2, "clone", 5 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 5
+5481  <... read resumed> "clone", 1024) = 5
+5479  write(2, "\n", 1 <unfinished ...>
+5481  read(7,  <unfinished ...>
+5479  <... write resumed> )             = 1
+5481  <... read resumed> "\n", 1024)    = 1
+5481  write(1, "   9: clone\n", 12 <unfinished ...>
+5479  write(2, "fatal runtime error: ", 21 <unfinished ...>
+5481  <... write resumed> )             = 12
+5479  <... write resumed> )             = 21
+5481  read(7,  <unfinished ...>
+5479  write(2, "failed to initiate panic, error ", 32 <unfinished ...>
+5481  <... read resumed> "fatal runtime error: ", 1024) = 21
+5479  <... write resumed> )             = 32
+5481  read(7,  <unfinished ...>
+5479  write(2, "5", 1 <unfinished ...>
+5481  <... read resumed> "failed to initiate panic, error ", 1024) = 32
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  write(2, "\n", 1 <unfinished ...>
+5481  <... read resumed> "5", 1024)     = 1
+5479  <... write resumed> )             = 1
+5481  read(7,  <unfinished ...>
+5479  rt_sigprocmask(SIG_UNBLOCK, [ABRT],  <unfinished ...>
+5481  <... read resumed> "\n", 1024)    = 1
+5479  <... rt_sigprocmask resumed> NULL, 8) = 0
+5481  write(1, "fatal runtime error: failed to i"..., 55 <unfinished ...>
+5479  rt_sigprocmask(SIG_BLOCK, ~[RTMIN RT_1],  <unfinished ...>
+5481  <... write resumed> )             = 55
+5479  <... rt_sigprocmask resumed> [], 8) = 0
+5481  read(7,  <unfinished ...>
+5479  getpid()                          = 5479
+5479  gettid()                          = 5479
+5479  tgkill(5479, 5479, SIGABRT)       = 0
+5479  rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+5479  --- SIGABRT {si_signo=SIGABRT, si_code=SI_TKILL, si_pid=5479, si_uid=1001} ---
+5481  <... read resumed> "", 1024)      = 0
+5480  <... read resumed> "", 1024)      = 0
+5479  +++ killed by SIGABRT (core dumped) +++
+5481  futex(0x5592fcbe77c0, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5480  futex(0x5592fcbe77c0, FUTEX_WAIT_PRIVATE, 2, NULL <unfinished ...>
+5481  <... futex resumed> )             = 0
+5480  <... futex resumed> )             = -1 EAGAIN (Resource temporarily unavailable)
+5481  mmap(NULL, 2101248, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0 <unfinished ...>
+5480  futex(0x5592fcbe77c0, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5481  <... mmap resumed> )              = 0x7f8a48aab000
+5480  <... futex resumed> )             = 0
+5481  mprotect(0x7f8a48aac000, 2097152, PROT_READ|PROT_WRITE) = 0
+5481  clone( <unfinished ...>
+5480  futex(0x5592fcbe4998, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5481  <... clone resumed> child_stack=0x7f8a48ca9e30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a48cab9d0, tls=0x7f8a48cab700, child_tidptr=0x7f8a48cab9d0) = 5487
+5481  mmap(NULL, 2101248, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0 <unfinished ...>
+5480  <... futex resumed> )             = 1
+5481  <... mmap resumed> )              = 0x7f8a488aa000
+5477  <... futex resumed> )             = 0
+5481  mprotect(0x7f8a488ab000, 2097152, PROT_READ|PROT_WRITE <unfinished ...>
+5480  futex(0x5592fcbe6c9c, FUTEX_WAIT_PRIVATE, 0, NULL <unfinished ...>
+5477  futex(0x5592fcbe4920, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5487  set_robust_list(0x7f8a48cab9e0, 24 <unfinished ...>
+5481  <... mprotect resumed> )          = 0
+5481  clone( <unfinished ...>
+5487  <... set_robust_list resumed> )   = 0
+5477  <... futex resumed> )             = 0
+5488  set_robust_list(0x7f8a48aaa9e0, 24 <unfinished ...>
+5487  sigaltstack(NULL,  <unfinished ...>
+5488  <... set_robust_list resumed> )   = 0
+5477  futex(0x5592fcbe499c, FUTEX_WAIT_PRIVATE, 0, NULL <unfinished ...>
+5488  sigaltstack(NULL,  <unfinished ...>
+5487  <... sigaltstack resumed> {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5488  <... sigaltstack resumed> {ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=0}) = 0
+5481  <... clone resumed> child_stack=0x7f8a48aa8e30, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f8a48aaa9d0, tls=0x7f8a48aaa700, child_tidptr=0x7f8a48aaa9d0) = 5488
+5488  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 <unfinished ...>
+5481  futex(0x7f8a3c000bf8, FUTEX_WAIT_PRIVATE, 0, NULL <unfinished ...>
+5488  <... mmap resumed> )              = 0x7f8a497df000
+5487  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 <unfinished ...>
+5488  sigaltstack({ss_sp=0x7f8a497df000, ss_flags=0, ss_size=8192},  <unfinished ...>
+5487  <... mmap resumed> )              = 0x7f8a497dd000
+5488  <... sigaltstack resumed> NULL)   = 0
+5487  sigaltstack({ss_sp=0x7f8a497dd000, ss_flags=0, ss_size=8192},  <unfinished ...>
+5488  mmap(NULL, 134217728, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0 <unfinished ...>
+5487  <... sigaltstack resumed> NULL)   = 0
+5488  <... mmap resumed> )              = 0x7f8a34000000
+5487  mmap(NULL, 134217728, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0 <unfinished ...>
+5488  munmap(0x7f8a38000000, 67108864 <unfinished ...>
+5487  <... mmap resumed> )              = 0x7f8a2c000000
+5488  <... munmap resumed> )            = 0
+5487  munmap(0x7f8a30000000, 67108864 <unfinished ...>
+5488  mprotect(0x7f8a34000000, 135168, PROT_READ|PROT_WRITE <unfinished ...>
+5487  <... munmap resumed> )            = 0
+5488  <... mprotect resumed> )          = 0
+5487  mprotect(0x7f8a2c000000, 135168, PROT_READ|PROT_WRITE <unfinished ...>
+5488  sched_getaffinity(5488, 32,  <unfinished ...>
+5487  <... mprotect resumed> )          = 0
+5488  <... sched_getaffinity resumed> [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5487  sched_getaffinity(5487, 32,  <unfinished ...>
+5488  nanosleep({tv_sec=3600, tv_nsec=0},  <unfinished ...>
+5487  <... sched_getaffinity resumed> [0, 1, 2, 3, 4, 5, 6, 7]) = 8
+5487  wait4(5479, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGABRT && WCOREDUMP(s)}], __WALL, NULL) = 5479
+5487  futex(0x7f8a3c000bf8, FUTEX_WAKE_PRIVATE, 2147483647) = 1
+5481  <... futex resumed> )             = 0
+5487  sigaltstack({ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=8192},  <unfinished ...>
+5481  futex(0x7f8a3c000c40, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+5487  <... sigaltstack resumed> NULL)   = 0
+5481  <... futex resumed> )             = 0
+5487  munmap(0x7f8a497dd000, 8192 <unfinished ...>
+5481  write(1, "---child process exited---\n", 27 <unfinished ...>
+5487  <... munmap resumed> )            = 0
+5487  madvise(0x7f8a48aab000, 2072576, MADV_DONTNEED <unfinished ...>
+5481  <... write resumed> )             = 27
+5487  <... madvise resumed> )           = 0
+5481  sigaltstack({ss_sp=NULL, ss_flags=SS_DISABLE, ss_size=8192},  <unfinished ...>
+5487  exit(0 <unfinished ...>
+5481  <... sigaltstack resumed> NULL)   = 0
+5487  <... exit resumed>)               = ?
+5481  munmap(0x7f8a49800000, 8192 <unfinished ...>
+5487  +++ exited with 0 +++
+5481  <... munmap resumed> )            = 0
+5481  exit_group(0)                     = ?
+5477  <... futex resumed>)              = ?
+5488  <... nanosleep resumed> <unfinished ...>) = ?
+5482  <... read resumed> <unfinished ...>) = ?
+5481  +++ exited with 0 +++
+5488  +++ exited with 0 +++
+5482  +++ exited with 0 +++
+5480  <... futex resumed>)              = ?
+5480  +++ exited with 0 +++
+5477  +++ exited with 0 +++

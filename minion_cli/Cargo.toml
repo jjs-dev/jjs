@@ -1,0 +1,11 @@
+[package]
+name = "minion_cli"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+execute = {path = "../execute"}
+structopt = "0.2.13"
+scoped_threadpool = "0.1.9"
+whoami = "0.2.2"

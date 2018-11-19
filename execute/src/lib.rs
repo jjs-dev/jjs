@@ -1,3 +1,4 @@
+#![feature(dbg_macro)]
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -17,7 +18,7 @@ pub trait ExecutionManager {
     fn spawn(&mut self, options: ChildProcessOptions) -> Self::ChildProcess;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PathExpositionOptions {
     pub src: String,
     pub dest: String,
@@ -26,7 +27,7 @@ pub struct PathExpositionOptions {
     pub allow_execute: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DominionOptions {
     pub allow_network: bool,
     pub allow_file_io: bool,

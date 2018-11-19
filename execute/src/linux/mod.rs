@@ -109,7 +109,6 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             exited: false,
             exit_code: 0,
         }));
-        //TODO rewrite
         let cv_should_return = Arc::new((Mutex::new(false), Condvar::new()));
         let mwaiter = m.clone();
         let cv_waiter = cv_should_return.clone();

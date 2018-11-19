@@ -26,6 +26,8 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
         allow_file_io: false,
         max_alive_process_count: 16,
         memory_limit: 0,
+        exposed_paths: vec![],
+        isolation_root: "".into(),
     });
     minion::ChildProcessOptions {
         path: String::new(),
@@ -65,7 +67,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             };
         }
     }
-    .clone();
+        .clone();
 
     for ref cmd in toolchain.build_commands {
         let mut opts = prepare_options(cfg);

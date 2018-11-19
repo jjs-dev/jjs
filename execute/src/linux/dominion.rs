@@ -9,7 +9,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     ptr,
-    process::{Command},
+    process::{Command, Stdio},
     //mem::size_of,
 };
 
@@ -38,6 +38,7 @@ fn gen_id() -> String {
 }
 
 //TODO extract to crate
+#[allow(dead_code)]
 fn dev_log(s: &str) {
     let c = CString::new(s).unwrap();
     unsafe {
@@ -52,6 +53,7 @@ fn get_group_id() -> u64 {
     //If it already exists, we silently ignore error
     let mut groupadd = Command::new("groupadd")
         .arg(MINION_GROUP_NAME)
+        .stderr(Stdio::null())
         .spawn()
         .unwrap();
     groupadd.wait().unwrap();
@@ -85,8 +87,15 @@ fn allocate_user(name: &str) -> u64 {
         .output()
         .unwrap()
         .stdout;
-    let res = String::from_utf8_lossy(&res).to_string();
+    let mut res = String::from_utf8_lossy(&res).to_string();
+    res = res.trim().into();
     res.parse().unwrap()
+}
+
+pub struct DesiredAccess {
+    pub r: bool,
+    pub w: bool,
+    pub x: bool,
 }
 
 impl LinuxDominion {
@@ -99,34 +108,35 @@ impl LinuxDominion {
     }
 
     pub fn create(options: DominionOptions) -> *mut LinuxDominion {
-        let cgroup_id = gen_id();
-
-        //configure pids subsystem
-        let pids_cgroup_path = LinuxDominion::get_path_for_subsystem("pids", &cgroup_id);
-        fs::create_dir_all(&pids_cgroup_path).unwrap();
-
-        fs::write(
-            format!("{}/pids.max", &pids_cgroup_path),
-            format!("{}", options.max_alive_process_count),
-        )
-            .unwrap();
-
-        //configure memory subsystem
-        let mem_cgroup_path = LinuxDominion::get_path_for_subsystem("memory", &cgroup_id);
-
-        fs::create_dir_all(&mem_cgroup_path).unwrap();
-        fs::write(format!("{}/memory.swappiness", &mem_cgroup_path), "0").unwrap();
-
-        fs::write(
-            format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
-            format!("{}", options.memory_limit),
-        )
-            .unwrap();
-
-        let user_id = allocate_user(&cgroup_id);
-
-        let dmem = allocate_heap_variable::<LinuxDominion>();
         unsafe {
+            let cgroup_id = gen_id();
+
+            //configure pids subsystem
+            let pids_cgroup_path = LinuxDominion::get_path_for_subsystem("pids", &cgroup_id);
+            fs::create_dir_all(&pids_cgroup_path).unwrap();
+
+            fs::write(
+                format!("{}/pids.max", &pids_cgroup_path),
+                format!("{}", options.max_alive_process_count),
+            )
+                .unwrap();
+
+            //configure memory subsystem
+            let mem_cgroup_path = LinuxDominion::get_path_for_subsystem("memory", &cgroup_id);
+
+            fs::create_dir_all(&mem_cgroup_path).unwrap();
+            fs::write(format!("{}/memory.swappiness", &mem_cgroup_path), "0").unwrap();
+
+            fs::write(
+                format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
+                format!("{}", options.memory_limit),
+            ).unwrap();
+
+
+            let user_id = allocate_user(&cgroup_id);
+
+            let dmem = allocate_heap_variable::<LinuxDominion>();
+
             let d = dmem.as_mut().unwrap();
             (*d).sanity_tag = LINUX_DOMINION_SANITY_CHECK_ID;
 
@@ -138,9 +148,19 @@ impl LinuxDominion {
 
             let options_ptr = offset_of!(LinuxDominion => options).apply_ptr(dmem);
             let options_ptr = options_ptr as *mut _;
-            ptr::write(options_ptr, options);
+            ptr::write(options_ptr, options.clone());
+
+            //mount --bind
+            for ref x in options.exposed_paths {
+                d.expose_dir(&x.src, &x.dest, DesiredAccess {
+                    r: x.allow_read,
+                    w: x.allow_write,
+                    x: x.allow_execute,
+                })
+            }
+
+            dmem
         }
-        dmem
     }
 
     fn add_to_subsys(&mut self, pid: Pid, subsys: &str) {
@@ -168,7 +188,7 @@ impl LinuxDominion {
         res
     }
 
-    pub fn expose_dir(&self, system_path: &str, alias_path: &str) {
+    pub fn expose_dir(&self, system_path: &str, alias_path: &str, _access: DesiredAccess) {
         let bind_target = format!("{}/{}", &self.dir(), alias_path);
         let bind_target = CString::new(bind_target).unwrap();
         let bind_src = CString::new(system_path).unwrap();

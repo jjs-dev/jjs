@@ -1,11 +1,11 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use config::*;
 use crate::{
-    object::{self, Submission},
     invoker::{Status, StatusKind},
+    object::{self, Submission},
 };
+use config::*;
 use execute::{self as minion, ChildProcess, ExecutionManager};
 use std::{
     collections,
@@ -67,7 +67,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             };
         }
     }
-        .clone();
+    .clone();
 
     for ref cmd in toolchain.build_commands {
         let mut opts = prepare_options(cfg);

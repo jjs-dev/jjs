@@ -1,7 +1,7 @@
 #![feature(never_type, nll, dbg_macro)]
 
-use execute::{ChildProcess, ExecutionManager, self};
-use std::io::{stdin, Read, Write};
+use execute::{self, ChildProcess, ExecutionManager};
+use std::io::{self, copy};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -29,29 +29,28 @@ fn parse_path_exposition_item(src: &str) -> Result<execute::PathExpositionOption
     };
     let amask = &src[sep1 + 1..sep2];
     if amask.len() != 3 {
-        panic!("access mask must contain 3 chars (R, W, X flags), but {} provided", amask.len());
+        panic!(
+            "access mask must contain 3 chars (R, W, X flags), but {} provided",
+            amask.len()
+        );
     }
     let amask: Vec<_> = amask.chars().collect();
     let (r, w, x);
-    let flag_parser = |pos, flag_name, true_val| {
-        match amask[pos] {
-            y if y == true_val => true,
-            '-' => false,
-            _ => panic!("{} flag must be either '{}' or '-'", flag_name, true_val),
-        }
+    let flag_parser = |pos, flag_name, true_val| match amask[pos] {
+        y if y == true_val => true,
+        '-' => false,
+        _ => panic!("{} flag must be either '{}' or '-'", flag_name, true_val),
     };
     r = flag_parser(0, 'R', 'r');
     w = flag_parser(1, 'W', 'w');
     x = flag_parser(2, 'X', 'x');
-    Ok(
-        execute::PathExpositionOptions {
-            src: (&src[..sep1]).to_string(),
-            dest: (&src[sep2 + 1..]).to_string(),
-            allow_read: r,
-            allow_write: w,
-            allow_execute: x,
-        }
-    )
+    Ok(execute::PathExpositionOptions {
+        src: (&src[..sep1]).to_string(),
+        dest: (&src[sep2 + 1..]).to_string(),
+        allow_read: r,
+        allow_write: w,
+        allow_execute: x,
+    })
 }
 
 #[derive(StructOpt, Debug)]
@@ -91,42 +90,16 @@ struct Opt {
     #[structopt(short = "p", long = "isolation-root")]
     isolation_root: String,
 
-    ///exposed paths (/source/path:MASK:/dest/path), MASK can be e.g. r-x (deny writes)
-    #[structopt(short = "x", long = "expose", parse(try_from_str = "parse_path_exposition_item"))]
+    ///exposed paths (/source/path:MASK:/dest/path), MASK is ignored, possible value is ---
+    #[structopt(
+        short = "x",
+        long = "expose",
+        parse(try_from_str = "parse_path_exposition_item")
+    )]
     exposed_paths: Vec<execute::PathExpositionOptions>,
 }
 
-fn print_read_stream<R: Read>(mut r: R) {
-    loop {
-        let mut buf = [0 as u8; 1024];
-        let res = r.read(&mut buf).unwrap();
-        if res == 0 {
-            break;
-        }
-        let s = String::from_utf8_lossy(&buf[..res]).to_string();
-        print!("{}", s);
-    }
-}
-
-fn type_write_stream<W: Write>(mut w: W) {
-    loop {
-        let mut buf = String::new();
-        stdin().read_line(&mut buf).unwrap();
-        w.write(buf.as_bytes()).unwrap();
-    }
-}
-
 fn main() {
-    if cfg!(target_os = "linux") {
-        let user_name = whoami::username();
-        if user_name != "root" {
-            eprintln!(
-                "minion_cli is launched from '{}'\nOnly root is supported",
-                user_name
-            );
-            std::process::exit(1);
-        }
-    }
     let options: Opt = Opt::from_args();
     if options.dump_argv {
         println!("{:#?}", options);
@@ -161,23 +134,24 @@ fn main() {
 
     let stdio = cp.get_stdio().unwrap();
 
-    let (stdin, stdout, stderr) = stdio.split();
+    let (mut stdin, mut stdout, mut stderr) = stdio.split();
 
     let mut p = scoped_threadpool::Pool::new(3);
     p.scoped(|scope| {
         scope.execute(|| {
-            print_read_stream(stdout);
+            copy(&mut stdout, &mut io::stdout()).unwrap();
         });
         scope.execute(|| {
-            print_read_stream(stderr);
+            copy(&mut stderr, &mut io::stderr()).unwrap();
         });
-        scope.execute(|| type_write_stream(stdin));
+        scope.execute(|| {
+            copy(&mut io::stdin(), &mut stdin).unwrap();
+        });
         scope.execute(|| {
             let timeout = std::time::Duration::from_secs(3600);
             cp.wait_for_exit(timeout).unwrap();
-            //let exit_code= cp.get_exit_code().unwrap();
-            println!("---child process exited---");
-            std::process::exit(0);
+            let exit_code = cp.get_exit_code().unwrap();
+            println!("---child process exited with code {}---", exit_code);
         })
     })
 }

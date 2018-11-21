@@ -5,12 +5,11 @@ pub use crate::linux::dominion::LinuxDominion;
 use libc::{c_char, c_int, c_void};
 //use ::definitions::*;
 use crate::*;
-use std::ffi::CString;
-use std::time;
 use std::{
-    io, mem, ptr,
+    ffi::CString,
+    fs, io, mem, ptr,
     sync::{Arc, Condvar, Mutex},
-    thread,
+    thread, time,
 };
 
 const LINUX_DOMINION_SANITY_CHECK_ID: u64 = 0xDEADF00DDEADBEEF;
@@ -18,9 +17,16 @@ const LINUX_DOMINION_SANITY_CHECK_ID: u64 = 0xDEADF00DDEADBEEF;
 type H = c_int;
 type Pid = libc::pid_t;
 
-fn err_exit(_func_name: &str, syscall_name: &str) -> ! {
-    let e = errno::errno();
-    panic!("{}(2) failed with error {}: {}", syscall_name, e.0, e)
+fn err_exit(syscall_name: &str) -> ! {
+    unsafe {
+        let e = errno::errno();
+        eprintln!("{}(2) failed with error {}: {}", syscall_name, e.0, e);
+        if libc::getpid() != 1 {
+            panic!("syscall error (msg upper)")
+        } else {
+            libc::exit(libc::EXIT_FAILURE);
+        }
+    }
 }
 
 pub struct LinuxReadPipe {
@@ -32,7 +38,7 @@ impl std::io::Read for LinuxReadPipe {
         unsafe {
             let ret = libc::read(self.handle, buf.as_mut_ptr() as *mut c_void, buf.len());
             if ret == -1 {
-                err_exit("LinuxReadPipe::read", "read");
+                err_exit("read");
             }
             Ok(ret as usize)
         }
@@ -60,7 +66,7 @@ impl io::Write for LinuxWritePipe {
         unsafe {
             let ret = libc::write(self.handle, buf.as_ptr() as *const c_void, buf.len());
             if ret == -1 {
-                err_exit("LinuxWritePipe::write()", "write");
+                err_exit("write");
             }
             Ok(ret as usize)
         }
@@ -70,7 +76,7 @@ impl io::Write for LinuxWritePipe {
         unsafe {
             let ret = libc::fsync(self.handle);
             if ret == -1 {
-                err_exit("LinuxWritePipe::flush", "fsync");
+                err_exit("fsync");
             }
             Ok(())
         }
@@ -84,6 +90,8 @@ pub struct LinuxChildProcess {
     stdout: H,
     stderr: H,
     stdio_wasted: bool,
+    //in order to save dominion while CP is alive
+    _dominion_ref: DominionRef,
 
     pid: Pid,
 }
@@ -118,7 +126,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
             let mut waitstatus = 0;
             let wcode = libc::waitpid(sync!(m).pid, &mut waitstatus, libc::__WALL);
             if wcode == -1 {
-                err_exit("timed_wait", "waitpid");
+                err_exit("waitpid");
             }
             {
                 sync!(m).exit_code = 228;
@@ -191,7 +199,6 @@ impl ChildProcess for LinuxChildProcess {
             match wait_result {
                 None => Ok(WaitResult::Timeout),
                 Some(w) => {
-                    //eprintln!("DEV: marking cp as exited");
                     if libc::WIFEXITED(w) {
                         self.exit_code = Some(i64::from(libc::WEXITSTATUS(w)));
                     } else {
@@ -216,7 +223,7 @@ impl ChildProcess for LinuxChildProcess {
                 return;
             }
             if libc::kill(self.pid, libc::SIGKILL) == -1 {
-                err_exit("LinuxChildProcess::kill", "kill");
+                err_exit("kill");
             }
         }
     }
@@ -245,7 +252,7 @@ struct DoExecArg {
     stdout: H,
     stderr: H,
     root: String,
-    uid: u64,
+    dominion: *mut LinuxDominion,
     ready_fd: H, //used for sync: parent writes to ready_fd when child can execve()
                  //out
 }
@@ -308,12 +315,50 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         }
         ptr_subscript_set!(envp, num_envp_items - 1, ptr::null());
 
+        let dominion = &mut *arg.dominion;
+
+        //before chroot we will perform all required mounts
+        //so, they will only be visible in out mount namespace
+        dominion.expose_dirs();
+
+        //change root (we assume all required binaries, DLLs etc will be made available via expose
+
+        {
+            let new_root = CString::new(arg.root.as_str()).unwrap();
+            if -1 == libc::chroot(new_root.as_ptr()) {
+                err_exit("chroot");
+            }
+        }
+
+        //mount procfs (it's required for FD closing to work)
+        {
+            match fs::create_dir("/proc") {
+                Ok(_) => (),
+                Err(e) => match e.kind() {
+                    io::ErrorKind::AlreadyExists => (),
+                    _ => Err(e).unwrap(),
+                },
+            }
+            let proc = CString::new("proc").unwrap();
+            let targ = CString::new("/proc").unwrap();
+            let mret = libc::mount(
+                proc.clone().as_ptr(),
+                targ.clone().as_ptr(),
+                proc.clone().as_ptr(),
+                0,
+                ptr::null(),
+            );
+            if -1 == mret {
+                err_exit("mount")
+            }
+        }
+
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
         let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
 
-        let fd_list_path = format!("/proc/{}/fd", std::process::id());
-        let fd_list = std::fs::read_dir(fd_list_path).unwrap();
+        let fd_list_path = format!("/proc/self/fd");
+        let fd_list = fs::read_dir(fd_list_path).unwrap();
         for fd in fd_list {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
@@ -322,20 +367,19 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
                 continue;
             }
             if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
-                panic!("couldn't cloexec fd: {}", fd);
+                let fd_info_path = format!("/proc/self/fd/{}", fd);
+                let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
+                let mut fd_info = [0 as i8; 4096];
+                libc::readlink(fd_info_path.as_ptr(), fd_info.as_mut_ptr(), 4096);
+                let fd_info = CString::from_raw(fd_info.as_mut_ptr());
+                let fd_info = fd_info.to_str().unwrap();
+                panic!("couldn't cloexec fd: {}({})", fd, fd_info);
             }
         }
 
-        //change root (we assume all required binaries, DLLs etc will be made availible via expose
-
-        {
-            let new_root = CString::new(arg.root.as_str()).unwrap();
-            libc::chroot(new_root.as_ptr());
-        }
-
-        let sandbox_user_id = arg.uid;
+        let sandbox_user_id = dominion.get_user_id();
         if libc::setuid(sandbox_user_id as u32) != 0 {
-            err_exit("do_exec", "setuid");
+            err_exit("setuid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
         let mut buf = Vec::with_capacity(READY_MSG.len());
@@ -348,20 +392,19 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         libc::dup2(arg.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stderr, libc::STDERR_FILENO);
 
+        //we close these FDs because they weren't affected by FD_CLOEXEC
         libc::close(arg.stdin);
         libc::close(arg.stdout);
         libc::close(arg.stderr);
 
-        let ret = libc::execve(
+        libc::execve(
             path,
             argv as *const *const c_char,
             envp as *const *const c_char,
         );
-        if ret == -1 {
-            err_exit("do_exec", "execve");
-        } else {
-            unreachable!("execve succeeded, but execution of old image continued")
-        }
+        //all is very bad
+
+        libc::exit(0xDEAD);
     }
 }
 
@@ -370,7 +413,7 @@ fn setup_pipe(read_end: &mut H, write_end: &mut H) -> Result<()> {
         let mut ends = [0 as H; 2];
         let ret = libc::pipe(ends.as_mut_ptr());
         if ret == -1 {
-            err_exit("setup_pipe", "pipe");
+            err_exit("pipe");
             //return Err(io::Error::last_os_error());
         }
         *read_end = ends[0];
@@ -391,7 +434,7 @@ const READY_MSG: &str = "gl_hf";
 
 fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
     unsafe {
-        let dmn = (options.dominion.d as *mut LinuxDominion).as_mut().unwrap();
+        let dmn = (options.dominion.d.lock().unwrap().ptr).as_mut().unwrap();
         //is's unsafe so in case of some error we check it's really LinuxDominion
         //though whole situation is UB, this check doesn't seem to be deleted by compiler
         if dmn.sanity_check() != LINUX_DOMINION_SANITY_CHECK_ID {
@@ -420,7 +463,6 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         setup_pipe(&mut ready_r, &mut ready_w).unwrap();
 
         let root = dmn.dir();
-        println!("isolation root is {}", root);
 
         //will be passed to child process
         let mut dea = DoExecArg {
@@ -432,7 +474,7 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
             stderr: err_w,
             ready_fd: ready_r,
             root: String::from(root),
-            uid: dmn.get_user_id()
+            dominion: options.dominion.d.lock().unwrap().ptr, //uff
         };
 
         let child_stack = libc::malloc(CHILD_STACK_SIZE);
@@ -447,8 +489,12 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         let thr = thread::spawn(move || {
             let ptr = child_pid_box.0;
             let ptr = ptr as *mut c_int;
-            *(ptr.as_mut().unwrap()) =
-                libc::clone(do_exec, child_stack_top.0, libc::CLONE_NEWNS, dea_box.0);
+            *(ptr.as_mut().unwrap()) = libc::clone(
+                do_exec,
+                child_stack_top.0,
+                libc::CLONE_NEWNS | libc::CLONE_NEWPID,
+                dea_box.0,
+            );
         });
         thr.join().expect("Couldn't join a thread");
 
@@ -471,6 +517,7 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
             stderr: err_r,
             stdio_wasted: false,
             pid: child_pid,
+            _dominion_ref: options.dominion.clone(),
         }
     }
 }
@@ -480,8 +527,10 @@ pub struct LinuxEM {}
 impl ExecutionManager for LinuxEM {
     type ChildProcess = LinuxChildProcess;
     fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
-        let d = linux::dominion::LinuxDominion::create(options);
-        DominionRef { d, ref_cnt: 1 }
+        let pd = linux::dominion::LinuxDominion::create(options);
+        DominionRef {
+            d: Arc::new(Mutex::new(DominionPointerOwner { ptr: pd })),
+        }
     }
 
     fn spawn(&mut self, options: ChildProcessOptions) -> LinuxChildProcess {

@@ -1,4 +1,5 @@
 #![feature(dbg_macro)]
+
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -9,6 +10,7 @@ use std::{
     io::{Read, Write},
     mem,
     path::PathBuf,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -44,29 +46,32 @@ pub trait Dominion: Debug {}
 pub type SelectedDominion = linux::LinuxDominion;
 
 #[derive(Clone, Debug)]
+struct DominionPointerOwner {
+    ptr: *mut SelectedDominion,
+}
+
+unsafe impl Send for DominionPointerOwner {}
+
+#[derive(Clone, Debug)]
 pub struct DominionRef {
-    ref_cnt: usize,
-    d: *mut SelectedDominion,
+    d: Arc<Mutex<DominionPointerOwner>>,
 }
 
 cfg_if! {
     if #[cfg(target_os = "linux")] {
-        fn drop_dom_ref(dref: &mut DominionRef) {
-            dref.ref_cnt -= 1;
-            if dref.ref_cnt > 0 {
-                return;
-            }
-            let inner = dref.d as *mut SelectedDominion;
+        use crate::linux::LinuxDominion;
+        fn drop_dom_ref(dref: *mut LinuxDominion) {
             unsafe {
-                mem::drop(&mut *inner);
+                let inner = dref.read();
+                mem::drop(inner);
             }
         }
     }
 }
 
-impl Drop for DominionRef {
+impl Drop for DominionPointerOwner {
     fn drop(&mut self) {
-        drop_dom_ref(self);
+        drop_dom_ref(self.ptr)
     }
 }
 

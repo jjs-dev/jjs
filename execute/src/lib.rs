@@ -1,5 +1,4 @@
-#![feature(dbg_macro)]
-
+#![feature(maybe_uninit)]
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -14,7 +13,7 @@ use std::{
     time::Duration,
 };
 
-pub trait ExecutionManager {
+pub trait Backend {
     type ChildProcess: ChildProcess;
     fn new_dominion(&mut self, options: DominionOptions) -> DominionRef;
     fn spawn(&mut self, options: ChildProcessOptions) -> Self::ChildProcess;
@@ -130,7 +129,7 @@ pub trait ChildProcess: Drop {
 }
 
 #[cfg(target_os = "linux")]
-pub type MinionExecutionManager = linux::LinuxEM;
+pub type MinionExecutionManager = linux::LinuxBackend;
 
 #[cfg(target_os = "linux")]
 pub fn setup() -> MinionExecutionManager {

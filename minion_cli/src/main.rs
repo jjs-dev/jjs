@@ -1,6 +1,9 @@
-#![feature(never_type, nll, dbg_macro)]
+#![feature(never_type, nll)]
 
-use execute::{self, ChildProcess, ExecutionManager};
+mod read;
+
+use cfg_if::cfg_if;
+use execute::{self, Backend, ChildProcess};
 use std::io::{self, copy};
 use structopt::StructOpt;
 
@@ -98,8 +101,20 @@ struct Opt {
     )]
     exposed_paths: Vec<execute::PathExpositionOptions>,
 }
+cfg_if! {
+if #[cfg(feature="human_panic")] {
+    fn setup_human_panic() {
+        human_panic::setup_panic!();
+    }
+} else {
+    fn setup_human_panic() {
+
+    }
+}
+}
 
 fn main() {
+    setup_human_panic();
     let options: Opt = Opt::from_args();
     if options.dump_argv {
         println!("{:#?}", options);
@@ -136,7 +151,7 @@ fn main() {
 
     let (mut stdin, mut stdout, mut stderr) = stdio.split();
 
-    let mut p = scoped_threadpool::Pool::new(3);
+    let mut p = scoped_threadpool::Pool::new(4);
     p.scoped(|scope| {
         scope.execute(|| {
             copy(&mut stdout, &mut io::stdout()).unwrap();
@@ -145,7 +160,15 @@ fn main() {
             copy(&mut stderr, &mut io::stderr()).unwrap();
         });
         scope.execute(|| {
-            copy(&mut io::stdin(), &mut stdin).unwrap();
+           match copy(&mut io::stdin(), &mut stdin) {
+               Ok(_) => (),
+               Err(e) => {
+                   match e.kind() {
+                       io::ErrorKind::BrokenPipe => (),
+                       _ => Err(e).unwrap()
+                   }
+               }
+           }
         });
         scope.execute(|| {
             let timeout = std::time::Duration::from_secs(3600);

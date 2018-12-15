@@ -6,7 +6,7 @@ use crate::{
     object::{self, Submission},
 };
 use config::*;
-use execute::{self as minion, ChildProcess, ExecutionManager};
+use execute::{self as minion, Backend, ChildProcess};
 use std::{
     collections,
     time::Duration,
@@ -38,7 +38,7 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
 }
 
 fn get_toolchain<'a>(submission: &object::Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
-    for ref t in &cfg.toolchains {
+    for t in &cfg.toolchains {
         if submission.toolchain_name == t.name {
             return Some(t);
         }
@@ -69,7 +69,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     }
     .clone();
 
-    for ref cmd in toolchain.build_commands {
+    for cmd in &toolchain.build_commands {
         let mut opts = prepare_options(cfg);
         let mut nargs = cmd.argv.clone();
         opts.path = nargs[0].clone();

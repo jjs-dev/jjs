@@ -18,7 +18,7 @@ fn main() {
                 process::exit(2);
             }
         };
-        if let Some(_) = dir.next() {
+        if dir.next().is_some() {
             eprintln!("Specified dir is not empty");
             process::exit(3);
         }

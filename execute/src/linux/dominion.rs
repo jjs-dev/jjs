@@ -1,48 +1,62 @@
-use crate::{
-    linux::{
-        allocate_heap_variable, allocate_memory, err_exit, setup_pipe, Pid,
-        LINUX_DOMINION_SANITY_CHECK_ID,
-    },
-    Dominion, DominionOptions,
+use crate::linux::util::{
+    allocate_heap_variable, allocate_memory, err_exit, Pid, Sock, WaitMessage,
 };
+use crate::{linux::LINUX_DOMINION_SANITY_CHECK_ID, Dominion, DominionOptions};
 use field_offset::offset_of;
 use rand::seq::SliceRandom;
 use std::{
     ffi::CString,
     fs::{self, OpenOptions},
-    io::Write,
-    process::{Command, Stdio},
-    //mem::size_of,
+    io::{self, Write},
     ptr,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 struct NsInfo {
-    mount: i32,
-    pids: i32,
+    pid: i32,
+    user: i32,
 }
 
+#[repr(C)]
 struct FillNsInfoArg {
     ns_info: NsInfo,
-    done_fd: i32,
+    sock: Sock,
+    user_id: i64,
 }
 
+const WAIT_CODE_DOMINION_CREATED: u16 = 1;
+const WAIT_CODE_PID_MAP_READY_FOR_SETUP: u16 = 2;
+const WAIT_CODE_PID_MAP_CREATED: u16 = 3;
+
 //clone() target func
-fn fill_ns_info(arg: *mut _) {
+extern "C" fn fill_ns_info(arg: *mut libc::c_void) -> i32 {
     unsafe {
         let arg = &mut *(arg as *mut FillNsInfoArg);
         let nsi = &mut arg.ns_info;
         {
-            let mp = CString::from("/proc/self/ns/mnt");
-            nsi.mount = libc::open(mp.as_ptr());
+            let pp = CString::new("/proc/self/ns/pid").unwrap();
+            nsi.pid = libc::open(pp.as_ptr(), libc::O_RDONLY);
         }
         {
-            let pp = CString::from("/proc/self/pids");
-            nsi.pids = libc::open()
+            let up = CString::new("/proc/self/ns/user").unwrap();
+            nsi.user = libc::open(up.as_ptr(), libc::O_RDONLY);
         }
-        let ready_msg = CString::from("d");
-        libc::write(arg.done_fd, ready_msg.as_ptr(), 1);
+        //now we need to setup namespaces
+
+        //mount procfs (it's required for FD closing to work)
+
+        //init uid_map and gid_map (see user_namespaces(2))
+        //for doing this, we will call our master process
+        arg.sock
+            .send(&WaitMessage::with_class(WAIT_CODE_PID_MAP_READY_FOR_SETUP));
+        let resp = arg.sock.receive::<WaitMessage>();
+        resp.check(WAIT_CODE_PID_MAP_CREATED).unwrap();
+
+        arg.sock
+            .send(&WaitMessage::with_class(WAIT_CODE_DOMINION_CREATED));
+
+        0
     }
 }
 
@@ -65,7 +79,7 @@ fn gen_id() -> String {
     let mut gen = rand::thread_rng();
     let mut out = Vec::new();
     for _i in 0..ID_SIZE {
-        let ch = ID_CHARS.choose(&mut gen).unwrap().clone();
+        let ch = *(ID_CHARS.choose(&mut gen).unwrap());
         out.push(ch);
     }
     String::from_utf8_lossy(&out[..]).to_string()
@@ -80,50 +94,10 @@ fn dev_log(s: &str) {
     }
 }
 
-const MINION_GROUP_NAME: &str = "minion_sandbox";
-
-fn get_group_id() -> u64 {
-    //Firstly, we create the group
-    //If it already exists, we silently ignore error
-    let mut groupadd = Command::new("groupadd")
-        .arg(MINION_GROUP_NAME)
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
-    groupadd.wait().unwrap();
-    //now we retrieve group id
-    let group_description = Command::new("getent")
-        .arg("group")
-        .arg(MINION_GROUP_NAME)
-        .output()
-        .unwrap();
-    let items = String::from_utf8_lossy(&group_description.stdout).to_string();
-    let items: Vec<_> = items.split(':').collect();
-    assert_eq!(items[0], "minion_sandbox");
-    items[2].parse().unwrap()
-}
-
-fn allocate_user(name: &str) -> u64 {
-    let name = format!("minion_sandbox_{}", name);
-    get_group_id();
-    Command::new("useradd")
-        .args(&["--no-user-group", "--no-create-home"])
-        .arg("--gid")
-        .arg(MINION_GROUP_NAME)
-        .arg(&name)
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap();
-    let res = Command::new("id")
-        .arg("-u")
-        .arg(&name)
-        .output()
-        .unwrap()
-        .stdout;
-    let mut res = String::from_utf8_lossy(&res).to_string();
-    res = res.trim().into();
-    res.parse().unwrap()
+fn allocate_user_id() -> u64 {
+    use rand::Rng;
+    //TODO make parameters
+    rand::thread_rng().gen_range(1_000_000, 2_000_000)
 }
 
 pub struct DesiredAccess {
@@ -132,6 +106,8 @@ pub struct DesiredAccess {
     pub x: bool,
 }
 
+const CHILD_STACK_SIZE: usize = 1024 * 1024;
+
 impl LinuxDominion {
     pub(crate) fn sanity_check(&mut self) -> u64 {
         self.sanity_tag
@@ -139,6 +115,20 @@ impl LinuxDominion {
 
     fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {
         format!("/sys/fs/cgroup/{}/jjs/g-{}", subsys_name, cgroup_id)
+    }
+
+    fn fill_pid_gid_map_for_child(sock: &mut Sock, child_pid: i32, mapped_uid: i32) {
+        {
+            let wm: WaitMessage = sock.receive();
+            wm.check(WAIT_CODE_PID_MAP_READY_FOR_SETUP);
+        }
+        //child will have uid=1 in its namespace, but some random and not-privileged in primary
+        let mapping = format!("1 {} 1\n", mapped_uid);
+        let uid_map_path = format!("/proc/{}/uid_map", child_pid);
+        let gid_map_path = format!("/proc/{}/gid_map", child_pid);
+        fs::write(&uid_map_path, mapping.as_str()).unwrap();
+        fs::write(&gid_map_path, mapping.as_str()).unwrap();
+        sock.send(&WaitMessage::with_class(WAIT_CODE_PID_MAP_CREATED));
     }
 
     pub(crate) fn create(options: DominionOptions) -> *mut LinuxDominion {
@@ -167,7 +157,34 @@ impl LinuxDominion {
             )
             .unwrap();
 
-            let user_id = allocate_user(&cgroup_id);
+            //mount procfs
+            {
+                let procfs_path = format!(
+                    "{}/proc",
+                    &options.isolation_root.to_str().unwrap().to_string()
+                );
+                match fs::create_dir(procfs_path.as_str()) {
+                    Ok(_) => (),
+                    Err(e) => match e.kind() {
+                        io::ErrorKind::AlreadyExists => (),
+                        _ => Err(e).unwrap(),
+                    },
+                }
+                let proc = CString::new("proc").unwrap();
+                let targ = CString::new(procfs_path.as_str()).unwrap();
+                let mret = libc::mount(
+                    proc.clone().as_ptr(),
+                    targ.clone().as_ptr(),
+                    proc.clone().as_ptr(),
+                    0,
+                    ptr::null(),
+                );
+                if -1 == mret {
+                    err_exit("mount")
+                }
+            }
+
+            let user_id = allocate_user_id();
 
             let dmem = allocate_heap_variable::<LinuxDominion>();
 
@@ -185,17 +202,31 @@ impl LinuxDominion {
             ptr::write(options_ptr, options.clone());
 
             //now we setup ns_info
-            let (mut done_r, mut done_w);
-            setup_pipe(&mut done_r, &mut done_w);
+
             let child_arg: *mut FillNsInfoArg = allocate_heap_variable();
-            (*child_arg).done_fd = done_w;
-            let child_stack = allocate_memory(1024 * 1024);
-            libc::clone(
+            (*child_arg).user_id = user_id as i64;
+
+            let (mut sock, child_sock) = Sock::make_pair();
+
+            let mut child_stack = allocate_memory(CHILD_STACK_SIZE);
+            (*child_arg).sock = child_sock;
+            //we must provide pointer to end of child_stack, because stack grows right-to-left
+            child_stack = child_stack.add(CHILD_STACK_SIZE);
+            let child_pid = libc::clone(
                 fill_ns_info,
-                child_stack,
-                libc::CLONE_VM | libc::CLONE_NEWNS | libc::CLONE_NEWPID,
+                child_stack as *mut _,
+                libc::CLONE_VM | libc::CLONE_NEWPID | libc::CLONE_NEWUSER | libc::CLONE_FILES,
                 child_arg as *mut _,
             );
+            if child_pid == -1 {
+                err_exit("clone");
+            }
+            Self::fill_pid_gid_map_for_child(&mut sock, child_pid, user_id as i32);
+            {
+                let wm: WaitMessage = sock.receive();
+                wm.check(WAIT_CODE_DOMINION_CREATED).unwrap();
+            }
+            (*dmem).ns_info = (*child_arg).ns_info;
 
             dmem
         }
@@ -213,7 +244,8 @@ impl LinuxDominion {
     }
 
     pub(crate) fn add_process(&mut self, pid: Pid) {
-        for subsys in vec!["pids", "memory"] {
+        dev_log("add_process");
+        for subsys in &["pids", "memory"] {
             self.add_to_subsys(pid, subsys);
         }
     }
@@ -222,8 +254,7 @@ impl LinuxDominion {
         let res = self.options.isolation_root.clone();
         let res = res.to_str();
         let res = res.unwrap();
-        let res = String::from(res);
-        res
+        String::from(res)
     }
 
     fn get_mount_target(&self, suf: &str) -> String {
@@ -287,8 +318,15 @@ impl LinuxDominion {
         }
     }
 
-    pub(crate) fn get_user_id(&self) -> u64 {
-        self.user_id
+    pub(crate) fn enter(&self) {
+        unsafe {
+            if libc::setns(self.ns_info.pid, libc::CLONE_NEWPID) == -1 {
+                err_exit("setns");
+            }
+            if libc::setns(self.ns_info.user, libc::CLONE_NEWUSER) == -1 {
+                err_exit("setns");
+            }
+        }
     }
 }
 
@@ -302,20 +340,26 @@ impl Drop for LinuxDominion {
                 &self.cgroup_id,
             ));
         }
-        //remove user
-        Command::new("userdel")
-            .arg(&format!("minion_sandbox_{}", &self.cgroup_id))
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap();
-        //unmount exposed dirs
-        for x in &self.options.exposed_paths {
-            let bind_target = self.get_mount_target(&x.dest);
-            let bind_target = CString::new(bind_target).unwrap();
-            unsafe {
-                //libc::umount2(bind_target.as_ptr(), libc::MNT_DETACH);
+        //unmount all
+        let fres = unsafe { libc::fork() };
+        if fres == -1 {
+            err_exit("fork");
+        }
+        if fres == 0 {
+            self.enter();
+            let mount_info = fs::read_to_string("/proc/self/mounts").unwrap();
+            let mount_info = mount_info.split('\n');
+            for line in mount_info {
+                let line = line.trim();
+                let parts: Vec<String> = line.split(' ').map(|x| x.to_string()).collect();
+                let mount_path = CString::new(parts[1].as_str()).unwrap();
+                unsafe {
+                    if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {
+                        err_exit("umount2");
+                    }
+                }
             }
+            unsafe { libc::exit(0) }
         }
     }
 }

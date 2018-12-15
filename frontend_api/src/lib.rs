@@ -1,3 +1,3 @@
-//include!(concat!(env!("OUT_DIR"), "/proto.rs"));
+#![allow(clippy::all)]
 mod proto;
 pub use self::proto::*;

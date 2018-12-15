@@ -5,5 +5,5 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0.80"
-serde_derive = "1.0.80"
+serde = "1.0.82"
+serde_derive = "1.0.82"

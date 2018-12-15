@@ -6,6 +6,11 @@ edition = "2018"
 
 [dependencies]
 execute = {path = "../execute"}
-structopt = "0.2.13"
+structopt = "0.2.14"
 scoped_threadpool = "0.1.9"
-whoami = "0.2.2"
+whoami = "0.2.4"
+human-panic = {version = "1.0.1", optional = true}
+cfg-if = "0.1.6"
+[features]
+human_panic = ["human-panic"]
+dist = ["human_panic"]

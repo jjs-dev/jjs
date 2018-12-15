@@ -21,8 +21,7 @@ impl ApiContextProvider {
         let db = db::Db {
             submissions: Box::new(db::submission::PgSubmissions::new(box db_conn)),
         };
-        let t = ApiContext { db };
-        t
+        ApiContext { db }
     }
 
     fn provide(&self) -> ApiContext {

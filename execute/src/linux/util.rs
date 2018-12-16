@@ -3,6 +3,7 @@ use std::{ffi::CString, mem, ptr, str::FromStr};
 
 pub type Handle = c_int;
 pub type Pid = libc::pid_t;
+pub type ExitCode = c_int;
 
 pub fn err_exit(syscall_name: &str) -> ! {
     unsafe {

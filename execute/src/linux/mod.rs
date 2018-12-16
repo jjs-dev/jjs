@@ -2,7 +2,7 @@ mod dominion;
 mod util;
 
 pub use crate::linux::dominion::LinuxDominion;
-use crate::linux::util::{dev_log, err_exit, setup_pipe, Handle, Pid, Sock};
+use crate::linux::util::{err_exit, setup_pipe, ExitCode, Handle, Pid, Sock};
 use crate::*;
 use libc::{c_char, c_int, c_void};
 use std::{
@@ -51,8 +51,7 @@ impl io::Write for LinuxWritePipe {
         unsafe {
             let ret = libc::write(self.handle, buf.as_ptr() as *const c_void, buf.len());
             if ret == -1 {
-                let ret_code = errno::errno().0;
-                return Err(io::Error::last_os_error())
+                return Err(io::Error::last_os_error());
             }
             Ok(ret as usize)
         }
@@ -62,7 +61,7 @@ impl io::Write for LinuxWritePipe {
         unsafe {
             let ret = libc::fsync(self.handle);
             if ret == -1 {
-                return Err(io::Error::last_os_error())
+                return Err(io::Error::last_os_error());
             }
             Ok(())
         }
@@ -87,7 +86,7 @@ struct WaiterArg {
     pid: Pid,
 }
 
-extern "C" fn timed_wait_waiter(arg: *mut c_void) -> i32 {
+extern "C" fn timed_wait_waiter(arg: *mut c_void) -> ExitCode {
     unsafe {
         let arg = arg as *mut WaiterArg;
         let arg = &mut *arg;
@@ -109,7 +108,7 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> i32 {
     }
 }
 
-fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
+fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<ExitCode> {
     unsafe {
         let (mut end_r, mut end_w);
         end_r = 0;
@@ -118,7 +117,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<i32> {
         let waiter_pid;
         {
             let waiter_stack = util::allocate_memory(1_048_576 + 4096); //1 MB
-                                                                        //TODO fix leaks
+            //TODO fix leaks
             let waiter_stack = waiter_stack.add(4096 - (waiter_stack as usize % 4096));
             let arg = WaiterArg { res_fd: end_w, pid };
             let argp = util::allocate_heap_variable();
@@ -187,21 +186,15 @@ impl ChildProcess for LinuxChildProcess {
     }
 
     fn wait_for_exit(&mut self, timeout: std::time::Duration) -> Result<WaitResult> {
-        unsafe {
-            if self.is_finished() {
-                return Ok(WaitResult::AlreadyFinished);
-            }
-            let wait_result = timed_wait(self.pid, timeout);
-            match wait_result {
-                None => Ok(WaitResult::Timeout),
-                Some(w) => {
-                    if libc::WIFEXITED(w) {
-                        self.exit_code = Some(i64::from(libc::WEXITSTATUS(w)));
-                    } else {
-                        self.exit_code = Some(i64::from(-libc::WTERMSIG(w)));
-                    }
-                    Ok(WaitResult::Exited)
-                }
+        if self.is_finished() {
+            return Ok(WaitResult::AlreadyFinished);
+        }
+        let wait_result = timed_wait(self.pid, timeout);
+        match wait_result {
+            None => Ok(WaitResult::Timeout),
+            Some(w) => {
+                self.exit_code = Some(w as i64);
+                Ok(WaitResult::Exited)
             }
         }
     }
@@ -269,7 +262,6 @@ fn duplicate_string_vec(v: &[String]) -> *mut *mut c_char {
 extern "C" fn do_exec(arg: *mut c_void) -> i32 {
     use std::iter::FromIterator;
     unsafe {
-        dev_log("do_exec()");
         let arg = &mut *(arg as *mut DoExecArg);
         let path = util::duplicate_string(&arg.path);
 
@@ -277,7 +269,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         argv_with_path.append(&mut (arg.arguments.clone()));
 
         //duplicate argv
-        let argv = duplicate_string_vec(&arg.arguments);
+        let argv = duplicate_string_vec(&argv_with_path);
 
         //duplicate envp
         let environ: Vec<String> = arg
@@ -298,6 +290,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
         //change root (we assume all required binaries, DLLs etc will be made available via expose)
         {
             let new_root = CString::new(arg.root.as_str()).unwrap();
+            libc::chdir(new_root.as_ptr());
             if -1 == libc::chroot(new_root.as_ptr()) {
                 err_exit("chroot");
             }
@@ -356,8 +349,14 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             argv as *const *const c_char,
             envp as *const *const c_char,
         );
-        //execve doesn't return on success
-        err_exit("execve");
+        let err_code = errno::errno().0;
+        if err_code == libc::ENOENT {
+            eprintln!("FATAL ERROR: executable was not found");
+            libc::exit(108)
+        } else {
+            //execve doesn't return on success
+            err_exit("execve");
+        }
     }
 }
 
@@ -418,7 +417,6 @@ fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
         libc::close(err_w);
 
         //finally we can set up security
-        dev_log("adding process into dominion");
         dmn.add_process(child_pid);
 
         //now we can allow child to execve()

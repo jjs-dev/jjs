@@ -1,5 +1,5 @@
 use crate::linux::util::{
-    allocate_heap_variable, allocate_memory, err_exit, Pid, Sock, WaitMessage,
+    allocate_heap_variable, allocate_memory, err_exit, Handle, Pid, Sock, WaitMessage,
 };
 use crate::{linux::LINUX_DOMINION_SANITY_CHECK_ID, Dominion, DominionOptions};
 use field_offset::offset_of;
@@ -14,8 +14,9 @@ use std::{
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 struct NsInfo {
-    pid: i32,
-    user: i32,
+    pid: Handle,
+    user: Handle,
+    net: Handle,
 }
 
 #[repr(C)]
@@ -41,6 +42,10 @@ extern "C" fn fill_ns_info(arg: *mut libc::c_void) -> i32 {
         {
             let up = CString::new("/proc/self/ns/user").unwrap();
             nsi.user = libc::open(up.as_ptr(), libc::O_RDONLY);
+        }
+        {
+            let np = CString::new("/proc/self/ns/net").unwrap();
+            nsi.net = libc::open(np.as_ptr(), libc::O_RDONLY);
         }
         //now we need to setup namespaces
 
@@ -143,7 +148,7 @@ impl LinuxDominion {
                 format!("{}/pids.max", &pids_cgroup_path),
                 format!("{}", options.max_alive_process_count),
             )
-            .unwrap();
+                .unwrap();
 
             //configure memory subsystem
             let mem_cgroup_path = LinuxDominion::get_path_for_subsystem("memory", &cgroup_id);
@@ -155,7 +160,7 @@ impl LinuxDominion {
                 format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
                 format!("{}", options.memory_limit),
             )
-            .unwrap();
+                .unwrap();
 
             //mount procfs
             {
@@ -215,7 +220,7 @@ impl LinuxDominion {
             let child_pid = libc::clone(
                 fill_ns_info,
                 child_stack as *mut _,
-                libc::CLONE_VM | libc::CLONE_NEWPID | libc::CLONE_NEWUSER | libc::CLONE_FILES,
+                libc::CLONE_VM | libc::CLONE_NEWPID | libc::CLONE_NEWUSER | libc::CLONE_NEWNET | libc::CLONE_FILES,
                 child_arg as *mut _,
             );
             if child_pid == -1 {
@@ -244,7 +249,6 @@ impl LinuxDominion {
     }
 
     pub(crate) fn add_process(&mut self, pid: Pid) {
-        dev_log("add_process");
         for subsys in &["pids", "memory"] {
             self.add_to_subsys(pid, subsys);
         }
@@ -326,6 +330,9 @@ impl LinuxDominion {
             if libc::setns(self.ns_info.user, libc::CLONE_NEWUSER) == -1 {
                 err_exit("setns");
             }
+            if libc::setns(self.ns_info.net, libc::CLONE_NEWNET) == -1 {
+                err_exit("setns");
+            }
         }
     }
 }
@@ -340,26 +347,24 @@ impl Drop for LinuxDominion {
                 &self.cgroup_id,
             ));
         }
-        //unmount all
-        let fres = unsafe { libc::fork() };
-        if fres == -1 {
-            err_exit("fork");
-        }
-        if fres == 0 {
-            self.enter();
-            let mount_info = fs::read_to_string("/proc/self/mounts").unwrap();
-            let mount_info = mount_info.split('\n');
-            for line in mount_info {
-                let line = line.trim();
-                let parts: Vec<String> = line.split(' ').map(|x| x.to_string()).collect();
-                let mount_path = CString::new(parts[1].as_str()).unwrap();
-                unsafe {
-                    if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {
-                        err_exit("umount2");
-                    }
+
+        let do_umount = |inner_path: &str| {
+            let mount_path = format!(
+                "{}/{}",
+                &self.options.isolation_root.to_str().unwrap(),
+                inner_path
+            );
+            let mount_path = CString::new(mount_path.as_str()).unwrap();
+            unsafe {
+                if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {
+                    err_exit("umount2");
                 }
             }
-            unsafe { libc::exit(0) }
+        };
+
+        do_umount("/proc");
+        for x in &self.options.exposed_paths {
+            do_umount(x.dest.as_str());
         }
     }
 }

@@ -1,10 +1,11 @@
 #![feature(never_type, nll)]
 
-mod read;
-
 use cfg_if::cfg_if;
 use execute::{self, Backend, ChildProcess};
-use std::io::{self, copy};
+use std::io::{self, copy, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::sleep;
+use std::time::Duration;
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -95,9 +96,9 @@ struct Opt {
 
     ///exposed paths (/source/path:MASK:/dest/path), MASK is ignored, possible value is ---
     #[structopt(
-        short = "x",
-        long = "expose",
-        parse(try_from_str = "parse_path_exposition_item")
+    short = "x",
+    long = "expose",
+    parse(try_from_str = "parse_path_exposition_item")
     )]
     exposed_paths: Vec<execute::PathExpositionOptions>,
 }
@@ -152,6 +153,7 @@ fn main() {
     let (mut stdin, mut stdout, mut stderr) = stdio.split();
 
     let mut p = scoped_threadpool::Pool::new(4);
+    let is_exited = AtomicBool::new(false);
     p.scoped(|scope| {
         scope.execute(|| {
             copy(&mut stdout, &mut io::stdout()).unwrap();
@@ -160,21 +162,30 @@ fn main() {
             copy(&mut stderr, &mut io::stderr()).unwrap();
         });
         scope.execute(|| {
-           match copy(&mut io::stdin(), &mut stdin) {
-               Ok(_) => (),
-               Err(e) => {
-                   match e.kind() {
-                       io::ErrorKind::BrokenPipe => (),
-                       _ => Err(e).unwrap()
-                   }
-               }
-           }
+            let mut buf = [0; 1024];
+            while !is_exited.load(Ordering::SeqCst) {
+                let res = io::stdin().read(&mut buf);
+                sleep(Duration::from_millis(50));
+                let res = match res {
+                    Ok(x) => x,
+                    x => x.unwrap(),
+                };
+
+                match stdin.write(&buf[..res]) {
+                    Ok(_) => (),
+                    Err(e) => match e.kind() {
+                        io::ErrorKind::BrokenPipe => (),
+                        _ => Err(e).unwrap(),
+                    },
+                }
+            }
         });
         scope.execute(|| {
-            let timeout = std::time::Duration::from_secs(3600);
+            let timeout = Duration::from_secs(3600);
             cp.wait_for_exit(timeout).unwrap();
             let exit_code = cp.get_exit_code().unwrap();
             println!("---child process exited with code {}---", exit_code);
+            is_exited.store(true, Ordering::SeqCst);
         })
     })
 }

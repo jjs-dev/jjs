@@ -1,72 +1,25 @@
 mod dominion;
+mod jail_common;
+mod jobserver;
+mod pipe;
 mod util;
 
 pub use crate::linux::dominion::LinuxDominion;
-use crate::linux::util::{err_exit, setup_pipe, ExitCode, Handle, Pid, Sock};
-use crate::*;
-use libc::{c_char, c_int, c_void};
+use crate::{
+    linux::{
+        pipe::{setup_pipe, LinuxReadPipe, LinuxWritePipe},
+        util::{err_exit, ExitCode, Handle, Pid, Sock},
+    },
+    Backend, ChildProcess, ChildProcessOptions, ChildProcessStdio, DominionOptions,
+    DominionPointerOwner, DominionRef, WaitResult,
+};
+use libc::c_void;
 use std::{
     ffi::CString,
-    fs, io, mem, ptr,
+    mem, ptr,
     sync::{Arc, Mutex},
     time,
 };
-
-const LINUX_DOMINION_SANITY_CHECK_ID: u64 = 0xDEAD_F00D_DEAD_BEEF;
-
-pub struct LinuxReadPipe {
-    handle: Handle,
-}
-
-impl std::io::Read for LinuxReadPipe {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unsafe {
-            let ret = libc::read(self.handle, buf.as_mut_ptr() as *mut c_void, buf.len());
-            if ret == -1 {
-                err_exit("read");
-            }
-            Ok(ret as usize)
-        }
-    }
-}
-
-impl LinuxReadPipe {
-    fn new(handle: Handle) -> LinuxReadPipe {
-        LinuxReadPipe { handle }
-    }
-}
-
-pub struct LinuxWritePipe {
-    handle: Handle,
-}
-
-impl LinuxWritePipe {
-    fn new(handle: Handle) -> LinuxWritePipe {
-        LinuxWritePipe { handle }
-    }
-}
-
-impl io::Write for LinuxWritePipe {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unsafe {
-            let ret = libc::write(self.handle, buf.as_ptr() as *const c_void, buf.len());
-            if ret == -1 {
-                return Err(io::Error::last_os_error());
-            }
-            Ok(ret as usize)
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        unsafe {
-            let ret = libc::fsync(self.handle);
-            if ret == -1 {
-                return Err(io::Error::last_os_error());
-            }
-            Ok(())
-        }
-    }
-}
 
 pub struct LinuxChildProcess {
     exit_code: Option<i64>,
@@ -117,7 +70,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<ExitCode> {
         let waiter_pid;
         {
             let waiter_stack = util::allocate_memory(1_048_576 + 4096); //1 MB
-            //TODO fix leaks
+                                                                        //TODO fix leaks
             let waiter_stack = waiter_stack.add(4096 - (waiter_stack as usize % 4096));
             let arg = WaiterArg { res_fd: end_w, pid };
             let argp = util::allocate_heap_variable();
@@ -185,7 +138,7 @@ impl ChildProcess for LinuxChildProcess {
         }
     }
 
-    fn wait_for_exit(&mut self, timeout: std::time::Duration) -> Result<WaitResult> {
+    fn wait_for_exit(&mut self, timeout: std::time::Duration) -> crate::Result<WaitResult> {
         if self.is_finished() {
             return Ok(WaitResult::AlreadyFinished);
         }
@@ -226,214 +179,8 @@ impl Drop for LinuxChildProcess {
     }
 }
 
-struct DoExecArg {
-    //in
-    path: String,
-    arguments: Vec<String>,
-    environment: std::collections::HashMap<String, String>,
-    stdin: Handle,
-    stdout: Handle,
-    stderr: Handle,
-    root: String,
-    dominion: *mut LinuxDominion,
-    sock: Sock,
-}
-
-const WAIT_MESSAGE_CLASS_EXECVE_PERMITTED: u16 = 1;
-
-fn duplicate_string_vec(v: &[String]) -> *mut *mut c_char {
-    let n = v.len();
-    let mut res = Vec::with_capacity(n + 1);
-    for str in v {
-        let str = util::duplicate_string(str.as_str());
-        res.push(str);
-    }
-    res.push(ptr::null_mut());
-    let p = res.as_ptr();
-    let byte_cnt = (n + 1) * mem::size_of::<*mut c_char>();
-    let res = util::allocate_memory(byte_cnt);
-    unsafe {
-        libc::memcpy(res as *mut c_void, p as *const c_void, byte_cnt);
-    }
-    res as *mut *mut c_char
-}
-
-#[allow(unreachable_code)]
-extern "C" fn do_exec(arg: *mut c_void) -> i32 {
-    use std::iter::FromIterator;
-    unsafe {
-        let arg = &mut *(arg as *mut DoExecArg);
-        let path = util::duplicate_string(&arg.path);
-
-        let mut argv_with_path = vec![arg.path.clone()];
-        argv_with_path.append(&mut (arg.arguments.clone()));
-
-        //duplicate argv
-        let argv = duplicate_string_vec(&argv_with_path);
-
-        //duplicate envp
-        let environ: Vec<String> = arg
-            .environment
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
-        let envp = duplicate_string_vec(&environ);
-
-        let dominion = &mut *arg.dominion;
-        //before chroot we will perform all required mounts
-        dominion.expose_dirs();
-
-        //enter namespaces
-        dominion.enter();
-
-        //TODO move to dominion
-        //change root (we assume all required binaries, DLLs etc will be made available via expose)
-        {
-            let new_root = CString::new(arg.root.as_str()).unwrap();
-            libc::chdir(new_root.as_ptr());
-            if -1 == libc::chroot(new_root.as_ptr()) {
-                err_exit("chroot");
-            }
-        }
-
-        //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
-        let fds_to_keep = vec![arg.stdin, arg.stdout, arg.stderr];
-        let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
-        let fd_list;
-        {
-            let fd_list_path = "/proc/self/fd".to_string();
-            fd_list = fs::read_dir(fd_list_path).unwrap();
-        }
-        for fd in fd_list {
-            let fd = fd.unwrap();
-            let fd = fd.file_name().to_string_lossy().to_string();
-            let fd: Handle = fd.parse().unwrap();
-            if fds_to_keep.contains(&fd) {
-                continue;
-            }
-            if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
-                let fd_info_path = format!("/proc/self/fd/{}", fd);
-                let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
-                let mut fd_info = [0 as i8; 4096];
-                libc::readlink(fd_info_path.as_ptr(), fd_info.as_mut_ptr(), 4096);
-                let fd_info = CString::from_raw(fd_info.as_mut_ptr());
-                let fd_info = fd_info.to_str().unwrap();
-                panic!("couldn't cloexec fd: {}({})", fd, fd_info);
-            }
-        }
-
-        let sandbox_user_id = 1; //thanks to /proc/self/uid_map
-        if libc::setuid(sandbox_user_id as u32) != 0 {
-            err_exit("setuid");
-        }
-        //now we pause ourselves until parent process places us into appropriate groups
-        {
-            let permission: util::WaitMessage = arg.sock.receive();
-            permission.check(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
-        }
-
-        //cleanup (empty)
-
-        //dup2 as late as possible for all panics to write to normal stdio instead of pipes
-        libc::dup2(arg.stdin, libc::STDIN_FILENO);
-        libc::dup2(arg.stdout, libc::STDOUT_FILENO);
-        libc::dup2(arg.stderr, libc::STDERR_FILENO);
-
-        //we close these FDs because they weren't affected by FD_CLOEXEC
-        libc::close(arg.stdin);
-        libc::close(arg.stdout);
-        libc::close(arg.stderr);
-
-        libc::execve(
-            path,
-            argv as *const *const c_char,
-            envp as *const *const c_char,
-        );
-        let err_code = errno::errno().0;
-        if err_code == libc::ENOENT {
-            eprintln!("FATAL ERROR: executable was not found");
-            libc::exit(108)
-        } else {
-            //execve doesn't return on success
-            err_exit("execve");
-        }
-    }
-}
-
 fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
-    unsafe {
-        let dmn = (options.dominion.d.lock().unwrap().ptr).as_mut().unwrap();
-        //is's unsafe so in case of some error we check it's really LinuxDominion
-        //though whole situation is UB, this check doesn't seem to be deleted by compiler
-        if dmn.sanity_check() != LINUX_DOMINION_SANITY_CHECK_ID {
-            panic!("[libminion] FATAL ERROR: options.dominion doesn't point on valid LinuxDominion object");
-        }
-
-        let mut in_r = 0;
-        let mut in_w = 0;
-        let mut out_r = 0;
-        let mut out_w = 0;
-        let mut err_r = 0;
-        let mut err_w = 0;
-
-        setup_pipe(&mut in_r, &mut in_w);
-        setup_pipe(&mut out_r, &mut out_w);
-        setup_pipe(&mut err_r, &mut err_w);
-
-        let root = dmn.dir();
-        let (mut sock, child_sock) = Sock::make_pair();
-        //will be passed to child process
-        let mut dea = DoExecArg {
-            path: options.path,
-            arguments: options.arguments,
-            environment: options.environment,
-            stdin: in_r,
-            stdout: out_w,
-            stderr: err_w,
-            sock: child_sock,
-            root,
-            dominion: options.dominion.d.lock().unwrap().ptr, //uff
-        };
-
-        let dea_ptr = &mut dea as *mut DoExecArg;
-
-        let mut child_pid: c_int = 0;
-
-        let res = libc::fork();
-        if res == -1 {
-            err_exit("fork");
-        }
-        if res == 0 {
-            //child
-            do_exec(dea_ptr as *mut _);
-        } else {
-            //parent
-            child_pid = res;
-        }
-
-        //now we should close handles intended for use by child process
-        libc::close(in_r);
-        libc::close(out_w);
-        libc::close(err_w);
-
-        //finally we can set up security
-        dmn.add_process(child_pid);
-
-        //now we can allow child to execve()
-        sock.send(&util::WaitMessage::with_class(
-            WAIT_MESSAGE_CLASS_EXECVE_PERMITTED,
-        ));
-
-        LinuxChildProcess {
-            exit_code: None,
-            stdin: in_w,
-            stdout: out_r,
-            stderr: err_r,
-            stdio_wasted: false,
-            pid: child_pid,
-            _dominion_ref: options.dominion.clone(),
-        }
-    }
+    unimplemented!()
 }
 
 pub struct LinuxBackend {}
@@ -441,7 +188,7 @@ pub struct LinuxBackend {}
 impl Backend for LinuxBackend {
     type ChildProcess = LinuxChildProcess;
     fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
-        let pd = linux::dominion::LinuxDominion::create(options);
+        let pd = unsafe { LinuxDominion::create(options) };
         DominionRef {
             d: Arc::new(Mutex::new(DominionPointerOwner { ptr: pd })),
         }
@@ -452,7 +199,12 @@ impl Backend for LinuxBackend {
     }
 }
 
-fn empty_signal_handler(_1: libc::c_int, _2: *mut libc::siginfo_t, _3: *mut libc::c_void) {}
+fn empty_signal_handler(
+    _signal_code: libc::c_int,
+    _signal_info: *mut libc::siginfo_t,
+    _ptr: *mut libc::c_void,
+) {
+}
 
 fn fix_sigchild() {
     unsafe {

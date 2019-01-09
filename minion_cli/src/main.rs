@@ -2,10 +2,12 @@
 
 use cfg_if::cfg_if;
 use execute::{self, Backend, ChildProcess};
-use std::io::{self, copy, Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::sleep;
-use std::time::Duration;
+use std::{
+    io::{self, copy, Read, Write},
+    sync::atomic::{AtomicBool, Ordering},
+    thread::sleep,
+    time::Duration,
+};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -82,6 +84,11 @@ struct Opt {
     ///max memory availible to isolated process
     #[structopt(short = "m", long = "memory-limit", default_value = "256000000")]
     memory_limit: usize,
+
+    ///total CPU time in milliseconds
+    #[structopt(short = "t", long = "time-limit", default_value = "1000")]
+    time_limit: u32,
+
     ///print parsed argv
     #[structopt(short = "r", long = "dump-argv")]
     dump_argv: bool,
@@ -94,11 +101,11 @@ struct Opt {
     #[structopt(short = "p", long = "isolation-root")]
     isolation_root: String,
 
-    ///exposed paths (/source/path:MASK:/dest/path), MASK is ignored, possible value is ---
+    ///exposed paths (/source/path:MASK:/dest/path), MASK is ignored currently, possible value is ---
     #[structopt(
-    short = "x",
-    long = "expose",
-    parse(try_from_str = "parse_path_exposition_item")
+        short = "x",
+        long = "expose",
+        parse(try_from_str = "parse_path_exposition_item")
     )]
     exposed_paths: Vec<execute::PathExpositionOptions>,
 }
@@ -129,6 +136,7 @@ fn main() {
         memory_limit: options.memory_limit,
         isolation_root: options.isolation_root.into(),
         exposed_paths: options.exposed_paths,
+        time_limit: Duration::from_millis(options.time_limit as u64),
     });
 
     let dominion = dominion;

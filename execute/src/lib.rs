@@ -1,4 +1,8 @@
 #![feature(maybe_uninit)]
+
+#[macro_use]
+extern crate serde_derive;
+
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -19,7 +23,7 @@ pub trait Backend {
     fn spawn(&mut self, options: ChildProcessOptions) -> Self::ChildProcess;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PathExpositionOptions {
     pub src: String,
     pub dest: String,
@@ -28,21 +32,34 @@ pub struct PathExpositionOptions {
     pub allow_execute: bool,
 }
 
-#[derive(Debug, Clone)]
+/// This struct is returned by `Dominion::query_usage_data`
+/// It represents various resourse usage
+/// Some items can be absent or rounded
+pub struct ResourceUsageData {
+    ///total CPU time usage in nanoseconds
+    pub time: Option<u64>,
+    ///max memory usage in bytes
+    pub memory: Option<usize>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DominionOptions {
     pub allow_network: bool,
     pub allow_file_io: bool,
     pub max_alive_process_count: usize,
     pub memory_limit: usize,
+    ///specifies total CPU time for all dominion
+    pub time_limit: Duration,
     pub isolation_root: PathBuf,
     pub exposed_paths: Vec<PathExpositionOptions>,
 }
 
 ///RAII object which represents highly-isolated sandbox
 pub trait Dominion: Debug {}
-
 #[cfg(target_os = "linux")]
-pub type SelectedDominion = linux::LinuxDominion;
+use crate::linux::LinuxDominion;
+#[cfg(target_os = "linux")]
+pub type SelectedDominion = LinuxDominion;
 
 #[derive(Clone, Debug)]
 struct DominionPointerOwner {
@@ -58,7 +75,6 @@ pub struct DominionRef {
 
 cfg_if! {
     if #[cfg(target_os = "linux")] {
-        use crate::linux::LinuxDominion;
         fn drop_dom_ref(dref: *mut LinuxDominion) {
             unsafe {
                 let inner = dref.read();

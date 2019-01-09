@@ -9,7 +9,7 @@ execute = {path = "../execute"}
 structopt = "0.2.14"
 scoped_threadpool = "0.1.9"
 whoami = "0.2.4"
-human-panic = {version = "1.0.1", optional = true}
+human-panic = { version = "1.0.1", optional = true }
 cfg-if = "0.1.6"
 [features]
 human_panic = ["human-panic"]

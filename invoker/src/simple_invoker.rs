@@ -7,11 +7,7 @@ use crate::{
 };
 use config::*;
 use execute::{self as minion, Backend, ChildProcess};
-use std::{
-    collections,
-    time::Duration,
-    //sync::{Arc, Mutex},
-};
+use std::{collections, time::Duration};
 
 //use std::path::{Path, PathBuf};
 struct BuildResult {
@@ -28,6 +24,7 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
         memory_limit: 0,
         exposed_paths: vec![],
         isolation_root: "".into(),
+        time_limit: Duration::from_millis(1000),
     });
     minion::ChildProcessOptions {
         path: String::new(),

@@ -1,44 +1,59 @@
-#![feature(maybe_uninit)]
+/*!
+* This crate provides ability to spawn highly isolated processes
+*
+* # Platform support
+* _warning_: not all features are supported by all backends. See documentation for particular backend
+* to know more
+*/
+
+#![feature(maybe_uninit, integer_atomics, box_syntax)]
 
 #[macro_use]
 extern crate serde_derive;
 
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
 use cfg_if::cfg_if;
+use downcast::{
+    downcast, downcast_methods, downcast_methods_core, downcast_methods_std, impl_downcast,
+};
 use std::{
     collections::HashMap,
-    fmt::Debug,
+    fmt::{self, Debug},
     io::{Read, Write},
     mem,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
 };
-
+/// Represents way of isolation
 pub trait Backend {
     type ChildProcess: ChildProcess;
-    fn new_dominion(&mut self, options: DominionOptions) -> DominionRef;
-    fn spawn(&mut self, options: ChildProcessOptions) -> Self::ChildProcess;
+    fn new_dominion(&self, options: DominionOptions) -> Result<DominionRef>;
+    fn spawn(&self, options: ChildProcessOptions) -> Result<Self::ChildProcess>;
 }
+
+#[cfg(target_os = "linux")]
+pub use crate::linux::DesiredAccess;
+use failure::Fail;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PathExpositionOptions {
     pub src: String,
     pub dest: String,
-    pub allow_read: bool,
-    pub allow_write: bool,
-    pub allow_execute: bool,
+    pub access: DesiredAccess,
 }
 
 /// This struct is returned by `Dominion::query_usage_data`
 /// It represents various resourse usage
 /// Some items can be absent or rounded
 pub struct ResourceUsageData {
-    ///total CPU time usage in nanoseconds
+    /// Total CPU time usage in nanoseconds
     pub time: Option<u64>,
-    ///max memory usage in bytes
+    /// Max memory usage in bytes
     pub memory: Option<usize>,
 }
 
@@ -48,22 +63,22 @@ pub struct DominionOptions {
     pub allow_file_io: bool,
     pub max_alive_process_count: usize,
     pub memory_limit: usize,
-    ///specifies total CPU time for all dominion
+    /// Specifies total CPU time for all dominion
     pub time_limit: Duration,
     pub isolation_root: PathBuf,
     pub exposed_paths: Vec<PathExpositionOptions>,
 }
 
-///RAII object which represents highly-isolated sandbox
-pub trait Dominion: Debug {}
-#[cfg(target_os = "linux")]
-use crate::linux::LinuxDominion;
+/// Represents highly-isolated sandbox
+pub trait Dominion: Debug + downcast::Any {}
+downcast!(Dominion);
+
 #[cfg(target_os = "linux")]
 pub type SelectedDominion = LinuxDominion;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct DominionPointerOwner {
-    ptr: *mut SelectedDominion,
+    b: Box<dyn Dominion>,
 }
 
 unsafe impl Send for DominionPointerOwner {}
@@ -73,24 +88,49 @@ pub struct DominionRef {
     d: Arc<Mutex<DominionPointerOwner>>,
 }
 
-cfg_if! {
-    if #[cfg(target_os = "linux")] {
-        fn drop_dom_ref(dref: *mut LinuxDominion) {
-            unsafe {
-                let inner = dref.read();
-                mem::drop(inner);
-            }
-        }
+#[derive(Debug)]
+pub struct HandleWrapper {
+    h: u64,
+}
+
+impl HandleWrapper {
+    pub unsafe fn new(handle: u64) -> Self {
+        Self { h: handle }
     }
 }
 
-impl Drop for DominionPointerOwner {
-    fn drop(&mut self) {
-        drop_dom_ref(self.ptr)
+impl HandleWrapper {
+    fn into_inner(self) -> u64 {
+        self.h
     }
 }
 
-//pub type Dominion = linux::LinuxDominion;
+/// Configures stdin for child
+#[derive(Debug)]
+pub enum InputSpecification {
+    Null,
+    Empty,
+    Pipe,
+    RawHandle(HandleWrapper),
+}
+
+/// Configures stdout and stderr for child
+#[derive(Debug)]
+pub enum OutputSpecification {
+    Null,
+    Ignore,
+    Pipe,
+    Buffer(Option<usize>),
+    RawHandle(HandleWrapper),
+}
+
+/// Specifies how to provide child stdio
+#[derive(Debug)]
+pub struct StdioSpecification {
+    pub stdin: InputSpecification,
+    pub stdout: OutputSpecification,
+    pub stderr: OutputSpecification,
+}
 
 #[derive(Debug)]
 pub struct ChildProcessOptions {
@@ -98,50 +138,109 @@ pub struct ChildProcessOptions {
     pub arguments: Vec<String>,
     pub environment: HashMap<String, String>,
     pub dominion: DominionRef,
+    pub stdio: StdioSpecification,
 }
 
 #[derive(Debug)]
-pub enum Error {}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-pub enum WaitResult {
-    Exited,
-    AlreadyFinished,
-    Timeout,
+pub struct Error {
+    inner: failure::Context<ErrorKind>,
 }
 
-pub struct ChildProcessStdio<In: Read, Out: Write> {
-    pub stdin: Out,
-    pub stdout: In,
-    pub stderr: In,
-}
+impl Fail for Error {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
 
-impl<In: Read, Out: Write> ChildProcessStdio<In, Out> {
-    pub fn split(self) -> (Out, In, In) {
-        (self.stdin, self.stdout, self.stderr)
+    fn backtrace(&self) -> Option<&failure::Backtrace> {
+        self.inner.backtrace()
     }
 }
 
-///represents child process, owns it.
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.inner, fmt)
+    }
+}
+
+impl Error {
+    fn kind(&self) -> ErrorKind {
+        *self.inner.get_context()
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(k: ErrorKind) -> Error {
+        Error {
+            inner: failure::Context::new(k),
+        }
+    }
+}
+
+impl From<failure::Context<ErrorKind>> for Error {
+    fn from(c: failure::Context<ErrorKind>) -> Error {
+        Error { inner: c }
+    }
+}
+
+#[derive(Debug, Fail, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ErrorKind {
+    #[fail(display = "requested operation is not supported by backend")]
+    NotSupported,
+    #[fail(
+        display = "system call failed in undesired fashion (error code {})",
+        _0
+    )]
+    System(i32),
+    #[fail(display = "io error")]
+    Io,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Returned by [ChildProcess::wait_for_exit]
+///
+/// [ChildProcess::wait_fot_exit]: trait.ChildProcess.html#tymethod.wait_for_exit
+pub enum WaitOutcome {
+    /// Child process has exited during `wait_for_exit`
+    Exited,
+    /// Child process has exited before `wait_for_exit` and it is somehow already reported
+    AlreadyFinished,
+    /// Child process hasn't exited during `timeout` period
+    Timeout,
+}
+
+/// Represents child process.
 pub trait ChildProcess: Drop {
-    type In: Read;
+    /// Returns exit code, if process had exited by the moment of call, or None otherwise.
+    fn get_exit_code(&self) -> Result<Option<i64>>;
 
-    type Out: Write;
+    /// Returns streams, connected to child stdio
+    ///
+    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
+    /// Otherwise, None will be returned
+    ///
+    /// On all subsequent calls, (None, None, None) will be returned - `get_stdio` transfers ownership
 
-    ///returns exit code, it process had exited by the moment of call, or None otherwise.
-    fn get_exit_code(&self) -> Option<i64>;
+    fn get_stdio(
+        &mut self,
+    ) -> (
+        Option<Box<dyn Write>>,
+        Option<Box<dyn Read>>,
+        Option<Box<dyn Read>>,
+    );
 
-    fn get_stdio(&mut self) -> Option<ChildProcessStdio<Self::In, Self::Out>>;
+    /// Waits for child process exit with timeout
+    fn wait_for_exit(&self, timeout: Duration) -> Result<WaitOutcome>;
 
-    ///waits for child process exit with timeout
-    fn wait_for_exit(&mut self, timeout: Duration) -> Result<WaitResult>;
+    /// Refreshes information about process
+    fn poll(&self) -> Result<()>;
 
-    ///returns whether child process has exited
-    fn is_finished(&self) -> bool;
+    /// Returns whether child process has exited by the moment of call
+    /// This function doesn't blocks on waiting (see `wait_for_exit`).
+    fn is_finished(&self) -> Result<bool>;
 
-    ///Kills underlying process ASAP (e.g. kill() or TerminateProcess())
-    fn kill(&mut self);
+    /// Kills underlying process as soon as possible
+    fn kill(&mut self) -> Result<()>;
 }
 
 #[cfg(target_os = "linux")]

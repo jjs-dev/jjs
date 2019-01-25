@@ -56,14 +56,15 @@ impl io::Write for LinuxWritePipe {
     }
 }
 
-pub(crate) fn setup_pipe(read_end: &mut Handle, write_end: &mut Handle) {
+pub(crate) fn setup_pipe(read_end: &mut Handle, write_end: &mut Handle) -> crate::Result<()> {
     unsafe {
         let mut ends = [0 as Handle; 2];
-        let ret = libc::pipe(ends.as_mut_ptr());
+        let ret = libc::pipe2(ends.as_mut_ptr(), libc::O_CLOEXEC);
         if ret == -1 {
             err_exit("pipe");
         }
         *read_end = ends[0];
         *write_end = ends[1];
+        Ok(())
     }
 }

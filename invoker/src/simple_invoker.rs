@@ -16,7 +16,7 @@ struct BuildResult {
 }
 
 fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
-    let mut em = minion::setup();
+    let em = minion::setup();
     let dmn = em.new_dominion(minion::DominionOptions {
         allow_network: false,
         allow_file_io: false,
@@ -30,7 +30,12 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
         path: String::new(),
         arguments: vec![],
         environment: collections::HashMap::new(),
-        dominion: dmn,
+        dominion: dmn.unwrap(),
+        stdio: minion::StdioSpecification {
+            stdin: minion::InputSpecification::Empty,
+            stdout: minion::OutputSpecification::Ignore,
+            stderr: minion::OutputSpecification::Ignore,
+        },
     }
 }
 
@@ -72,14 +77,14 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         opts.path = nargs[0].clone();
         opts.arguments = nargs.split_off(1);
 
-        let mut em = minion::setup();
+        let em = minion::setup();
 
-        let mut cp = em.spawn(opts);
+        let mut cp = em.spawn(opts).unwrap();
         let wres = cp.wait_for_exit(Duration::from_secs(3)).unwrap();
 
         match wres {
-            minion::WaitResult::Timeout => {
-                cp.kill();
+            minion::WaitOutcome::Timeout => {
+                cp.kill().ok(); //.ok() to ignore
                 return BuildResult {
                     //submission: None,
                     status: Status {
@@ -88,9 +93,9 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                     },
                 };
             }
-            minion::WaitResult::AlreadyFinished => panic!("not expected other to wait"),
-            minion::WaitResult::Exited => {
-                if cp.get_exit_code().unwrap() != 0 {
+            minion::WaitOutcome::AlreadyFinished => panic!("not expected other to wait"),
+            minion::WaitOutcome::Exited => {
+                if cp.get_exit_code().unwrap().unwrap() != 0 {
                     return BuildResult {
                         status: Status {
                             kind: StatusKind::CompilationError,

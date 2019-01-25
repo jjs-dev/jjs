@@ -1,6 +1,6 @@
-use crate::PathExpositionOptions;
-use rand::{prelude::*, seq::SliceRandom};
-use std::time::Duration;
+use crate::{linux::util::Pid, PathExpositionOptions};
+use rand::seq::SliceRandom;
+use std::{collections::BTreeMap, time::Duration};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {
     pub(crate) allow_network: bool,
@@ -11,6 +11,7 @@ pub(crate) struct JailOptions {
     pub(crate) time_limit: Duration,
     pub(crate) isolation_root: String,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
+    pub(crate) jail_id: String,
 }
 
 pub(crate) fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {
@@ -28,4 +29,28 @@ pub(crate) fn gen_jail_id() -> String {
         out.push(ch);
     }
     String::from_utf8_lossy(&out[..]).to_string()
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub(crate) struct JobQuery {
+    pub(crate) image_path: String,
+    pub(crate) argv: Vec<String>,
+    pub(crate) environment: BTreeMap<String, String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub(crate) struct PollQuery {
+    pub(crate) pid: Pid,
+    pub(crate) timeout: Duration,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct JobStartupInfo {
+    pub(crate) pid: Pid,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) enum Query {
+    Exit,
+    Spawn(JobQuery),
+    Poll(PollQuery),
 }

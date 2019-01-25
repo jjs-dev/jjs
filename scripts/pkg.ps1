@@ -1,6 +1,6 @@
 #!/usr/bin/env powershell
 Write-Host "building minion_cli"
-cargo build --release --target x86_64-unknown-linux-musl --features human_panic
+cargo build --release --target x86_64-unknown-linux-musl --features dist
 Set-Location ./pkg
 mkdir minion_cli
 Copy-Item -Path ../target/x86_64-unknown-linux-musl/release/minion_cli -Destination ./minion_cli/minion_cli

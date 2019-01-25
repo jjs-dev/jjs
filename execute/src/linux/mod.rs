@@ -4,197 +4,254 @@ mod jobserver;
 mod pipe;
 mod util;
 
-pub use crate::linux::dominion::LinuxDominion;
+pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
     linux::{
-        pipe::{setup_pipe, LinuxReadPipe, LinuxWritePipe},
-        util::{err_exit, ExitCode, Handle, Pid, Sock},
+        pipe::{LinuxReadPipe, LinuxWritePipe},
+        util::{err_exit, Handle, IgnoreExt, Pid},
     },
-    Backend, ChildProcess, ChildProcessOptions, ChildProcessStdio, DominionOptions,
-    DominionPointerOwner, DominionRef, WaitResult,
+    Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
+    ErrorKind, HandleWrapper, InputSpecification, OutputSpecification, StdioSpecification,
+    WaitOutcome,
 };
-use libc::c_void;
+use downcast::Downcast;
+use failure::ResultExt;
+use nix::sys::memfd;
 use std::{
     ffi::CString,
-    mem, ptr,
-    sync::{Arc, Mutex},
-    time,
+    fs,
+    io::{Read, Write},
+    os::unix::io::IntoRawFd,
+    ptr,
+    sync::{
+        atomic::{AtomicI64, Ordering},
+        Arc, Mutex,
+    },
+    time::{self, Duration},
 };
 
 pub struct LinuxChildProcess {
-    exit_code: Option<i64>,
+    exit_code: AtomicI64,
 
-    stdin: Handle,
-    stdout: Handle,
-    stderr: Handle,
-    stdio_wasted: bool,
+    stdin: Option<Box<dyn Write>>,
+    stdout: Option<Box<dyn Read>>,
+    stderr: Option<Box<dyn Read>>,
     //in order to save dominion while CP is alive
     _dominion_ref: DominionRef,
 
     pid: Pid,
 }
 
-struct WaiterArg {
-    res_fd: Handle,
-    pid: Pid,
-}
-
-extern "C" fn timed_wait_waiter(arg: *mut c_void) -> ExitCode {
-    unsafe {
-        let arg = arg as *mut WaiterArg;
-        let arg = &mut *arg;
-        let mut waitstatus = 0;
-        let wcode = libc::waitpid(arg.pid, &mut waitstatus, libc::__WALL);
-        if wcode == -1 {
-            err_exit("waitpid");
-        }
-        let exit_code = if libc::WIFEXITED(waitstatus) {
-            libc::WEXITSTATUS(waitstatus)
-        } else {
-            -libc::WTERMSIG(waitstatus)
-        };
-        let message = format!("{}", exit_code);
-        let message_len = message.len();
-        let message = CString::new(message).unwrap();
-        libc::write(arg.res_fd, message.as_ptr() as *const _, message_len);
-        0
-    }
-}
-
-fn timed_wait(pid: Pid, timeout: time::Duration) -> Option<ExitCode> {
-    unsafe {
-        let (mut end_r, mut end_w);
-        end_r = 0;
-        end_w = 0;
-        setup_pipe(&mut end_r, &mut end_w);
-        let waiter_pid;
-        {
-            let waiter_stack = util::allocate_memory(1_048_576 + 4096); //1 MB
-                                                                        //TODO fix leaks
-            let waiter_stack = waiter_stack.add(4096 - (waiter_stack as usize % 4096));
-            let arg = WaiterArg { res_fd: end_w, pid };
-            let argp = util::allocate_heap_variable();
-            *argp = arg;
-            let argp = argp as *mut c_void;
-            let cres = libc::clone(
-                timed_wait_waiter,
-                waiter_stack.add(1_048_576) as *mut c_void,
-                libc::CLONE_THREAD | libc::CLONE_SIGHAND | libc::CLONE_VM,
-                argp,
-            );
-            if cres == -1 {
-                err_exit("clone");
-            }
-
-            waiter_pid = cres;
-            libc::close(end_w);
-        }
-        //general idea - select([ready_r], timeout)
-        let mut poll_fd_info: [libc::pollfd; 1];
-        poll_fd_info = mem::zeroed();
-        let mut poll_fd_ref = &mut poll_fd_info[0];
-        poll_fd_ref.fd = end_r;
-        poll_fd_ref.events = libc::POLLIN;
-        let timeout = (timeout.as_secs() * 1000) as u32 + timeout.subsec_millis();
-        let poll_ret = libc::poll(poll_fd_info.as_mut_ptr(), 1, timeout as i32);
-        let ret = match poll_ret {
-            -1 => err_exit("poll"),
-            0 => None,
-            1 => {
-                let mut exit_code = [0; 16];
-                let read_cnt = libc::read(end_r, exit_code.as_mut_ptr() as *mut c_void, 16);
-                if read_cnt == -1 {
-                    err_exit("read");
-                }
-                let exit_code = String::from_utf8(exit_code[..read_cnt as usize].to_vec()).unwrap();
-                Some(exit_code.parse().unwrap())
-            }
-            x => unreachable!("unexpected return code from poll: {}", x),
-        };
-        libc::kill(waiter_pid, libc::SIGKILL);
-        ret
-    }
-}
-
+const EXIT_CODE_STILL_RUNNING: i64 = i64::min_value(); // It doesn't intersect with normal exit codes
+                                                       // because they fit in i32
 impl ChildProcess for LinuxChildProcess {
-    type In = LinuxReadPipe;
-
-    type Out = LinuxWritePipe;
-
-    fn get_exit_code(&self) -> Option<i64> {
-        self.exit_code
+    fn get_exit_code(&self) -> crate::Result<Option<i64>> {
+        self.poll()?;
+        let ec = self.exit_code.load(Ordering::SeqCst);
+        let ec = match ec {
+            EXIT_CODE_STILL_RUNNING => None,
+            w => Some(w),
+        };
+        Ok(ec)
     }
 
-    fn get_stdio(&mut self) -> Option<ChildProcessStdio<LinuxReadPipe, LinuxWritePipe>> {
-        if self.stdio_wasted {
-            None
-        } else {
-            self.stdio_wasted = true;
-            Some(ChildProcessStdio {
-                stdin: LinuxWritePipe::new(self.stdin),
-                stdout: LinuxReadPipe::new(self.stdout),
-                stderr: LinuxReadPipe::new(self.stderr),
-            })
-        }
+    fn get_stdio(
+        &mut self,
+    ) -> (
+        Option<Box<dyn Write>>,
+        Option<Box<dyn Read>>,
+        Option<Box<dyn Read>>,
+    ) {
+        (self.stdin.take(), self.stdout.take(), self.stderr.take())
     }
 
-    fn wait_for_exit(&mut self, timeout: std::time::Duration) -> crate::Result<WaitResult> {
-        if self.is_finished() {
-            return Ok(WaitResult::AlreadyFinished);
+    fn wait_for_exit(&self, timeout: std::time::Duration) -> crate::Result<WaitOutcome> {
+        if self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING {
+            return Ok(WaitOutcome::AlreadyFinished);
         }
-        let wait_result = timed_wait(self.pid, timeout);
+
+        let mut logger = util::strace_logger();
+        let mut d = self._dominion_ref.d.lock().unwrap();
+        let d = (*d).b.downcast_mut::<LinuxDominion>().unwrap();
+
+        write!(logger, "sending wait query");
+        let wait_result = unsafe { d.poll_job(self.pid, timeout) };
+        write!(logger, "wait returned: {:?}", wait_result);
         match wait_result {
-            None => Ok(WaitResult::Timeout),
+            None => Ok(WaitOutcome::Timeout),
             Some(w) => {
-                self.exit_code = Some(w as i64);
-                Ok(WaitResult::Exited)
+                //self.exit_code = Some(AtomicI64::new(i64::from(w)));
+                self.exit_code.store(i64::from(w), Ordering::SeqCst);
+                Ok(WaitOutcome::Exited)
             }
         }
     }
 
-    fn is_finished(&self) -> bool {
-        self.exit_code.is_some()
+    fn poll(&self) -> crate::Result<()> {
+        self.wait_for_exit(Duration::from_nanos(1)).map(|_w| ())
     }
 
-    fn kill(&mut self) {
+    fn is_finished(&self) -> crate::Result<bool> {
+        self.poll()?;
+        Ok(self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING)
+    }
+
+    fn kill(&mut self) -> crate::Result<()> {
         unsafe {
-            if self.is_finished() {
-                return;
+            if self.is_finished()? {
+                return Ok(());
             }
             if libc::kill(self.pid, libc::SIGKILL) == -1 {
                 err_exit("kill");
             }
+            Ok(())
         }
     }
 }
 
 impl Drop for LinuxChildProcess {
     fn drop(&mut self) {
-        if self.is_finished() {
+        let f = self.is_finished();
+        if f.is_err() || f.unwrap() == false {
             return;
         }
-        self.kill();
+        self.kill().ignore();
         self.wait_for_exit(time::Duration::from_millis(100))
             .unwrap();
     }
 }
 
-fn spawn(options: ChildProcessOptions) -> LinuxChildProcess {
-    unimplemented!()
+fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
+    match spec {
+        InputSpecification::Pipe => {
+            let mut h_in = 0;
+            let mut h_out = 0;
+            pipe::setup_pipe(&mut h_in, &mut h_out)?;
+            let f = unsafe { libc::dup(h_out) };
+            unsafe { libc::close(h_in) };
+            Ok((Some(h_out), h_in))
+        }
+        InputSpecification::RawHandle(HandleWrapper { h }) => {
+            let h = h as Handle;
+            Ok((None, h))
+        }
+        InputSpecification::Empty => {
+            let file = fs::File::create("/dev/null").context(ErrorKind::Io)?;
+            let file = file.into_raw_fd();
+            Ok((None, file))
+        }
+        InputSpecification::Null => Ok((None, -1 as Handle)),
+    }
+}
+
+fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
+    match spec {
+        OutputSpecification::Null => Ok((None, -1 as Handle)),
+        OutputSpecification::RawHandle(HandleWrapper { h }) => Ok((None, h as Handle)),
+        OutputSpecification::Pipe => {
+            let mut h_in = 0;
+            let mut h_out = 0;
+            pipe::setup_pipe(&mut h_in, &mut h_out)?;
+            let f = unsafe { libc::dup(h_out) };
+            unsafe { libc::close(h_out) };
+            Ok((Some(h_in), f))
+        }
+        OutputSpecification::Ignore => {
+            let file = fs::File::open("/dev/null").context(ErrorKind::Io)?;
+            let file = file.into_raw_fd();
+            let fd = unsafe { libc::dup(file) };
+            Ok((None, fd))
+        }
+        OutputSpecification::Buffer(sz) => {
+            let memfd_name = "libminion_output_memfd";
+            let memfd_name = CString::new(memfd_name).unwrap();
+            let mut flags = memfd::MemFdCreateFlag::MFD_CLOEXEC;
+            if sz.is_some() {
+                flags = flags | memfd::MemFdCreateFlag::MFD_ALLOW_SEALING;
+            }
+            let mfd = memfd::memfd_create(&memfd_name, flags).unwrap();
+            if let Some(sz) = sz {
+                if unsafe { libc::ftruncate(mfd, sz as i64) } == -1 {
+                    err_exit("ftruncate");
+                }
+            }
+            let child_fd = unsafe { libc::dup(mfd) };
+            Ok((Some(mfd), child_fd))
+        }
+    }
+}
+
+fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
+    unsafe {
+        let mut logger = util::strace_logger();
+        write!(logger, "linux:spawn() setting up requests");
+        let q = jail_common::JobQuery {
+            image_path: options.path.clone(),
+            argv: options.arguments.clone(),
+            environment: options
+                .environment
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        };
+
+        let (in_w, in_r) = handle_input_io(options.stdio.stdin)?;
+        let (out_r, out_w) = handle_output_io(options.stdio.stdout)?;
+        let (err_r, err_w) = handle_output_io(options.stdio.stderr)?;
+
+        let q = dominion::ExtendedJobQuery {
+            job_query: q,
+
+            stdin: in_r,
+            stdout: out_w,
+            stderr: err_w,
+        };
+        let mut d = options.dominion.d.lock().unwrap();
+        let d = d.b.downcast_mut::<LinuxDominion>().unwrap();
+
+        write!(logger, "sending JobQuery to dominion");
+        let ret = d.spawn_job(q);
+
+        write!(logger, "creating pipes");
+        let mut stdin = None;
+        if let Some(h) = in_w {
+            let box_in: Box<dyn Write> = Box::new(LinuxWritePipe::new(h));
+            stdin.replace(box_in);
+        }
+        let mut stdout = None;
+        if let Some(h) = out_r {
+            let b: Box<dyn Read> = Box::new(LinuxReadPipe::new(h));
+            stdout.replace(b);
+        }
+        let mut stderr = None;
+        if let Some(h) = err_r {
+            let b: Box<dyn Read> = Box::new(LinuxReadPipe::new(h));
+            stderr.replace(b);
+        }
+        write!(logger, "done");
+        Ok(LinuxChildProcess {
+            exit_code: AtomicI64::new(EXIT_CODE_STILL_RUNNING),
+            stdin,
+            stdout,
+            stderr,
+            _dominion_ref: options.dominion.clone(),
+            pid: ret.pid,
+        })
+    }
 }
 
 pub struct LinuxBackend {}
 
 impl Backend for LinuxBackend {
     type ChildProcess = LinuxChildProcess;
-    fn new_dominion(&mut self, options: DominionOptions) -> DominionRef {
-        let pd = unsafe { LinuxDominion::create(options) };
-        DominionRef {
-            d: Arc::new(Mutex::new(DominionPointerOwner { ptr: pd })),
-        }
+    fn new_dominion(&self, options: DominionOptions) -> crate::Result<DominionRef> {
+        let pd = Box::new(unsafe { LinuxDominion::create(options) });
+        Ok(DominionRef {
+            d: Arc::new(Mutex::new(DominionPointerOwner { b: pd })),
+        })
     }
 
-    fn spawn(&mut self, options: ChildProcessOptions) -> LinuxChildProcess {
+    fn spawn(&self, options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
         spawn(options)
     }
 }

@@ -4,32 +4,24 @@
 
 use crate::{
     linux::{
-        dominion::{DesiredAccess, LinuxDominion},
-        jail_common::{self, gen_jail_id, get_path_for_subsystem, JailOptions},
+        dominion::DesiredAccess,
+        jail_common::{self, get_path_for_subsystem, JailOptions, Query},
         pipe::setup_pipe,
-        util::{
-            allocate_memory, duplicate_string, err_exit, Handle, HandleParcel, Pid, Sock, Uid,
-            WaitMessage,
-        },
+        util::{self, duplicate_string, err_exit, ExitCode, Handle, IpcSocketExt, Pid, Uid},
     },
-    DominionOptions, PathExpositionOptions,
+    PathExpositionOptions,
 };
 use libc::{c_char, c_void};
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap},
+    alloc,
+    collections::hash_map::DefaultHasher,
     ffi::CString,
     fs::{self, OpenOptions},
     hash::Hasher,
-    io::{self, Read, Write},
-    mem, ptr,
+    io::{self, Write},
+    mem, ptr, thread, time,
 };
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct JobQuery {
-    image_path: String,
-    argv: Vec<String>,
-    environment: BTreeMap<String, String>,
-}
+use tiny_nix_ipc::Socket;
 
 struct Stdio {
     stdin: Handle,
@@ -38,18 +30,11 @@ struct Stdio {
 }
 
 impl Stdio {
-    pub unsafe fn recv(sock: &mut Sock) -> Stdio {
-        unsafe fn get_handle(sock: &mut Sock) -> Handle {
-            let hp: HandleParcel = sock.receive().unwrap();
-            hp.into_inner()
-        }
-        let stdin = get_handle(sock);
-        let stdout = get_handle(sock);
-        let stderr = get_handle(sock);
+    fn from_fd_array(fds: [Handle; 3]) -> Stdio {
         Stdio {
-            stdin,
-            stdout,
-            stderr,
+            stdin: fds[0],
+            stdout: fds[1],
+            stderr: fds[2],
         }
     }
 }
@@ -61,15 +46,9 @@ struct JobOptions {
     stdio: Stdio,
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) enum Query {
-    Exit,
-    Spawn(JobQuery),
-}
-
 pub(crate) struct JobServerOptions {
     jail_options: JailOptions,
-    sock: Sock,
+    sock: Socket,
 }
 
 struct DoExecArg {
@@ -78,7 +57,7 @@ struct DoExecArg {
     arguments: Vec<String>,
     environment: Vec<String>,
     stdio: Stdio,
-    sock: Sock,
+    sock: Socket,
 }
 
 fn get_mount_target(base: &str, suf: &str) -> String {
@@ -98,7 +77,7 @@ fn get_mount_target(base: &str, suf: &str) -> String {
 
 fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: DesiredAccess) {
     let bind_target = get_mount_target(jail_root, alias_path);
-    fs::create_dir_all(&bind_target); //TODO check error
+    fs::create_dir_all(&bind_target).unwrap();
     let bind_target = CString::new(bind_target).unwrap();
     let bind_src = CString::new(system_path).unwrap();
     unsafe {
@@ -112,7 +91,7 @@ fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: Desi
         if mnt_res == -1 {
             err_exit("mount");
         }
-        if !access.w {
+        if let DesiredAccess::Readonly = access {
             let rem_ret = libc::mount(
                 ptr::null(),
                 bind_target.clone().as_ptr(),
@@ -127,19 +106,10 @@ fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: Desi
     }
 }
 
-pub(crate) fn expose_dirs(expose: Vec<PathExpositionOptions>, jail_root: &str) {
+pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &str) {
     //mount --bind
     for x in expose {
-        expose_dir(
-            jail_root,
-            &x.src,
-            &x.dest,
-            DesiredAccess {
-                r: x.allow_read,
-                w: x.allow_write,
-                x: x.allow_execute,
-            },
-        )
+        expose_dir(jail_root, &x.src, &x.dest, x.access.clone())
     }
 }
 
@@ -159,10 +129,9 @@ fn duplicate_string_list(v: &[String]) -> *mut *mut c_char {
 const WAIT_MESSAGE_CLASS_EXECVE_PERMITTED: u16 = 1;
 
 #[allow(unreachable_code)]
-extern "C" fn do_exec(arg: *mut c_void) -> i32 {
+extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
     use std::iter::FromIterator;
     unsafe {
-        let arg = &mut *(arg as *mut DoExecArg);
         let path = duplicate_string(&arg.path);
 
         let mut argv_with_path = vec![arg.path.clone()];
@@ -193,7 +162,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
-                let mut fd_info = [0 as i8; 4096];
+                let mut fd_info = [0 as c_char; 4096];
                 libc::readlink(fd_info_path.as_ptr(), fd_info.as_mut_ptr(), 4096);
                 let fd_info = CString::from_raw(fd_info.as_mut_ptr());
                 let fd_info = fd_info.to_str().unwrap();
@@ -206,10 +175,7 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
             err_exit("setuid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
-        {
-            let permission: WaitMessage = arg.sock.receive().unwrap();
-            permission.check(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
-        }
+        arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
 
         //cleanup (empty)
 
@@ -239,45 +205,42 @@ extern "C" fn do_exec(arg: *mut c_void) -> i32 {
     }
 }
 
-unsafe fn spawn_job(options: JobOptions) {
-    let (sock, child_sock) = Sock::make_pair();
+unsafe fn spawn_job(options: JobOptions) -> jail_common::JobStartupInfo {
+    let (mut sock, child_sock) = Socket::new_socketpair().unwrap();
     //will be passed to child process
-    let mut dea = DoExecArg {
+    let dea = DoExecArg {
         path: options.exe,
         arguments: options.argv,
         environment: options.env,
         stdio: options.stdio,
         sock: child_sock,
     };
-
-    let dea_ptr = &mut dea as *mut DoExecArg;
-
-    let mut child_pid: Pid = 0;
-
+    let mut logger = util::strace_logger();
+    let child_pid: Pid;
+    write!(logger, "spawn_job: forking");
     let res = libc::fork();
     if res == -1 {
         err_exit("fork");
     }
     if res == 0 {
         //child
-        do_exec(dea_ptr as *mut _);
-    } else {
-        //parent
-        child_pid = res;
+        do_exec(dea);
     }
+    //parent
+    child_pid = res;
 
     //now we can allow child to execve()
-    sock.send(&WaitMessage::with_class(
-        WAIT_MESSAGE_CLASS_EXECVE_PERMITTED,
-    ))
-    .unwrap();
+    sock.wake(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
+
+    jail_common::JobStartupInfo { pid: child_pid }
 }
 
-const WAIT_CODE_DOMINION_CREATED: u16 = 1;
-const WAIT_CODE_PID_MAP_READY_FOR_SETUP: u16 = 2;
-const WAIT_CODE_PID_MAP_CREATED: u16 = 3;
+const WM_CLASS_SETUP_FINISHED: u16 = 1;
+const WM_CLASS_PID_MAP_READY_FOR_SETUP: u16 = 2;
+const WM_CLASS_PID_MAP_CREATED: u16 = 3;
 
-unsafe fn setup_cgroups(jail_options: &JailOptions, jail_id: &str) {
+unsafe fn setup_cgroups(jail_options: &JailOptions) {
+    let jail_id = jail_options.jail_id.clone();
     //configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
     fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
@@ -303,10 +266,19 @@ unsafe fn setup_cgroups(jail_options: &JailOptions, jail_id: &str) {
         format!("{}", jail_options.memory_limit),
     )
     .unwrap();
+
+    let my_pid: Pid = libc::getpid();
+    if my_pid == -1 {
+        err_exit("getpid");
+    }
+
+    for subsys in &["cpuacct", "pids", "memory"] {
+        add_to_subsys(my_pid, subsys, &jail_id);
+    }
 }
 
-unsafe fn setup_namespaces(jail_options: &JailOptions) {
-    if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER | libc::CLONE_NEWPID) == -1 {
+unsafe fn setup_namespaces(_jail_options: &JailOptions) {
+    if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
         err_exit("unshare")
     }
 }
@@ -342,14 +314,12 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
     }
 }
 
-unsafe fn setup_uid_mapping(jail_options: &JailOptions, sock: &mut Sock) {
-    sock.send(&WaitMessage::with_class(WAIT_CODE_PID_MAP_READY_FOR_SETUP))
-        .unwrap();
-    let resp = sock.receive::<WaitMessage>().unwrap();
-    resp.check(WAIT_CODE_PID_MAP_CREATED).unwrap();
-
-    sock.send(&WaitMessage::with_class(WAIT_CODE_DOMINION_CREATED))
-        .unwrap();
+unsafe fn setup_uid_mapping(sock: &mut Socket) {
+    //sock.send(&WaitMessage::new(WM_CLASS_PID_MAP_READY_FOR_SETUP)).unwrap();
+    //let res: WaitMessage = sock.receive().unwrap();
+    //res.check(WM_CLASS_PID_MAP_CREATED);
+    sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP);
+    sock.lock(WM_CLASS_PID_MAP_CREATED);
 }
 
 struct UserIdInfo {
@@ -371,10 +341,26 @@ fn derive_user_ids(jail_id: &str) -> UserIdInfo {
     }
 }
 
-fn setup(jail_params: JailOptions) {}
+unsafe fn setup_expositions(options: &JailOptions) {
+    expose_dirs(&options.exposed_paths, &options.isolation_root);
+}
 
-fn fill_pid_gid_map_for_child(sock: &mut Sock, child_pid: i32, mapped_uid: i32) {
-    unsafe {}
+unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) {
+    let mut logger = util::strace_logger();
+    write!(logger, "exposing paths");
+    setup_expositions(&jail_params);
+    write!(logger, "mounting procfs");
+    setup_procfs(&jail_params);
+    write!(logger, "creating cgroups");
+    setup_cgroups(&jail_params);
+    write!(logger, "creating namespaces");
+    setup_namespaces(&jail_params);
+    write!(logger, "doing chroot");
+    setup_chroot(&jail_params);
+    write!(logger, "mapping uid");
+    setup_uid_mapping(sock);
+    write!(logger, "setup done: sending notification");
+    sock.wake(WM_CLASS_SETUP_FINISHED);
 }
 
 unsafe fn add_to_subsys(pid: Pid, subsys: &str, jail_id: &str) {
@@ -388,23 +374,15 @@ unsafe fn add_to_subsys(pid: Pid, subsys: &str, jail_id: &str) {
     write!(f, "{}", pid).unwrap();
 }
 
-unsafe fn add_process(pid: Pid, jail_id: &str) {
-    for subsys in &["pids", "memory"] {
-        add_to_subsys(pid, subsys, jail_id);
-    }
-}
+mod jobserver_main {
+    use crate::linux::{
+        jail_common::{JobQuery, Query},
+        jobserver::{setup, spawn_job, JobOptions, JobServerOptions, Stdio},
+        util::{Handle, IpcSocketExt, Pid},
+    };
+    use std::time::Duration;
 
-unsafe fn jobserver_entry(mut arg: JobServerOptions) -> i32 {
-    setup(arg.jail_options.clone());
-
-    loop {
-        let query: String;
-        query = arg.sock.receive().unwrap();
-        let query: Query = serde_json::from_str(query.as_str()).unwrap();
-        let options = match query {
-            Query::Spawn(o) => o,
-            Query::Exit => break,
-        };
+    unsafe fn process_spawn_query(arg: &mut JobServerOptions, options: &JobQuery) {
         //now we do some preprocessing
         let mut argv = vec![options.image_path.clone()];
         argv.extend_from_slice(&options.argv);
@@ -415,41 +393,187 @@ unsafe fn jobserver_entry(mut arg: JobServerOptions) -> i32 {
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
 
-        let child_stdio = Stdio::recv(&mut arg.sock);
+        //let child_fds = [0 as Handle; 3];
+        let mut child_fds = arg
+            .sock
+            .recv_struct::<u64, [Handle; 3]>()
+            .unwrap()
+            .1
+            .unwrap();
+        for f in child_fds.iter_mut() {
+            *f = nix::unistd::dup(*f).unwrap();
+            //let new_fd = nix::unistd::dup(child_fds[i]).unwrap();
+            //child_fds[i] = new_fd;
+            //nix::fcntl::fcntl(child_fds[i], nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::FD_CLOEXEC));
+        }
+        let child_stdio = Stdio::from_fd_array(child_fds);
 
         let job_options = JobOptions {
-            exe: options.image_path,
+            exe: options.image_path.clone(),
             argv,
             env,
             stdio: child_stdio,
         };
 
-        spawn_job(job_options)
+        let startup_info = spawn_job(job_options);
+        arg.sock.send(&startup_info).unwrap();
     }
-    0
+
+    unsafe fn process_poll_query(arg: &mut JobServerOptions, pid: Pid, timeout: Duration) {
+        let res = super::timed_wait(pid, timeout).unwrap();
+        arg.sock.send(&res).unwrap();
+    }
+
+    pub(crate) unsafe fn jobserver_entry(mut arg: JobServerOptions) -> i32 {
+        setup(&arg.jail_options, &mut arg.sock);
+
+        loop {
+            let query: Query = arg.sock.recv().unwrap();
+            match query {
+                Query::Spawn(ref o) => process_spawn_query(&mut arg, o),
+                Query::Exit => break,
+                Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout),
+            };
+        }
+        0
+    }
 }
 
-unsafe fn start_jobserver(jail_options: JailOptions) -> Sock {
-    let (sock, js_sock) = Sock::make_pair();
+struct WaiterArg {
+    res_fd: Handle,
+    pid: Pid,
+}
+
+extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
+    unsafe {
+        let arg = arg as *mut WaiterArg;
+        let arg = &mut *arg;
+        //let arg = arg as *mut WaiterArg;
+        //let arg = &mut *arg;
+        let mut waitstatus = 0;
+        let wcode = libc::waitpid(arg.pid, &mut waitstatus, libc::__WALL);
+        if wcode == -1 {
+            err_exit("waitpid");
+        }
+        let exit_code = if libc::WIFEXITED(waitstatus) {
+            libc::WEXITSTATUS(waitstatus)
+        } else {
+            -libc::WTERMSIG(waitstatus)
+        };
+        let message = format!("{}", exit_code);
+        //let message_len = message.len();
+        let message = CString::new(message).unwrap();
+        libc::write(
+            arg.res_fd,
+            message.as_ptr() as *const _,
+            message.as_bytes().len(),
+        );
+        0 as *mut _
+    }
+}
+
+const STACK_SIZE: usize = (1 << 20); //one megabyte
+const STACK_ALIGN: usize = (1 << 4); //16 bytes, as required by SysV-64 ABI
+
+fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCode>> {
+    use std::os::unix::thread::JoinHandleExt;
+    unsafe {
+        let (mut end_r, mut end_w);
+        end_r = 0;
+        end_w = 0;
+        setup_pipe(&mut end_r, &mut end_w)?;
+        let waiter_stack_layout = alloc::Layout::from_size_align(STACK_SIZE, STACK_ALIGN).unwrap();
+        let waiter_stack = alloc::alloc(waiter_stack_layout);
+        let waiter_pid;
+        {
+            let mut arg = WaiterArg { res_fd: end_w, pid };
+            //let argp = util::allocate_heap_variable();
+            let mut wpid = 0;
+            let ret = libc::pthread_create(
+                &mut wpid as *mut _,
+                ptr::null(),
+                timed_wait_waiter,
+                &mut arg as *mut WaiterArg as *mut c_void,
+            );
+            waiter_pid = wpid;
+            if ret != 0 {
+                errno::set_errno(errno::Errno(ret));
+                err_exit("pthread_create");
+            }
+        }
+        //TL&DR - select([ready_r], timeout)
+        let mut poll_fd_info: [libc::pollfd; 1];
+        poll_fd_info = mem::zeroed();
+        let mut poll_fd_ref = &mut poll_fd_info[0];
+        poll_fd_ref.fd = end_r;
+        poll_fd_ref.events = libc::POLLIN;
+        let mut rtimeout: libc::timespec = mem::zeroed();
+        rtimeout.tv_sec = timeout.as_secs() as i64;
+        rtimeout.tv_nsec = timeout.subsec_nanos() as i64;
+        let ret = loop {
+            let poll_ret = libc::ppoll(
+                poll_fd_info.as_mut_ptr(),
+                1,
+                &rtimeout as *const _,
+                ptr::null(),
+            );
+            let ret: Option<_> = match poll_ret {
+                -1 => {
+                    let sys_err = nix::errno::errno();
+                    if sys_err == libc::EINTR {
+                        continue;
+                    }
+                    return Err(crate::ErrorKind::System(sys_err).into());
+                }
+                0 => None,
+                1 => {
+                    let mut exit_code = [0; 16];
+                    let read_cnt = libc::read(end_r, exit_code.as_mut_ptr() as *mut c_void, 16);
+                    if read_cnt == -1 {
+                        err_exit("read");
+                    }
+                    let exit_code =
+                        String::from_utf8(exit_code[..read_cnt as usize].to_vec()).unwrap();
+                    Some(exit_code.parse().unwrap())
+                }
+                x => unreachable!("unexpected return code from poll: {}", x),
+            };
+            break ret;
+        };
+        libc::pthread_cancel(waiter_pid);
+        alloc::dealloc(waiter_stack, waiter_stack_layout);
+        libc::close(end_r);
+        libc::close(end_w);
+        Ok(ret)
+    }
+}
+
+pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
+    let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
+    //why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
+    if libc::unshare(libc::CLONE_NEWPID) == -1 {
+        err_exit("unshare");
+    }
     let fret = libc::fork();
     if fret == -1 {
         err_exit("fork");
     }
     if fret == 0 {
+        mem::drop(sock);
         let js_arg = JobServerOptions {
             jail_options: jail_options.clone(),
             sock: js_sock,
         };
-        let jobserver_ret_code = jobserver_entry(js_arg);
+        let jobserver_ret_code = jobserver_main::jobserver_entry(js_arg);
+        libc::exit(jobserver_ret_code);
     }
+    mem::drop(js_sock);
     let child_pid = fret as Pid;
+    write!(util::strace_logger(), "child pid is {}", child_pid);
     {
-        {
-            let wm: WaitMessage = sock.receive().unwrap();
-            wm.check(WAIT_CODE_PID_MAP_READY_FOR_SETUP);
-        }
+        sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP);
         let uid_info = derive_user_ids(&jail_id);
         //child will have uid=1 or 2 in its namespace, but some random and not-privileged in outer one
         let mapping = format!("1 {} 1\n2 {} 1", uid_info.privileged, uid_info.restricted);
@@ -457,12 +581,9 @@ unsafe fn start_jobserver(jail_options: JailOptions) -> Sock {
         let gid_map_path = format!("/proc/{}/gid_map", child_pid);
         fs::write(&uid_map_path, mapping.as_str()).unwrap();
         fs::write(&gid_map_path, mapping.as_str()).unwrap();
-        sock.send(&WaitMessage::with_class(WAIT_CODE_PID_MAP_CREATED))
-            .unwrap();
-        {
-            let wm: WaitMessage = sock.receive().unwrap();
-            wm.check(WAIT_CODE_DOMINION_CREATED).unwrap();
-        }
+        sock.wake(WM_CLASS_PID_MAP_CREATED);
+        sock.lock(WM_CLASS_SETUP_FINISHED);
     }
+    write!(util::strace_logger(), "Jobserver is launched");
     sock
 }

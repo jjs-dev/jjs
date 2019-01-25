@@ -2,12 +2,7 @@
 
 use cfg_if::cfg_if;
 use execute::{self, Backend, ChildProcess};
-use std::{
-    io::{self, copy, Read, Write},
-    sync::atomic::{AtomicBool, Ordering},
-    thread::sleep,
-    time::Duration,
-};
+use std::time::Duration;
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -40,22 +35,15 @@ fn parse_path_exposition_item(src: &str) -> Result<execute::PathExpositionOption
             amask.len()
         );
     }
-    let amask: Vec<_> = amask.chars().collect();
-    let (r, w, x);
-    let flag_parser = |pos, flag_name, true_val| match amask[pos] {
-        y if y == true_val => true,
-        '-' => false,
-        _ => panic!("{} flag must be either '{}' or '-'", flag_name, true_val),
+    let access = match amask {
+        "rwx" => execute::DesiredAccess::Full,
+        "r-x" => execute::DesiredAccess::Readonly,
+        _ => panic!("unknown access mask {}. rwx or r-x expected", amask),
     };
-    r = flag_parser(0, 'R', 'r');
-    w = flag_parser(1, 'W', 'w');
-    x = flag_parser(2, 'X', 'x');
     Ok(execute::PathExpositionOptions {
         src: (&src[..sep1]).to_string(),
         dest: (&src[sep2 + 1..]).to_string(),
-        allow_read: r,
-        allow_write: w,
-        allow_execute: x,
+        access,
     })
 }
 
@@ -127,7 +115,7 @@ fn main() {
     if options.dump_argv {
         println!("{:#?}", options);
     }
-    let mut execution_manager = execute::setup();
+    let execution_manager = execute::setup();
 
     let dominion = execution_manager.new_dominion(execute::DominionOptions {
         allow_network: false,
@@ -136,10 +124,10 @@ fn main() {
         memory_limit: options.memory_limit,
         isolation_root: options.isolation_root.into(),
         exposed_paths: options.exposed_paths,
-        time_limit: Duration::from_millis(options.time_limit as u64),
+        time_limit: Duration::from_millis(u64::from(options.time_limit)),
     });
 
-    let dominion = dominion;
+    let dominion = dominion.unwrap();
 
     let args = execute::ChildProcessOptions {
         path: options.executable,
@@ -150,50 +138,30 @@ fn main() {
             .map(|v| (v.name.clone(), v.value.clone()))
             .collect(),
         dominion,
+        stdio: execute::StdioSpecification {
+            stdin: unsafe {
+                execute::InputSpecification::RawHandle(
+                    execute::HandleWrapper::new(0), /*stdin handle*/
+                )
+            },
+            stdout: unsafe {
+                execute::OutputSpecification::RawHandle(
+                    execute::HandleWrapper::new(1), /*stdout handle*/
+                )
+            },
+            stderr: unsafe {
+                execute::OutputSpecification::RawHandle(
+                    execute::HandleWrapper::new(2), /*stderr handle*/
+                )
+            },
+        },
     };
     if options.dump_minion_params {
         println!("{:#?}", args);
     }
-    let mut cp = execution_manager.spawn(args);
-
-    let stdio = cp.get_stdio().unwrap();
-
-    let (mut stdin, mut stdout, mut stderr) = stdio.split();
-
-    let mut p = scoped_threadpool::Pool::new(4);
-    let is_exited = AtomicBool::new(false);
-    p.scoped(|scope| {
-        scope.execute(|| {
-            copy(&mut stdout, &mut io::stdout()).unwrap();
-        });
-        scope.execute(|| {
-            copy(&mut stderr, &mut io::stderr()).unwrap();
-        });
-        scope.execute(|| {
-            let mut buf = [0; 1024];
-            while !is_exited.load(Ordering::SeqCst) {
-                let res = io::stdin().read(&mut buf);
-                sleep(Duration::from_millis(50));
-                let res = match res {
-                    Ok(x) => x,
-                    x => x.unwrap(),
-                };
-
-                match stdin.write(&buf[..res]) {
-                    Ok(_) => (),
-                    Err(e) => match e.kind() {
-                        io::ErrorKind::BrokenPipe => (),
-                        _ => Err(e).unwrap(),
-                    },
-                }
-            }
-        });
-        scope.execute(|| {
-            let timeout = Duration::from_secs(3600);
-            cp.wait_for_exit(timeout).unwrap();
-            let exit_code = cp.get_exit_code().unwrap();
-            println!("---child process exited with code {}---", exit_code);
-            is_exited.store(true, Ordering::SeqCst);
-        })
-    })
+    let cp = execution_manager.spawn(args).unwrap();
+    let timeout = Duration::from_secs(3600);
+    cp.wait_for_exit(timeout).unwrap();
+    let exit_code = cp.get_exit_code().unwrap().unwrap();
+    println!("---child process exited with code {}---", exit_code);
 }

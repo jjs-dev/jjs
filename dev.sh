@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# invocation example: ./dev.sh
 set -e
 powershell ./dev-docker-image/build.ps1
 cargo build --target=x86_64-unknown-linux-musl --package minion_cli

@@ -4,6 +4,6 @@ workflow "OnCommitCheck" {
 }
 
 action "Check" {
-  uses = "docker://rustlang/rust:nightly"
+  uses = "docker://mikailbag/jjs-dev:jjs-dev"
   runs = "bash ./scripts/ci.sh"
 }

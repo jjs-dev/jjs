@@ -1,0 +1,10 @@
+[package]
+name = "cleanup"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.14"
+libc = "0.2.48"
+nix = "0.13.0"

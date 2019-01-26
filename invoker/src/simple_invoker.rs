@@ -36,6 +36,7 @@ fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
             stdout: minion::OutputSpecification::Ignore,
             stderr: minion::OutputSpecification::Ignore,
         },
+        pwd: "".to_string(),
     }
 }
 

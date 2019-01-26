@@ -5,7 +5,7 @@
 use crate::{
     linux::{
         dominion::DesiredAccess,
-        jail_common::{self, get_path_for_subsystem, JailOptions, Query},
+        jail_common::{self, get_path_for_subsystem, JailOptions},
         pipe::setup_pipe,
         util::{self, duplicate_string, err_exit, ExitCode, Handle, IpcSocketExt, Pid, Uid},
     },
@@ -19,7 +19,7 @@ use std::{
     fs::{self, OpenOptions},
     hash::Hasher,
     io::{self, Write},
-    mem, ptr, thread, time,
+    mem, ptr, time,
 };
 use tiny_nix_ipc::Socket;
 
@@ -44,6 +44,7 @@ struct JobOptions {
     argv: Vec<String>,
     env: Vec<String>,
     stdio: Stdio,
+    pwd: String,
 }
 
 pub(crate) struct JobServerOptions {
@@ -58,6 +59,7 @@ struct DoExecArg {
     environment: Vec<String>,
     stdio: Stdio,
     sock: Socket,
+    pwd: String,
 }
 
 fn get_mount_target(base: &str, suf: &str) -> String {
@@ -75,9 +77,36 @@ fn get_mount_target(base: &str, suf: &str) -> String {
     return format!("{}/{}", dir, suf);
 }
 
-fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: DesiredAccess) {
+unsafe fn configure_dir(dir_path: &str, uid: Uid) {
+    let mode = libc::S_IRUSR
+        | libc::S_IWUSR
+        | libc::S_IXUSR
+        | libc::S_IRGRP
+        | libc::S_IWGRP
+        | libc::S_IXGRP
+        | libc::S_IROTH
+        | libc::S_IWOTH
+        | libc::S_IXOTH;
+    let path = CString::new(dir_path).unwrap();
+    if libc::chmod(path.clone().as_ptr(), mode) == -1 {
+        err_exit("chmod");
+    }
+
+    if libc::chown(path.clone().as_ptr(), uid, uid) == -1 {
+        err_exit("chown");
+    }
+}
+
+fn expose_dir(
+    jail_root: &str,
+    system_path: &str,
+    alias_path: &str,
+    access: DesiredAccess,
+    uid: Uid,
+) {
     let bind_target = get_mount_target(jail_root, alias_path);
     fs::create_dir_all(&bind_target).unwrap();
+    let orig_bind_target = bind_target.clone();
     let bind_target = CString::new(bind_target).unwrap();
     let bind_src = CString::new(system_path).unwrap();
     unsafe {
@@ -91,6 +120,11 @@ fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: Desi
         if mnt_res == -1 {
             err_exit("mount");
         }
+
+        unsafe {
+            configure_dir(&orig_bind_target, uid);
+        }
+
         if let DesiredAccess::Readonly = access {
             let rem_ret = libc::mount(
                 ptr::null(),
@@ -106,10 +140,10 @@ fn expose_dir(jail_root: &str, system_path: &str, alias_path: &str, access: Desi
     }
 }
 
-pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &str) {
+pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &str, uid: Uid) {
     //mount --bind
     for x in expose {
-        expose_dir(jail_root, &x.src, &x.dest, x.access.clone())
+        expose_dir(jail_root, &x.src, &x.dest, x.access.clone(), uid)
     }
 }
 
@@ -169,6 +203,16 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 panic!("couldn't cloexec fd: {}({})", fd, fd_info);
             }
         }
+        //now let's change our working dir to desired
+        let pwd = CString::new(arg.pwd).unwrap();
+        if libc::chdir(pwd.as_ptr()) == -1 {
+            let code = nix::errno::errno();
+            eprintln!(
+                "WARNING: couldn't change dir (error {} - {})",
+                code,
+                nix::errno::from_i32(code).desc()
+            );
+        }
 
         let sandbox_user_id = 1; //thanks to /proc/self/uid_map
         if libc::setuid(sandbox_user_id as u32) != 0 {
@@ -214,6 +258,7 @@ unsafe fn spawn_job(options: JobOptions) -> jail_common::JobStartupInfo {
         environment: options.env,
         stdio: options.stdio,
         sock: child_sock,
+        pwd: options.pwd.clone(),
     };
     let mut logger = util::strace_logger();
     let child_pid: Pid;
@@ -341,14 +386,16 @@ fn derive_user_ids(jail_id: &str) -> UserIdInfo {
     }
 }
 
-unsafe fn setup_expositions(options: &JailOptions) {
-    expose_dirs(&options.exposed_paths, &options.isolation_root);
+unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
+    expose_dirs(&options.exposed_paths, &options.isolation_root, uid);
 }
 
 unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) {
+    let uid = derive_user_ids(&jail_params.jail_id).privileged;
     let mut logger = util::strace_logger();
+    configure_dir(&jail_params.isolation_root, uid);
     write!(logger, "exposing paths");
-    setup_expositions(&jail_params);
+    setup_expositions(&jail_params, uid);
     write!(logger, "mounting procfs");
     setup_procfs(&jail_params);
     write!(logger, "creating cgroups");
@@ -384,8 +431,8 @@ mod jobserver_main {
 
     unsafe fn process_spawn_query(arg: &mut JobServerOptions, options: &JobQuery) {
         //now we do some preprocessing
-        let mut argv = vec![options.image_path.clone()];
-        argv.extend_from_slice(&options.argv);
+        //let mut argv = vec![options.image_path.clone()];
+        //argv.extend_from_slice(&options.argv);
 
         let env: Vec<_> = options
             .environment
@@ -410,9 +457,10 @@ mod jobserver_main {
 
         let job_options = JobOptions {
             exe: options.image_path.clone(),
-            argv,
+            argv: options.argv.clone(),
             env,
             stdio: child_stdio,
+            pwd: options.pwd.clone(),
         };
 
         let startup_info = spawn_job(job_options);
@@ -476,7 +524,6 @@ const STACK_SIZE: usize = (1 << 20); //one megabyte
 const STACK_ALIGN: usize = (1 << 4); //16 bytes, as required by SysV-64 ABI
 
 fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCode>> {
-    use std::os::unix::thread::JoinHandleExt;
     unsafe {
         let (mut end_r, mut end_w);
         end_r = 0;

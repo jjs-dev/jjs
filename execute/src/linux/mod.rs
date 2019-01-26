@@ -11,10 +11,9 @@ use crate::{
         util::{err_exit, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    ErrorKind, HandleWrapper, InputSpecification, OutputSpecification, StdioSpecification,
-    WaitOutcome,
+    ErrorKind, HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
 };
-use downcast::Downcast;
+use downcast_rs::Downcast;
 use failure::ResultExt;
 use nix::sys::memfd;
 use std::{
@@ -193,6 +192,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
+            pwd: options.pwd.clone(),
         };
 
         let (in_w, in_r) = handle_input_io(options.stdio.stdin)?;

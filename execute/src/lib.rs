@@ -16,15 +16,11 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
-use cfg_if::cfg_if;
-use downcast::{
-    downcast, downcast_methods, downcast_methods_core, downcast_methods_std, impl_downcast,
-};
+use downcast_rs::impl_downcast;
 use std::{
     collections::HashMap,
     fmt::{self, Debug},
     io::{Read, Write},
-    mem,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
@@ -70,8 +66,8 @@ pub struct DominionOptions {
 }
 
 /// Represents highly-isolated sandbox
-pub trait Dominion: Debug + downcast::Any {}
-downcast!(Dominion);
+pub trait Dominion: Debug + downcast_rs::Downcast {}
+impl_downcast!(Dominion);
 
 #[cfg(target_os = "linux")]
 pub type SelectedDominion = LinuxDominion;
@@ -139,6 +135,8 @@ pub struct ChildProcessOptions {
     pub environment: HashMap<String, String>,
     pub dominion: DominionRef,
     pub stdio: StdioSpecification,
+    /// Child's working dir. Relative to `dominion` isolation_root
+    pub pwd: String,
 }
 
 #[derive(Debug)]

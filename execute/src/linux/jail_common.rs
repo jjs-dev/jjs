@@ -35,6 +35,7 @@ pub(crate) struct JobQuery {
     pub(crate) image_path: String,
     pub(crate) argv: Vec<String>,
     pub(crate) environment: BTreeMap<String, String>,
+    pub(crate) pwd: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

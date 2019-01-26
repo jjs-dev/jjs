@@ -6,5 +6,6 @@ export RUST_BACKTRACE=1
 # timeout --foreground --signal=SIGKILL 10 \
  #gdb --quiet  --args \
  strace -f -o ${OUT}/strace.log  -s 64 \
-    /jjs/target/x86_64-unknown-linux-musl/debug/minion_cli -r -d -p /is $@
+    /jjs/target/x86_64-unknown-linux-musl/debug/minion_cli \
+    run --dump-generated-security-settings --dump-argv --root /is $@
 #/bin/bash

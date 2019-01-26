@@ -4,13 +4,16 @@ version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
+[build-dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+
 [dependencies]
 execute = {path = "../execute"}
 structopt = "0.2.14"
-#scoped_threadpool = "0.1.9"
 whoami = "0.4.1"
 human-panic = { version = "1.0.1", optional = true }
 cfg-if = "0.1.6"
+chrono = { version = "0.4", features = ["serde"] }
+
 [features]
 human_panic = ["human-panic"]
-dist = ["human_panic"]

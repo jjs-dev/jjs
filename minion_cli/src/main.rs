@@ -5,6 +5,10 @@ use execute::{self, Backend, ChildProcess};
 use std::time::Duration;
 use structopt::StructOpt;
 
+static COMPILATION_TIME: &str = env!("MINION_CLI_COMPILATION_TIME");
+
+static VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Debug)]
 struct EnvItem {
     name: String,
@@ -46,57 +50,68 @@ fn parse_path_exposition_item(src: &str) -> Result<execute::PathExpositionOption
         access,
     })
 }
-
 #[derive(StructOpt, Debug)]
-struct Opt {
-    ///full name of executable file (e.g. /bin/ls)
+struct ExecOpt {
+    /// Full name of executable file (e.g. /bin/ls)
     #[structopt(name = "bin")]
     executable: String,
 
-    ///unused
-    #[structopt(short = "i", long = "isolation")]
-    isolation: bool,
-
-    ///arguments for isolated process
+    /// Arguments for isolated process
     #[structopt(short = "a", long = "arg")]
     argv: Vec<String>,
 
-    ///environment variables (KEY=VAL) which will be passed to isolated process
+    /// Environment variables (KEY=VAL) which will be passed to isolated process
     #[structopt(short = "e", long = "env", parse(try_from_str = "parse_env_item"))]
     env: Vec<EnvItem>,
 
-    ///max peak process count (including main)
+    /// Max peak process count (including main)
     #[structopt(short = "n", long = "max-process-count", default_value = "16")]
     num_processes: usize,
 
-    ///max memory availible to isolated process
+    /// Max memory availible to isolated process
     #[structopt(short = "m", long = "memory-limit", default_value = "256000000")]
     memory_limit: usize,
 
-    ///total CPU time in milliseconds
+    /// Total CPU time in milliseconds
     #[structopt(short = "t", long = "time-limit", default_value = "1000")]
     time_limit: u32,
 
-    ///print parsed argv
-    #[structopt(short = "r", long = "dump-argv")]
+    /// Print parsed argv
+    #[structopt(long = "dump-argv")]
     dump_argv: bool,
 
-    ///print libminion parameters
-    #[structopt(short = "d", long = "dump-generated-security-settings")]
+    /// Print libminion parameters
+    #[structopt(long = "dump-generated-security-settings")]
     dump_minion_params: bool,
 
-    ///isolation root
-    #[structopt(short = "p", long = "isolation-root")]
+    /// Isolation root
+    #[structopt(short = "r", long = "root")]
     isolation_root: String,
 
-    ///exposed paths (/source/path:MASK:/dest/path), MASK is ignored currently, possible value is ---
+    /// Exposed paths (/source/path:MASK:/dest/path), MASK is ignored currently, possible value is ---
     #[structopt(
         short = "x",
         long = "expose",
         parse(try_from_str = "parse_path_exposition_item")
     )]
     exposed_paths: Vec<execute::PathExpositionOptions>,
+
+    /// Process working dir, relative to `isolation_root`
+    #[structopt(short = "p", long = "pwd", default_value = "/")]
+    pwd: String,
 }
+
+#[derive(StructOpt, Debug)]
+#[structopt(version = "run `minion_cli version` for version details")]
+enum Opt {
+    /// Run subprocess
+    #[structopt(name = "run")]
+    Exec(ExecOpt),
+    /// Print version and exit
+    #[structopt(name = "version")]
+    Version,
+}
+
 cfg_if! {
 if #[cfg(feature="human_panic")] {
     fn setup_human_panic() {
@@ -112,6 +127,13 @@ if #[cfg(feature="human_panic")] {
 fn main() {
     setup_human_panic();
     let options: Opt = Opt::from_args();
+    let options = match options {
+        Opt::Version => {
+            println!("Minion CLI v{}, compiled {}", VERSION, COMPILATION_TIME);
+            return;
+        }
+        Opt::Exec(o) => o,
+    };
     if options.dump_argv {
         println!("{:#?}", options);
     }
@@ -155,6 +177,7 @@ fn main() {
                 )
             },
         },
+        pwd: options.pwd.clone(),
     };
     if options.dump_minion_params {
         println!("{:#?}", args);
@@ -163,5 +186,5 @@ fn main() {
     let timeout = Duration::from_secs(3600);
     cp.wait_for_exit(timeout).unwrap();
     let exit_code = cp.get_exit_code().unwrap().unwrap();
-    println!("---child process exited with code {}---", exit_code);
+    println!("---> Child process exited with code {} <---", exit_code);
 }

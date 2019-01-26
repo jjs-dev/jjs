@@ -1,19 +1,17 @@
 use crate::{
     linux::{
         jail_common, jobserver,
-        util::{self, allocate_heap_variable, err_exit, ExitCode, Handle, IpcSocketExt, Pid},
+        util::{self, err_exit, ExitCode, Handle, IpcSocketExt, Pid},
     },
     Dominion, DominionOptions,
 };
 use failure::ResultExt;
-use field_offset::offset_of;
 use std::{
     ffi::CString,
     fmt::{self, Debug},
     fs,
     io::Write,
     os::unix::io::AsRawFd,
-    ptr,
     time::Duration,
 };
 use tiny_nix_ipc::Socket;
@@ -113,11 +111,11 @@ impl LinuxDominion {
 
         let mut cgroup_members = cgroup_members.split("\n");
         while let Some(pid) = cgroup_members.next() {
-            let pid : String= pid.to_string();
+            let pid: String = pid.to_string();
             let pid = pid.trim().to_string();
             if pid.len() == 0 {
                 //skip last, empty line
-                continue
+                continue;
             }
             let pid: Pid = pid.parse().unwrap();
             unsafe {

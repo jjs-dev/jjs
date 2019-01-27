@@ -1,5 +1,5 @@
 use std::{env, ffi::CString, fs};
-#[macro_use]
+
 extern crate structopt;
 use structopt::StructOpt;
 

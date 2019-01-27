@@ -4,4 +4,4 @@ Cargo.lock
 /docker-build-cache
 /venv
 /.idea
-/frontend_api/src/proto.rs
+/frontend_api/src/proto.rs.env

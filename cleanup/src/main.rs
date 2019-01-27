@@ -41,10 +41,9 @@ fn main() {
     println!("----> Cgroups");
     for subsys in &["pids", "memory", "cpuacct"] {
         let path = format!("{}/{}/jjs/g-{}", &argv.cgroupfs, subsys, argv.jail_id);
-        println!("deleting {}",&path);
+        println!("deleting {}", &path);
         if let Err(e) = fs::remove_dir(path) {
             eprintln!("Error: {:?}", e);
         }
     }
-
 }

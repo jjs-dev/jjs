@@ -91,7 +91,7 @@ pub unsafe extern "C" fn minion_dominion_create(
     backend: *mut Backend,
     options: *mut DominionOptionsWrapper,
 ) -> *mut DominionWrapper {
-    let d = (&*backend).b.new_dominion((*options).0.clone()).unwrap();
+    let d = (&*backend).0.new_dominion((*options).0.clone()).unwrap();
     let dw = DominionWrapper(d);
     Box::into_raw(Box::new(dw))
 }
@@ -128,6 +128,7 @@ pub unsafe extern "C" fn minion_cp_options_create(
         },
         pwd: "".to_string(),
     });
+    Box::into_raw(Box::new(opts))
 }
 
 #[no_mangle]
@@ -171,7 +172,7 @@ pub unsafe extern "C" fn minion_cp_options_set_stdio_handle(
     member: StdioMember,
     handle: u64,
 ) {
-    let hw = execute::HandleWrapper(handle);
+    let hw = execute::HandleWrapper::new(handle);
     match member {
         StdioMember::Stdin => (*options).0.stdio.stdin = execute::InputSpecification::RawHandle(hw),
         StdioMember::Stdout => {
@@ -190,7 +191,8 @@ pub unsafe extern "C" fn minion_cp_spawn(
     backend: *mut Backend,
     options: *mut ChildProcessOptionsWrapper,
 ) -> *mut ChildProcessWrapper {
-    let cp = (*backend).0.spawn((*options).0).unwrap();
+    use std::clone::Clone;
+    let cp = (*backend).0.spawn((*options).0.clone()).unwrap();
     let cp = ChildProcessWrapper(cp);
     let cp = Box::new(cp);
     Box::into_raw(cp)

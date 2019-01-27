@@ -253,9 +253,8 @@ impl Backend for LinuxBackend {
     fn spawn(&self, options: ChildProcessOptions) -> crate::Result<Box<dyn ChildProcess>> {
         let cp = spawn(options);
         match cp {
-            Ok(cp) => {
-                Ok(Box::new(cp))
-            }, Err(e) => Err(e)
+            Ok(cp) => Ok(Box::new(cp)),
+            Err(e) => Err(e),
         }
     }
 }

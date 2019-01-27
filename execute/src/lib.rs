@@ -83,7 +83,7 @@ pub struct DominionRef {
     d: Arc<Mutex<DominionPointerOwner>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HandleWrapper {
     h: u64,
 }
@@ -101,7 +101,7 @@ impl HandleWrapper {
 }
 
 /// Configures stdin for child
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InputSpecification {
     Null,
     Empty,
@@ -110,7 +110,7 @@ pub enum InputSpecification {
 }
 
 /// Configures stdout and stderr for child
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OutputSpecification {
     Null,
     Ignore,
@@ -120,14 +120,14 @@ pub enum OutputSpecification {
 }
 
 /// Specifies how to provide child stdio
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StdioSpecification {
     pub stdin: InputSpecification,
     pub stdout: OutputSpecification,
     pub stderr: OutputSpecification,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChildProcessOptions {
     pub path: String,
     pub arguments: Vec<String>,

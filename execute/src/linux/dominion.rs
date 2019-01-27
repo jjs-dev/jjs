@@ -161,11 +161,7 @@ impl Drop for LinuxDominion {
         }
 
         let do_umount = |inner_path: &str| {
-            let mount_path = format!(
-                "{}/{}",
-                &self.options.isolation_root,
-                inner_path
-            );
+            let mount_path = format!("{}/{}", &self.options.isolation_root, inner_path);
             let mount_path = CString::new(mount_path.as_str()).unwrap();
             unsafe {
                 if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {

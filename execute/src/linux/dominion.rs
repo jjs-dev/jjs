@@ -84,7 +84,7 @@ impl LinuxDominion {
             max_alive_process_count: options.max_alive_process_count,
             memory_limit: options.memory_limit,
             time_limit: options.time_limit,
-            isolation_root: options.isolation_root.to_str().unwrap().to_string(),
+            isolation_root: options.isolation_root.clone(),
             exposed_paths: options.exposed_paths.clone(),
             jail_id: jail_id.clone(),
         };
@@ -163,7 +163,7 @@ impl Drop for LinuxDominion {
         let do_umount = |inner_path: &str| {
             let mount_path = format!(
                 "{}/{}",
-                &self.options.isolation_root.to_str().unwrap(),
+                &self.options.isolation_root,
                 inner_path
             );
             let mount_path = CString::new(mount_path.as_str()).unwrap();

@@ -243,7 +243,6 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
 pub struct LinuxBackend {}
 
 impl Backend for LinuxBackend {
-    type ChildProcess = LinuxChildProcess;
     fn new_dominion(&self, options: DominionOptions) -> crate::Result<DominionRef> {
         let pd = Box::new(unsafe { LinuxDominion::create(options) });
         Ok(DominionRef {
@@ -251,8 +250,13 @@ impl Backend for LinuxBackend {
         })
     }
 
-    fn spawn(&self, options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
-        spawn(options)
+    fn spawn(&self, options: ChildProcessOptions) -> crate::Result<Box<dyn ChildProcess>> {
+        let cp = spawn(options);
+        match cp {
+            Ok(cp) => {
+                Ok(Box::new(cp))
+            }, Err(e) => Err(e)
+        }
     }
 }
 

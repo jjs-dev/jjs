@@ -27,9 +27,8 @@ use std::{
 };
 /// Represents way of isolation
 pub trait Backend {
-    type ChildProcess: ChildProcess;
     fn new_dominion(&self, options: DominionOptions) -> Result<DominionRef>;
-    fn spawn(&self, options: ChildProcessOptions) -> Result<Self::ChildProcess>;
+    fn spawn(&self, options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>>;
 }
 
 #[cfg(target_os = "linux")]
@@ -61,7 +60,7 @@ pub struct DominionOptions {
     pub memory_limit: usize,
     /// Specifies total CPU time for all dominion
     pub time_limit: Duration,
-    pub isolation_root: PathBuf,
+    pub isolation_root: String,
     pub exposed_paths: Vec<PathExpositionOptions>,
 }
 
@@ -242,9 +241,9 @@ pub trait ChildProcess: Drop {
 }
 
 #[cfg(target_os = "linux")]
-pub type MinionExecutionManager = linux::LinuxBackend;
+pub type DefaultBackend = linux::LinuxBackend;
 
 #[cfg(target_os = "linux")]
-pub fn setup() -> MinionExecutionManager {
-    linux::setup_execution_manager()
+pub fn setup() -> Box<dyn Backend> {
+    Box::new(linux::setup_execution_manager())
 }

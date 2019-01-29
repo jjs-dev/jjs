@@ -14,7 +14,7 @@ extern crate serde_derive;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-pub use linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
+pub use crate::linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
 use downcast_rs::impl_downcast;
 use std::{

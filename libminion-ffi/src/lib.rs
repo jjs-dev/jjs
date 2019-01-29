@@ -1,11 +1,5 @@
 use execute;
-use std::{
-    collections::HashMap,
-    ffi::{CStr, CString},
-    mem,
-    os::raw::c_char,
-    time,
-};
+use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char, time};
 
 pub struct Backend(Box<dyn execute::Backend>);
 
@@ -19,7 +13,7 @@ pub unsafe extern "C" fn minion_lib_init() {
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_setup() -> *mut Backend {
-    let backend =Backend( execute::setup());
+    let backend = Backend(execute::setup());
     let backend = Box::new(backend);
     Box::into_raw(backend)
 }
@@ -45,8 +39,7 @@ pub unsafe extern "C" fn minion_dominion_options_create() -> *mut DominionOption
         exposed_paths: vec![],
     });
     let opts = Box::new(opts);
-    let opts = Box::into_raw(opts);
-    opts
+    Box::into_raw(opts)
 }
 
 #[no_mangle]
@@ -77,20 +70,20 @@ pub unsafe extern "C" fn minion_dominion_options_isolation_root(
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_backend_setopt(
-    backend: *mut Backend,
-    option_name: *const c_char,
-    option_value: *const c_char,
+    _backend: *mut Backend,
+    _option_name: *const c_char,
+    _option_value: *const c_char,
 ) {
     //TODO
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_backend_getopt(
-    backend: *mut Backend,
-    option_name: *const c_char,
-    option_value: *mut c_char,
-    option_value_size: *const u32,
-    required_option_value_size: *mut u32
+    _backend: *mut Backend,
+    _option_name: *const c_char,
+    _option_value: *mut c_char,
+    _option_value_size: *const u32,
+    _required_option_value_size: *mut u32,
 ) {
     //TODO
 }

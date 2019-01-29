@@ -21,7 +21,6 @@ use std::{
     collections::HashMap,
     fmt::{self, Debug},
     io::{Read, Write},
-    path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -94,12 +93,6 @@ impl HandleWrapper {
     }
 }
 
-impl HandleWrapper {
-    fn into_inner(self) -> u64 {
-        self.h
-    }
-}
-
 /// Configures stdin for child
 #[derive(Debug, Clone)]
 pub enum InputSpecification {
@@ -160,7 +153,7 @@ impl fmt::Display for Error {
 }
 
 impl Error {
-    fn kind(&self) -> ErrorKind {
+    pub fn kind(&self) -> ErrorKind {
         *self.inner.get_context()
     }
 }
@@ -206,6 +199,14 @@ pub enum WaitOutcome {
     Timeout,
 }
 
+pub type ChildInputStream = Box<dyn Write>;
+pub type ChildOutputStream = Box<dyn Read>;
+pub type ChildStdio = (
+    Option<ChildInputStream>,
+    Option<ChildOutputStream>,
+    Option<ChildOutputStream>,
+);
+
 /// Represents child process.
 pub trait ChildProcess: Drop {
     /// Returns exit code, if process had exited by the moment of call, or None otherwise.
@@ -218,13 +219,7 @@ pub trait ChildProcess: Drop {
     ///
     /// On all subsequent calls, (None, None, None) will be returned - `get_stdio` transfers ownership
 
-    fn get_stdio(
-        &mut self,
-    ) -> (
-        Option<Box<dyn Write>>,
-        Option<Box<dyn Read>>,
-        Option<Box<dyn Read>>,
-    );
+    fn get_stdio(&mut self) -> ChildStdio;
 
     /// Waits for child process exit with timeout
     fn wait_for_exit(&self, timeout: Duration) -> Result<WaitOutcome>;

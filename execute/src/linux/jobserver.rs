@@ -7,7 +7,7 @@ use crate::{
         dominion::DesiredAccess,
         jail_common::{self, get_path_for_subsystem, JailOptions},
         pipe::setup_pipe,
-        util::{self, duplicate_string, err_exit, ExitCode, Handle, IpcSocketExt, Pid, Uid},
+        util::{duplicate_string, err_exit, ExitCode, Handle, IpcSocketExt, Pid, Uid},
     },
     PathExpositionOptions,
 };
@@ -121,9 +121,7 @@ fn expose_dir(
             err_exit("mount");
         }
 
-        unsafe {
-            configure_dir(&orig_bind_target, uid);
-        }
+        configure_dir(&orig_bind_target, uid);
 
         if let DesiredAccess::Readonly = access {
             let rem_ret = libc::mount(
@@ -260,9 +258,7 @@ unsafe fn spawn_job(options: JobOptions) -> jail_common::JobStartupInfo {
         sock: child_sock,
         pwd: options.pwd.clone(),
     };
-    let mut logger = util::strace_logger();
     let child_pid: Pid;
-    write!(logger, "spawn_job: forking");
     let res = libc::fork();
     if res == -1 {
         err_exit("fork");
@@ -392,21 +388,13 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
 
 unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) {
     let uid = derive_user_ids(&jail_params.jail_id).privileged;
-    let mut logger = util::strace_logger();
     configure_dir(&jail_params.isolation_root, uid);
-    write!(logger, "exposing paths");
     setup_expositions(&jail_params, uid);
-    write!(logger, "mounting procfs");
     setup_procfs(&jail_params);
-    write!(logger, "creating cgroups");
     setup_cgroups(&jail_params);
-    write!(logger, "creating namespaces");
     setup_namespaces(&jail_params);
-    write!(logger, "doing chroot");
     setup_chroot(&jail_params);
-    write!(logger, "mapping uid");
     setup_uid_mapping(sock);
-    write!(logger, "setup done: sending notification");
     sock.wake(WM_CLASS_SETUP_FINISHED);
 }
 
@@ -516,7 +504,7 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
             message.as_ptr() as *const _,
             message.as_bytes().len(),
         );
-        0 as *mut _
+        ptr::null_mut()
     }
 }
 
@@ -556,7 +544,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
         poll_fd_ref.events = libc::POLLIN;
         let mut rtimeout: libc::timespec = mem::zeroed();
         rtimeout.tv_sec = timeout.as_secs() as i64;
-        rtimeout.tv_nsec = timeout.subsec_nanos() as i64;
+        rtimeout.tv_nsec = i64::from(timeout.subsec_nanos());
         let ret = loop {
             let poll_ret = libc::ppoll(
                 poll_fd_info.as_mut_ptr(),
@@ -618,7 +606,6 @@ pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
     }
     mem::drop(js_sock);
     let child_pid = fret as Pid;
-    write!(util::strace_logger(), "child pid is {}", child_pid);
     {
         sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP);
         let uid_info = derive_user_ids(&jail_id);
@@ -631,6 +618,5 @@ pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
         sock.wake(WM_CLASS_PID_MAP_CREATED);
         sock.lock(WM_CLASS_SETUP_FINISHED);
     }
-    write!(util::strace_logger(), "Jobserver is launched");
     sock
 }

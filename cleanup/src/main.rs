@@ -1,4 +1,4 @@
-use std::{env, ffi::CString, fs};
+use std::{ffi::CString, fs};
 
 extern crate structopt;
 use structopt::StructOpt;
@@ -20,10 +20,7 @@ fn main() {
     println!("----> Procfs");
     let procfs_path = format!("{}/proc", &argv.root);
     let self_exe = format!("{}/self/exe", &procfs_path);
-    let should_unmount = match fs::File::open(self_exe) {
-        Ok(_) => true,
-        Err(_) => false,
-    };
+    let should_unmount = fs::File::open(self_exe).is_ok();
     if should_unmount {
         println!("Ok: procfs is not mounted");
     } else {

@@ -13,7 +13,6 @@ use crate::{
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
     ErrorKind, HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
 };
-use downcast_rs::Downcast;
 use failure::ResultExt;
 use nix::sys::memfd;
 use std::{
@@ -54,13 +53,7 @@ impl ChildProcess for LinuxChildProcess {
         Ok(ec)
     }
 
-    fn get_stdio(
-        &mut self,
-    ) -> (
-        Option<Box<dyn Write>>,
-        Option<Box<dyn Read>>,
-        Option<Box<dyn Read>>,
-    ) {
+    fn get_stdio(&mut self) -> crate::ChildStdio {
         (self.stdin.take(), self.stdout.take(), self.stderr.take())
     }
 
@@ -68,18 +61,12 @@ impl ChildProcess for LinuxChildProcess {
         if self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING {
             return Ok(WaitOutcome::AlreadyFinished);
         }
-
-        let mut logger = util::strace_logger();
         let mut d = self._dominion_ref.d.lock().unwrap();
         let d = (*d).b.downcast_mut::<LinuxDominion>().unwrap();
-
-        write!(logger, "sending wait query");
         let wait_result = unsafe { d.poll_job(self.pid, timeout) };
-        write!(logger, "wait returned: {:?}", wait_result);
         match wait_result {
             None => Ok(WaitOutcome::Timeout),
             Some(w) => {
-                //self.exit_code = Some(AtomicI64::new(i64::from(w)));
                 self.exit_code.store(i64::from(w), Ordering::SeqCst);
                 Ok(WaitOutcome::Exited)
             }
@@ -111,7 +98,7 @@ impl ChildProcess for LinuxChildProcess {
 impl Drop for LinuxChildProcess {
     fn drop(&mut self) {
         let f = self.is_finished();
-        if f.is_err() || f.unwrap() == false {
+        if f.is_err() || !f.unwrap() {
             return;
         }
         self.kill().ignore();
@@ -128,7 +115,7 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
             pipe::setup_pipe(&mut h_in, &mut h_out)?;
             let f = unsafe { libc::dup(h_out) };
             unsafe { libc::close(h_in) };
-            Ok((Some(h_out), h_in))
+            Ok((Some(h_out), f))
         }
         InputSpecification::RawHandle(HandleWrapper { h }) => {
             let h = h as Handle;
@@ -166,7 +153,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
             let memfd_name = CString::new(memfd_name).unwrap();
             let mut flags = memfd::MemFdCreateFlag::MFD_CLOEXEC;
             if sz.is_some() {
-                flags = flags | memfd::MemFdCreateFlag::MFD_ALLOW_SEALING;
+                flags |= memfd::MemFdCreateFlag::MFD_ALLOW_SEALING;
             }
             let mfd = memfd::memfd_create(&memfd_name, flags).unwrap();
             if let Some(sz) = sz {
@@ -182,8 +169,6 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
 
 fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
     unsafe {
-        let mut logger = util::strace_logger();
-        write!(logger, "linux:spawn() setting up requests");
         let q = jail_common::JobQuery {
             image_path: options.path.clone(),
             argv: options.arguments.clone(),
@@ -209,10 +194,8 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
         let mut d = options.dominion.d.lock().unwrap();
         let d = d.b.downcast_mut::<LinuxDominion>().unwrap();
 
-        write!(logger, "sending JobQuery to dominion");
         let ret = d.spawn_job(q);
 
-        write!(logger, "creating pipes");
         let mut stdin = None;
         if let Some(h) = in_w {
             let box_in: Box<dyn Write> = Box::new(LinuxWritePipe::new(h));
@@ -228,7 +211,6 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             let b: Box<dyn Read> = Box::new(LinuxReadPipe::new(h));
             stderr.replace(b);
         }
-        write!(logger, "done");
         Ok(LinuxChildProcess {
             exit_code: AtomicI64::new(EXIT_CODE_STILL_RUNNING),
             stdin,

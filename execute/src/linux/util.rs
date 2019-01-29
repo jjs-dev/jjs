@@ -121,12 +121,12 @@ pub fn duplicate_string(arg: &str) -> *mut c_char {
 #[derive(Copy, Clone)]
 pub struct StraceLogger;
 
+#[allow(dead_code)]
 pub fn strace_logger() -> StraceLogger {
     StraceLogger
 }
 
 impl io::Write for StraceLogger {
-    //TODO feature for disabling
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let invalid_fd: Handle = -1;
         unsafe {

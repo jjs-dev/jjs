@@ -1,7 +1,7 @@
 #![feature(never_type, nll)]
 
 use cfg_if::cfg_if;
-use execute::{self, Backend, ChildProcess};
+use execute;
 use std::time::Duration;
 use structopt::StructOpt;
 
@@ -144,7 +144,7 @@ fn main() {
         allow_file_io: false,
         max_alive_process_count: options.num_processes,
         memory_limit: options.memory_limit,
-        isolation_root: options.isolation_root.into(),
+        isolation_root: options.isolation_root,
         exposed_paths: options.exposed_paths,
         time_limit: Duration::from_millis(u64::from(options.time_limit)),
     });

@@ -6,7 +6,7 @@ use crate::{
     object::{self, Submission},
 };
 use config::*;
-use execute::{self as minion, Backend, ChildProcess};
+use execute as minion;
 use std::{collections, time::Duration};
 
 //use std::path::{Path, PathBuf};

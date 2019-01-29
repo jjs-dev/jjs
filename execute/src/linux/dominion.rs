@@ -1,7 +1,7 @@
 use crate::{
     linux::{
         jail_common, jobserver,
-        util::{self, err_exit, ExitCode, Handle, IpcSocketExt, Pid},
+        util::{err_exit, ExitCode, Handle, IpcSocketExt, Pid},
     },
     Dominion, DominionOptions,
 };
@@ -10,7 +10,6 @@ use std::{
     ffi::CString,
     fmt::{self, Debug},
     fs,
-    io::Write,
     os::unix::io::AsRawFd,
     time::Duration,
 };
@@ -109,11 +108,11 @@ impl LinuxDominion {
         let cgroup_members =
             fs::read_to_string(cgroup_members_path).context(crate::ErrorKind::Io)?;
 
-        let mut cgroup_members = cgroup_members.split("\n");
-        while let Some(pid) = cgroup_members.next() {
+        let cgroup_members = cgroup_members.split('\n');
+        for pid in cgroup_members {
             let pid: String = pid.to_string();
             let pid = pid.trim().to_string();
-            if pid.len() == 0 {
+            if pid.is_empty() {
                 //skip last, empty line
                 continue;
             }
@@ -130,8 +129,6 @@ impl LinuxDominion {
         &mut self,
         query: ExtendedJobQuery,
     ) -> jail_common::JobStartupInfo {
-        let mut logger = util::strace_logger();
-        write!(logger, "sending queries to jobserver");
         let q = jail_common::Query::Spawn(query.job_query.clone());
 
         let fds = [query.stdin, query.stdout, query.stderr];
@@ -139,7 +136,6 @@ impl LinuxDominion {
 
         let empty: u64 = 0xDEAD_F00D_B17B_00B5;
         self.jobserver_sock.send_struct(&empty, Some(&fds)).unwrap();
-        write!(logger, "waiting for jobserver");
         self.jobserver_sock.recv().unwrap()
     }
 

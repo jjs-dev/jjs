@@ -26,7 +26,7 @@ use std::{
     time::Duration,
 };
 /// Represents way of isolation
-pub trait Backend {
+pub trait Backend: Debug + Send + Sync {
     fn new_dominion(&self, options: DominionOptions) -> Result<DominionRef>;
     fn spawn(&self, options: ChildProcessOptions) -> Result<Box<dyn ChildProcess>>;
 }

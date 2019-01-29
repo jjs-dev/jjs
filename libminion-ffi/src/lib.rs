@@ -10,10 +10,18 @@ use std::{
 pub struct Backend(Box<dyn execute::Backend>);
 
 #[no_mangle]
+pub unsafe extern "C" fn minion_lib_init() {
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("[minion-ffi] PANIC: {:?}", info);
+        std::process::abort();
+    }));
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn minion_setup() -> *mut Backend {
-    let backend = execute::setup();
-    let backend = Box::into_raw(backend);
-    backend as *mut Backend
+    let backend =Backend( execute::setup());
+    let backend = Box::new(backend);
+    Box::into_raw(backend)
 }
 
 #[no_mangle]
@@ -81,7 +89,8 @@ pub unsafe extern "C" fn minion_backend_getopt(
     backend: *mut Backend,
     option_name: *const c_char,
     option_value: *mut c_char,
-    option_value_size: *mut u32,
+    option_value_size: *const u32,
+    required_option_value_size: *mut u32
 ) {
     //TODO
 }
@@ -91,7 +100,11 @@ pub unsafe extern "C" fn minion_dominion_create(
     backend: *mut Backend,
     options: *mut DominionOptionsWrapper,
 ) -> *mut DominionWrapper {
-    let d = (&*backend).0.new_dominion((*options).0.clone()).unwrap();
+    let opts = (*options).0.clone();
+    let backend = &(*backend);
+    let d = backend.0.new_dominion(opts);
+    let d = d.unwrap();
+
     let dw = DominionWrapper(d);
     Box::into_raw(Box::new(dw))
 }

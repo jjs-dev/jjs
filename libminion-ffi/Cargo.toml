@@ -9,3 +9,6 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 execute = {path = "../execute"}
+
+[build-dependencies]
+cbindgen = {git = "https://github.com/MikailBag/cbindgen"}

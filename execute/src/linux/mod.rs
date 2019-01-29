@@ -240,6 +240,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
     }
 }
 
+#[derive(Debug)]
 pub struct LinuxBackend {}
 
 impl Backend for LinuxBackend {

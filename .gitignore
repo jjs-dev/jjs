@@ -8,3 +8,4 @@ Cargo.lock
 .env
 /pkg
 /run
+cmake-build-*

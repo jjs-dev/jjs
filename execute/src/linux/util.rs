@@ -25,18 +25,6 @@ pub fn err_exit(syscall_name: &str) -> ! {
     }
 }
 
-//allow dead_code because this function is only intended for debugging
-#[allow(dead_code)]
-pub fn dev_log(msg: &str) {
-    //TODO throw error in Release build
-    let msg = format!("dev_log: {}", msg);
-    let msg_len = msg.len();
-    let msg = CString::new(msg.as_str()).unwrap();
-    unsafe {
-        libc::write(-1, msg.as_ptr() as *const _, msg_len);
-    }
-}
-
 #[derive(Debug)]
 pub struct WaitMessage {
     class: u16,

@@ -5,7 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-frontend_api = {path = "../frontend_api"}
+frontend-api = {path = "../frontend-api"}
 serde_json = "1.0.36"
 serde = "1.0.84"
 failure = "0.1.5"
@@ -17,5 +17,5 @@ thrift = "0.12.0"
 [dependencies.rocket_contrib]
 version = "0.4.0"
 features = ["json"]
-[dependencies.db_conn]
-path = "../db_conn"
+[dependencies.db-conn]
+path = "../db-conn"

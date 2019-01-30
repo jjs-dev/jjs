@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(JjsMinionFfiExample)
 
-set(MINION_HEADER ${CMAKE_CURRENT_BINARY_DIR}/minion_ffi.h)
+set(MINION_HEADER ${CMAKE_CURRENT_BINARY_DIR}/minion-ffi.h)
 set(CRATE ${CMAKE_SOURCE_DIR}/..)
 add_custom_command(OUTPUT ${MINION_HEADER}
         COMMAND cbindgen ${CRATE} -o ${MINION_HEADER})

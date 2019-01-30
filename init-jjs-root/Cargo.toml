@@ -1,5 +1,5 @@
 [package]
-name = "init_jjs_root"
+name = "init-jjs-root"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"

@@ -102,7 +102,7 @@ struct ExecOpt {
 }
 
 #[derive(StructOpt, Debug)]
-#[structopt(version = "run `minion_cli version` for version details")]
+#[structopt(version = "run `minion-cli version` for version details")]
 enum Opt {
     /// Run subprocess
     #[structopt(name = "run")]

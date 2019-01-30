@@ -42,7 +42,7 @@ pub struct PathExpositionOptions {
 }
 
 /// This struct is returned by `Dominion::query_usage_data`
-/// It represents various resourse usage
+/// It represents various resource usage
 /// Some items can be absent or rounded
 pub struct ResourceUsageData {
     /// Total CPU time usage in nanoseconds
@@ -64,7 +64,9 @@ pub struct DominionOptions {
 }
 
 /// Represents highly-isolated sandbox
-pub trait Dominion: Debug + downcast_rs::Downcast {}
+pub trait Dominion: Debug + downcast_rs::Downcast {
+    fn id(&self) -> String;
+}
 impl_downcast!(Dominion);
 
 #[cfg(target_os = "linux")]
@@ -80,6 +82,12 @@ unsafe impl Send for DominionPointerOwner {}
 #[derive(Clone, Debug)]
 pub struct DominionRef {
     d: Arc<Mutex<DominionPointerOwner>>,
+}
+
+impl DominionRef {
+    pub fn id(&self) -> String {
+        self.d.lock().unwrap().b.id()
+    }
 }
 
 #[derive(Debug, Clone)]

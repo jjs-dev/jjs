@@ -1,5 +1,5 @@
 #!/usr/bin/env powershell
-Write-Host "----> building minion_cli" -ForegroundColor Green
+Write-Host "----> building minion-cli" -ForegroundColor Green
 cargo build --bin minion_cli --release --target x86_64-unknown-linux-musl --features dist
 Write-Host "----> building jjs-cleanup" -ForegroundColor Green
 cargo build --bin cleanup --release --target x86_64-unknown-linux-musl

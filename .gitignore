@@ -9,3 +9,4 @@ Cargo.lock
 /pkg
 /run
 cmake-build-*
+/dev_tool/cfg

@@ -41,14 +41,9 @@ impl Debug for LinuxDominion {
     }
 }
 
-impl Dominion for LinuxDominion {}
-
-//TODO extract to crate
-#[allow(dead_code)]
-fn dev_log(s: &str) {
-    let c = CString::new(s).unwrap();
-    unsafe {
-        libc::write(-1, c.as_ptr() as *const libc::c_void, s.len());
+impl Dominion for LinuxDominion {
+    fn id(&self) -> String {
+        self.id.clone()
     }
 }
 

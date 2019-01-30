@@ -14,10 +14,10 @@ serde_derive = "1.0.84"
 serde_json = "1.0.36"
 rocket = "0.4.0"
 rocket_codegen = "0.4.0"
-invoker_task = {path = "../invoker_task"}
-frontend_api = {path = "../frontend_api"}
+invoker-task = {path = "../invoker-task"}
+frontend-api = {path = "../frontend-api"}
 db = {path = "../db"}
-db_conn = {path = "../db_conn"}
+db-conn = {path = "../db-conn"}
 
 [dependencies.amqp]
 version = "0.1.2"

@@ -21,7 +21,7 @@ action "Docker_login" {
 action "Build_devel_image" {
   uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
   needs = ["Docker_login"]
-  args = "build -t mikailbag/jjs-dev ."
+  args = "build -t mikailbag/jjs-dev . -f ./scripts/ci.Dockerfile"
 }
 
 action "Upload_devel_image" {

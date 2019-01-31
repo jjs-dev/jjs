@@ -180,7 +180,7 @@ fn task_publish() {
     };
     //dbg!(&upload_url);
     let tgz_pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
-    let res = client
+    client
         .put(&upload_url)
         .header("Authorization", access_header.as_str())
         .body(fs::File::open(tgz_pkg_path).unwrap())

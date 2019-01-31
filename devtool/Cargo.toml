@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 structopt = "0.2.14"
 console = "0.7.5"
+reqwest = "0.9.9"
+percent-encoding = "1.0.1"
+serde_json = "1.0.37"

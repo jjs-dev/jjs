@@ -1,12 +1,12 @@
-use std::{fs, process::Command};
+use std::{env, fs, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
 enum CliArgs {
-    /// Create and launch VM with JJS installed
-    Vm,
     /// Create binary archive with all public components
     Pkg,
+    /// Publish archive to Yandex.Drive (don't forget to run Pkg first)
+    Publish,
 }
 
 fn get_primary_style() -> console::Style {
@@ -95,44 +95,105 @@ fn task_package() {
         .unwrap()
         .success();
     assert_eq!(st, true);
-    let st  = Command::new(resolve_tool_path("cargo"))
+    let st = Command::new(resolve_tool_path("cargo"))
         .args(&[
-        "build",
-        "--package",
-        "minion-ffi",
-        "--release",
-        "--target",
-        "x86_64-unknown-linux-gnu"])
-        .status().unwrap().success();
+            "build",
+            "--package",
+            "minion-ffi",
+            "--release",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+        ])
+        .status()
+        .unwrap()
+        .success();
     assert_eq!(st, true);
     print_section("Packaging[TGZ]");
     let binary_dir = format!(
         "{}/target/x86_64-unknown-linux-musl/release",
         get_project_dir()
     );
-    let dylib_dir = format!("{}/target/x86_64-unknown-linux-gnu/release", get_project_dir());
+    let dylib_dir = format!(
+        "{}/target/x86_64-unknown-linux-gnu/release",
+        get_project_dir()
+    );
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
     fs::remove_dir_all(&pkg_dir).ok();
     fs::create_dir(&pkg_dir).unwrap();
     fs::create_dir(format!("{}/lib", &pkg_dir)).ok();
     fs::create_dir(format!("{}/bin", &pkg_dir)).ok();
     fs::create_dir(format!("{}/include", &pkg_dir)).ok();
-    fs::copy(format!("{}/libminion_ffi.so", &dylib_dir), format!("{}/lib/libminion_ffi.so", &pkg_dir)).unwrap();
-    fs::copy(format!("{}/libminion_ffi.a", &binary_dir), format!("{}/lib/libminion_ffi.a", &pkg_dir)).unwrap();
-    fs::copy(format!("{}/minion-cli", &binary_dir), format!("{}/bin/minion-cli", &pkg_dir)).unwrap();
-    fs::copy(format!("{}/target/minion-ffi.h", get_project_dir()), format!("{}/include/minion-ffi.h", &pkg_dir)).unwrap();
+    fs::copy(
+        format!("{}/libminion_ffi.so", &dylib_dir),
+        format!("{}/lib/libminion_ffi.so", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/libminion_ffi.a", &binary_dir),
+        format!("{}/lib/libminion_ffi.a", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/minion-cli", &binary_dir),
+        format!("{}/bin/minion-cli", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/target/minion-ffi.h", get_project_dir()),
+        format!("{}/include/minion-ffi.h", &pkg_dir),
+    )
+    .unwrap();
     let st = Command::new("tar")
         .current_dir(get_project_dir())
         .args(&["cvzf", "pkg/jjs.tgz", "pkg/ar_data"])
-        .status().unwrap().success();
+        .status()
+        .unwrap()
+        .success();
 
-    assert_eq!(st,  true);
+    assert_eq!(st, true);
+}
+
+fn task_publish() {
+    let client = reqwest::Client::new();
+    let access_token =
+        env::var("JJS_DEVTOOL_YANDEXDRIVE_ACCESS_TOKEN").expect("access token not provided");
+    let access_header = format!("OAuth {}", access_token);
+    let upload_url = {
+        let upload_path = "/jjs-dist/jjs.tgz";
+        let upload_path = percent_encoding::percent_encode(
+            upload_path.as_bytes(),
+            percent_encoding::DEFAULT_ENCODE_SET,
+        )
+        .to_string();
+        let req_url = format!(
+            "https://cloud-api.yandex.net/v1/disk/resources/upload?path={}&overwrite=true",
+            upload_path
+        );
+        let response: serde_json::Value = client
+            .get(&req_url)
+            .header("Authorization", access_header.as_str())
+            .send()
+            .unwrap()
+            .json()
+            .unwrap(); //reqwest::get(&req_url).unwrap().json().unwrap();
+        response["href"].as_str().unwrap().to_string()
+    };
+    //dbg!(&upload_url);
+    let tgz_pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
+    let res = client
+        .put(&upload_url)
+        .header("Authorization", access_header.as_str())
+        .body(fs::File::open(tgz_pkg_path).unwrap())
+        .send()
+        .unwrap()
+        .text().unwrap();
+    //println!("{}",res);
 }
 
 fn main() {
     let args = CliArgs::from_args();
     match args {
         CliArgs::Pkg => task_package(),
-        CliArgs::Vm => unimplemented!(),
+        CliArgs::Publish => task_publish(),
     }
 }

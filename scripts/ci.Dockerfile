@@ -1,6 +1,7 @@
 FROM rustlang/rust:nightly
 ARG concurrency=4
 RUN rustup component add clippy
+RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update -y
 RUN apt install -y automake bison flex g++ git libboost-all-dev libevent-dev libssl-dev libtool make pkg-config
 WORKDIR /thrift

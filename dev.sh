@@ -2,7 +2,7 @@
 # invocation example: ./dev.sh
 set -e
 powershell ./dev-docker-image/build.ps1
-cargo build --target=x86_64-unknown-linux-musl --package minion_cli
+cargo build --target=x86_64-unknown-linux-musl --package minion-cli
 docker run \
 --interactive \
 --tty \

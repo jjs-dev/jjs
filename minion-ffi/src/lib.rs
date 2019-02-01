@@ -201,7 +201,7 @@ pub unsafe extern "C" fn minion_dominion_options_expose_path(
     options: *mut DominionOptionsWrapper,
     out_path: *const c_char,
     inner_path: *const c_char,
-    shared_directory_access: SharedDirectoryAccess
+    shared_directory_access: SharedDirectoryAccess,
 ) {
     let opt = execute::PathExpositionOptions {
         src: CStr::from_ptr(out_path).to_str().unwrap().to_string(),
@@ -209,7 +209,7 @@ pub unsafe extern "C" fn minion_dominion_options_expose_path(
         access: match shared_directory_access {
             SharedDirectoryAccess::Full => execute::DesiredAccess::Full,
             SharedDirectoryAccess::ReadOnly => execute::DesiredAccess::Readonly,
-        }
+        },
     };
     (*options).0.exposed_paths.push(opt)
 }

@@ -7,7 +7,6 @@ use std::{
     ptr,
 };
 use tiny_nix_ipc::{self, Socket};
-
 pub type Handle = RawFd;
 pub type Pid = libc::pid_t;
 pub type ExitCode = c_int;
@@ -50,42 +49,53 @@ impl WaitMessage {
     }
 }
 
-fn sock_lock(sock: &mut Socket, expected_class: u16) {
-    let wm = sock.recv_struct::<WaitMessage, [RawFd; 0]>().unwrap();
-    wm.0.check(expected_class).unwrap()
+fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
+    let wm = match sock.recv_struct::<WaitMessage, [RawFd; 0]>() {
+        Ok(x) => x,
+        Err(_) => Err(crate::ErrorKind::Communication)?,
+    };
+    match wm.0.check(expected_class) {
+        Some(_) => (),
+        None => Err(crate::ErrorKind::Communication)?,
+    };
+    Ok(())
 }
 
-fn sock_wake(sock: &mut Socket, wake_class: u16) {
+fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
     let wm = WaitMessage::new(wake_class);
-    sock.send_struct(&wm, None).unwrap();
+    match sock.send_struct(&wm, None) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(crate::ErrorKind::Communication)?,
+    }
 }
 
 pub trait IpcSocketExt {
-    type Err;
-    fn lock(&mut self, expected_class: u16);
-    fn wake(&mut self, wake_class: u16);
+    fn lock(&mut self, expected_class: u16) -> crate::Result<()>;
+    fn wake(&mut self, wake_class: u16) -> crate::Result<()>;
 
-    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> Result<(), Self::Err>;
-    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Self::Err>;
+    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()>;
+    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T>;
 }
 
 impl IpcSocketExt for Socket {
-    type Err = tiny_nix_ipc::errors::Error;
-
-    fn lock(&mut self, expected_class: u16) {
+    fn lock(&mut self, expected_class: u16) -> crate::Result<()> {
         sock_lock(self, expected_class)
     }
 
-    fn wake(&mut self, wake_class: u16) {
+    fn wake(&mut self, wake_class: u16) -> crate::Result<()> {
         sock_wake(self, wake_class)
     }
 
-    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> Result<(), Self::Err> {
-        self.send_cbor(data, None).map(|_num_read| ())
+    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()> {
+        self.send_cbor(data, None)
+            .map(|_num_read| ())
+            .map_err(|_e| crate::ErrorKind::Communication.into())
     }
 
-    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Self::Err> {
-        self.recv_cbor::<T, [RawFd; 0]>(4096).map(|(x, _fds)| x)
+    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T> {
+        self.recv_cbor::<T, [RawFd; 0]>(4096)
+            .map(|(x, _fds)| x)
+            .map_err(|_e| crate::ErrorKind::Communication.into())
     }
 }
 

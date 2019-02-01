@@ -19,7 +19,7 @@ use std::{
     fs::{self, OpenOptions},
     hash::Hasher,
     io::{self, Write},
-    mem, ptr, time,
+    mem, ptr, time, process
 };
 use tiny_nix_ipc::Socket;
 
@@ -217,7 +217,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             err_exit("setuid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
-        arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
+        arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
 
         //cleanup (empty)
 
@@ -247,7 +247,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
     }
 }
 
-unsafe fn spawn_job(options: JobOptions) -> jail_common::JobStartupInfo {
+unsafe fn spawn_job(options: JobOptions) -> crate::Result<jail_common::JobStartupInfo> {
     let (mut sock, child_sock) = Socket::new_socketpair().unwrap();
     //will be passed to child process
     let dea = DoExecArg {
@@ -271,9 +271,9 @@ unsafe fn spawn_job(options: JobOptions) -> jail_common::JobStartupInfo {
     child_pid = res;
 
     //now we can allow child to execve()
-    sock.wake(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED);
+    sock.wake(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED)?;
 
-    jail_common::JobStartupInfo { pid: child_pid }
+    Ok(jail_common::JobStartupInfo { pid: child_pid })
 }
 
 const WM_CLASS_SETUP_FINISHED: u16 = 1;
@@ -319,7 +319,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) {
 }
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
-    if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
+    if libc::unshare(/*libc::CLONE_NEWNET |*/ libc::CLONE_NEWUSER) == -1 {
         err_exit("unshare")
     }
 }
@@ -355,12 +355,16 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
     }
 }
 
-unsafe fn setup_uid_mapping(sock: &mut Socket) {
-    //sock.send(&WaitMessage::new(WM_CLASS_PID_MAP_READY_FOR_SETUP)).unwrap();
-    //let res: WaitMessage = sock.receive().unwrap();
-    //res.check(WM_CLASS_PID_MAP_CREATED);
-    sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP);
-    sock.lock(WM_CLASS_PID_MAP_CREATED);
+unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
+    sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
+    sock.lock(WM_CLASS_PID_MAP_CREATED)?;
+    Ok(())
+}
+
+unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
+    let cpu_tl = jail_options.time_limit.as_nanos() as u64;
+    let real_tl = cpu_tl * 3; //TODO to JailOptions
+    observe_time(&jail_options.jail_id, cpu_tl, real_tl)
 }
 
 struct UserIdInfo {
@@ -386,16 +390,19 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
     expose_dirs(&options.exposed_paths, &options.isolation_root, uid);
 }
 
-unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) {
+unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<()> {
     let uid = derive_user_ids(&jail_params.jail_id).privileged;
     configure_dir(&jail_params.isolation_root, uid);
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
     setup_cgroups(&jail_params);
+    //it's important cpu watcher will be outside of user namespace
+    setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);
     setup_chroot(&jail_params);
-    setup_uid_mapping(sock);
-    sock.wake(WM_CLASS_SETUP_FINISHED);
+    setup_uid_mapping(sock)?;
+    sock.wake(WM_CLASS_SETUP_FINISHED)?;
+    Ok(())
 }
 
 unsafe fn add_to_subsys(pid: Pid, subsys: &str, jail_id: &str) {
@@ -417,7 +424,10 @@ mod jobserver_main {
     };
     use std::time::Duration;
 
-    unsafe fn process_spawn_query(arg: &mut JobServerOptions, options: &JobQuery) {
+    unsafe fn process_spawn_query(
+        arg: &mut JobServerOptions,
+        options: &JobQuery,
+    ) -> crate::Result<()> {
         //now we do some preprocessing
         //let mut argv = vec![options.image_path.clone()];
         //argv.extend_from_slice(&options.argv);
@@ -451,27 +461,33 @@ mod jobserver_main {
             pwd: options.pwd.clone(),
         };
 
-        let startup_info = spawn_job(job_options);
-        arg.sock.send(&startup_info).unwrap();
+        let startup_info = spawn_job(job_options)?;
+        arg.sock.send(&startup_info)?;
+        Ok(())
     }
 
-    unsafe fn process_poll_query(arg: &mut JobServerOptions, pid: Pid, timeout: Duration) {
-        let res = super::timed_wait(pid, timeout).unwrap();
-        arg.sock.send(&res).unwrap();
+    unsafe fn process_poll_query(
+        arg: &mut JobServerOptions,
+        pid: Pid,
+        timeout: Duration,
+    ) -> crate::Result<()> {
+        let res = super::timed_wait(pid, timeout)?;
+        arg.sock.send(&res)?;
+        Ok(())
     }
 
-    pub(crate) unsafe fn jobserver_entry(mut arg: JobServerOptions) -> i32 {
-        setup(&arg.jail_options, &mut arg.sock);
+    pub(crate) unsafe fn jobserver_entry(mut arg: JobServerOptions) -> crate::Result<i32> {
+        setup(&arg.jail_options, &mut arg.sock)?;
 
         loop {
             let query: Query = arg.sock.recv().unwrap();
             match query {
-                Query::Spawn(ref o) => process_spawn_query(&mut arg, o),
+                Query::Spawn(ref o) => process_spawn_query(&mut arg, o)?,
                 Query::Exit => break,
-                Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout),
+                Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout)?,
             };
         }
-        0
+        Ok(0)
     }
 }
 
@@ -583,11 +599,55 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
     }
 }
 
-pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
+//internal function, kills processes which used all their CPU time limit
+//timings are given in nanoseconds
+unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit: u64) -> ! {
+    use std::time;
+    let start = time::Instant::now();
+    loop {
+        libc::sleep(1);
+        let current_usage_file = jail_common::get_path_for_subsystem("cpuacct", jail_id);
+        let current_usage_file = format!("{}/cpuacct.usage", current_usage_file);
+        let current_usage = fs::read_to_string(current_usage_file)
+            .expect("Couldn't load cpu usage")
+            .trim()
+            .parse::<u64>()
+            .unwrap();
+        let elapsed = time::Instant::now().duration_since(start);
+        let elapsed = elapsed.as_nanos();
+        let was_cpu_tle = current_usage > cpu_time_limit;
+        let was_real_tle = elapsed as u64 > real_time_limit;
+        let ok = !was_cpu_tle && !was_real_tle;
+        if ok {
+            continue;
+        }
+        let my_pid = process::id();
+        jail_common::cgroup_kill_all(jail_id, Some(my_pid as Pid)).unwrap();
+        break;
+    }
+    libc::exit(0)
+}
+
+unsafe fn observe_time(
+    jail_id: &str,
+    cpu_time_limit: u64,
+    real_time_limit: u64,
+) -> crate::Result<()> {
+    let fret = libc::fork();
+    if fret == -1 {
+        Err(crate::ErrorKind::System(nix::errno::errno()))?;
+    }
+    if fret == 0 {
+        cpu_time_observer(jail_id, cpu_time_limit, real_time_limit)
+    } else {
+        Ok(())
+    }
+}
+pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> crate::Result<Socket> {
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
-    //why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
+    // why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
     if libc::unshare(libc::CLONE_NEWPID) == -1 {
         err_exit("unshare");
     }
@@ -602,12 +662,12 @@ pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
             sock: js_sock,
         };
         let jobserver_ret_code = jobserver_main::jobserver_entry(js_arg);
-        libc::exit(jobserver_ret_code);
+        libc::exit(jobserver_ret_code.unwrap_or(1));
     }
     mem::drop(js_sock);
     let child_pid = fret as Pid;
     {
-        sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP);
+        sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
         let uid_info = derive_user_ids(&jail_id);
         //child will have uid=1 or 2 in its namespace, but some random and not-privileged in outer one
         let mapping = format!("1 {} 1\n2 {} 1", uid_info.privileged, uid_info.restricted);
@@ -615,8 +675,8 @@ pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> Socket {
         let gid_map_path = format!("/proc/{}/gid_map", child_pid);
         fs::write(&uid_map_path, mapping.as_str()).unwrap();
         fs::write(&gid_map_path, mapping.as_str()).unwrap();
-        sock.wake(WM_CLASS_PID_MAP_CREATED);
-        sock.lock(WM_CLASS_SETUP_FINISHED);
+        sock.wake(WM_CLASS_PID_MAP_CREATED)?;
+        sock.lock(WM_CLASS_SETUP_FINISHED)?;
     }
-    sock
+    Ok(sock)
 }

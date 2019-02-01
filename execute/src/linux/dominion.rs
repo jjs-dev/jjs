@@ -5,7 +5,6 @@ use crate::{
     },
     Dominion, DominionOptions,
 };
-use failure::ResultExt;
 use std::{
     ffi::CString,
     fmt::{self, Debug},
@@ -70,7 +69,7 @@ pub(crate) struct ExtendedJobQuery {
 }
 
 impl LinuxDominion {
-    pub(crate) unsafe fn create(options: DominionOptions) -> LinuxDominion {
+    pub(crate) unsafe fn create(options: DominionOptions) -> crate::Result<LinuxDominion> {
         let jail_id = jail_common::gen_jail_id();
         let jail_options = jail_common::JailOptions {
             allow_network: options.allow_network,
@@ -82,41 +81,17 @@ impl LinuxDominion {
             exposed_paths: options.exposed_paths.clone(),
             jail_id: jail_id.clone(),
         };
-        let sock = jobserver::start_jobserver(jail_options);
+        let sock = jobserver::start_jobserver(jail_options)?;
 
-        LinuxDominion {
+        Ok(LinuxDominion {
             id: jail_id.clone(),
             options: options.clone(),
             jobserver_sock: sock,
-        }
+        })
     }
 
-    pub(crate) fn exit(&mut self) -> crate::Result<()> {
-        //we just need to kill all processes in pids (e.g.) cgroup
-        let pids_cgroup_path = jail_common::get_path_for_subsystem("pids", &self.id);
-
-        //step 1: disallow forking
-        let pids_max_file_path = format!("{}/pids.max", &pids_cgroup_path);
-        fs::write(pids_max_file_path, "0").context(crate::ErrorKind::Io)?;
-
-        let cgroup_members_path = format!("{}/tasks", &pids_cgroup_path);
-        let cgroup_members =
-            fs::read_to_string(cgroup_members_path).context(crate::ErrorKind::Io)?;
-
-        let cgroup_members = cgroup_members.split('\n');
-        for pid in cgroup_members {
-            let pid: String = pid.to_string();
-            let pid = pid.trim().to_string();
-            if pid.is_empty() {
-                //skip last, empty line
-                continue;
-            }
-            let pid: Pid = pid.parse().unwrap();
-            unsafe {
-                libc::kill(pid, libc::SIGKILL);
-            }
-        }
-
+    pub(crate) unsafe fn exit(&mut self) -> crate::Result<()> {
+        jail_common::cgroup_kill_all(self.id.as_str(), None)?;
         Ok(())
     }
 
@@ -145,7 +120,7 @@ impl LinuxDominion {
 impl Drop for LinuxDominion {
     #[allow(unused_must_use)]
     fn drop(&mut self) {
-        self.exit();
+        unsafe { self.exit() };
         //remove cgroups
         for subsys in &["pids", "memory", "cpuacct"] {
             fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id));

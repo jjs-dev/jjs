@@ -191,6 +191,10 @@ pub enum ErrorKind {
     System(i32),
     #[fail(display = "io error")]
     Io,
+    #[fail(display = "job server connection failed")]
+    Communication,
+    #[fail(display = "unknown error")]
+    Unknown,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

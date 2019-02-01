@@ -1,6 +1,7 @@
 use crate::{linux::util::Pid, PathExpositionOptions};
+use failure::ResultExt;
 use rand::seq::SliceRandom;
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, fs, time::Duration};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {
     pub(crate) allow_network: bool,
@@ -54,4 +55,33 @@ pub(crate) enum Query {
     Exit,
     Spawn(JobQuery),
     Poll(PollQuery),
+}
+
+pub(crate) unsafe fn cgroup_kill_all(jail_id: &str, pid_to_ignore: Option<Pid>) -> crate::Result<()> {
+    //we just need to kill all processes in pids (e.g.) cgroup
+    let pids_cgroup_path = get_path_for_subsystem("pids", jail_id);
+
+    //step 1: disallow forking
+    let pids_max_file_path = format!("{}/pids.max", &pids_cgroup_path);
+    fs::write(pids_max_file_path, "0").context(crate::ErrorKind::Io)?;
+
+    let cgroup_members_path = format!("{}/tasks", &pids_cgroup_path);
+    let cgroup_members = fs::read_to_string(cgroup_members_path).context(crate::ErrorKind::Io)?;
+
+    let cgroup_members = cgroup_members.split('\n');
+    for pid in cgroup_members {
+        let pid: String = pid.to_string();
+        let pid = pid.trim().to_string();
+        if pid.is_empty() {
+            //skip last, empty line
+            continue;
+        }
+        let pid: Pid = pid.parse().unwrap();
+        if Some(pid) == pid_to_ignore {
+            continue;
+        }
+        libc::kill(pid, libc::SIGKILL);
+    }
+
+    Ok(())
 }

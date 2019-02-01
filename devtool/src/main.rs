@@ -186,7 +186,8 @@ fn task_publish() {
         .body(fs::File::open(tgz_pkg_path).unwrap())
         .send()
         .unwrap()
-        .text().unwrap();
+        .text()
+        .unwrap();
     //println!("{}",res);
 }
 

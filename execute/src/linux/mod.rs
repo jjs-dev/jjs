@@ -227,7 +227,7 @@ pub struct LinuxBackend {}
 
 impl Backend for LinuxBackend {
     fn new_dominion(&self, options: DominionOptions) -> crate::Result<DominionRef> {
-        let pd = Box::new(unsafe { LinuxDominion::create(options) });
+        let pd = Box::new(unsafe { LinuxDominion::create(options)? });
         Ok(DominionRef {
             d: Arc::new(Mutex::new(DominionPointerOwner { b: pd })),
         })

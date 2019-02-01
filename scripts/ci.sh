@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+rustup target add x86_64-unknown-linux-musl
 export RUST_BACKTRACE=1
 cargo clippy -- -D clippy::all -D warnings \
     -A renamed-and-removed-lints #this option is workaround (see https://issues.apache.org/jira/browse/THRIFT-4764)

@@ -190,6 +190,30 @@ pub unsafe extern "C" fn minion_cp_options_set_stdio_handle(
     }
 }
 
+#[repr(u8)]
+pub enum SharedDirectoryAccess {
+    Full,
+    ReadOnly,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn minion_dominion_options_expose_path(
+    options: *mut DominionOptionsWrapper,
+    out_path: *const c_char,
+    inner_path: *const c_char,
+    shared_directory_access: SharedDirectoryAccess
+) {
+    let opt = execute::PathExpositionOptions {
+        src: CStr::from_ptr(out_path).to_str().unwrap().to_string(),
+        dest: CStr::from_ptr(inner_path).to_str().unwrap().to_string(),
+        access: match shared_directory_access {
+            SharedDirectoryAccess::Full => execute::DesiredAccess::Full,
+            SharedDirectoryAccess::ReadOnly => execute::DesiredAccess::Readonly,
+        }
+    };
+    (*options).0.exposed_paths.push(opt)
+}
+
 pub struct ChildProcessWrapper(Box<dyn execute::ChildProcess>);
 
 #[no_mangle]

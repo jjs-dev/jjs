@@ -22,11 +22,4 @@ impl Submission {
             toolchain_name: String::from(tc_name),
         }
     }
-
-    /*pub fn get_file_path(&self) -> Option<&Path> {
-        match self.content {
-            SubmissionContent::File(ref fsc) => Some(&(fsc.path)),
-            //_ => None
-        }
-    }*/
 }

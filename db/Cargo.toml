@@ -6,4 +6,4 @@ edition = "2018"
 
 [dependencies]
 postgres = "0.15.2"
-objects = {path = "../objects"}
+domain = {path = "../domain"}

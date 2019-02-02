@@ -1,7 +1,0 @@
-[package]
-name = "objects"
-version = "0.1.0"
-authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
-edition = "2018"
-
-[dependencies]

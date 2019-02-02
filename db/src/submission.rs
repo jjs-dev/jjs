@@ -1,9 +1,11 @@
-use objects::Submission;
+use domain::Submission;
 use postgres::GenericConnection;
 
 pub trait Submissions {
     fn create_submission(&self, toolchain: &str) -> Submission;
     fn find_by_id(&self, id: usize) -> Submission;
+    fn find_next_waiting(&self) -> Option<Submission>;
+    fn update_submission_state(&self, submission: &Submission, new_state: &str);
 }
 
 pub struct PgSubmissions {
@@ -33,5 +35,25 @@ impl Submissions for PgSubmissions {
         let res = self.conn.query(query, &[&(id as i32)]).unwrap();
         let toolchain = res.get(0).get(0);
         Submission { id, toolchain }
+    }
+
+    fn find_next_waiting(&self) -> Option<Submission> {
+        let query = include_str!("../queries/find_next_waiting.sql");
+        let res = self.conn.query(query, &[]).unwrap();
+        if res.is_empty() {
+            None
+        } else {
+            let row = res.get(0);
+            let sub_id: i32 = row.get("submission_id");
+            Some(Submission {
+                id: sub_id as usize,
+                toolchain: row.get("toolchain")
+            })
+        }
+    }
+
+    fn update_submission_state(&self, submission: &Submission, new_state: &str) {
+        let query = include_str!("../queries/update_submission_state.sql");
+        let _res = self.conn.execute(query, &[&(submission.id as u32), &new_state]).expect("update_submission_state query failed");
     }
 }

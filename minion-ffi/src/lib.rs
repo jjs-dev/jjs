@@ -1,5 +1,11 @@
 use execute;
-use std::{collections::HashMap, ffi::CStr, mem, os::raw::{c_char, c_void}, time};
+use std::{
+    collections::HashMap,
+    ffi::CStr,
+    mem,
+    os::raw::{c_char, c_void},
+    time,
+};
 
 #[repr(u8)]
 pub enum ErrorCode {
@@ -18,7 +24,10 @@ pub unsafe extern "C" fn minion_lib_init() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_backend_create(_backend_id: u32, _backend_arg: *const c_void) -> *mut Backend {
+pub unsafe extern "C" fn minion_backend_create(
+    _backend_id: u32,
+    _backend_arg: *const c_void,
+) -> *mut Backend {
     let backend = Backend(execute::setup());
     let backend = Box::new(backend);
     Box::into_raw(backend)

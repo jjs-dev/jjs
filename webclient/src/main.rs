@@ -1,5 +1,7 @@
-#![feature(plugin, custom_derive)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
+
+#[macro_use]
+extern crate rocket;
 
 #[macro_use]
 extern crate serde_derive;
@@ -15,25 +17,17 @@ mod session;
 use self::session::Session;
 use frontend_api::TJjsServiceSyncClient;
 use multipart::server::{save::SavedData, Multipart, SaveResult};
-use rocket::{
-    fairing::AdHoc,
-    http::ContentType,
-    //http::Status,
-    request::Form,
-    response::Redirect,
-    Data,
-    State,
-};
-use rocket_contrib::Template;
+use rocket::{fairing::AdHoc, http::ContentType, request::Form, response::Redirect, Data, State};
+use rocket_contrib::templates::Template;
 use std::{
-    env,
     io::{self, Read},
-    path::PathBuf,
+    sync::Arc,
 };
 use thrift::{
     protocol::{TCompactInputProtocol, TCompactOutputProtocol},
-    transport::TIoChannel,
-    transport::{ReadHalf, TFramedReadTransport, TFramedWriteTransport, TTcpChannel, WriteHalf},
+    transport::{
+        ReadHalf, TFramedReadTransport, TFramedWriteTransport, TIoChannel, TTcpChannel, WriteHalf,
+    },
 };
 
 #[derive(PartialEq)]
@@ -183,7 +177,9 @@ fn route_post_submit(
         }
         SaveResult::Error(e) => return Err(HttpError::BadRequest(e.to_string())),
     };
-    let toolchain = &form.fields[&multipart::server::ArcStr::new("toolchain".to_string())][0].data;
+    let toolchain_field_name: Arc<str> = Arc::from("toolchain");
+    let toolchain: &Vec<multipart::server::save::SavedField> = &form.fields[&toolchain_field_name];
+    let toolchain = &toolchain[0].data;
     let toolchain = match toolchain {
         SavedData::Bytes(_) | SavedData::File(_, _) => {
             return Err(HttpError::BadRequest("toolchain field must be text".into()));
@@ -192,7 +188,7 @@ fn route_post_submit(
     };
     println!("toolchain: {}", toolchain);
     //now we register submission
-    let file = &form.fields[&multipart::server::ArcStr::new("code".to_string())][0].data;
+    let file = &form.fields[&Arc::from("code")][0].data;
     let mut file = file.readable().unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)?;
@@ -244,7 +240,7 @@ fn main() {
     rocket::ignite()
         .mount("/", handlers)
         .attach(Template::fairing())
-        .attach(AdHoc::on_attach(|rocket| {
+        .attach(AdHoc::on_attach("Configure", |rocket| {
             let env_name = rocket.config().get_str("env").unwrap_or("prod");
             let mut st = AppEnvState {
                 env: Environment::Production,

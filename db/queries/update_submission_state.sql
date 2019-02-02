@@ -1,0 +1,1 @@
+UPDATE submissions SET state = $2 WHERE submission_id = $1

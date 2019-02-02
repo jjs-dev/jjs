@@ -4,7 +4,7 @@ workflow "OnPush" {
 }
 
 action "CI" {
-  uses = "docker://mikailbag/jjs-dev:jjs-dev"
+  uses = "docker://mikailbag/jjs-dev:latest"
   needs = ["Upload_devel_image"]
   runs = "bash ./scripts/ci.sh"
   secrets = ["JJS_DEVTOOL_YANDEXDRIVE_ACCESS_TOKEN"]

@@ -1,5 +1,11 @@
 use execute;
-use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char, time};
+use std::{collections::HashMap, ffi::CStr, mem, os::raw::{c_char, c_void}, time};
+
+#[repr(u8)]
+pub enum ErrorCode {
+    Ok,
+    Unknown,
+}
 
 pub struct Backend(Box<dyn execute::Backend>);
 
@@ -12,7 +18,7 @@ pub unsafe extern "C" fn minion_lib_init() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_setup() -> *mut Backend {
+pub unsafe extern "C" fn minion_backend_create(_backend_id: u32, _backend_arg: *const c_void) -> *mut Backend {
     let backend = Backend(execute::setup());
     let backend = Box::new(backend);
     Box::into_raw(backend)
@@ -23,6 +29,15 @@ pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) {
     let b = Box::from_raw(b);
     mem::drop(b);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn minion_get_last_error_info(data_ptr: *mut *mut c_void) -> i32 {
+    if !data_ptr.is_null() {
+        //TODO
+    };
+    ErrorCode::Ok as i32 //TODO
+}
+
 pub struct DominionOptionsWrapper(execute::DominionOptions);
 
 pub struct DominionWrapper(execute::DominionRef);

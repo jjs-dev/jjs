@@ -175,7 +175,7 @@ fn task_publish() {
             .send()
             .unwrap()
             .json()
-            .unwrap(); //reqwest::get(&req_url).unwrap().json().unwrap();
+            .unwrap();
         response["href"].as_str().unwrap().to_string()
     };
     //dbg!(&upload_url);

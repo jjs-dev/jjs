@@ -10,3 +10,4 @@ Cargo.lock
 /run
 cmake-build-*
 /dev_tool/cfg
+/sysroot

@@ -1,0 +1,22 @@
+{{#*inline "page"}}
+    <p>
+        Log in, please:
+    <form action="/authenticate" method="post">
+        <label for="login">login</label>
+        <input type="text" name="login"/>
+        <br/>
+
+        <label for="password">password</label>
+        <input type="password" name="password">
+        <br/>
+
+        <input type="submit" title="Log in">
+    </form>
+    </p>
+{{/inline}}
+
+{{#* inline "screen_name" }}
+    log in
+{{/inline}}
+
+{{~> base ~}}

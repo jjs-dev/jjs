@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JJS: {{~> screen_name}}</title>
+</head>
+<body>
+<header>
+    <a href="/">index</a>
+    |
+
+    {{#if common.auth.User}}
+        <a href="/submit">submit</a>
+    |
+        {{common.auth.User.login}}(<a href="/logout">logout</a>)
+    {{/if}}
+    {{#if common.auth.Guest}}
+        <a href="/login">login</a>
+    {{/if}}
+</header>
+<br/>
+{{~> page}}
+<footer>
+    ----------------------------------<br/>
+    JJS v{{common.jjs_version}}
+</footer>
+</body>
+<!-- {{{common.debug_info}}}  -->
+</html>

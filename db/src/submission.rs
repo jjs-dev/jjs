@@ -54,6 +54,6 @@ impl Submissions for PgSubmissions {
 
     fn update_submission_state(&self, submission: &Submission, new_state: &str) {
         let query = include_str!("../queries/update_submission_state.sql");
-        let _res = self.conn.execute(query, &[&(submission.id as u32), &new_state]).expect("update_submission_state query failed");
+        let _res = self.conn.execute(query, &[&(submission.id as i32), &new_state]).expect("update_submission_state query failed");
     }
 }

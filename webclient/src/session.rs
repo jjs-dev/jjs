@@ -26,6 +26,12 @@ impl SessionData {
     }
 }
 
+impl Default for SessionData {
+    fn default() -> Self {
+        SessionData::new()
+    }
+}
+
 pub struct Session<'a, 'r> {
     request: &'a Request<'r>,
     should_expose: bool,
@@ -72,7 +78,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Session<'a, 'r> {
 
         let should_expose = cookies
             .get_private("expose")
-            .unwrap_or(Cookie::new("expose", "false"))
+            .unwrap_or_else(||Cookie::new("expose", "false"))
             .value()
             == "true";
         let session = match cookies.get_private("session") {

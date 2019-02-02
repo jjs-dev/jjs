@@ -130,7 +130,7 @@ fn route_logout(mut session: Session) -> Redirect {
 }
 
 #[get("/submit")]
-fn route_get_submit<'r>(session: Session) -> Result<Template, Redirect> {
+fn route_get_submit(session: Session) -> Result<Template, Redirect> {
     let mut ctx = render::DefaultRenderContext::default();
     ctx.common.fill_with_session_data(&session.data);
     if let Some(ref _auth) = session.data.auth {

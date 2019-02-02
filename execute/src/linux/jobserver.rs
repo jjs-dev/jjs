@@ -19,7 +19,7 @@ use std::{
     fs::{self, OpenOptions},
     hash::Hasher,
     io::{self, Write},
-    mem, ptr, time, process
+    mem, process, ptr, time,
 };
 use tiny_nix_ipc::Socket;
 

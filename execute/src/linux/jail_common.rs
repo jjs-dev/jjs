@@ -57,7 +57,10 @@ pub(crate) enum Query {
     Poll(PollQuery),
 }
 
-pub(crate) unsafe fn cgroup_kill_all(jail_id: &str, pid_to_ignore: Option<Pid>) -> crate::Result<()> {
+pub(crate) unsafe fn cgroup_kill_all(
+    jail_id: &str,
+    pid_to_ignore: Option<Pid>,
+) -> crate::Result<()> {
     //we just need to kill all processes in pids (e.g.) cgroup
     let pids_cgroup_path = get_path_for_subsystem("pids", jail_id);
 

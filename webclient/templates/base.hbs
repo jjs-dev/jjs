@@ -2,23 +2,26 @@
 <html>
 <head>
     <title>JJS: {{~> screen_name}}</title>
+    <script src="/static/app.js"></script>
 </head>
 <body>
 <header>
-    <a href="/">index</a>
+    <a href="/" onclick="return loadPage('index')">index</a>
     |
 
     {{#if common.auth.User}}
-        <a href="/submit">submit</a>
+        <a href="/submit" onclick="return loadPage('submit')">submit</a>
     |
         {{common.auth.User.login}}(<a href="/logout">logout</a>)
     {{/if}}
     {{#if common.auth.Guest}}
-        <a href="/login">login</a>
+        <a href="/login" onclick="return loadPage('login')">login</a>
     {{/if}}
 </header>
 <br/>
+<span id=page>
 {{~> page}}
+</span>
 <footer>
     ----------------------------------<br/>
     JJS v{{common.jjs_version}}

@@ -19,6 +19,7 @@ use frontend_api::TJjsServiceSyncClient;
 use multipart::server::{save::SavedData, Multipart, SaveResult};
 use rocket::{fairing::AdHoc, http::ContentType, request::Form, response::Redirect, Data, State};
 use rocket_contrib::templates::Template;
+use rocket_contrib::serve::StaticFiles;
 use std::{
     io::{self, Read},
     sync::Arc,
@@ -239,6 +240,7 @@ fn main() {
 
     rocket::ignite()
         .mount("/", handlers)
+        .mount("/static", StaticFiles::from("static"))
         .attach(Template::fairing())
         .attach(AdHoc::on_attach("Configure", |rocket| {
             let env_name = rocket.config().get_str("env").unwrap_or("prod");

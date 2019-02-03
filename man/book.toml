@@ -1,0 +1,5 @@
+[book]
+authors = ["Mikail Bagishov"]
+multilingual = false
+src = "src"
+title = "JJS Manual"

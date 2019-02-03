@@ -118,6 +118,8 @@ fn task_package() {
         get_project_dir()
     );
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
+
+    fs::create_dir_all(&pkg_dir).ok();
     fs::remove_dir_all(&pkg_dir).ok();
     fs::create_dir(&pkg_dir).unwrap();
     fs::create_dir(format!("{}/lib", &pkg_dir)).ok();

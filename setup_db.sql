@@ -3,7 +3,7 @@ This script fills empty db with all necessary tables
 */
 
 --submissions
-CREATE TYPE submission_state AS ENUM ('wait_invoke', 'invoke', 'done', 'error');
+CREATE TYPE submission_state AS ENUM ('WaitInvoke', 'Invoke', 'Done', 'Error');
 
 CREATE TABLE submissions
 (

@@ -3,46 +3,19 @@
 //! else it gets Compilation Error
 use crate::{
     invoker::{Status, StatusKind},
-    object::{self, Submission},
 };
 use config::*;
 use execute as minion;
-use std::{collections, time::Duration};
-
+use std::{collections, fs, time::Duration};
+use domain::Submission;
 //use std::path::{Path, PathBuf};
 struct BuildResult {
     //submission: Option<Submission>,
     status: Status,
 }
-
-fn prepare_options(_cfg: &Config) -> minion::ChildProcessOptions {
-    let em = minion::setup();
-    let dmn = em.new_dominion(minion::DominionOptions {
-        allow_network: false,
-        allow_file_io: false,
-        max_alive_process_count: 16,
-        memory_limit: 0,
-        exposed_paths: vec![],
-        isolation_root: "".into(),
-        time_limit: Duration::from_millis(1000),
-    });
-    minion::ChildProcessOptions {
-        path: String::new(),
-        arguments: vec![],
-        environment: collections::HashMap::new(),
-        dominion: dmn.unwrap(),
-        stdio: minion::StdioSpecification {
-            stdin: minion::InputSpecification::Empty,
-            stdout: minion::OutputSpecification::Ignore,
-            stderr: minion::OutputSpecification::Ignore,
-        },
-        pwd: "".to_string(),
-    }
-}
-
-fn get_toolchain<'a>(submission: &object::Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
+fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
     for t in &cfg.toolchains {
-        if submission.toolchain_name == t.name {
+        if submission.toolchain == t.name {
             return Some(t);
         }
     }
@@ -55,6 +28,21 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             file_submission_content
         }
     }.path;*/
+    let em = minion::setup();
+    let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id);
+    fs::create_dir(&child_root).expect("couldn't create invokation root");
+    let dmn = em
+        .new_dominion(minion::DominionOptions {
+            allow_network: false,
+            allow_file_io: false,
+            max_alive_process_count: 16,
+            memory_limit: 0,
+            exposed_paths: vec![],
+            isolation_root: child_root,
+            time_limit: Duration::from_millis(1000),
+        })
+        .expect("couldn't create dominion");
+
 
     let toolchain = get_toolchain(&submission, &cfg);
 
@@ -69,11 +57,21 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                 },
             };
         }
-    }
-    .clone();
+    };
 
     for cmd in &toolchain.build_commands {
-        let mut opts = prepare_options(cfg);
+        let mut opts = minion::ChildProcessOptions {
+            path: String::new(),
+            arguments: vec![],
+            environment: collections::HashMap::new(),
+            dominion: dmn.clone(),
+            stdio: minion::StdioSpecification {
+                stdin: minion::InputSpecification::Empty,
+                stdout: minion::OutputSpecification::Ignore,
+                stderr: minion::OutputSpecification::Ignore,
+            },
+            pwd: "/".to_string(),
+        };
         let mut nargs = cmd.argv.clone();
         opts.path = nargs[0].clone();
         opts.arguments = nargs.split_off(1);
@@ -120,6 +118,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     }
 }
 
-pub fn judge(submission: object::Submission, cfg: &Config) -> crate::invoker::Status {
-    build(&submission, cfg).status
+pub fn judge(submission: &Submission, cfg: &Config) -> crate::invoker::Status {
+    build(submission, cfg).status
 }

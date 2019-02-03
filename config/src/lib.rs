@@ -24,7 +24,7 @@ pub struct Toolchain {
 pub struct Config {
     pub toolchains: Vec<Toolchain>,
     #[serde(skip_deserializing)]
-    pub sysroot: PathBuf,
+    pub sysroot: String,
 }
 
 pub fn parse_file(path: PathBuf) -> Config {
@@ -46,7 +46,7 @@ pub fn get_config() -> Config {
         std::process::exit(1);
     }
     let mut c = parse_file(PathBuf::from(format!("{}/etc/jjs/jjs.toml", &args[1])));
-    c.sysroot = PathBuf::from(args[1].clone());
+    c.sysroot = args[1].clone();
     c
 }
 

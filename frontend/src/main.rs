@@ -19,7 +19,7 @@ impl ApiContextProvider {
         )
         .unwrap();
         let db = db::Db {
-            submissions: Box::new(db::submission::PgSubmissions::new(box db_conn)),
+            submissions: db::submission::Submissions::new(box db_conn),
         };
         ApiContext { db }
     }

@@ -7,6 +7,6 @@ pub fn connect_pg() -> db::Db {
     let conn = postgres::Connection::connect(pg_url, postgres::TlsMode::None)
         .expect("couldn't connect to postgres");
     db::Db {
-        submissions: box db::submission::PgSubmissions::new(box conn),
+        submissions: db::submission::Submissions::new(box conn),
     }
 }

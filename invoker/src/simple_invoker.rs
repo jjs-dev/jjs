@@ -1,13 +1,11 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use crate::{
-    invoker::{Status, StatusKind},
-};
+use crate::invoker::{Status, StatusKind};
 use config::*;
+use domain::Submission;
 use execute as minion;
 use std::{collections, fs, time::Duration};
-use domain::Submission;
 //use std::path::{Path, PathBuf};
 struct BuildResult {
     //submission: Option<Submission>,
@@ -42,7 +40,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             time_limit: Duration::from_millis(1000),
         })
         .expect("couldn't create dominion");
-
 
     let toolchain = get_toolchain(&submission, &cfg);
 

@@ -1,6 +1,6 @@
 mod invoker;
 mod simple_invoker;
-use std::{io, path::PathBuf, sync};
+use std::sync;
 
 use slog::*;
 
@@ -14,7 +14,6 @@ fn handle_judge_task(task: InvokeRequest, cfg: &config::Config, db: &db::Db) {
     //    cfg.sysroot,
     //    task.submission.id
     //));
-
 
     //let toolchain_name = db.submissions.find_by_id(task.submission.id).toolchain;
 

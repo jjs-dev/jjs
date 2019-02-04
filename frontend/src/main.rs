@@ -13,14 +13,7 @@ struct ApiContextProvider {}
 
 impl ApiContextProvider {
     fn create(&self) -> ApiContext {
-        let db_conn = postgres::Connection::connect(
-            "postgres://jjs:internal@localhost",
-            postgres::TlsMode::None,
-        )
-        .unwrap();
-        let db = db::Db {
-            submissions: db::submission::Submissions::new(box db_conn),
-        };
+        let db = db_conn::connect_pg();
         ApiContext { db }
     }
 

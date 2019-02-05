@@ -1,6 +1,6 @@
 use std::{
     env,
-    ffi::{CStr, CString},
+    ffi::{ CString},
     fs,
     path::PathBuf,
     process::Command,
@@ -15,7 +15,7 @@ fn obtain_mount_list() -> Vec<PathBuf> {
     mounts
         .split_whitespace()
         .map(|x| x.to_string())
-        .filter(|it| it.starts_with("/"))
+        .filter(|it| it.starts_with('/'))
         .map(|x| PathBuf::from_str(&x).unwrap())
         .collect()
 }
@@ -29,8 +29,8 @@ fn disintegrate(path: PathBuf, mounts: &[PathBuf]) {
         println!("unmounting {:?}", &path);
         let p = path.to_str().expect("ill-formed path");
         let p = CString::new(p).expect("ill-formed path");
-        if libc::umount2(p.as_ptr(), libc::MNT_FORCE) == -1 {
-            Err(std::io::Error::last_os_error()).unwrap();
+        if unsafe {libc::umount2(p.as_ptr(), libc::MNT_FORCE)} == -1 {
+            Result::<(), _>::Err(std::io::Error::last_os_error()).unwrap();
         }
     }
     for item in fs::read_dir(&path).expect("coudln't list directory contents") {
@@ -40,6 +40,7 @@ fn disintegrate(path: PathBuf, mounts: &[PathBuf]) {
 }
 
 fn main() {
+    use std::str::FromStr;
     let path = env::args().nth(1).expect("Usage: disintegrate <path>");
     let mounts = obtain_mount_list();
     disintegrate(PathBuf::from_str(&path).unwrap(), &mounts);

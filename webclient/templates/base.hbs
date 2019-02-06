@@ -1,31 +1,33 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>JJS: {{~> screen_name}}</title>
-    <script src="/static/app.js"></script>
 </head>
-<body>
-<header>
-    <a href="/" onclick="return loadPage('index')">index</a>
-    |
 
-    {{#if common.auth.User}}
-        <a href="/submit" onclick="return loadPage('submit')">submit</a>
-    |
-        {{common.auth.User.login}}(<a href="/logout">logout</a>)
-    {{/if}}
-    {{#if common.auth.Guest}}
-        <a href="/login" onclick="return loadPage('login')">login</a>
-    {{/if}}
-</header>
-<br/>
-<span id=page>
-{{~> page}}
-</span>
-<footer>
-    ----------------------------------<br/>
-    JJS v{{common.jjs_version}}
-</footer>
+<body>
+    <header>
+        <a href="/">index</a>
+        |
+
+        {{#if common.auth.is_user}}
+        <a href="/submit">submit</a>
+        |
+        {{common.auth.d.User.login}}(<a href="/logout">logout</a>)
+        {{/if}}
+        {{#if common.auth.is_guest}}
+        <a href="/login">login</a>
+        {{/if}}
+    </header>
+    <br />
+    <div id=page>
+        {{~> page}}
+    </div>
+    <footer>
+        ----------------------------------<br />
+        JJS v{{common.jjs_version}}
+    </footer>
 </body>
 <!-- {{{common.debug_info}}}  -->
+
 </html>

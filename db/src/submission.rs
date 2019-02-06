@@ -1,29 +1,29 @@
 use domain::Submission;
 use postgres::GenericConnection;
 
-pub struct Submissions {
-    conn: Box<dyn postgres::GenericConnection>,
+pub struct Submissions<'conn> {
+    conn: &'conn dyn postgres::GenericConnection,
 }
 
-impl Submissions {
-    pub fn new(conn: Box<dyn GenericConnection>) -> Submissions {
+impl<'conn> Submissions<'conn> {
+    pub fn new(conn: &'conn dyn GenericConnection) -> Submissions<'conn> {
         Submissions { conn }
     }
 }
 
-impl Submissions {
-    pub fn create_submission(&self, toolchain: &str) -> Submission {
-        let query = "INSERT INTO submissions (toolchain) VALUES ($1) RETURNING submission_id;";
-        let res = self.conn.query(query, &[&toolchain]).unwrap();
+impl<'conn> Submissions<'conn> {
+    pub fn create_submission(&'conn self, toolchain: &str) -> Submission {
+        let query = "INSERT INTO submissions (toolchain, state) VALUES ($1,  'WaitInvoke') RETURNING submission_id";
+        let res = self.conn.query(query, &[&toolchain]).expect("couldn't create submission in DB");
         let id_row = res.get(0);
         let s8n_id: i32 = id_row.get(0);
         Submission {
-            id: s8n_id as usize,
+            id: s8n_id as u32,
             toolchain: toolchain.into(),
         }
     }
 
-    pub fn find_by_id(&self, id: usize) -> Submission {
+    pub fn find_by_id(&self, id: u32) -> Submission {
         let query = "SELECT toolchain FROM submissions WHERE submission_id = $1";
         let res = self.conn.query(query, &[&(id as i32)]).unwrap();
         let toolchain = res.get(0).get(0);
@@ -39,7 +39,7 @@ impl Submissions {
             let row = res.get(0);
             let sub_id: i32 = row.get("submission_id");
             Some(Submission {
-                id: sub_id as usize,
+                id: sub_id as u32,
                 toolchain: row.get("toolchain"),
             })
         }

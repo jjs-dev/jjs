@@ -15,20 +15,18 @@ mod session;
 //mod medium;
 
 use self::session::Session;
-use frontend_api::TJjsServiceSyncClient;
 use multipart::server::{save::SavedData, Multipart, SaveResult};
-use rocket::{fairing::AdHoc, http::ContentType, request::Form, response::Redirect, Data, State};
+use rocket::{
+    fairing::AdHoc,
+    http::ContentType,
+    request::{Form, Request},
+    response::{Redirect, Responder, Response},
+    Data, State,
+};
 use rocket_contrib::templates::Template;
-use rocket_contrib::serve::StaticFiles;
 use std::{
     io::{self, Read},
     sync::Arc,
-};
-use thrift::{
-    protocol::{TCompactInputProtocol, TCompactOutputProtocol},
-    transport::{
-        ReadHalf, TFramedReadTransport, TFramedWriteTransport, TIoChannel, TTcpChannel, WriteHalf,
-    },
 };
 
 #[derive(PartialEq)]
@@ -47,19 +45,27 @@ struct AppEnvState {
 pub enum HttpError {
     //#[fail(display = "Io error: {}", _0)]
     //Io(#[cause] reqwest::Error),
-    //#[fail(display = "Serialization error: {}", _0)]
-    //Serde(#[cause] serde_json::Error),
+    #[fail(display = "Internal Serialization error")]
+    Serde(#[cause] serde_json::Error),
     #[fail(display = "Internal Error")]
     Io(#[cause] io::Error),
     #[fail(display = "Error in interacting with JJS frontend")]
-    Thrift(#[cause] thrift::Error),
+    Frontend(#[cause] reqwest::Error),
     #[fail(display = "Incorrect request: {}", _0)]
     BadRequest(String),
 }
 
-impl From<thrift::Error> for HttpError {
-    fn from(e: thrift::Error) -> HttpError {
-        HttpError::Thrift(e)
+impl<'r> Responder<'r> for HttpError {
+    fn respond_to(self, _request: &Request) -> Result<Response<'r>, rocket::http::Status> {
+        eprintln!("warning: responding with error {:?}", &self);
+        let st = match self {
+            HttpError::Serde(_) | HttpError::Io(_) | HttpError::Frontend(_) => {
+                rocket::http::Status::InternalServerError
+            }
+            HttpError::BadRequest(_msg) => rocket::http::Status::BadRequest,
+        };
+
+        Err(st)
     }
 }
 
@@ -69,11 +75,18 @@ impl From<io::Error> for HttpError {
     }
 }
 
+impl From<reqwest::Error> for HttpError {
+    fn from(e: reqwest::Error) -> HttpError {
+        HttpError::Frontend(e)
+    }
+}
+
 #[get("/")]
 fn route_index(ses: Session) -> Template {
     let mut ctx = render::DefaultRenderContext::default();
     ctx.common.fill_with_session_data(&ses.data);
     ctx.set_debug_info();
+    eprintln!("{}", serde_json::to_string(&ctx).unwrap());
     Template::render("index", &ctx)
 }
 
@@ -107,9 +120,13 @@ fn route_authentificate(
         password: form_data.password,
     };
 
-    let mut api_client = connect("127.0.0.1:1779".to_string()).unwrap();
-
-    let auth_resp = api_client.simple(auth_query)?;
+    let client = reqwest::Client::new();
+    let auth_resp: frontend_api::AuthToken = client
+        .post("http://localhost:1779/auth/anonymous")
+        .body(serde_json::to_string(&auth_query).unwrap())
+        .send()?
+        .json()?;
+    //let auth_resp = api_client.simple(auth_query)?;
 
     ses.clear();
     ses.data.auth = Some(session::Auth {
@@ -193,32 +210,22 @@ fn route_post_submit(
     let mut file = file.readable().unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)?;
-    connect("127.0.0.1:1779".to_string())?.submit(frontend_api::SubmitDeclaration {
+    //connect("127.0.0.1:1779".to_string())?.submit(frontend_api::SubmitDeclaration {
+    //    toolchain: toolchain.clone(),
+    //    code: contents,
+    //})?;
+    let frontend_query = frontend_api::SubmitDeclaration {
         toolchain: toolchain.clone(),
         code: contents,
-    })?;
+    };
+    let _id: frontend_api::SubmissionId = reqwest::Client::new()
+        .post("http://localhost:1779/submissions/send")
+        .body(serde_json::to_string(&frontend_query).unwrap())
+        .send()?
+        .json()
+        .unwrap();
+
     Ok(Redirect::to("/"))
-}
-
-type ThriftInputProtocol = TCompactInputProtocol<TFramedReadTransport<ReadHalf<TTcpChannel>>>;
-type ThriftOutputProtocol = TCompactOutputProtocol<TFramedWriteTransport<WriteHalf<TTcpChannel>>>;
-
-fn connect(
-    api_addr: String,
-) -> thrift::Result<frontend_api::JjsServiceSyncClient<ThriftInputProtocol, ThriftOutputProtocol>> {
-    println!("connecting to {}", &api_addr);
-    let mut chan = thrift::transport::TTcpChannel::new();
-    chan.open(&api_addr).unwrap();
-
-    let (i_chan, o_chan) = chan.split()?;
-
-    let i_tran = TFramedReadTransport::new(i_chan);
-    let o_tran = TFramedWriteTransport::new(o_chan);
-
-    let i_prot = TCompactInputProtocol::new(i_tran);
-    let o_prot = TCompactOutputProtocol::new(o_tran);
-
-    Ok(frontend_api::JjsServiceSyncClient::new(i_prot, o_prot))
 }
 
 fn main() {
@@ -240,8 +247,9 @@ fn main() {
 
     rocket::ignite()
         .mount("/", handlers)
-        .mount("/static", StaticFiles::from("static"))
-        .attach(Template::fairing())
+        .attach(Template::custom(|e| {
+            e.handlebars.set_strict_mode(true);
+        }))
         .attach(AdHoc::on_attach("Configure", |rocket| {
             let env_name = rocket.config().get_str("env").unwrap_or("prod");
             let mut st = AppEnvState {

@@ -7,8 +7,3 @@ edition = "2018"
 [dependencies]
 db = {path = "../db"}
 postgres = "0.15.2"
-
-[dependencies.amqp]
-version = "0.1.2"
-default-features = false
-features = []

@@ -6,6 +6,6 @@ edition = "2018"
 
 [dependencies]
 postgres-derive = "0.3.3"
-serde_derive = "1.0.86"
-serde = "1.0.86"
+serde_derive = "1.0.87"
+serde = "1.0.87"
 postgres = "0.15.2"

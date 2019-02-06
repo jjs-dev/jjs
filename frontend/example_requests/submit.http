@@ -1,0 +1,7 @@
+POST http://localhost:1779/submission/send HTTP/1.1
+Content-Type: application/json
+
+{
+    "toolchain": "cpp",
+    "code": [0]
+}

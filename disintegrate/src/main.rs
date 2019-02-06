@@ -1,10 +1,4 @@
-use std::{
-    env,
-    ffi::{ CString},
-    fs,
-    path::PathBuf,
-    process::Command,
-};
+use std::{env, ffi::CString, fs, path::PathBuf, process::Command};
 fn obtain_mount_list() -> Vec<PathBuf> {
     use std::str::FromStr;
     let mounts = Command::new("mount")
@@ -29,7 +23,7 @@ fn disintegrate(path: PathBuf, mounts: &[PathBuf]) {
         println!("unmounting {:?}", &path);
         let p = path.to_str().expect("ill-formed path");
         let p = CString::new(p).expect("ill-formed path");
-        if unsafe {libc::umount2(p.as_ptr(), libc::MNT_FORCE)} == -1 {
+        if unsafe { libc::umount2(p.as_ptr(), libc::MNT_FORCE) } == -1 {
             Result::<(), _>::Err(std::io::Error::last_os_error()).unwrap();
         }
     }

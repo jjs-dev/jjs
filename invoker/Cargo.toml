@@ -9,9 +9,9 @@ execute = {path = "../execute"}
 config = {path ="../config"}
 pretty_env_logger = "0.3.0"
 futures = "0.1.25"
-serde = "1.0.84"
-serde_derive = "1.0.84"
-serde_json = "1.0.36"
+serde = "1.0.87"
+serde_derive = "1.0.87"
+serde_json = "1.0.38"
 rocket = "0.4.0"
 rocket_codegen = "0.4.0"
 frontend-api = {path = "../frontend-api"}
@@ -19,7 +19,7 @@ db = {path = "../db"}
 db-conn = {path = "../db-conn"}
 dotenv = "0.13.0"
 domain = {path = "../domain"}
-slog = {version = "2.4.1", features = ["max_level_trace"]}
+slog = { version = "2.4.1", features = ["max_level_trace"] }
 slog-term = "2.4.0"
 slog-async = "2.3.0"
-ctrlc = {version = "3.1.1", features = ["termination"]}
+ctrlc = { version = "3.1.1", features = ["termination"] }

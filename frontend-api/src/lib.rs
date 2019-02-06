@@ -61,6 +61,7 @@ pub type SubmissionId = u32;
 ///This traits serve for documentation-only purposes
 pub trait Frontend {
     ///POST /auth/anonymous
+    fn auth_anonymous() -> AuthToken;
     ///POST /submissions/send
     fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
 }

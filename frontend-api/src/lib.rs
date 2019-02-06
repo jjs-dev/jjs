@@ -4,7 +4,7 @@ extern crate serde_derive;
 //auth
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthToken {
-    pub buf: Vec<u8>,
+    pub buf: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,10 +58,13 @@ pub struct SubmitError {
 
 pub type SubmissionId = u32;
 
-///This traits serve for documentation-only purposes
+/// This traits serve for documentation-only purposes
 pub trait Frontend {
-    ///POST /auth/anonymous
+    /// POST /auth/anonymous
     fn auth_anonymous() -> AuthToken;
-    ///POST /submissions/send
+    /// POST /auth/simple/
+    fn auth_simple(auth_params: SimpleAuthParams) -> Result<AuthToken, SimpleAuthError>;
+
+    /// POST /submissions/send
     fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
 }

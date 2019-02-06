@@ -5,9 +5,9 @@ pub struct Db<'conn> {
 }
 
 impl<'c> Db<'c> {
-    pub fn new(conn: &'c dyn postgres::GenericConnection) -> Self{
+    pub fn new(conn: &'c dyn postgres::GenericConnection) -> Self {
         Self {
-            submissions: submission::Submissions::new(conn)
+            submissions: submission::Submissions::new(conn),
         }
     }
 }

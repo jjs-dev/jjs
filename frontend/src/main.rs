@@ -27,17 +27,31 @@ impl<'r> rocket::response::Responder<'r> for FrontendError {
 
 type FrontendResult<T> = Result<T, FrontendError>;
 
-type DbPool =r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
+type DbPool = r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
 
 #[post("/auth/anonymous")]
 fn route_auth_anonymous() -> Result<Json<frontend_api::AuthToken>, FrontendError> {
-    Ok(Json(frontend_api::AuthToken {
-        buf: b"".to_vec(),
-    }))
-    //FrontendError::Internal
+    Ok(Json(frontend_api::AuthToken { buf: "".to_string() }))
 }
 
-//
+#[post("/auth/simple", data = "<data>")]
+fn route_auth_simple(
+    data: Json<frontend_api::SimpleAuthParams>,
+) -> Result<Json<Result<frontend_api::AuthToken, frontend_api::SimpleAuthError>>, FrontendError> {
+    let succ = &data.login == &data.password;
+    let res = if succ {
+        Ok(frontend_api::AuthToken {
+            buf: data.login.clone(),
+        })
+    } else {
+        Err(frontend_api::SimpleAuthError {
+            kind: frontend_api::SimpleAuthErrorKind::IncorrectPassword,
+        })
+    };
+
+    Ok(Json(res))
+}
+
 #[post("/submission/send", data = "<data>")]
 fn route_submissions_send(
     data: Json<frontend_api::SubmitDeclaration>,
@@ -66,7 +80,12 @@ fn main() {
         .manage(pool)
         .mount(
             "/",
-            routes![route_ping, route_auth_anonymous, route_submissions_send],
+            routes![
+                route_ping,
+                route_auth_anonymous,
+                route_auth_simple,
+                route_submissions_send
+            ],
         )
         .launch();
 }

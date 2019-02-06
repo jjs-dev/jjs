@@ -14,7 +14,10 @@ impl<'conn> Submissions<'conn> {
 impl<'conn> Submissions<'conn> {
     pub fn create_submission(&'conn self, toolchain: &str) -> Submission {
         let query = "INSERT INTO submissions (toolchain, state) VALUES ($1,  'WaitInvoke') RETURNING submission_id";
-        let res = self.conn.query(query, &[&toolchain]).expect("couldn't create submission in DB");
+        let res = self
+            .conn
+            .query(query, &[&toolchain])
+            .expect("couldn't create submission in DB");
         let id_row = res.get(0);
         let s8n_id: i32 = id_row.get(0);
         Submission {

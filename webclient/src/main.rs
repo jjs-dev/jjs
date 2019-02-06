@@ -122,7 +122,7 @@ fn route_authentificate(
 
     let client = reqwest::Client::new();
     let auth_resp: frontend_api::AuthToken = client
-        .post("http://localhost:1779/auth/anonymous")
+        .post("http://localhost:1779/auth/simple")
         .body(serde_json::to_string(&auth_query).unwrap())
         .send()?
         .json()?;

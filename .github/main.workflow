@@ -1,6 +1,6 @@
 workflow "OnPush" {
   on = "push"
-  resolves = ["Check"]
+  resolves = ["Publish"]
 }
 
 action "Check" {

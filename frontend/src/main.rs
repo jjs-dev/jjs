@@ -32,7 +32,7 @@ type DbPool =r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
 #[post("/auth/anonymous")]
 fn route_auth_anonymous() -> Result<Json<frontend_api::AuthToken>, FrontendError> {
     Ok(Json(frontend_api::AuthToken {
-        buf: "".as_bytes().to_vec(),
+        buf: b"".to_vec(),
     }))
     //FrontendError::Internal
 }
@@ -50,41 +50,7 @@ fn route_submissions_send(
     let res = Ok(res.id);
     Ok(Json(res))
 }
-/*impl frontend_api::JjsServiceSyncHandler for Api {
-    fn handle_anon(&self) -> thrift::Result<frontend_api::AuthToken> {
-        let s = "_".to_string();
-        let buf = s.into_bytes();
-        Ok(frontend_api::AuthToken { buf })
-    }
 
-    fn handle_simple(
-        &self,
-        params: frontend_api::SimpleAuthParams,
-    ) -> thrift::Result<frontend_api::AuthToken> {
-        let s = format!("${}", &params.login);
-        let buf = s.into_bytes();
-        Ok(frontend_api::AuthToken { buf })
-    }
-
-    fn handle_drop(&self, _token: frontend_api::AuthToken) -> thrift::Result<()> {
-        //TODO implement
-        Ok(())
-    }
-
-    fn handle_submit(
-        &self,
-        params: frontend_api::SubmitDeclaration,
-    ) -> thrift::Result<frontend_api::SubmissionId> {
-        let ctx = self.ctx_provider.provide();
-        let s8n = ctx.db.submissions.create_submission(&params.toolchain);
-        Ok(s8n.id as i64)
-    }
-
-    fn handle_ping(&self, buf: String) -> thrift::Result<String> {
-        Ok(buf)
-    }
-}
-*/
 fn main() {
     dotenv::dotenv().ok();
     let port = 1779;

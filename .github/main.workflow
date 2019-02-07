@@ -1,6 +1,6 @@
 workflow "OnPush" {
   on = "push"
-  resolves = ["Publish"]
+  resolves = ["Publish", "Docs"]
 }
 
 action "Check" {
@@ -34,4 +34,11 @@ action "Upload_devel_image" {
   uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
   args = "push mikailbag/jjs-dev:latest"
   needs = ["Build_devel_image"]
+}
+
+action "Docs" { 
+  uses =  "docker://mikailbag/jjs-dev:latest"
+  needs = ["Check"]
+  runs = "cargo run -p devtool -- Man"
+  secrets = ["GITHUB_TOKEN"]
 }

@@ -93,7 +93,8 @@ fn main() {
                 route_ping,
                 route_auth_anonymous,
                 route_auth_simple,
-                route_submissions_send
+                route_submissions_send,
+                route_toolchains_list,
             ],
         )
         .launch();

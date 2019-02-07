@@ -212,7 +212,8 @@ fn task_man() {
         copy_inside: true,
         depth: 0,
     };
-    let src = vec![format!("{}/man/book", get_project_dir())];
+    let src =format!("{}/man/book", get_project_dir());
+    let src = fs::read_dir(src).unwrap().map(|e| e.unwrap().path()).collect();
     let dst = "/tmp/jjs-pages";
     fs_extra::copy_items(&src, dst, &opts).unwrap();
     print_section("pushing pages");

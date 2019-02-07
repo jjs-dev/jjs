@@ -41,4 +41,7 @@ action "Docs" {
   needs = ["Check"]
   runs = "cargo run -p devtool -- Man"
   secrets = ["GITHUB_TOKEN"]
+  env = {
+    "RUST_BACKTRACE"= "1"
+  }
 }

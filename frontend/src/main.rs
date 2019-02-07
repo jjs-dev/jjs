@@ -4,7 +4,6 @@
 extern crate rocket;
 use rocket::{http::Status, State};
 use rocket_contrib::json::Json;
-//use rocket::response::Responder;
 #[get("/ping")]
 fn route_ping() -> &'static str {
     "JJS frontend"
@@ -21,7 +20,6 @@ impl<'r> rocket::response::Responder<'r> for FrontendError {
             FrontendError::Internal => Status::InternalServerError,
         };
         Err(res)
-        //res.respond_to(request)
     }
 }
 

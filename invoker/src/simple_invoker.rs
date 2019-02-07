@@ -6,9 +6,8 @@ use config::*;
 use domain::Submission;
 use execute as minion;
 use std::{collections, fs, time::Duration};
-//use std::path::{Path, PathBuf};
+
 struct BuildResult {
-    //submission: Option<Submission>,
     status: Status,
 }
 fn get_toolchain<'a>(_submission: &Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
@@ -23,11 +22,6 @@ fn get_toolchain<'a>(_submission: &Submission, cfg: &'a Config) -> Option<&'a To
 }
 
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
-    /*let ref file_path = match submission.content {
-        SubmissionContent::File(ref file_submission_content) => {
-            file_submission_content
-        }
-    }.path;*/
     let em = minion::setup();
     let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id);
     fs::create_dir(&child_root).expect("couldn't create invokation root");
@@ -49,7 +43,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         Some(t) => t,
         None => {
             return BuildResult {
-                //submission: None,
                 status: Status {
                     kind: StatusKind::CompilationError,
                     code: "UNKNOWN_TOOLCHAIN".to_string(),
@@ -84,7 +77,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             minion::WaitOutcome::Timeout => {
                 cp.kill().ok(); //.ok() to ignore
                 return BuildResult {
-                    //submission: None,
                     status: Status {
                         kind: StatusKind::CompilationError,
                         code: "COMPILATION_TIMED_OUT".to_string(),
@@ -106,10 +98,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     }
 
     BuildResult {
-        /*submission: Some(Submission {
-            content: SubmissionContent::File(FileSubmissionContent { path: PathBuf::from("/") }),
-            toolchain_name: String::new(),
-        }),*/
         status: Status {
             kind: StatusKind::NotSet,
             code: "BUILT".to_string(),

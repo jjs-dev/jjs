@@ -12,7 +12,6 @@ extern crate failure;
 mod config;
 mod render;
 mod session;
-//mod medium;
 
 use self::session::Session;
 use multipart::server::{save::SavedData, Multipart, SaveResult};
@@ -39,12 +38,8 @@ struct AppEnvState {
     env: Environment,
 }
 
-//const INTERNAL_ERR_MSG: &str = "Internal Error";
-
 #[derive(Fail, Debug)]
 pub enum HttpError {
-    //#[fail(display = "Io error: {}", _0)]
-    //Io(#[cause] reqwest::Error),
     #[fail(display = "Internal Serialization error")]
     Serde(#[cause] serde_json::Error),
     #[fail(display = "Internal Error")]
@@ -111,7 +106,6 @@ struct LoginForm {
 fn route_authentificate(
     mut ses: session::Session,
     form: Form<LoginForm>,
-    //mut provider_state: State<JjsClientProvider>,
     env_state: State<AppEnvState>,
 ) -> Result<Redirect, HttpError> {
     let form_data = form.into_inner();
@@ -126,7 +120,6 @@ fn route_authentificate(
         .body(serde_json::to_string(&auth_query).unwrap())
         .send()?
         .json()?;
-    //let auth_resp = api_client.simple(auth_query)?;
 
     ses.clear();
     ses.data.auth = Some(session::Auth {
@@ -162,7 +155,6 @@ fn route_get_submit(session: Session) -> Result<Template, Redirect> {
 fn route_post_submit(
     cont_type: &ContentType,
     data: Data,
-    //cfg: State<config::Config>,
 ) -> Result<Redirect, HttpError> {
     use std::io::Write;
     if !cont_type.is_form_data() {
@@ -210,10 +202,6 @@ fn route_post_submit(
     let mut file = file.readable().unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)?;
-    //connect("127.0.0.1:1779".to_string())?.submit(frontend_api::SubmitDeclaration {
-    //    toolchain: toolchain.clone(),
-    //    code: contents,
-    //})?;
     let frontend_query = frontend_api::SubmitDeclaration {
         toolchain: 0, //TODO
         code: contents,
@@ -241,9 +229,7 @@ fn main() {
         route_favicon,
     ];
 
-    let config = config::Config {
-        //sysroot: jjs_sysroot_path,
-    };
+    let config = config::Config {};
 
     rocket::ignite()
         .mount("/", handlers)

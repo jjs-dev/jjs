@@ -11,13 +11,15 @@ struct BuildResult {
     //submission: Option<Submission>,
     status: Status,
 }
-fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
-    for t in &cfg.toolchains {
+fn get_toolchain<'a>(_submission: &Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
+    /*TODO: for t in &cfg.toolchains {
         if submission.toolchain == t.name {
             return Some(t);
         }
     }
     None
+    */
+    Some(&cfg.toolchains[0])
 }
 
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {

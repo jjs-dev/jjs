@@ -8,7 +8,7 @@ CREATE TYPE submission_state AS ENUM ('WaitInvoke', 'Invoke', 'Done', 'Error');
 CREATE TABLE submissions
 (
   submission_id serial PRIMARY KEY NOT NULL,
-  toolchain     varchar(100)       NOT NULL,
+  toolchain_id     INTEGER       NOT NULL,
   state         submission_state   NOT NULL
 );
 

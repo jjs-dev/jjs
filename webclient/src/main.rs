@@ -215,7 +215,7 @@ fn route_post_submit(
     //    code: contents,
     //})?;
     let frontend_query = frontend_api::SubmitDeclaration {
-        toolchain: toolchain.clone(),
+        toolchain: 0, //TODO
         code: contents,
     };
     let _id: frontend_api::SubmissionId = reqwest::Client::new()

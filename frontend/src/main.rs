@@ -25,28 +25,28 @@ impl<'r> rocket::response::Responder<'r> for FrontendError {
     }
 }
 
-type FrontendResult<T> = Result<T, FrontendError>;
+type Response<R> = Result<Json<R>, FrontendError>;
 
 type DbPool = r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
 
 #[post("/auth/anonymous")]
-fn route_auth_anonymous() -> Result<Json<frontend_api::AuthToken>, FrontendError> {
-    Ok(Json(frontend_api::AuthToken { buf: "".to_string() }))
+fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
+    let res =Ok(frontend_api::AuthToken { buf: "".to_string() });
+
+    Ok(Json(res))
 }
 
 #[post("/auth/simple", data = "<data>")]
 fn route_auth_simple(
     data: Json<frontend_api::SimpleAuthParams>,
-) -> Result<Json<Result<frontend_api::AuthToken, frontend_api::SimpleAuthError>>, FrontendError> {
+) -> Response<Result<frontend_api::AuthToken, frontend_api::SimpleAuthError>> {
     let succ = &data.login == &data.password;
     let res = if succ {
         Ok(frontend_api::AuthToken {
             buf: data.login.clone(),
         })
     } else {
-        Err(frontend_api::SimpleAuthError {
-            kind: frontend_api::SimpleAuthErrorKind::IncorrectPassword,
-        })
+        Err(frontend_api::SimpleAuthError::IncorrectPassword)
     };
 
     Ok(Json(res))
@@ -56,12 +56,23 @@ fn route_auth_simple(
 fn route_submissions_send(
     data: Json<frontend_api::SubmitDeclaration>,
     db: State<DbPool>,
-) -> Result<Json<Result<frontend_api::SubmissionId, frontend_api::SubmitError>>, FrontendError> {
+) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
     use std::ops::Deref;
     let conn = db.get().expect("couldn't connect to DB");
     let db = db::Db::new(conn.deref());
-    let res = db.submissions.create_submission(&data.toolchain);
+    let res = db.submissions.create_submission(data.toolchain);
     let res = Ok(res.id);
+    Ok(Json(res))
+}
+
+#[get("/toolchains/list")]
+fn route_toolchains_list()  -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
+    let res = vec![frontend_api::ToolchainInformation {
+        name: "cpp".to_string(),
+        id: 0
+    }];
+    let res = Ok(res);
+
     Ok(Json(res))
 }
 

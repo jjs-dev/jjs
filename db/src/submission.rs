@@ -12,8 +12,9 @@ impl<'conn> Submissions<'conn> {
 }
 
 impl<'conn> Submissions<'conn> {
-    pub fn create_submission(&'conn self, toolchain: &str) -> Submission {
-        let query = "INSERT INTO submissions (toolchain, state) VALUES ($1,  'WaitInvoke') RETURNING submission_id";
+    pub fn create_submission(&'conn self, toolchain: u32) -> Submission {
+        let query = "INSERT INTO submissions (toolchain_id, state) VALUES ($1,  'WaitInvoke') RETURNING submission_id";
+        let toolchain = toolchain as i32;
         let res = self
             .conn
             .query(query, &[&toolchain])
@@ -22,7 +23,7 @@ impl<'conn> Submissions<'conn> {
         let s8n_id: i32 = id_row.get(0);
         Submission {
             id: s8n_id as u32,
-            toolchain: toolchain.into(),
+            toolchain: toolchain as u32,
         }
     }
 

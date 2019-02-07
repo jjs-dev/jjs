@@ -40,7 +40,7 @@ fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_a
 fn route_auth_simple(
     data: Json<frontend_api::SimpleAuthParams>,
 ) -> Response<Result<frontend_api::AuthToken, frontend_api::SimpleAuthError>> {
-    let succ = &data.login == &data.password;
+    let succ = data.login == data.password;
     let res = if succ {
         Ok(frontend_api::AuthToken {
             buf: data.login.clone(),

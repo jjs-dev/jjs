@@ -7,6 +7,8 @@ enum CliArgs {
     Pkg,
     /// Publish archive to Yandex.Drive (don't forget to run Pkg first)
     Publish,
+    /// Build man and publish to Github Pages
+    Man,
 }
 
 fn get_primary_style() -> console::Style {
@@ -180,7 +182,6 @@ fn task_publish() {
             .unwrap();
         response["href"].as_str().unwrap().to_string()
     };
-    //dbg!(&upload_url);
     let tgz_pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
     client
         .put(&upload_url)
@@ -190,7 +191,41 @@ fn task_publish() {
         .unwrap()
         .text()
         .unwrap();
-    //println!("{}",res);
+}
+
+fn task_man() {
+    print_section("building docs");
+    let book_dir = format!("{}/man", get_project_dir());
+    let st = Command::new("mdbook")
+        .current_dir(&book_dir)
+        .arg("build")
+        .status()
+        .unwrap()
+        .success();
+    assert_eq!(st, true);
+    print_section("copying built man files");
+    fs::create_dir_all("/tmp/jjs-pages").unwrap();
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    };
+    let src =format!("{}/man/book", get_project_dir());
+    let src = fs::read_dir(src).unwrap().map(|e| e.unwrap().path()).collect();
+    let dst = "/tmp/jjs-pages";
+    fs_extra::copy_items(&src, dst, &opts).unwrap();
+    print_section("pushing pages");
+    let helper_script_path = format!("{}/devtool/scripts/pages-push.sh", get_project_dir());
+    let st = Command::new("bash")
+        .current_dir("/tmp/jjs-pages")
+        .args(&[&helper_script_path])
+        .status()
+        .unwrap()
+        .success();
+
+    assert_eq!(st, true);
 }
 
 fn main() {
@@ -198,5 +233,6 @@ fn main() {
     match args {
         CliArgs::Pkg => task_package(),
         CliArgs::Publish => task_publish(),
+        CliArgs::Man => task_man(),
     }
 }

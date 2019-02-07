@@ -29,7 +29,9 @@ type DbPool = r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
 
 #[post("/auth/anonymous")]
 fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
-    let res =Ok(frontend_api::AuthToken { buf: "".to_string() });
+    let res = Ok(frontend_api::AuthToken {
+        buf: "".to_string(),
+    });
 
     Ok(Json(res))
 }
@@ -64,10 +66,11 @@ fn route_submissions_send(
 }
 
 #[get("/toolchains/list")]
-fn route_toolchains_list()  -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
+fn route_toolchains_list(
+) -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
     let res = vec![frontend_api::ToolchainInformation {
         name: "cpp".to_string(),
-        id: 0
+        id: 0,
     }];
     let res = Ok(res);
 

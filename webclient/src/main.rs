@@ -152,10 +152,7 @@ fn route_get_submit(session: Session) -> Result<Template, Redirect> {
 }
 
 #[post("/submit", data = "<data>")]
-fn route_post_submit(
-    cont_type: &ContentType,
-    data: Data,
-) -> Result<Redirect, HttpError> {
+fn route_post_submit(cont_type: &ContentType, data: Data) -> Result<Redirect, HttpError> {
     use std::io::Write;
     if !cont_type.is_form_data() {
         return Err(HttpError::BadRequest(

@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
 
-
 /// Represents errors, which can happen in (almost) each method.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CommonError {
@@ -13,7 +12,6 @@ pub enum CommonError {
 // some typedefs
 pub type ToolchainId = u32;
 pub type SubmissionId = u32;
-
 
 //auth
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,7 +30,7 @@ pub enum SimpleAuthError {
     UnknownLogin,
     IncorrectPassword,
     NotSuitable,
-    Common(CommonError)
+    Common(CommonError),
 }
 
 //submissions
@@ -47,7 +45,7 @@ pub enum SubmitError {
     UnknownToolchain,
     ContestIsOver,
     SizeLimitExceeded,
-    Common(CommonError)
+    Common(CommonError),
 }
 
 // toolchains

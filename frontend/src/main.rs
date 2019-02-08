@@ -4,6 +4,8 @@
 extern crate rocket;
 use rocket::{http::Status, State};
 use rocket_contrib::json::Json;
+use cfg::Config;
+
 #[get("/ping")]
 fn route_ping() -> &'static str {
     "JJS frontend"
@@ -56,22 +58,36 @@ fn route_auth_simple(
 fn route_submissions_send(
     data: Json<frontend_api::SubmitDeclaration>,
     db: State<DbPool>,
+    cfg: State<Config>
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
     use std::ops::Deref;
+    let toolchain = cfg.toolchains.iter().nth(data.toolchain as usize);
+    let toolchain = match toolchain {
+        Some(tc) => tc.clone(),
+        None => {
+            let res = Err(frontend_api::SubmitError::UnknownToolchain);
+            return Ok(Json(res));
+        }
+    };
     let conn = db.get().expect("couldn't connect to DB");
     let db = db::Db::new(conn.deref());
-    let res = db.submissions.create_submission(data.toolchain);
+    let res = db.submissions.create_submission(toolchain.name);
     let res = Ok(res.id);
     Ok(Json(res))
 }
 
 #[get("/toolchains/list")]
 fn route_toolchains_list(
+    cfg: State<Config>
 ) -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
-    let res = vec![frontend_api::ToolchainInformation {
-        name: "cpp".to_string(),
-        id: 0,
-    }];
+    //let res = vec![frontend_api::ToolchainInformation {
+    //    name: "cpp".to_string(),
+    //    id: 0,
+    //}];
+    let res = cfg.toolchains.iter().enumerate().map(|(i, tc)| frontend_api::ToolchainInformation {
+        name: tc.name.clone(),
+        id: i as frontend_api::ToolchainId
+    }).collect();
     let res = Ok(res);
 
     Ok(Json(res))
@@ -87,9 +103,11 @@ fn main() {
         r2d2_postgres::PostgresConnectionManager::new(postgress_url, r2d2_postgres::TlsMode::None)
             .expect("coudln't initialize DB connection pool");
     let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
+    let config = cfg::get_config();
     println!("JJS api frontend is listening on {}", &listen_address);
     rocket::ignite()
         .manage(pool)
+        .manage(config.clone())
         .mount(
             "/",
             routes![

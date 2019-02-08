@@ -1,3 +1,3 @@
 [workspace]
-members=["db", "invoker", "execute", "config", "init-jjs-root", "frontend", "frontend-api", "domain",
+members=["db", "invoker", "execute", "cfg", "init-jjs-root", "frontend", "frontend-api", "domain",
 "minion-cli", "db-conn", "cleanup", "minion-ffi", "devtool", "webclient", "disintegrate"]

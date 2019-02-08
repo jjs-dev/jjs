@@ -3,12 +3,12 @@ mod simple_invoker;
 use std::sync;
 
 use slog::*;
-
+use cfg::Config;
 struct InvokeRequest {
     submission: domain::Submission,
 }
 
-fn handle_judge_task(task: InvokeRequest, cfg: &config::Config, db: &db::Db) {
+fn handle_judge_task(task: InvokeRequest, cfg: &Config, db: &db::Db) {
     //let file_path = PathBuf::from(format!(
     //    "{}/var/jjs/submits/{}",
     //    cfg.sysroot,
@@ -38,7 +38,7 @@ fn main() {
 
     info!(root, "starting");
 
-    let config = config::get_config();
+    let config = cfg::get_config();
     let db_conn = db_conn::connect_pg();
     //println!("{:#?}", config);
     let should_run = sync::Arc::new(sync::atomic::AtomicBool::new(true));

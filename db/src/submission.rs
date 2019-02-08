@@ -22,7 +22,7 @@ impl<'conn> Submissions<'conn> {
         let s8n_id: i32 = id_row.get(0);
         Submission {
             id: s8n_id as u32,
-            toolchain: toolchain,
+            toolchain,
         }
     }
 

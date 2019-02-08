@@ -61,7 +61,7 @@ fn route_submissions_send(
     cfg: State<Config>
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
     use std::ops::Deref;
-    let toolchain = cfg.toolchains.iter().nth(data.toolchain as usize);
+    let toolchain = cfg.toolchains.get(data.toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
         None => {

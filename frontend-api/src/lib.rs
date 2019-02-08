@@ -13,7 +13,7 @@ pub enum CommonError {
 pub type ToolchainId = u32;
 pub type SubmissionId = u32;
 
-//auth
+// auth
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthToken {
     pub buf: String,
@@ -33,7 +33,7 @@ pub enum SimpleAuthError {
     Common(CommonError),
 }
 
-//submissions
+// submissions
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubmitDeclaration {
     pub toolchain: ToolchainId,

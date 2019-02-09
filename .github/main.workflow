@@ -15,12 +15,12 @@ action "Publish" {
   secrets = ["JJS_DEVTOOL_YANDEXDRIVE_ACCESS_TOKEN"]
 }
 
-action "Docs" { 
-  uses =  "docker://mikailbag/jjs-dev:latest"
+action "Docs" {
+  uses = "docker://mikailbag/jjs-dev:latest"
   needs = ["Check"]
   runs = "cargo run -p devtool -- Man"
   secrets = ["GITHUB_TOKEN"]
   env = {
-    "RUST_BACKTRACE"= "1"
+    "RUST_BACKTRACE" = "1"
   }
 }

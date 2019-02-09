@@ -1,6 +1,6 @@
 use std::{env, fs, process};
 
-const CPP_CONFIG: &str = include_str!("../../sysroot/etc/toolchains/cpp.toml");
+const CPP_CONFIG: &str = include_str!("../../sysroot-raw/etc/toolchains/cpp.toml");
 
 fn main() {
     let args: Vec<_> = env::args().collect();

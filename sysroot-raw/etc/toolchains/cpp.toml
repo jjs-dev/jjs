@@ -1,0 +1,6 @@
+name="cpp"
+suffix="cpp"
+[[build_commands]]
+argv=["g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-DJJS"]
+[run_command]
+argv=["$(System.BinaryFilePath)"]

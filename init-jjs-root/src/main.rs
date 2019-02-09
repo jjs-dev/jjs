@@ -1,5 +1,7 @@
 use std::{env, fs, process};
 
+const CPP_CONFIG: &str = include_str!("../../sysroot/etc/toolchains/cpp.toml");
+
 fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
@@ -40,6 +42,10 @@ fn main() {
     add("bin");
     add("lib");
     add("etc");
-    add("etc/jjs");
+    add("etc/toolchains");
     add("tmp");
+    let main_config_path = format!("{}/etc/jjs.toml", path);
+    fs::write(&main_config_path, "").expect("Couldn't create jjs.toml");
+    let cpp_config_path = format!("{}/etc/toolchains/cpp.toml", path);
+    fs::write(&cpp_config_path, CPP_CONFIG).expect("Couldn't create cpp toolchain config");
 }

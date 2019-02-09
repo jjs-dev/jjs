@@ -248,7 +248,10 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
 }
 
 unsafe fn spawn_job(options: JobOptions) -> crate::Result<jail_common::JobStartupInfo> {
-    let (mut sock, child_sock) = Socket::new_socketpair().unwrap();
+    let (mut sock, mut child_sock) = Socket::new_socketpair().unwrap();
+    child_sock
+        .no_cloexec()
+        .expect("Couldn't make child socket inheritable");
     //will be passed to child process
     let dea = DoExecArg {
         path: options.exe,
@@ -280,7 +283,22 @@ const WM_CLASS_SETUP_FINISHED: u16 = 1;
 const WM_CLASS_PID_MAP_READY_FOR_SETUP: u16 = 2;
 const WM_CLASS_PID_MAP_CREATED: u16 = 3;
 
-unsafe fn setup_cgroups(jail_options: &JailOptions) {
+extern "C" fn sigterm_handler(_signal: i32) {
+    unsafe { libc::exit(0) }
+}
+
+unsafe fn setup_sighandler() {
+    use nix::sys::signal;
+    // SIGTERM
+    {
+        let handler = signal::SigHandler::Handler(sigterm_handler);
+        let action =
+            signal::SigAction::new(handler, signal::SaFlags::empty(), signal::SigSet::empty());
+        signal::sigaction(signal::Signal::SIGTERM, &action).expect("Couldn't setup sighandler");
+    }
+}
+
+unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     let jail_id = jail_options.jail_id.clone();
     //configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
@@ -312,14 +330,34 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) {
     if my_pid == -1 {
         err_exit("getpid");
     }
-
-    for subsys in &["cpuacct", "pids", "memory"] {
-        add_to_subsys(my_pid, subsys, &jail_id);
+    // now we setup additional pids cgroup
+    // it will only be used for killing all the dominion
+    let add_id = format!("{}-ex", jail_id);
+    {
+        let additional_pids = get_path_for_subsystem("pids", &add_id);
+        fs::create_dir_all(&additional_pids).unwrap();
+        let add_tasks_file = format!("{}/tasks", &additional_pids);
+        fs::write(add_tasks_file, format!("{}", my_pid)).unwrap();
     }
+
+    // we return handles to tasksfiles for main cgroups
+    // so, though jobserver itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
+    ["cpuacct", "pids", "memory"]
+        .iter()
+        .map(|subsys_name| {
+            use std::os::unix::io::IntoRawFd;
+            let p = get_path_for_subsystem(subsys_name, &jail_id);
+            let p = format!("{}/tasks", p);
+            let h = fs::File::open(p)
+                .expect("Couldn't open tasks file")
+                .into_raw_fd();
+            libc::dup(h)
+        })
+        .collect::<Vec<_>>()
 }
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
-    if libc::unshare(/*libc::CLONE_NEWNET |*/ libc::CLONE_NEWUSER) == -1 {
+    if libc::unshare(/*FIXME: libc::CLONE_NEWNET |*/ libc::CLONE_NEWUSER) == -1 {
         err_exit("unshare")
     }
 }
@@ -393,6 +431,7 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
 unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<()> {
     let uid = derive_user_ids(&jail_params.jail_id).privileged;
     configure_dir(&jail_params.isolation_root, uid);
+    setup_sighandler();
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
     setup_cgroups(&jail_params);
@@ -404,18 +443,6 @@ unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<(
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
     Ok(())
 }
-
-unsafe fn add_to_subsys(pid: Pid, subsys: &str, jail_id: &str) {
-    let cgroup_path = get_path_for_subsystem(subsys, jail_id);
-    let tasks_file_path = format!("{}/tasks", cgroup_path);
-    let mut f = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(tasks_file_path)
-        .unwrap();
-    write!(f, "{}", pid).unwrap();
-}
-
 mod jobserver_main {
     use crate::linux::{
         jail_common::{JobQuery, Query},
@@ -643,7 +670,9 @@ unsafe fn observe_time(
         Ok(())
     }
 }
-pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> crate::Result<Socket> {
+pub(crate) unsafe fn start_jobserver(
+    jail_options: JailOptions,
+) -> crate::Result<jail_common::JobServerStartupInfo> {
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
@@ -678,5 +707,10 @@ pub(crate) unsafe fn start_jobserver(jail_options: JailOptions) -> crate::Result
         sock.wake(WM_CLASS_PID_MAP_CREATED)?;
         sock.lock(WM_CLASS_SETUP_FINISHED)?;
     }
-    Ok(sock)
+    let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
+    let startup_info = jail_common::JobServerStartupInfo {
+        socket: sock,
+        wrapper_cgroup_path: ex_id,
+    };
+    Ok(startup_info)
 }

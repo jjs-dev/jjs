@@ -13,7 +13,6 @@ CREATE TABLE submissions
 );
 
 CREATE UNIQUE INDEX submissions_submission_id_uindex ON submissions (submission_id);
-CREATE INDEX submissions_state_index
-  ON submissions (state);
+CREATE INDEX submissions_state_index ON submissions (state); -- optimizes invoker queries
 
 COMMENT ON TABLE submissions IS 'Contains information on all submissions';

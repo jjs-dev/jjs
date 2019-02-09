@@ -9,6 +9,8 @@ enum CliArgs {
     Publish,
     /// Build man and publish to Github Pages
     Man,
+    /// Helper command to setup VM with jjs
+    Vm,
 }
 
 fn get_primary_style() -> console::Style {
@@ -46,41 +48,34 @@ fn get_project_dir() -> String {
     }
 }
 
+fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
+    print_section(&format!("Building package {}", pkg_name));
+    let mut cmd = Command::new(resolve_tool_path("cargo"));
+    cmd.current_dir(get_project_dir()).args(&[
+        "build",
+        "--package",
+        pkg_name,
+        "--release",
+        "--target",
+        target,
+    ]);
+    if !features.is_empty() {
+        cmd.arg("--features");
+        let feat = features.join(" ");
+        cmd.arg(&feat);
+    }
+    let st = cmd.status().unwrap().success();
+    assert_eq!(st, true);
+}
+
 fn task_package() {
-    print_section("Building minion-cli");
-    let st = Command::new(resolve_tool_path("cargo"))
-        .current_dir(get_project_dir())
-        .args(&[
-            "build",
-            "--bin",
-            "minion-cli",
-            "--release",
-            "--target",
-            "x86_64-unknown-linux-musl",
-            "--features",
-            "dist",
-        ])
-        .status()
-        .unwrap()
-        .success();
-    assert_eq!(st, true);
+    let target_musl = "x86_64-unknown-linux-musl";
 
-    print_section("Building jjs-cleanup");
-
-    let st = Command::new(resolve_tool_path("cargo"))
-        .current_dir(get_project_dir())
-        .args(&[
-            "build",
-            "--bin",
-            "cleanup",
-            "--release",
-            "--target",
-            "x86_64-unknown-linux-musl",
-        ])
-        .status()
-        .unwrap()
-        .success();
-    assert_eq!(st, true);
+    build_package("minion-cli", target_musl, &["dist"]);
+    build_package("cleanup", target_musl, &[]);
+    build_package("init-jjs-root", target_musl, &[]);
+    build_package("frontend", target_musl, &[]);
+    build_package("invoker", target_musl, &[]);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
@@ -143,8 +138,33 @@ fn task_package() {
     )
     .unwrap();
     fs::copy(
+        format!("{}/init-jjs-root", &binary_dir),
+        format!("{}/bin/init-jjs-root", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/frontend", &binary_dir),
+        format!("{}/bin/jjs-frontend", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/invoker", &binary_dir),
+        format!("{}/bin/jjs-invoker", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/setup_db.sql", get_project_dir()),
+        format!("{}/bin/jjs-db-setup", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/db-init.sql", get_project_dir()),
+        format!("{}/bin/jjs-db-init", &pkg_dir),
     )
     .unwrap();
     let st = Command::new("tar")
@@ -231,11 +251,41 @@ fn task_man() {
     assert_eq!(st, true);
 }
 
+fn task_vm() {
+    let addr = "0.0.0.0:4567";
+    println!("address: {}", addr);
+    let setup_script_path = format!("{}/devtool/scripts/vm-setup.sh", get_project_dir());
+    let pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
+    let pg_start_script_path = format!("{}/devtool/scripts/postgres-start.sh", get_project_dir());
+    rouille::start_server(addr, move |request| {
+        let url = request.url();
+        if url == "/setup" {
+            return rouille::Response::from_file(
+                "text/x-shellscript",
+                fs::File::open(&setup_script_path).unwrap(),
+            );
+        } else if url == "/pkg" {
+            return rouille::Response::from_file(
+                "application/gzip",
+                fs::File::open(&pkg_path).unwrap(),
+            );
+        } else if url == "/pg-start" {
+            return rouille::Response::from_file(
+                "text/x-shellscript",
+                fs::File::open(&pg_start_script_path).unwrap(),
+            );
+        }
+
+        rouille::Response::from_data("text/plain", "ERROR: NOT FOUND")
+    });
+}
+
 fn main() {
     let args = CliArgs::from_args();
     match args {
         CliArgs::Pkg => task_package(),
         CliArgs::Publish => task_publish(),
         CliArgs::Man => task_man(),
+        CliArgs::Vm => task_vm(),
     }
 }

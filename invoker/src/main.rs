@@ -1,22 +1,15 @@
 mod invoker;
 mod simple_invoker;
+use cfg::Config;
+use postgres::{self, TlsMode};
+use slog::*;
 use std::sync;
 
-use slog::*;
-use cfg::Config;
 struct InvokeRequest {
     submission: domain::Submission,
 }
 
 fn handle_judge_task(task: InvokeRequest, cfg: &Config, db: &db::Db) {
-    //let file_path = PathBuf::from(format!(
-    //    "{}/var/jjs/submits/{}",
-    //    cfg.sysroot,
-    //    task.submission.id
-    //));
-
-    //let toolchain_name = db.submissions.find_by_id(task.submission.id).toolchain;
-
     let submission = task.submission.clone();
 
     let status = simple_invoker::judge(&submission, cfg);
@@ -39,8 +32,10 @@ fn main() {
     info!(root, "starting");
 
     let config = cfg::get_config();
-    let db_conn = db_conn::connect_pg();
-    //println!("{:#?}", config);
+    let db_url = std::env::var("POSTGRES_URL").expect("POSTGRES_URL - must contain postgres URL");
+    let db_conn = postgres::Connection::connect(db_url.as_str(), TlsMode::None)
+        .unwrap_or_else(|_e| panic!("Couldn't connect to {}", db_url));
+    let db_conn = db::Db::new(&db_conn);
     let should_run = sync::Arc::new(sync::atomic::AtomicBool::new(true));
     {
         let should_run = sync::Arc::clone(&should_run);

@@ -19,6 +19,7 @@ pub struct LinuxDominion {
     id: String,
     options: DominionOptions,
     jobserver_sock: Socket,
+    util_cgroup_path: String,
 }
 
 #[derive(Debug)]
@@ -26,6 +27,7 @@ struct LinuxDominionDebugHelper {
     id: String,
     options: DominionOptions,
     jobserver_sock: Handle,
+    util_cgroup_path: String,
 }
 
 impl Debug for LinuxDominion {
@@ -34,6 +36,7 @@ impl Debug for LinuxDominion {
             id: self.id.clone(),
             options: self.options.clone(),
             jobserver_sock: self.jobserver_sock.as_raw_fd(),
+            util_cgroup_path: self.util_cgroup_path.clone(),
         };
 
         h.fmt(f)
@@ -46,7 +49,7 @@ impl Dominion for LinuxDominion {
     }
 }
 
-/// Mounting options.
+/// Mount options.
 /// * Readonly: jailed process can read & execute, but not write to
 /// * Full: jailed process can read & write & execute
 ///
@@ -81,12 +84,13 @@ impl LinuxDominion {
             exposed_paths: options.exposed_paths.clone(),
             jail_id: jail_id.clone(),
         };
-        let sock = jobserver::start_jobserver(jail_options)?;
+        let startup_info = jobserver::start_jobserver(jail_options)?;
 
         Ok(LinuxDominion {
             id: jail_id.clone(),
             options: options.clone(),
-            jobserver_sock: sock,
+            jobserver_sock: startup_info.socket,
+            util_cgroup_path: startup_info.wrapper_cgroup_path,
         })
     }
 

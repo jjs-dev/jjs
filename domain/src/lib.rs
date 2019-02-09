@@ -9,6 +9,7 @@ extern crate postgres;
 pub struct Submission {
     pub id: u32,
     pub toolchain: String,
+    pub state: SubmissionState,
 }
 
 #[derive(ToSql, FromSql, Serialize, Deserialize, Debug, Clone)]

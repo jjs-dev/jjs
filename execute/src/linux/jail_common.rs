@@ -2,6 +2,8 @@ use crate::{linux::util::Pid, PathExpositionOptions};
 use failure::ResultExt;
 use rand::seq::SliceRandom;
 use std::{collections::BTreeMap, fs, time::Duration};
+use tiny_nix_ipc::Socket;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {
     pub(crate) allow_network: bool,
@@ -50,6 +52,11 @@ pub(crate) struct JobStartupInfo {
     pub(crate) pid: Pid,
 }
 
+pub(crate) struct JobServerStartupInfo {
+    pub(crate) socket: Socket,
+    pub(crate) wrapper_cgroup_path: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Query {
     Exit,
@@ -61,8 +68,9 @@ pub(crate) unsafe fn cgroup_kill_all(
     jail_id: &str,
     pid_to_ignore: Option<Pid>,
 ) -> crate::Result<()> {
+    let util_jail_id = format!("{}-ex", jail_id);
     //we just need to kill all processes in pids (e.g.) cgroup
-    let pids_cgroup_path = get_path_for_subsystem("pids", jail_id);
+    let pids_cgroup_path = get_path_for_subsystem("pids", util_jail_id.as_str());
 
     //step 1: disallow forking
     let pids_max_file_path = format!("{}/pids.max", &pids_cgroup_path);
@@ -84,6 +92,7 @@ pub(crate) unsafe fn cgroup_kill_all(
             continue;
         }
         libc::kill(pid, libc::SIGKILL);
+        libc::kill(pid, libc::SIGTERM);
     }
 
     Ok(())

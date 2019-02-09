@@ -2,9 +2,10 @@
 
 #[macro_use]
 extern crate rocket;
+
+use cfg::Config;
 use rocket::{http::Status, State};
 use rocket_contrib::json::Json;
-use cfg::Config;
 
 #[get("/ping")]
 fn route_ping() -> &'static str {
@@ -58,7 +59,7 @@ fn route_auth_simple(
 fn route_submissions_send(
     data: Json<frontend_api::SubmitDeclaration>,
     db: State<DbPool>,
-    cfg: State<Config>
+    cfg: State<Config>,
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
     use std::ops::Deref;
     let toolchain = cfg.toolchains.get(data.toolchain as usize);
@@ -76,18 +77,38 @@ fn route_submissions_send(
     Ok(Json(res))
 }
 
+#[get("/submissions/list?<limit>")]
+fn route_submissions_list(
+    limit: u32,
+    db: State<DbPool>,
+) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
+    let conn = db.get().expect("Couldn't connect to DB");
+    let submissions = db::Db::new(&*conn).submissions.get_all(limit);
+    let submissions = submissions.iter().map(|s| frontend_api::SubmissionInformation{
+        id: s.id,
+        toolchain_name: s.toolchain.clone()
+    }).collect();
+    let res = Ok(submissions);
+    Ok(Json(res))
+}
+
 #[get("/toolchains/list")]
 fn route_toolchains_list(
-    cfg: State<Config>
+    cfg: State<Config>,
 ) -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
     //let res = vec![frontend_api::ToolchainInformation {
     //    name: "cpp".to_string(),
     //    id: 0,
     //}];
-    let res = cfg.toolchains.iter().enumerate().map(|(i, tc)| frontend_api::ToolchainInformation {
-        name: tc.name.clone(),
-        id: i as frontend_api::ToolchainId
-    }).collect();
+    let res = cfg
+        .toolchains
+        .iter()
+        .enumerate()
+        .map(|(i, tc)| frontend_api::ToolchainInformation {
+            name: tc.name.clone(),
+            id: i as frontend_api::ToolchainId,
+        })
+        .collect();
     let res = Ok(res);
 
     Ok(Json(res))
@@ -115,6 +136,7 @@ fn main() {
                 route_auth_anonymous,
                 route_auth_simple,
                 route_submissions_send,
+                route_submissions_list,
                 route_toolchains_list,
             ],
         )

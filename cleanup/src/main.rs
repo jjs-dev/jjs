@@ -36,6 +36,7 @@ fn main() {
         println!("done");
     }
     println!("----> Cgroups");
+    //TODO: cleanup  pids-ex cgroup
     for subsys in &["pids", "memory", "cpuacct"] {
         let path = format!("{}/{}/jjs/g-{}", &argv.cgroupfs, subsys, argv.jail_id);
         println!("deleting {}", &path);

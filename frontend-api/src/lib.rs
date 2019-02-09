@@ -48,6 +48,12 @@ pub enum SubmitError {
     Common(CommonError),
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubmissionInformation {
+    pub id: SubmissionId,
+    pub toolchain_name: String,
+}
+
 // toolchains
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ToolchainInformation {
@@ -56,6 +62,10 @@ pub struct ToolchainInformation {
 }
 
 /// This traits serve for documentation-only purposes
+///
+/// Argument passing:
+/// POST, PUT, etc: argument is JSON-encoded and sent as a body (not form!)
+/// GET, DELETE, etc: argument is JSON-encoded as send as query string parameter arg
 pub trait Frontend {
     /// POST /auth/anonymous
     fn auth_anonymous() -> Result<AuthToken, CommonError>;
@@ -64,6 +74,9 @@ pub trait Frontend {
 
     /// POST /submissions/send
     fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
+
+    ///GET /submissions/list
+    fn submissions_list(limit: u32) -> Result<Vec<SubmissionInformation>, CommonError>;
 
     /// GET /toolchains/list
     fn toolchains_list() -> Result<Vec<ToolchainInformation>, CommonError>;

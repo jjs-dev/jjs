@@ -22,7 +22,13 @@ fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Too
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     let em = minion::setup();
     let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id);
-    fs::create_dir(&child_root).expect("couldn't create invokation root");
+    if fs::create_dir(&child_root)
+        .err()
+        .filter(|e| e.kind() != std::io::ErrorKind::AlreadyExists)
+        .is_some()
+    {
+        panic!("couldn't create invokation root");
+    }
     let dmn = em
         .new_dominion(minion::DominionOptions {
             allow_network: false,

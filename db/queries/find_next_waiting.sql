@@ -1,1 +1,1 @@
-SELECT submission_id, toolchain FROM submissions WHERE state = 'WaitInvoke' LIMIT 1
+SELECT submission_id, toolchain_id FROM submissions WHERE state = 'WaitInvoke' LIMIT 1

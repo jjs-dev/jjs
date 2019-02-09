@@ -51,30 +51,24 @@ fn get_project_dir() -> String {
 fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
     print_section(&format!("Building package {}", pkg_name));
     let mut cmd = Command::new(resolve_tool_path("cargo"));
-    cmd
-        .current_dir(get_project_dir())
-        .args(&[
-            "build",
-            "--package",
-            pkg_name,
-            "--release",
-            "--target",
-            target,
-        ]);
+    cmd.current_dir(get_project_dir()).args(&[
+        "build",
+        "--package",
+        pkg_name,
+        "--release",
+        "--target",
+        target,
+    ]);
     if !features.is_empty() {
         cmd.arg("--features");
         let feat = features.join(" ");
         cmd.arg(&feat);
     }
-    let st = cmd
-        .status()
-        .unwrap()
-        .success();
+    let st = cmd.status().unwrap().success();
     assert_eq!(st, true);
 }
 
 fn task_package() {
-    let target_glibc = "";
     let target_musl = "x86_64-unknown-linux-musl";
 
     build_package("minion-cli", target_musl, &["dist"]);
@@ -142,22 +136,22 @@ fn task_package() {
         format!("{}/minion-cli", &binary_dir),
         format!("{}/bin/minion-cli", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
     fs::copy(
         format!("{}/init-jjs-root", &binary_dir),
         format!("{}/bin/init-jjs-root", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
     fs::copy(
         format!("{}/frontend", &binary_dir),
         format!("{}/bin/jjs-frontend", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
     fs::copy(
         format!("{}/invoker", &binary_dir),
         format!("{}/bin/jjs-invoker", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),
@@ -166,11 +160,13 @@ fn task_package() {
     fs::copy(
         format!("{}/setup_db.sql", get_project_dir()),
         format!("{}/bin/jjs-db-setup", &pkg_dir),
-    ).unwrap();
+    )
+    .unwrap();
     fs::copy(
         format!("{}/db-init.sql", get_project_dir()),
         format!("{}/bin/jjs-db-init", &pkg_dir),
-    ).unwrap();
+    )
+    .unwrap();
     let st = Command::new("tar")
         .current_dir(get_project_dir())
         .args(&["cvzf", "pkg/jjs.tgz", "pkg/ar_data"])
@@ -261,14 +257,23 @@ fn task_vm() {
     let setup_script_path = format!("{}/devtool/scripts/vm-setup.sh", get_project_dir());
     let pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
     let pg_start_script_path = format!("{}/devtool/scripts/postgres-start.sh", get_project_dir());
-    rouille::start_server(addr, move |request|{
+    rouille::start_server(addr, move |request| {
         let url = request.url();
         if url == "/setup" {
-            return rouille::Response::from_file("text/x-shellscript", fs::File::open(&setup_script_path).unwrap())
+            return rouille::Response::from_file(
+                "text/x-shellscript",
+                fs::File::open(&setup_script_path).unwrap(),
+            );
         } else if url == "/pkg" {
-            return rouille::Response::from_file("application/gzip", fs::File::open(&pkg_path).unwrap())
+            return rouille::Response::from_file(
+                "application/gzip",
+                fs::File::open(&pkg_path).unwrap(),
+            );
         } else if url == "/pg-start" {
-            return rouille::Response::from_file("text/x-shellscript", fs::File::open(&pg_start_script_path).unwrap())
+            return rouille::Response::from_file(
+                "text/x-shellscript",
+                fs::File::open(&pg_start_script_path).unwrap(),
+            );
         }
 
         rouille::Response::from_data("text/plain", "ERROR: NOT FOUND")

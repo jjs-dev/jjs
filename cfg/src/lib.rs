@@ -16,7 +16,7 @@ pub struct Command {
 
 impl Command {
     fn default_env() -> HashMap<String, String> {
-         HashMap::new()
+        HashMap::new()
     }
 
     fn default_cwd() -> PathBuf {
@@ -41,7 +41,12 @@ pub struct Config {
 }
 
 pub fn parse_file(path: PathBuf) -> Config {
-    let file_content = fs::read_to_string(&path).unwrap_or_else(|e| panic!("Couldn't read main config file {:?} due to error {:?}", &path, e));
+    let file_content = fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "Couldn't read main config file {:?} due to error {:?}",
+            &path, e
+        )
+    });
     let raw_data: toml::Value = file_content.parse().unwrap();
     match toml::from_str(&file_content) {
         Ok(x) => x,
@@ -55,13 +60,18 @@ pub fn parse_file(path: PathBuf) -> Config {
 pub fn get_config() -> Config {
     let sysroot = env::var("JJS_SYSROOT").expect("Sysroot must be provided in JJS_SYSROOT");
     let mut c = parse_file(PathBuf::from(format!("{}/etc/jjs.toml", &sysroot)));
-    for item in fs::read_dir(format!("{}/etc/toolchains", &sysroot)).expect("couldn't find toolchains config dir ($JJS_SYSROOT/etc/jjs/toolchains") {
+    for item in fs::read_dir(format!("{}/etc/toolchains", &sysroot))
+        .expect("couldn't find toolchains config dir ($JJS_SYSROOT/etc/jjs/toolchains")
+    {
         let item = item.unwrap().path();
-        let tc_cfg =  fs::read_to_string(item).expect("Coudln't read toolchain config file");
+        let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
         let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
-        let toolchain_spec : Toolchain = match toml::from_str(&tc_cfg) {
+        let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
             Ok(x) => x,
-            Err(e) => panic!("Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}", e, raw_toolchain_spec_data)
+            Err(e) => panic!(
+                "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
+                e, raw_toolchain_spec_data
+            ),
         };
         c.toolchains.push(toolchain_spec);
     }

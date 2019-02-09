@@ -60,6 +60,7 @@ struct DoExecArg {
     stdio: Stdio,
     sock: Socket,
     pwd: String,
+    cgroups_tasks: Vec<Handle>,
 }
 
 fn get_mount_target(base: &str, suf: &str) -> String {
@@ -176,6 +177,13 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let environ = arg.environment.clone();
         let envp = duplicate_string_list(&environ);
 
+        //join cgroups
+        let my_pid = std::process::id();
+        let my_pid = format!("{}", my_pid);
+        for h in arg.cgroups_tasks {
+            nix::unistd::write(h, my_pid.as_bytes()).expect("Couldn't join cgroup");
+        }
+
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fds_to_keep = vec![arg.stdio.stdin, arg.stdio.stdout, arg.stdio.stderr];
         let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
@@ -215,6 +223,9 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let sandbox_user_id = 1; //thanks to /proc/self/uid_map
         if libc::setuid(sandbox_user_id as u32) != 0 {
             err_exit("setuid");
+        }
+        if libc::setgid(sandbox_user_id as u32) != 0 {
+            err_exit("setgid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();

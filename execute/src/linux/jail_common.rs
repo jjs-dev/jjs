@@ -93,6 +93,7 @@ pub(crate) unsafe fn cgroup_kill_all(
         }
         libc::kill(pid, libc::SIGKILL);
         libc::kill(pid, libc::SIGTERM);
+        libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG);
     }
 
     Ok(())

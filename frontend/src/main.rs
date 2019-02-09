@@ -116,8 +116,7 @@ fn route_toolchains_list(
 
 fn main() {
     dotenv::dotenv().ok();
-    let port = 1779;
-    let listen_address = format!("127.0.0.1:{}", port);
+    //let listen_address = format!("127.0.0.1:{}", port);
     let postgress_url =
         std::env::var("POSTGRES_URL").expect("'POSTGRES_URL' environment variable is not set");
     let pg_conn_manager =
@@ -125,7 +124,7 @@ fn main() {
             .expect("coudln't initialize DB connection pool");
     let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
     let config = cfg::get_config();
-    println!("JJS api frontend is listening on {}", &listen_address);
+    //println!("JJS api frontend is listening on {}", &listen_address);
     rocket::ignite()
         .manage(pool)
         .manage(config.clone())

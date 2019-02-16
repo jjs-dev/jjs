@@ -3,7 +3,7 @@
 //! else it gets Compilation Error
 use crate::invoker::{Status, StatusKind};
 use cfg::*;
-use domain::Submission;
+use db::schema::Submission;
 use execute as minion;
 use std::{collections, fs, time::Duration};
 
@@ -21,7 +21,7 @@ fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Too
 
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     let em = minion::setup();
-    let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id);
+    let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id());
     if fs::create_dir(&child_root)
         .err()
         .filter(|e| e.kind() != std::io::ErrorKind::AlreadyExists)

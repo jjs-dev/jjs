@@ -1,4 +1,15 @@
-reset_db:
+phony:
+    @echo specify command
+
+db_reset:
     dropdb jjs
     createdb jjs
-    psql jjs -a -f ./setup_db.sql
+
+db_refresh: db_reset
+    #! /bin/bash
+    cd db
+    diesel migration run
+    diesel migration redo
+
+install_tools:
+    cargo install diesel_cli mdbook

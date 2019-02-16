@@ -1,9 +1,0 @@
-[package]
-name = "db-conn"
-version = "0.1.0"
-authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
-edition = "2018"
-
-[dependencies]
-db = {path = "../db"}
-postgres = "0.15.2"

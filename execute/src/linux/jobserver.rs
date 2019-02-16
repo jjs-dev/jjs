@@ -13,13 +13,8 @@ use crate::{
 };
 use libc::{c_char, c_void};
 use std::{
-    alloc,
-    collections::hash_map::DefaultHasher,
-    ffi::CString,
-    fs::{self, OpenOptions},
-    hash::Hasher,
-    io::{self, Write},
-    mem, process, ptr, time,
+    alloc, collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io, mem, process,
+    ptr, time,
 };
 use tiny_nix_ipc::Socket;
 
@@ -258,7 +253,10 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
     }
 }
 
-unsafe fn spawn_job(options: JobOptions) -> crate::Result<jail_common::JobStartupInfo> {
+unsafe fn spawn_job(
+    options: JobOptions,
+    setup_data: &SetupData,
+) -> crate::Result<jail_common::JobStartupInfo> {
     let (mut sock, mut child_sock) = Socket::new_socketpair().unwrap();
     child_sock
         .no_cloexec()
@@ -271,6 +269,7 @@ unsafe fn spawn_job(options: JobOptions) -> crate::Result<jail_common::JobStartu
         stdio: options.stdio,
         sock: child_sock,
         pwd: options.pwd.clone(),
+        cgroups_tasks: setup_data.cgroups.clone(),
     };
     let child_pid: Pid;
     let res = libc::fork();
@@ -293,6 +292,10 @@ unsafe fn spawn_job(options: JobOptions) -> crate::Result<jail_common::JobStartu
 const WM_CLASS_SETUP_FINISHED: u16 = 1;
 const WM_CLASS_PID_MAP_READY_FOR_SETUP: u16 = 2;
 const WM_CLASS_PID_MAP_CREATED: u16 = 3;
+
+struct SetupData {
+    cgroups: Vec<Handle>,
+}
 
 extern "C" fn sigterm_handler(_signal: i32) {
     unsafe { libc::exit(0) }
@@ -359,7 +362,9 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
             use std::os::unix::io::IntoRawFd;
             let p = get_path_for_subsystem(subsys_name, &jail_id);
             let p = format!("{}/tasks", p);
-            let h = fs::File::open(p)
+            let h = fs::OpenOptions::new()
+                .write(true)
+                .open(p)
                 .expect("Couldn't open tasks file")
                 .into_raw_fd();
             libc::dup(h)
@@ -439,25 +444,27 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
     expose_dirs(&options.exposed_paths, &options.isolation_root, uid);
 }
 
-unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<()> {
+unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<SetupData> {
     let uid = derive_user_ids(&jail_params.jail_id).privileged;
     configure_dir(&jail_params.isolation_root, uid);
     setup_sighandler();
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
-    setup_cgroups(&jail_params);
+    let handles = setup_cgroups(&jail_params);
     //it's important cpu watcher will be outside of user namespace
     setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);
     setup_chroot(&jail_params);
     setup_uid_mapping(sock)?;
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
-    Ok(())
+    let res = SetupData { cgroups: handles };
+    Ok(res)
 }
+
 mod jobserver_main {
     use crate::linux::{
         jail_common::{JobQuery, Query},
-        jobserver::{setup, spawn_job, JobOptions, JobServerOptions, Stdio},
+        jobserver::{setup, spawn_job, JobOptions, JobServerOptions, SetupData, Stdio},
         util::{Handle, IpcSocketExt, Pid},
     };
     use std::time::Duration;
@@ -465,6 +472,7 @@ mod jobserver_main {
     unsafe fn process_spawn_query(
         arg: &mut JobServerOptions,
         options: &JobQuery,
+        setup_data: &SetupData,
     ) -> crate::Result<()> {
         //now we do some preprocessing
         //let mut argv = vec![options.image_path.clone()];
@@ -499,7 +507,7 @@ mod jobserver_main {
             pwd: options.pwd.clone(),
         };
 
-        let startup_info = spawn_job(job_options)?;
+        let startup_info = spawn_job(job_options, setup_data)?;
         arg.sock.send(&startup_info)?;
         Ok(())
     }
@@ -515,12 +523,12 @@ mod jobserver_main {
     }
 
     pub(crate) unsafe fn jobserver_entry(mut arg: JobServerOptions) -> crate::Result<i32> {
-        setup(&arg.jail_options, &mut arg.sock)?;
+        let setup_data = setup(&arg.jail_options, &mut arg.sock)?;
 
         loop {
             let query: Query = arg.sock.recv().unwrap();
             match query {
-                Query::Spawn(ref o) => process_spawn_query(&mut arg, o)?,
+                Query::Spawn(ref o) => process_spawn_query(&mut arg, o, &setup_data)?,
                 Query::Exit => break,
                 Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout)?,
             };
@@ -562,7 +570,8 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
     }
 }
 
-const STACK_SIZE: usize = (1 << 20); //one megabyte
+const STACK_SIZE: usize = (1 << 20);
+//one megabyte
 const STACK_ALIGN: usize = (1 << 4); //16 bytes, as required by SysV-64 ABI
 
 fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCode>> {
@@ -681,6 +690,7 @@ unsafe fn observe_time(
         Ok(())
     }
 }
+
 pub(crate) unsafe fn start_jobserver(
     jail_options: JailOptions,
 ) -> crate::Result<jail_common::JobServerStartupInfo> {

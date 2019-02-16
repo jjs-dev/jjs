@@ -2,4 +2,4 @@
 
 
 -- invoker
-INSERT INTO submissions (submission_id, toolchain, state) VALUES (1, 'cpp', 'WaitInvoke')
+INSERT INTO submissions (id, toolchain_id, state) VALUES (1, 'cpp', 'wait_invoke')

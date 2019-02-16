@@ -4,6 +4,8 @@
 extern crate rocket;
 
 use cfg::Config;
+use db::schema::{NewSubmission, Submission, SubmissionState};
+use diesel::prelude::*;
 use rocket::{http::Status, State};
 use rocket_contrib::json::Json;
 
@@ -15,20 +17,27 @@ fn route_ping() -> &'static str {
 #[derive(Debug)]
 enum FrontendError {
     Internal,
+    Db(diesel::result::Error),
 }
 
 impl<'r> rocket::response::Responder<'r> for FrontendError {
     fn respond_to(self, _request: &rocket::Request) -> rocket::response::Result<'r> {
         let res = match self {
-            FrontendError::Internal => Status::InternalServerError,
+            FrontendError::Internal | FrontendError::Db(_) => Status::InternalServerError,
         };
         Err(res)
     }
 }
 
+impl From<diesel::result::Error> for FrontendError {
+    fn from(e: diesel::result::Error) -> Self {
+        FrontendError::Db(e)
+    }
+}
+
 type Response<R> = Result<Json<R>, FrontendError>;
 
-type DbPool = r2d2::Pool<r2d2_postgres::PostgresConnectionManager>;
+type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>;
 
 #[post("/auth/anonymous")]
 fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
@@ -61,7 +70,7 @@ fn route_submissions_send(
     db: State<DbPool>,
     cfg: State<Config>,
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
-    use std::ops::Deref;
+    use db::schema::submissions::dsl::*;
     let toolchain = cfg.toolchains.get(data.toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
@@ -71,9 +80,18 @@ fn route_submissions_send(
         }
     };
     let conn = db.get().expect("couldn't connect to DB");
-    let db = db::Db::new(conn.deref());
-    let res = db.submissions.create_submission(toolchain.name);
-    let res = Ok(res.id);
+    //let db = db::Db::new(conn.deref());
+    //let res = db.submissions.create_submission(toolchain.name);
+    //let res = Ok(res.id);
+    //Ok(Json(res))
+    let new_sub = NewSubmission {
+        toolchain_id: toolchain.name,
+        state: SubmissionState::WaitInvoke,
+    };
+    let subm: Submission = diesel::insert_into(submissions)
+        .values(&new_sub)
+        .get_result(&conn)?;
+    let res = Ok(subm.id());
     Ok(Json(res))
 }
 
@@ -82,13 +100,17 @@ fn route_submissions_list(
     limit: u32,
     db: State<DbPool>,
 ) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
+    use db::schema::submissions::dsl::*;
     let conn = db.get().expect("Couldn't connect to DB");
-    let submissions = db::Db::new(&*conn).submissions.get_all(limit);
-    let submissions = submissions.iter().map(|s| frontend_api::SubmissionInformation{
-        id: s.id,
-        toolchain_name: s.toolchain.clone()
-    }).collect();
-    let res = Ok(submissions);
+    let user_submissions = submissions.limit(limit as i64).load::<Submission>(&conn)?;
+    let user_submissions = user_submissions
+        .iter()
+        .map(|s| frontend_api::SubmissionInformation {
+            id: s.id(),
+            toolchain_name: s.toolchain.clone(),
+        })
+        .collect();
+    let res = Ok(user_submissions);
     Ok(Json(res))
 }
 
@@ -120,8 +142,7 @@ fn main() {
     let postgress_url =
         std::env::var("POSTGRES_URL").expect("'POSTGRES_URL' environment variable is not set");
     let pg_conn_manager =
-        r2d2_postgres::PostgresConnectionManager::new(postgress_url, r2d2_postgres::TlsMode::None)
-            .expect("coudln't initialize DB connection pool");
+        diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgress_url);
     let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
     let config = cfg::get_config();
     //println!("JJS api frontend is listening on {}", &listen_address);

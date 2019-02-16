@@ -1,13 +1,13 @@
-pub mod submission;
+#[macro_use]
+extern crate diesel_derive_enum;
 
-pub struct Db<'conn> {
-    pub submissions: submission::Submissions<'conn>,
-}
+//#[macro_use]
+//extern crate diesel_derives;
 
-impl<'c> Db<'c> {
-    pub fn new(conn: &'c dyn postgres::GenericConnection) -> Self {
-        Self {
-            submissions: submission::Submissions::new(conn),
-        }
-    }
-}
+#[macro_use]
+extern crate diesel;
+
+#[macro_use]
+extern crate serde_derive;
+
+pub mod schema;

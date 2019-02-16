@@ -15,12 +15,12 @@ fn main() {
             Ok(x) => x,
             Err(e) => {
                 eprintln!("Couldn't read dir: {:?}", e);
-                process::exit(2);
+                process::exit(1);
             }
         };
         if dir.next().is_some() {
             eprintln!("Specified dir is not empty");
-            process::exit(3);
+            process::exit(1);
         }
     }
 
@@ -30,7 +30,7 @@ fn main() {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Couldn't create {}: {:?}", name, e);
-                process::exit(4);
+                process::exit(1);
             }
         }
     };

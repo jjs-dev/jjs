@@ -1,26 +1,32 @@
 mod invoker;
 mod simple_invoker;
 use cfg::Config;
-use postgres::{self, TlsMode};
+use db::schema::{Submission, SubmissionState};
+use diesel::{pg::PgConnection, prelude::*};
 use slog::*;
 use std::sync;
-
 struct InvokeRequest {
-    submission: domain::Submission,
+    submission: Submission,
 }
 
-fn handle_judge_task(task: InvokeRequest, cfg: &Config, db: &db::Db) {
+fn handle_judge_task(task: InvokeRequest, cfg: &Config, conn: &PgConnection) {
+    use db::schema::submissions::dsl::*;
+
     let submission = task.submission.clone();
 
     let status = simple_invoker::judge(&submission, cfg);
 
-    db.submissions
-        .update_submission_state(&task.submission, domain::SubmissionState::Done);
-
+    //db.submissions
+    //    .update_submission_state(&task.submission, SubmissionState::Done);
+    let target = submissions.filter(id.eq(task.submission.id() as i32));
+    diesel::update(target)
+        .set(state.eq(SubmissionState::Done))
+        .execute(conn)
+        .expect("Db error failed");
     println!("Judging result: {:#?}", status);
 }
-
 fn main() {
+    use db::schema::submissions::dsl::*;
     dotenv::dotenv().ok();
 
     let decorator = slog_term::TermDecorator::new().build();
@@ -32,10 +38,9 @@ fn main() {
     info!(root, "starting");
 
     let config = cfg::get_config();
-    let db_url = std::env::var("POSTGRES_URL").expect("POSTGRES_URL - must contain postgres URL");
-    let db_conn = postgres::Connection::connect(db_url.as_str(), TlsMode::None)
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL - must contain postgres URL");
+    let db_conn = diesel::pg::PgConnection::establish(db_url.as_str())
         .unwrap_or_else(|_e| panic!("Couldn't connect to {}", db_url));
-    let db_conn = db::Db::new(&db_conn);
     let should_run = sync::Arc::new(sync::atomic::AtomicBool::new(true));
     {
         let should_run = sync::Arc::clone(&should_run);
@@ -49,9 +54,14 @@ fn main() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
-        let waiting_submission = db_conn.submissions.find_next_waiting();
+        let waiting_submission = submissions
+            .filter(state.eq(SubmissionState::WaitInvoke))
+            .limit(1)
+            .load::<Submission>(&db_conn)
+            .expect("db error");
+        let waiting_submission = waiting_submission.get(0);
         let waiting_submission = match waiting_submission {
-            Some(s) => s,
+            Some(s) => s.clone(),
             None => continue,
         };
         let ivr = InvokeRequest {

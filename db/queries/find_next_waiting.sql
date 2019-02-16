@@ -1,1 +1,0 @@
-SELECT submission_id, toolchain_id FROM submissions WHERE state = 'WaitInvoke' LIMIT 1

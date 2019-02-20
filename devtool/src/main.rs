@@ -138,7 +138,7 @@ fn task_package() {
     )
     .unwrap();
     fs::copy(
-        format!("{}/init-jjs-root", &binary_dir),
+        format!("{}/init-jjs-root.sh", get_project_dir()),
         format!("{}/bin/jjs-init-sysroot", &pkg_dir),
     )
     .unwrap();

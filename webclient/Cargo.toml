@@ -9,8 +9,8 @@ frontend-api = {path = "../frontend-api"}
 rocket = "0.4.0"
 rocket_codegen = "0.4.0"
 handlebars = "1.1.0"
-serde = "1.0.87"
-serde_derive = "1.0.87"
+serde = "1.0.88"
+serde_derive = "1.0.88"
 serde_json = "1.0.38"
 uuid = { version = "0.7.2", features = ["v4"] }
 failure = "0.1.5"

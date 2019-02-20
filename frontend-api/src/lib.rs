@@ -49,9 +49,24 @@ pub enum SubmitError {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct SubmissionInvokeInfo {
+    pub status_name: String,
+    pub score: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SubmissionState {
+    WaitInvoke,
+    Invoke,
+    Done(SubmissionInvokeInfo),
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionInformation {
     pub id: SubmissionId,
     pub toolchain_name: String,
+    pub state: SubmissionState,
 }
 
 // toolchains
@@ -69,13 +84,13 @@ pub struct ToolchainInformation {
 pub trait Frontend {
     /// POST /auth/anonymous
     fn auth_anonymous() -> Result<AuthToken, CommonError>;
-    /// POST /auth/simple/
+    /// POST /auth/simple
     fn auth_simple(auth_params: SimpleAuthParams) -> Result<AuthToken, SimpleAuthError>;
 
     /// POST /submissions/send
     fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
 
-    ///GET /submissions/list
+    /// GET /submissions/list?<limit>
     fn submissions_list(limit: u32) -> Result<Vec<SubmissionInformation>, CommonError>;
 
     /// GET /toolchains/list

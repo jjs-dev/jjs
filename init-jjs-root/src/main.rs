@@ -1,15 +1,14 @@
 use std::{env, fs, process};
 
-const CPP_CONFIG: &str = include_str!("../../sysroot-raw/etc/toolchains/cpp.toml");
-
 fn main() {
     let args: Vec<_> = env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} path/to/sysroot", args[0]);
+    if args.len() != 3 {
+        eprintln!("Usage: {} path/to/sysroot path/to/example-config", args[0]);
         process::exit(1);
     }
 
     let path = &args[1];
+    let cfg_dir_path = &args[2];
     {
         let mut dir = match fs::read_dir(path) {
             Ok(x) => x,
@@ -36,16 +35,22 @@ fn main() {
     };
 
     add("var");
-    add("var/jjs");
-    add("var/jjs/submits");
-    add("var/jjs/build");
-    add("bin");
-    add("lib");
+    add("var/submissions");
+    add("opt");
+    add("opt/bin");
+    add("opt/lib64");
+    add("opt/lib");
+    add("opt/etc");
     add("etc");
     add("etc/toolchains");
-    add("tmp");
-    let main_config_path = format!("{}/etc/jjs.toml", path);
-    fs::write(&main_config_path, "").expect("Couldn't create jjs.toml");
-    let cpp_config_path = format!("{}/etc/toolchains/cpp.toml", path);
-    fs::write(&cpp_config_path, CPP_CONFIG).expect("Couldn't create cpp toolchain config");
+    let cfg_dir_items = vec!["/jjs.toml", "toolchains"]
+        .iter()
+        .map(|x| format!("{}/{}", cfg_dir_path, x))
+        .collect();
+    fs_extra::copy_items(
+        &cfg_dir_items,
+        format!("{}/etc", path),
+        &fs_extra::dir::CopyOptions::new(),
+    )
+    .expect("Couldn't copy config files");
 }

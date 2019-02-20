@@ -5,7 +5,7 @@ use crate::invoker::{Status, StatusKind};
 use cfg::*;
 use db::schema::Submission;
 use execute as minion;
-use std::{collections, fs, time::Duration};
+use std::{collections, fs, io, path::Path, time::Duration};
 
 struct BuildResult {
     status: Status,
@@ -19,16 +19,23 @@ fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Too
     None
 }
 
+fn create_dir_if_not_exists(path: impl AsRef<Path>) -> io::Result<()> {
+    let res = fs::create_dir(path);
+
+    match res {
+        Ok(()) => Ok(()),
+        Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     let em = minion::setup();
-    let child_root = format!("{}/var/jjs/build/s-{}", cfg.sysroot, submission.id());
-    if fs::create_dir(&child_root)
-        .err()
-        .filter(|e| e.kind() != std::io::ErrorKind::AlreadyExists)
-        .is_some()
-    {
-        panic!("couldn't create invokation root");
-    }
+    let child_root = format!("{}/var/jjs/s-{}", cfg.sysroot, submission.id());
+    create_dir_if_not_exists(&child_root).expect("couldn't create invokation root");
+    let child_chroot = format!("{}/chroot", &child_root);
+    let child_share = format!("{}/share", &child_root);
+    //create_dir_if_not_exists()
     let dmn = em
         .new_dominion(minion::DominionOptions {
             allow_network: false,

@@ -1,3 +1,3 @@
 pub struct Config {
-    //pub sysroot: PathBuf,
+    //pub example-config: PathBuf,
 }

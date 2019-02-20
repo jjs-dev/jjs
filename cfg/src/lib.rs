@@ -28,7 +28,9 @@ impl Command {
 pub struct Toolchain {
     pub name: String,
     pub suffix: String,
+    #[serde(rename = "build")]
     pub build_commands: Vec<Command>,
+    #[serde(rename = "run")]
     pub run_command: Command,
 }
 
@@ -38,6 +40,8 @@ pub struct Config {
     pub toolchains: Vec<Toolchain>,
     #[serde(skip)]
     pub sysroot: String,
+    #[serde(rename = "toolchain-root")]
+    pub toolchain_root: String,
 }
 
 pub fn parse_file(path: PathBuf) -> Config {

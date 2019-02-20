@@ -8,15 +8,20 @@ edition = "2018"
 cfg = {path = "../cfg"}
 frontend-api = {path = "../frontend-api"}
 serde_json = "1.0.38"
-serde = "1.0.87"
+serde = "1.0.88"
 failure = "0.1.5"
 failure_derive = "0.1.5"
 rand = "0.6.5"
 db = {path = "../db"}
-diesel = {version = "1.4.1", features = ["postgres", "extras"]}
+diesel = { version = "1.4.1", features = ["postgres", "extras"] }
 rocket = "0.4.0"
 r2d2 = "0.8.3"
 dotenv = "0.13.0"
+serde_derive = "1.0.88"
+rand_chacha = "0.1.1"
+sha3 = "0.8.1"
+digest = "0.8.0"
+branca = "0.8.0"
 [dependencies.rocket_contrib]
 version = "0.4.0"
 features = ["json"]

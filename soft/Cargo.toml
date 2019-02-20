@@ -1,0 +1,9 @@
+[package]
+name = "soft"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.14"
+fs_extra = "1.1.0"

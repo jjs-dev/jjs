@@ -1,0 +1,3 @@
+[print_schema]
+file = "src/schema_raw.rs"
+import_types = ["super::*"]

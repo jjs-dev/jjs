@@ -41,6 +41,7 @@ fn main() {
     add("opt/lib64");
     add("opt/lib");
     add("opt/etc");
+    add("opt/jjs");
     add("etc");
     add("etc/toolchains");
     let cfg_dir_items = vec!["/jjs.toml", "toolchains"]

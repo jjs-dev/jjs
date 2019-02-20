@@ -1,6 +1,6 @@
 # Sysroot Layout
-* /opt it is a sysroot itself (i.e. it should contain something like `./bin`, `./lib` etc). It's contents will be
-exposed to sandbox at both build and run time. It __must not__ contain any files or symlinkks (only directories),
+* /opt is a nested sysroot (i.e. it should contain something like `./bin`, `./lib` etc). It's contents will be
+exposed to sandbox at both build and run time. It __must not__ contain any files or symlinks (only directories),
 and it __must not__ contain `./workdir` directory 
 * /etc contains JJS config files: 
     - /etc/jjs.toml - main config; 
@@ -21,4 +21,4 @@ __Note__: When running JJS on cluster, make sure sysroot is shared (e.g., using 
 * Initialize directory structure. You can use `jjs-init-sysroot` CLI utility for it.
 * Configure JJS (TODO: page about it). 
 * Setup `$ROOT/opt`. You can use `jjs-softinit` CLI utility for it, e.g. `jjs-softinit /tmp/jjs 
---with=g++ --with=gcc`
+--with=g++ --with=gcc`. Note that `jjs-softinit` can produce invalid results.

@@ -11,10 +11,9 @@ mod security;
 use cfg::Config;
 use db::schema::{NewSubmission, Submission, SubmissionState};
 use diesel::prelude::*;
-use rocket::{http::Status, State};
+use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
-use rocket::fairing::AdHoc;
-use security::{Token, SecretKey};
+use security::{SecretKey, Token};
 use std::fmt::Debug;
 
 #[get("/ping")]
@@ -100,10 +99,10 @@ fn route_submissions_send(
         .get_result(&conn)?;
     // Put submission in sysroot
     let submission_dir = format!("{}/var/submissions/s-{}", &cfg.sysroot, subm.id());
-    dbg!(&submission_dir);
     std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
     let submission_src_path = format!("{}/source", &submission_dir);
-    std::fs::write(submission_src_path, &data.code).map_err(|e| FrontendError::Internal(Some(box e)))?;
+    std::fs::write(submission_src_path, &data.code)
+        .map_err(|e| FrontendError::Internal(Some(box e)))?;
     let res = Ok(subm.id());
     Ok(Json(res))
 }
@@ -113,10 +112,12 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
         SubmissionState::WaitInvoke => frontend_api::SubmissionState::WaitInvoke,
         SubmissionState::Error => frontend_api::SubmissionState::Error,
         SubmissionState::Invoke => frontend_api::SubmissionState::Invoke,
-        SubmissionState::Done => frontend_api::SubmissionState::Done(frontend_api::SubmissionInvokeInfo{
-            status_name: "Some Status".to_string(),
-            score: 42,
-        })
+        SubmissionState::Done => {
+            frontend_api::SubmissionState::Done(frontend_api::SubmissionInvokeInfo {
+                status_name: "Some Status".to_string(),
+                score: 42,
+            })
+        }
     };
     frontend_api::SubmissionInformation {
         id: submission.id(),
@@ -133,7 +134,9 @@ fn route_submissions_list(
 ) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
     use db::schema::submissions::dsl::*;
     let conn = db.get().expect("Couldn't connect to DB");
-    let user_submissions = submissions.limit(limit as i64).load::<Submission>(&conn)?;
+    let user_submissions = submissions
+        .limit(i64::from(limit))
+        .load::<Submission>(&conn)?;
     let user_submissions = user_submissions
         .iter()
         .map(|s| describe_submission(s))
@@ -160,9 +163,8 @@ fn route_toolchains_list(
     Ok(Json(res))
 }
 fn derive_branca_key(secret: &str) -> Vec<u8> {
-    use rand::SeedableRng;
-    use rand::Rng;
     use digest::Digest;
+    use rand::{Rng, SeedableRng};
     let secret_hash = {
         let mut hasher = sha3::Sha3_512::new();
         hasher.input(secret.as_bytes());

@@ -140,7 +140,8 @@ impl Drop for LinuxDominion {
             }
         };
 
-        do_umount("/proc");
+        do_umount("proc");
+        fs::remove_dir(format!("{}/proc", &self.options.isolation_root));
         for x in &self.options.exposed_paths {
             do_umount(x.dest.as_str());
         }

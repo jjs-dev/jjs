@@ -56,6 +56,7 @@ pub struct DominionOptions {
     pub allow_network: bool,
     pub allow_file_io: bool,
     pub max_alive_process_count: usize,
+    /// Memory limit for all processes in cgroup, in bytes
     pub memory_limit: usize,
     /// Specifies total CPU time for all dominion
     pub time_limit: Duration,

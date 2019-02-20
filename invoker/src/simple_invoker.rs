@@ -5,7 +5,7 @@ use crate::invoker::{Status, StatusKind};
 use cfg::*;
 use db::schema::Submission;
 use execute as minion;
-use std::{collections, fs, io, path::Path, time::Duration};
+use std::{collections, fs, time::Duration};
 
 struct BuildResult {
     status: Status,
@@ -19,34 +19,49 @@ fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Too
     None
 }
 
-fn create_dir_if_not_exists(path: impl AsRef<Path>) -> io::Result<()> {
-    let res = fs::create_dir(path);
-
-    match res {
-        Ok(()) => Ok(()),
-        Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
-        Err(e) => Err(e),
-    }
-}
-
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     let em = minion::setup();
-    let child_root = format!("{}/var/jjs/s-{}", cfg.sysroot, submission.id());
-    create_dir_if_not_exists(&child_root).expect("couldn't create invokation root");
+    let child_root = format!("{}/var/submissions/s-{}", cfg.sysroot, submission.id());
     let child_chroot = format!("{}/chroot", &child_root);
+    fs::create_dir(&child_chroot).expect("Couldn't create child chroot");
     let child_share = format!("{}/share", &child_root);
-    //create_dir_if_not_exists()
+    let toolchains_dir = format!("{}/opt", &cfg.sysroot);
+    fs::create_dir(&child_share).expect("Couldn't create child share");
+    let mut exposed_paths = vec![minion::PathExpositionOptions {
+        src: child_share,
+        dest: "/jjs".to_string(),
+        access: minion::DesiredAccess::Full,
+    }];
+    {
+        let opt_items = fs::read_dir(&toolchains_dir).expect("Couldn't open child chroot");
+        for item in opt_items {
+            let item = item.expect("Couldn't open child chroot");
+            let item_type = item.file_type().expect("Coudln't get stats");
+            if !item_type.is_dir() {
+                panic!("couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory", item.file_name());
+            }
+            let name = item.file_name().into_string().expect("utf8 error");
+            let peo = minion::PathExpositionOptions {
+                src: format!("{}/{}", &toolchains_dir, &name),
+                dest: format!("/{}", &name),
+                access: minion::DesiredAccess::Readonly,
+            };
+            exposed_paths.push(peo)
+        }
+    }
     let dmn = em
         .new_dominion(minion::DominionOptions {
             allow_network: false,
             allow_file_io: false,
             max_alive_process_count: 16,
-            memory_limit: 0,
-            exposed_paths: vec![],
-            isolation_root: child_root,
+            memory_limit: 256 * (1 << 20),
+            exposed_paths,
+            isolation_root: child_chroot,
             time_limit: Duration::from_millis(1000),
         })
         .expect("couldn't create dominion");
+
+    let em = minion::setup();
 
     let toolchain = get_toolchain(&submission, &cfg);
 
@@ -79,8 +94,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         opts.path = nargs[0].clone();
         opts.arguments = nargs.split_off(1);
 
-        let em = minion::setup();
-
         let mut cp = em.spawn(opts).unwrap();
         let wres = cp.wait_for_exit(Duration::from_secs(3)).unwrap();
 
@@ -94,7 +107,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
                     },
                 };
             }
-            minion::WaitOutcome::AlreadyFinished => panic!("not expected other to wait"),
+            minion::WaitOutcome::AlreadyFinished => unreachable!("not expected other to wait"),
             minion::WaitOutcome::Exited => {
                 if cp.get_exit_code().unwrap().unwrap() != 0 {
                     return BuildResult {

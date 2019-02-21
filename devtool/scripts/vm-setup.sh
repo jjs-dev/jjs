@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 set -e
+ORIG_CWD="$(pwd)"
 SRV_IP=$1
 echo fetching archive from ${SRV_IP}:4567
 wget ${SRV_IP}:4567/pkg -O jjs.tgz
@@ -23,7 +24,7 @@ cd ~
 mkdir jjs || true
 sudo mkdir -p /opt/jjs-tc/root
 sudo chown "$(whoami):$(whoami)" /opt/jjs-tc/root
-sudo jjs-init-sysroot ./jjs
+jjs-init-sysroot ./jjs "$ORIG_CWD/pkg/ar_data/example-config"
 export JJS_SYSROOT=$(pwd)/jjs
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1

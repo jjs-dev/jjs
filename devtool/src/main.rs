@@ -138,7 +138,7 @@ fn task_package() {
     )
     .unwrap();
     fs::copy(
-        format!("{}/init-jjs-root.sh", get_project_dir()),
+        format!("{}/init-jjs-root", &binary_dir),
         format!("{}/bin/jjs-init-sysroot", &pkg_dir),
     )
     .unwrap();
@@ -165,6 +165,19 @@ fn task_package() {
     fs::copy(
         format!("{}/db-init.sql", get_project_dir()),
         format!("{}/bin/jjs-db-init", &pkg_dir),
+    )
+    .unwrap();
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    }; //copyputin
+    fs_extra::dir::copy(
+        format!("{}/example-config", get_project_dir()),
+        format!("{}/example-config", &pkg_dir),
+        &opts
     )
     .unwrap();
     let st = Command::new("tar")

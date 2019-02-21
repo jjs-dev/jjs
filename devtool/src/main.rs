@@ -177,7 +177,7 @@ fn task_package() {
     fs_extra::dir::copy(
         format!("{}/example-config", get_project_dir()),
         format!("{}/example-config", &pkg_dir),
-        &opts
+        &opts,
     )
     .unwrap();
     let st = Command::new("tar")

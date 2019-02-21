@@ -21,6 +21,8 @@ sudo su -c "bash pg-start.sh" postgres
 echo Preparing JJS environment
 cd ~
 mkdir jjs || true
+sudo mkdir -p /opt/jjs-tc/root
+sudo chown "$(whoami):$(whoami)" /opt/jjs-tc/root
 sudo init-jjs-root ./jjs
 export JJS_SYSROOT=$(pwd)/jjs
 export POSTGRES_URL=postgres://jjs:internal@localhost:5432/jjs

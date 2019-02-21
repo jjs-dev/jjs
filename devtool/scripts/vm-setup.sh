@@ -23,9 +23,9 @@ cd ~
 mkdir jjs || true
 sudo mkdir -p /opt/jjs-tc/root
 sudo chown "$(whoami):$(whoami)" /opt/jjs-tc/root
-sudo init-jjs-root ./jjs
+sudo jjs-init-sysroot ./jjs
 export JJS_SYSROOT=$(pwd)/jjs
-export POSTGRES_URL=postgres://jjs:internal@localhost:5432/jjs
+export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1
 jjs-frontend &
 jjs-invoker &

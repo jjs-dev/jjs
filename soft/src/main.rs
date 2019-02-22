@@ -23,17 +23,17 @@ struct FindArgs<'a> {
 fn deduce_interpreter(path: &str) -> Option<String> {
     //TODO: check shebang
     let file_output = Command::new("file")
+        .arg("--dereference") //follow symlinks
         .arg(path)
         .stderr(Stdio::inherit())
         .stdin(Stdio::null())
         .output()
         .expect("Couldn't describe");
 
-    assert_eq!(file_output.status.success(), true);
+    assert!(file_output.status.success());
     let info = String::from_utf8_lossy(&file_output.stdout).to_string();
     dbg!(&info);
     let info = info.split_whitespace();
-    let info = info.map(|x| dbg!(x));
     let interp = info.skip_while(|t| *t != "interpreter").nth(1);
     interp.map(|s| s.to_string()).map(|s| s.replace(',', ""))
 }
@@ -51,29 +51,40 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         .expect("Couldn't parse utf8")
         .trim()
         .to_string();
-    let ldd_output = Command::new("ldd")
+    dbg!(&full_path);
+    let ldd = Command::new("ldd")
         .stdin(Stdio::null())
         .stderr(Stdio::inherit())
         .stdout(Stdio::piped())
         .arg(&full_path)
         .output()
         .unwrap_or_else(|e| panic!("Couldn't get dependencies of {}: error {}", full_path, e));
-    assert_eq!(ldd_output.status.success(), true);
-    let ldd_output = String::from_utf8(ldd_output.stdout).expect("Couldn't parse utf8");
-    let deps = ldd_output
-        .split('\n')
-        .map(|x| dbg!(x))
-        .filter_map(|line| line.split("=>").nth(1))
-        .filter_map(|x| x.split_whitespace().nth(0))
-        .map(|x| x.to_string());
-    let interp = deduce_interpreter(full_path.as_str());
-    let additional = [full_path];
-    let items_to_copy = deps
-        .chain(additional.iter().cloned())
-        .chain(interp.iter().cloned());
+    let mut has_deps = true;
+    let ldd_output = String::from_utf8(ldd.stdout).expect("Couldn't parse utf8");
+
+    if ldd_output.contains("not a dynamic executable") {
+        has_deps = false;
+    }
+    let base_files = [full_path.clone()];
+    let mut files: Vec<String> = base_files.iter().cloned().collect();
+    if has_deps {
+        assert!(ldd.status.success());
+        let deps = ldd_output
+            .split('\n')
+            .filter_map(|line| line.split("=>").nth(1))
+            .filter_map(|x| x.split_whitespace().nth(0))
+            .map(|x| x.to_string());
+        let interp = deduce_interpreter(full_path.as_str());
+        if let Some(interp) = interp {
+            files.push(interp);
+        }
+        for x in deps {
+            files.push(x);
+        }
+    }
     let mut options = fs_extra::dir::CopyOptions::new();
     options.skip_exist = true;
-    for item in items_to_copy {
+    for item in files {
         let path = PathBuf::from(&item);
         let base_path = path.parent().unwrap().to_str().unwrap();
         let resulting_path = format!("{}{}", args.target, base_path);

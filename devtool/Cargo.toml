@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 structopt = "0.2.14"
 console = "0.7.5"
-reqwest = "0.9.9"
+reqwest = "0.9.10"
 percent-encoding = "1.0.1"
 serde_json = "1.0.38"
 fs_extra = "1.1.0"

@@ -326,7 +326,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-    .unwrap();
+        .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -338,7 +338,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-    .unwrap();
+        .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -697,6 +697,21 @@ pub(crate) unsafe fn start_jobserver(
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
+    let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
+
+    let f = libc::fork();
+    if f == -1 {
+        return Err(crate::ErrorKind::System(errno::errno().0).into());
+    }
+
+    if f != 0 {
+
+        let startup_info = jail_common::JobServerStartupInfo {
+            socket: sock,
+            wrapper_cgroup_path: ex_id,
+        };
+        return Ok(startup_info)
+    }
     // why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
     if libc::unshare(libc::CLONE_NEWPID) == -1 {
         err_exit("unshare");
@@ -728,10 +743,5 @@ pub(crate) unsafe fn start_jobserver(
         sock.wake(WM_CLASS_PID_MAP_CREATED)?;
         sock.lock(WM_CLASS_SETUP_FINISHED)?;
     }
-    let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
-    let startup_info = jail_common::JobServerStartupInfo {
-        socket: sock,
-        wrapper_cgroup_path: ex_id,
-    };
-    Ok(startup_info)
+    libc::exit(0);
 }

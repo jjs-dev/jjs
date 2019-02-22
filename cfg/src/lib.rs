@@ -11,7 +11,7 @@ pub struct Command {
     pub env: HashMap<String, String>,
     pub argv: Vec<String>,
     #[serde(default = "Command::default_cwd")]
-    pub cwd: PathBuf,
+    pub cwd: String,
 }
 
 impl Command {
@@ -19,8 +19,8 @@ impl Command {
         HashMap::new()
     }
 
-    fn default_cwd() -> PathBuf {
-        PathBuf::from(".")
+    fn default_cwd() -> String {
+        String::from("/jjs")
     }
 }
 

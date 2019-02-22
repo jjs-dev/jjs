@@ -6,4 +6,5 @@ Clients are independent apps built on top of this API, which _have_ UI.
 
 ## Client list
 
-[webclient](https://github.com/mikailbag/jjs/tree/master/webclient) - official, very simple
+* [webclient](https://github.com/mikailbag/jjs/tree/master/webclient) - official, very simple
+* [ejui](https://github.com/sleirsgoevy/ejui) - semi-official, best known

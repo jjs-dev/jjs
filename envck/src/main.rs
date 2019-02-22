@@ -1,10 +1,9 @@
-use std::process::exit;
-use std::fs;
-use std::io::ErrorKind;
+use std::{fs, io::ErrorKind, process::exit};
+
 fn main() {
     println!("checking user");
     {
-        let uid = unsafe {libc::getuid()};
+        let uid = unsafe { libc::getuid() };
         if uid != 0 {
             eprintln!("ERROR: must be run as root");
             exit(1);
@@ -23,9 +22,11 @@ fn main() {
                     eprintln!("ERROR: {:?}", e);
                     exit(1);
                 }
-            }
+            },
         };
-        let items:Vec<_> = items.map(|x| x.unwrap().file_name().into_string().unwrap()).collect();
+        let items: Vec<_> = items
+            .map(|x| x.unwrap().file_name().into_string().unwrap())
+            .collect();
         for subsys in ["pids", "cpuacct", "memory"].iter() {
             if !items.contains(&String::from(*subsys)) {
                 eprintln!("ERROR: subsystem {} not found", subsys);

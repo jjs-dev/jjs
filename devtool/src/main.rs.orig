@@ -174,6 +174,17 @@ fn task_package() {
         format!("{}/include/minion-ffi.h", &pkg_dir),
     )
     .unwrap();
+<<<<<<< HEAD
+    fs::copy(
+        format!("{}/setup_db.sql", get_project_dir()),
+        format!("{}/bin/jjs-db-setup", &pkg_dir),
+    )
+    .unwrap();
+    fs::copy(
+        format!("{}/db-init.sql", get_project_dir()),
+        format!("{}/bin/jjs-db-init", &pkg_dir),
+    )
+    .unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -187,7 +198,9 @@ fn task_package() {
         &opts,
     )
     .unwrap();
+=======
 
+>>>>>>> master
     let st = Command::new("tar")
         .current_dir(format!("{}/pkg", get_project_dir()))
         .args(&["cvzf", "jjs.tgz", "-C", "ar_data", "."])

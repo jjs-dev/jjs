@@ -18,7 +18,7 @@ echo Installing dependencies
 sudo apt update
 yes Y | sudo apt install postgresql
 wget ${SRV_IP}:4567/pg-start -O pg-start.sh
-sudo su -c "bash pg-start.sh" postgres
+sudo su -p -c "bash pg-start.sh" postgres
 echo Preparing JJS environment
 cd ~
 mkdir jjs || true

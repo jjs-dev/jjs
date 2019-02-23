@@ -5,8 +5,8 @@ SRV_IP=$1
 echo fetching archive from ${SRV_IP}:4567
 wget ${SRV_IP}:4567/pkg -O jjs.tgz
 mkdir pkg || true
-tar xvzf jjs.tgz
-cd pkg/ar_data
+cd pkg
+tar xvzf ../jjs.tgz
 echo Installing JJS
 sudo cp ./bin/* /usr/bin
 sudo cp ./lib/* /usr/bin
@@ -24,7 +24,7 @@ cd ~
 mkdir jjs || true
 sudo mkdir -p /opt/jjs-tc/root
 sudo chown "$(whoami):$(whoami)" /opt/jjs-tc/root
-jjs-init-sysroot ./jjs "$ORIG_CWD/pkg/ar_data/example-config"
+jjs-init-sysroot ./jjs "$ORIG_CWD/pkg/example-config"
 export JJS_SYSROOT=$(pwd)/jjs
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1

@@ -139,7 +139,7 @@ fn task_package() {
     assert_eq!(st, true);
     print_section("Generating migration script");
     {
-        let mut migration_script: Vec<_> = 
+        let mut migration_script: Vec<_> =
             fs::read_dir(format!("{}/db/migrations", get_project_dir()))
                 .unwrap()
                 .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())

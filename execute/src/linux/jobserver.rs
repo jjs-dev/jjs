@@ -326,7 +326,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-        .unwrap();
+    .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -338,7 +338,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-        .unwrap();
+    .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -705,12 +705,11 @@ pub(crate) unsafe fn start_jobserver(
     }
 
     if f != 0 {
-
         let startup_info = jail_common::JobServerStartupInfo {
             socket: sock,
             wrapper_cgroup_path: ex_id,
         };
-        return Ok(startup_info)
+        return Ok(startup_info);
     }
     // why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
     if libc::unshare(libc::CLONE_NEWPID) == -1 {

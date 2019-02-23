@@ -109,9 +109,9 @@ fn route_submissions_send(
 
 fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInformation {
     let state = match submission.state {
-        SubmissionState::WaitInvoke => frontend_api::SubmissionState::WaitInvoke,
-        SubmissionState::Error => frontend_api::SubmissionState::Error,
-        SubmissionState::Invoke => frontend_api::SubmissionState::Invoke,
+        SubmissionState::WaitInvoke => frontend_api::SubmissionState::WaitInvoke(()),
+        SubmissionState::Error => frontend_api::SubmissionState::Error(()),
+        SubmissionState::Invoke => frontend_api::SubmissionState::Invoke(()),
         SubmissionState::Done => {
             frontend_api::SubmissionState::Done(frontend_api::SubmissionInvokeInfo {
                 status_name: "Some Status".to_string(),

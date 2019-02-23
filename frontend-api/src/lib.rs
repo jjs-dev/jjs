@@ -54,12 +54,14 @@ pub struct SubmissionInvokeInfo {
     pub score: u32,
 }
 
+pub type EmptyInfo = ();
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SubmissionState {
-    WaitInvoke,
-    Invoke,
+    WaitInvoke(EmptyInfo),
+    Invoke(EmptyInfo),
     Done(SubmissionInvokeInfo),
-    Error,
+    Error(EmptyInfo),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

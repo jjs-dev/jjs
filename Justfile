@@ -20,3 +20,6 @@ sysroot:
 
 install_tools:
     cargo install diesel_cli mdbook
+
+package:
+    cargo run --bin devtool -- Pkg

@@ -48,6 +48,19 @@ fn get_project_dir() -> String {
     }
 }
 
+fn add_binary_artifact(build_name: &str, inst_name: &str) {
+    let binary_dir = format!(
+        "{}/target/x86_64-unknown-linux-musl/release",
+        get_project_dir()
+    );
+    let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
+    fs::copy(
+        format!("{}/{}", &binary_dir, build_name),
+        format!("{}/bin/{}", &pkg_dir, inst_name),
+    )
+    .unwrap();
+}
+
 fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
     print_section(&format!("Building package {}", pkg_name));
     let mut cmd = Command::new(resolve_tool_path("cargo"));
@@ -69,6 +82,25 @@ fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
 }
 
 fn task_package() {
+    print_section("Ceating directories");
+    let binary_dir = format!(
+        "{}/target/x86_64-unknown-linux-musl/release",
+        get_project_dir()
+    );
+    let dylib_dir = format!(
+        "{}/target/x86_64-unknown-linux-gnu/release",
+        get_project_dir()
+    );
+    let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
+
+    fs::create_dir_all(&pkg_dir).ok();
+    fs::remove_dir_all(&pkg_dir).ok();
+    fs::create_dir(&pkg_dir).unwrap();
+    fs::create_dir(format!("{}/lib", &pkg_dir)).ok();
+    fs::create_dir(format!("{}/bin", &pkg_dir)).ok();
+    fs::create_dir(format!("{}/include", &pkg_dir)).ok();
+    fs::create_dir(format!("{}/share", &pkg_dir)).ok();
+
     let target_musl = "x86_64-unknown-linux-musl";
 
     build_package("minion-cli", target_musl, &["dist"]);
@@ -105,23 +137,25 @@ fn task_package() {
         .unwrap()
         .success();
     assert_eq!(st, true);
+    print_section("Generating migration script");
+    {
+        let mut migration_script:Vec<_> = fs::read_dir(format!("{}/db/migrations", get_project_dir()))
+            .unwrap()
+            .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
+            .filter(|x| !x.contains(".gitkeep"))
+            .map(|x| format!("{}/up.sql", x))
+            .collect();
+        migration_script.sort();
+        let migration_script = migration_script.into_iter()
+            .map(|path| fs::read(path).unwrap())
+            .map(|bytes| String::from_utf8(bytes).unwrap());
+        let migration_script = migration_script.collect::<Vec<_>>().join("\n\n\n");
+        let src_path = format!("{}/pkg/ar_data/share/db-setup.sql", get_project_dir());
+        dbg!(&src_path);
+        fs::write(src_path, &migration_script).unwrap();
+    }
     print_section("Packaging[TGZ]");
-    let binary_dir = format!(
-        "{}/target/x86_64-unknown-linux-musl/release",
-        get_project_dir()
-    );
-    let dylib_dir = format!(
-        "{}/target/x86_64-unknown-linux-gnu/release",
-        get_project_dir()
-    );
-    let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
 
-    fs::create_dir_all(&pkg_dir).ok();
-    fs::remove_dir_all(&pkg_dir).ok();
-    fs::create_dir(&pkg_dir).unwrap();
-    fs::create_dir(format!("{}/lib", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/bin", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/include", &pkg_dir)).ok();
     fs::copy(
         format!("{}/libminion_ffi.so", &dylib_dir),
         format!("{}/lib/libminion_ffi.so", &pkg_dir),
@@ -132,57 +166,18 @@ fn task_package() {
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
     )
     .unwrap();
-    fs::copy(
-        format!("{}/minion-cli", &binary_dir),
-        format!("{}/bin/minion-cli", &pkg_dir),
-    )
-    .unwrap();
-    fs::copy(
-        format!("{}/init-jjs-root", &binary_dir),
-        format!("{}/bin/jjs-init-sysroot", &pkg_dir),
-    )
-    .unwrap();
-    fs::copy(
-        format!("{}/frontend", &binary_dir),
-        format!("{}/bin/jjs-frontend", &pkg_dir),
-    )
-    .unwrap();
-    fs::copy(
-        format!("{}/invoker", &binary_dir),
-        format!("{}/bin/jjs-invoker", &pkg_dir),
-    )
-    .unwrap();
+    add_binary_artifact("minion-cli", "jjs-minion-cli");
+    add_binary_artifact("frontend", "jjs-frontend");
+    add_binary_artifact("invoker", "jjs-invoker");
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),
     )
     .unwrap();
-    fs::copy(
-        format!("{}/setup_db.sql", get_project_dir()),
-        format!("{}/bin/jjs-db-setup", &pkg_dir),
-    )
-    .unwrap();
-    fs::copy(
-        format!("{}/db-init.sql", get_project_dir()),
-        format!("{}/bin/jjs-db-init", &pkg_dir),
-    )
-    .unwrap();
-    let opts = fs_extra::dir::CopyOptions {
-        overwrite: true,
-        skip_exist: false,
-        buffer_size: 64 * 1024,
-        copy_inside: true,
-        depth: 0,
-    }; //copyputin
-    fs_extra::dir::copy(
-        format!("{}/example-config", get_project_dir()),
-        format!("{}/example-config", &pkg_dir),
-        &opts,
-    )
-    .unwrap();
+
     let st = Command::new("tar")
-        .current_dir(get_project_dir())
-        .args(&["cvzf", "pkg/jjs.tgz", "pkg/ar_data"])
+        .current_dir(format!("{}/pkg", get_project_dir()))
+        .args(&["cvzf", "jjs.tgz", "-C", "ar_data", "."])
         .status()
         .unwrap()
         .success();

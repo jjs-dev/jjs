@@ -139,14 +139,16 @@ fn task_package() {
     assert_eq!(st, true);
     print_section("Generating migration script");
     {
-        let mut migration_script:Vec<_> = fs::read_dir(format!("{}/db/migrations", get_project_dir()))
-            .unwrap()
-            .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
-            .filter(|x| !x.contains(".gitkeep"))
-            .map(|x| format!("{}/up.sql", x))
-            .collect();
+        let mut migration_script: Vec<_> =
+            fs::read_dir(format!("{}/db/migrations", get_project_dir()))
+                .unwrap()
+                .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
+                .filter(|x| !x.contains(".gitkeep"))
+                .map(|x| format!("{}/up.sql", x))
+                .collect();
         migration_script.sort();
-        let migration_script = migration_script.into_iter()
+        let migration_script = migration_script
+            .into_iter()
             .map(|path| fs::read(path).unwrap())
             .map(|bytes| String::from_utf8(bytes).unwrap());
         let migration_script = migration_script.collect::<Vec<_>>().join("\n\n\n");
@@ -172,6 +174,19 @@ fn task_package() {
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),
+    )
+    .unwrap();
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    };
+    fs_extra::dir::copy(
+        format!("{}/example-config", get_project_dir()),
+        format!("{}/example-config", &pkg_dir),
+        &opts,
     )
     .unwrap();
 

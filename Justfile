@@ -23,3 +23,6 @@ install_tools:
 
 package:
     cargo run --bin devtool -- Pkg
+
+lint:
+    bash ./scripts/ci.sh

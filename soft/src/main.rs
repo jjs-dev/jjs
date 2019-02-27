@@ -35,7 +35,9 @@ fn deduce_interpreter(path: &str) -> Option<String> {
     dbg!(&info);
     let info = info.split_whitespace();
     let interp = info.skip_while(|t| *t != "interpreter").nth(1);
-    interp.map(|s| s.to_string()).map(|s| s.replace(',', ""))
+    interp
+        .map(std::string::ToString::to_string)
+        .map(|s| s.replace(',', ""))
 }
 
 fn find_binary(args: FindArgs, bin_name: &str) {
@@ -66,14 +68,14 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         has_deps = false;
     }
     let base_files = [full_path.clone()];
-    let mut files: Vec<String> = base_files.iter().cloned().collect();
+    let mut files: Vec<String> = base_files.to_vec();
     if has_deps {
         assert!(ldd.status.success());
         let deps = ldd_output
             .split('\n')
             .filter_map(|line| line.split("=>").nth(1))
             .filter_map(|x| x.split_whitespace().nth(0))
-            .map(|x| x.to_string());
+            .map(std::string::ToString::to_string);
         let interp = deduce_interpreter(full_path.as_str());
         if let Some(interp) = interp {
             files.push(interp);

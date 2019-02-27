@@ -8,7 +8,7 @@ fn obtain_mount_list() -> Vec<PathBuf> {
     let mounts = String::from_utf8_lossy(&mounts);
     mounts
         .split_whitespace()
-        .map(|x| x.to_string())
+        .map(std::string::ToString::to_string)
         .filter(|it| it.starts_with('/'))
         .map(|x| PathBuf::from_str(&x).unwrap())
         .collect()

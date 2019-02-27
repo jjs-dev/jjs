@@ -5,7 +5,7 @@ workflow "OnPush" {
 
 action "Check" {
   uses = "docker://mikailbag/jjs-dev:latest"
-  runs = "bash ./scripts/ci.sh"
+  runs = "just lint"
 }
 
 action "Publish" {

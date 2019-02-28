@@ -101,7 +101,11 @@ fn route_submissions_send(
     let submission_dir = format!("{}/var/submissions/s-{}", &cfg.sysroot, subm.id());
     std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
     let submission_src_path = format!("{}/source", &submission_dir);
-    std::fs::write(submission_src_path, &data.code)
+    let decoded_code = match base64::decode(&data.code).map_err(|_e| frontend_api::SubmitError::Base64) {
+        Ok(bytes) => bytes,
+        Err(e) => return Ok(Json(Err(e)))
+    };
+    std::fs::write(submission_src_path, &decoded_code)
         .map_err(|e| FrontendError::Internal(Some(box e)))?;
     let res = Ok(subm.id());
     Ok(Json(res))

@@ -82,7 +82,7 @@ fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
 }
 
 fn task_package() {
-    print_section("Ceating directories");
+    print_section("Creating directories");
     let binary_dir = format!(
         "{}/target/x86_64-unknown-linux-musl/release",
         get_project_dir()
@@ -153,7 +153,6 @@ fn task_package() {
             .map(|bytes| String::from_utf8(bytes).unwrap());
         let migration_script = migration_script.collect::<Vec<_>>().join("\n\n\n");
         let src_path = format!("{}/pkg/ar_data/share/db-setup.sql", get_project_dir());
-        dbg!(&src_path);
         fs::write(src_path, &migration_script).unwrap();
     }
     print_section("Packaging[TGZ]");

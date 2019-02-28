@@ -32,7 +32,6 @@ fn deduce_interpreter(path: &str) -> Option<String> {
 
     assert!(file_output.status.success());
     let info = String::from_utf8_lossy(&file_output.stdout).to_string();
-    dbg!(&info);
     let info = info.split_whitespace();
     let interp = info.skip_while(|t| *t != "interpreter").nth(1);
     interp
@@ -53,7 +52,6 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         .expect("Couldn't parse utf8")
         .trim()
         .to_string();
-    dbg!(&full_path);
     let ldd = Command::new("ldd")
         .stdin(Stdio::null())
         .stderr(Stdio::inherit())

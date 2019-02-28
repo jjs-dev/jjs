@@ -5,13 +5,13 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-libc= "0.2.48"
+libc= "0.2.49"
 errno= "0.2.4"
 rand = "0.6.5"
 cfg-if = "0.1.6"
 field-offset = "0.1.1"
 serde = "1.0.88"
-serde_json = "1.0.38"
+serde_json = "1.0.39"
 serde_derive = "1.0.88"
 failure = "0.1.5"
 procfs = "0.4.6"

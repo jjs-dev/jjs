@@ -199,6 +199,8 @@ fn route_post_submit(cont_type: &ContentType, data: Data) -> Result<Redirect, Ht
     let mut file = file.readable().unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)?;
+    let contents = base64::encode(&contents);
+
     let frontend_query = frontend_api::SubmitDeclaration {
         toolchain: 0, //TODO
         code: contents,

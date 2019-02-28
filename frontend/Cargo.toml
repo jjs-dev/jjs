@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 cfg = {path = "../cfg"}
 frontend-api = {path = "../frontend-api"}
-serde_json = "1.0.38"
+serde_json = "1.0.39"
 serde = "1.0.88"
 failure = "0.1.5"
 failure_derive = "0.1.5"
@@ -22,6 +22,7 @@ rand_chacha = "0.1.1"
 sha3 = "0.8.1"
 digest = "0.8.0"
 branca = "0.8.0"
+base64 = "0.10.1"
 [dependencies.rocket_contrib]
 version = "0.4.0"
 features = ["json"]

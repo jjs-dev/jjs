@@ -37,7 +37,8 @@ pub enum SimpleAuthError {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubmitDeclaration {
     pub toolchain: ToolchainId,
-    pub code: Vec<u8>,
+    /// Must be correct base64-encoded string
+    pub code: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,6 +46,7 @@ pub enum SubmitError {
     UnknownToolchain,
     ContestIsOver,
     SizeLimitExceeded,
+    Base64,
     Common(CommonError),
 }
 

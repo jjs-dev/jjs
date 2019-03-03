@@ -8,7 +8,9 @@ CREATE TABLE submissions
 (
   id           unsigned_integer DEFAULT nextval('submission_id_seq') PRIMARY KEY NOT NULL,
   toolchain_id VARCHAR(100)                                                      NOT NULL,
-  state        submission_state                                                  NOT NULL
+  state        submission_state                                                  NOT NULL,
+  status       VARCHAR(100)                                                      NOT NULL,
+  status_kind  VARCHAR(100)                                                      NOT NULL
 );
 
 CREATE UNIQUE INDEX submissions_id_unique_index ON submissions (id);

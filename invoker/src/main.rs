@@ -14,7 +14,7 @@ fn handle_judge_task(task: InvokeRequest, cfg: &Config, conn: &PgConnection) {
 
     let submission = task.submission.clone();
 
-    let status = simple_invoker::judge(&submission, cfg);
+    let judging_status = simple_invoker::judge(&submission, cfg);
 
     //db.submissions
     //    .update_submission_state(&task.submission, SubmissionState::Done);
@@ -23,7 +23,7 @@ fn handle_judge_task(task: InvokeRequest, cfg: &Config, conn: &PgConnection) {
         .set(state.eq(SubmissionState::Done))
         .execute(conn)
         .expect("Db error failed");
-    println!("Judging result: {:#?}", status);
+    println!("Judging result: {:#?}", judging_status);
 }
 fn main() {
     use db::schema::submissions::dsl::*;

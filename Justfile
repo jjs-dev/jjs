@@ -19,10 +19,13 @@ sysroot:
     bash ./soft/simple.sh /tmp/jjs
 
 install_tools:
-    cargo install diesel_cli mdbook
+    #! /bin/bash
+    cargo install diesel_cli mdbook || true
 
 package:
     cargo run --bin devtool -- Pkg
 
 lint:
     bash ./scripts/ci.sh
+
+devenv: install_tools sysroot db_refresh

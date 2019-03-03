@@ -93,6 +93,8 @@ fn route_submissions_send(
     let new_sub = NewSubmission {
         toolchain_id: toolchain.name,
         state: SubmissionState::WaitInvoke,
+        status: "Queued for compilation".to_string(),
+        status_kind: "QUEUE".to_string(),
     };
     let subm: Submission = diesel::insert_into(submissions)
         .values(&new_sub)
@@ -101,10 +103,11 @@ fn route_submissions_send(
     let submission_dir = format!("{}/var/submissions/s-{}", &cfg.sysroot, subm.id());
     std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
     let submission_src_path = format!("{}/source", &submission_dir);
-    let decoded_code = match base64::decode(&data.code).map_err(|_e| frontend_api::SubmitError::Base64) {
-        Ok(bytes) => bytes,
-        Err(e) => return Ok(Json(Err(e)))
-    };
+    let decoded_code =
+        match base64::decode(&data.code).map_err(|_e| frontend_api::SubmitError::Base64) {
+            Ok(bytes) => bytes,
+            Err(e) => return Ok(Json(Err(e))),
+        };
     std::fs::write(submission_src_path, &decoded_code)
         .map_err(|e| FrontendError::Internal(Some(box e)))?;
     let res = Ok(subm.id());
@@ -112,21 +115,11 @@ fn route_submissions_send(
 }
 
 fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInformation {
-    let state = match submission.state {
-        SubmissionState::WaitInvoke => frontend_api::SubmissionState::WaitInvoke(()),
-        SubmissionState::Error => frontend_api::SubmissionState::Error(()),
-        SubmissionState::Invoke => frontend_api::SubmissionState::Invoke(()),
-        SubmissionState::Done => {
-            frontend_api::SubmissionState::Done(frontend_api::SubmissionInvokeInfo {
-                status_name: "Some Status".to_string(),
-                score: 42,
-            })
-        }
-    };
     frontend_api::SubmissionInformation {
         id: submission.id(),
         toolchain_name: submission.toolchain.clone(),
-        state,
+        status: submission.status.clone(),
+        score: Some(42),
     }
 }
 
@@ -202,7 +195,6 @@ fn main() {
         .manage(pool)
         .manage(config.clone())
         .attach(AdHoc::on_attach("DeriveBrancaSecretKey",|rocket| {
-            dbg!(&rocket.config());
             let secret_key = rocket.config().get_string("jjs_secret_key").unwrap_or_else(|_|{
                 eprintln!("Warning: couldn't obtain jjs_secret_key from configuration, providing hardcoded");
                 "HARDCODED_DEV_ONLY_KEY".to_string() //TODO: panic in production

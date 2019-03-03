@@ -326,7 +326,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-    .unwrap();
+        .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -338,7 +338,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-    .unwrap();
+        .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -694,24 +694,38 @@ unsafe fn observe_time(
 pub(crate) unsafe fn start_jobserver(
     jail_options: JailOptions,
 ) -> crate::Result<jail_common::JobServerStartupInfo> {
+    use std::io::Write;
+    let mut logger = crate::linux::util::strace_logger();
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
     let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
+
+    let (return_allowed_r, return_allowed_w) = nix::unistd::pipe().expect("couldn't create pipe");
 
     let f = libc::fork();
     if f == -1 {
         return Err(crate::ErrorKind::System(errno::errno().0).into());
     }
 
+
     if f != 0 {
+        //thread A: entered start_jobserver() normally, returns from function
+        write!(logger, "thread A (main)").unwrap();
         let startup_info = jail_common::JobServerStartupInfo {
             socket: sock,
             wrapper_cgroup_path: ex_id,
         };
+
+        let mut buf = [0 as u8; 1];
+
+        //wait until jobserver is ready
+        nix::unistd::read(return_allowed_r, &mut buf).expect("protocol failure");
+        nix::unistd::close(return_allowed_r).unwrap();
+        nix::unistd::close(return_allowed_w).unwrap();
         return Ok(startup_info);
     }
-    // why we use unshare(PID) here, and not in setup_namespace? See pid_namespaces(7) and unshare(2)
+    // why we use unshare(PID) here, and not in setup_namespace()? See pid_namespaces(7) and unshare(2)
     if libc::unshare(libc::CLONE_NEWPID) == -1 {
         err_exit("unshare");
     }
@@ -720,6 +734,8 @@ pub(crate) unsafe fn start_jobserver(
         err_exit("fork");
     }
     if fret == 0 {
+        //thread C: jobserver main process
+        write!(logger, "thread C (jobserver main)").unwrap();
         mem::drop(sock);
         let js_arg = JobServerOptions {
             jail_options: jail_options.clone(),
@@ -728,19 +744,24 @@ pub(crate) unsafe fn start_jobserver(
         let jobserver_ret_code = jobserver_main::jobserver_entry(js_arg);
         libc::exit(jobserver_ret_code.unwrap_or(1));
     }
+    //thread B: external jobserver initializer
+    //it's only task currently is pid/gid mapping
+    write!(logger, "thread C (jobserver launcher)").unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
-    {
-        sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
-        let uid_info = derive_user_ids(&jail_id);
-        //child will have uid=1 or 2 in its namespace, but some random and not-privileged in outer one
-        let mapping = format!("1 {} 1\n2 {} 1", uid_info.privileged, uid_info.restricted);
-        let uid_map_path = format!("/proc/{}/uid_map", child_pid);
-        let gid_map_path = format!("/proc/{}/gid_map", child_pid);
-        fs::write(&uid_map_path, mapping.as_str()).unwrap();
-        fs::write(&gid_map_path, mapping.as_str()).unwrap();
-        sock.wake(WM_CLASS_PID_MAP_CREATED)?;
-        sock.lock(WM_CLASS_SETUP_FINISHED)?;
-    }
+
+    let uid_info = derive_user_ids(&jail_id);
+    //child will have uid=1 or 2 in its namespace, but some random and not-privileged in outer one
+    let mapping = format!("1 {} 1\n2 {} 1", uid_info.privileged, uid_info.restricted);
+    let uid_map_path = format!("/proc/{}/uid_map", child_pid);
+    let gid_map_path = format!("/proc/{}/gid_map", child_pid);
+    sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
+    fs::write(&uid_map_path, mapping.as_str()).unwrap();
+    fs::write(&gid_map_path, mapping.as_str()).unwrap();
+    sock.wake(WM_CLASS_PID_MAP_CREATED)?;
+    sock.lock(WM_CLASS_SETUP_FINISHED)?;
+    //and now thread A can return
+    let wake_buf = [179, 179, 239, 57 /*just magic number*/];
+    nix::unistd::write(return_allowed_w, &wake_buf).expect("protocol failure");
     libc::exit(0);
 }

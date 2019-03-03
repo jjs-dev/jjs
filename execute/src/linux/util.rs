@@ -50,13 +50,25 @@ impl WaitMessage {
 }
 
 fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
+    use std::io::Write;
+    let mut logger = strace_logger();
     let wm = match sock.recv_struct::<WaitMessage, [RawFd; 0]>() {
         Ok(x) => x,
-        Err(_) => Err(crate::ErrorKind::Communication)?,
+        Err(e) => {
+            write!(logger, "receive error: {:?}", e).unwrap();
+            Err(crate::ErrorKind::Communication)?
+        }
     };
     match wm.0.check(expected_class) {
         Some(_) => (),
-        None => Err(crate::ErrorKind::Communication)?,
+        None => {
+            write!(
+                logger,
+                "validation error: invalid class (expected {}, got {})",
+                expected_class, wm.0.class
+            ).unwrap();
+            Err(crate::ErrorKind::Communication)?
+        }
     };
     Ok(())
 }

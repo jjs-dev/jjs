@@ -51,26 +51,11 @@ pub enum SubmitError {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SubmissionInvokeInfo {
-    pub status_name: String,
-    pub score: u32,
-}
-
-pub type EmptyInfo = ();
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum SubmissionState {
-    WaitInvoke(EmptyInfo),
-    Invoke(EmptyInfo),
-    Done(SubmissionInvokeInfo),
-    Error(EmptyInfo),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionInformation {
     pub id: SubmissionId,
     pub toolchain_name: String,
-    pub state: SubmissionState,
+    pub status: String,
+    pub score: Option<u32>,
 }
 
 // toolchains

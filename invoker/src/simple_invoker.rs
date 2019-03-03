@@ -214,7 +214,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             },
             pwd: cmd.cwd.clone(),
         };
-        dbg!(&opts);
+        //dbg!(&opts);
 
         let mut cp = em.spawn(opts).unwrap();
         let wres = cp.wait_for_exit(Duration::from_secs(3)).unwrap();

@@ -5,6 +5,8 @@ pub struct Submission {
     id: i32,
     pub toolchain: String,
     pub state: SubmissionState,
+    pub status: String,
+    pub status_kind: String,
 }
 
 impl Submission {
@@ -18,6 +20,8 @@ impl Submission {
 pub struct NewSubmission {
     pub toolchain_id: String,
     pub state: SubmissionState,
+    pub status: String,
+    pub status_kind: String,
 }
 
 #[derive(DbEnum, Serialize, Deserialize, Debug, Clone, PartialEq)]

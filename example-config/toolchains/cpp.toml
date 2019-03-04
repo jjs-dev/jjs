@@ -1,12 +1,6 @@
 name="cpp"
 filename="source.cpp"
 [[build]]
-argv=["/bin/busybox", "ls", "/"]
-[[build]]
-argv = ["/bin/busybox", "ls", "/jjs"]
-[[build]]
-argv = ["/bin/busybox", "ls", "/etc"]
-[[build]]
-argv=["/usr/bin/g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-DJJS"]
+argv=["/usr/bin/g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
 [run]
 argv=["$(System.BinaryFilePath)"]

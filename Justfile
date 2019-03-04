@@ -16,7 +16,7 @@ sysroot:
     mkdir /tmp/jjs
     cargo run --bin init-jjs-root -- /tmp/jjs ./example-config
     cargo run --bin soft -- --root=/tmp/jjs/opt --with=python3 --with=gcc --with=g++ --with=bash --with=busybox
-    bash ./soft/simple.sh /tmp/jjs
+    pwsh ./soft/gcc.ps1
 
 install_tools:
     #! /bin/bash

@@ -1,10 +1,8 @@
 # Installing JJS in virtual machine
 ## Launch VM
-Launch VM.
-
-Make sure you are logged in as a non-root user, and your user can run `sudo` without password prompt.
-
-Also, obtain IP of your host machine
+- Launch VM.
+- Make sure you are logged in as a non-root user, and your user can run `sudo` without password prompt.
+- Obtain IP of your host machine as it seen from guest.
 ## Prepare host machine
 ```bash
 cd jjs_root

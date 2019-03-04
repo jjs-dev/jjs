@@ -27,7 +27,7 @@ impl Command {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Toolchain {
     pub name: String,
-    pub suffix: String,
+    pub filename: String,
     #[serde(rename = "build")]
     pub build_commands: Vec<Command>,
     #[serde(rename = "run")]

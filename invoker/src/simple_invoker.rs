@@ -113,6 +113,20 @@ fn interpolate_command(
 }
 
 fn build(submission: &Submission, cfg: &Config) -> BuildResult {
+    let toolchain = get_toolchain(&submission, &cfg);
+
+    let toolchain = match toolchain {
+        Some(t) => t,
+        None => {
+            return BuildResult {
+                status: Status {
+                    kind: StatusKind::CompilationError,
+                    code: "UNKNOWN_TOOLCHAIN".to_string(),
+                },
+            };
+        }
+    };
+
     let em = minion::setup();
     let child_root = format!("{}/var/submissions/s-{}", cfg.sysroot, submission.id());
     let child_chroot = format!("{}/chroot", &child_root);
@@ -127,9 +141,9 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
             cfg.sysroot,
             submission.id()
         ),
-        format!("{}/source", &child_share),
+        format!("{}/{}", &child_share, &toolchain.filename),
     )
-    .expect("Couldn't copy submission source into chroot");
+        .expect("Couldn't copy submission source into chroot");
 
     let mut exposed_paths = vec![minion::PathExpositionOptions {
         src: child_share,
@@ -168,25 +182,12 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
 
     let em = minion::setup();
 
-    let toolchain = get_toolchain(&submission, &cfg);
-
-    let toolchain = match toolchain {
-        Some(t) => t,
-        None => {
-            return BuildResult {
-                status: Status {
-                    kind: StatusKind::CompilationError,
-                    code: "UNKNOWN_TOOLCHAIN".to_string(),
-                },
-            };
-        }
-    };
 
     for cmd in &toolchain.build_commands {
         let mut dict = BTreeMap::new();
         dict.insert(
             String::from("System.SourceFilePath"),
-            String::from("/jjs/source"),
+            format!("/jjs/{}", &toolchain.filename),
         );
         dict.insert(
             String::from("System.BinaryFilePath"),

@@ -1,7 +1,7 @@
 # Sysroot Layout
 * /opt is a nested sysroot (i.e. it should contain something like `./bin`, `./lib` etc). It's contents will be
 exposed to sandbox at both build and run time. It __must not__ contain any files or symlinks (only directories),
-and it __must not__ contain `./workdir` directory 
+and it __must not__ contain `./jjs` directory 
 * /etc contains JJS config files: 
     - /etc/jjs.toml - main config; 
     - /etc/toolchains/*.toml - toolchain configs

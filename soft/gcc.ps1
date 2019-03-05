@@ -15,11 +15,38 @@ if (!(Test-Path $Path_cc1plus)) {
 function CopyTool {
     param([String]$ToolName)
     $SrcPath = GetTool $ToolName
-    $DestPath = "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion/$ToolName"
-    Copy-Item -Path $SrcPath -Destination $DestPath
+    Set-Location $PSScriptRoot
+    cargo run -- "--with=$SrcPath" "--root=$Sysroot"
+}
+
+function CopyHeader {
+    param([String]$HeaderName)
+    $Dest = "$Sysroot/$HeaderName"
+    New-Item -ItemType File -Path $Dest -Force | Out-Null
+    Copy-Item -Path "$HeaderName" -Destination $Dest | Out-Null
+}
+function Flatten($a) {
+    ,@($a | ForEach-Object { $_ })
 }
 
 New-Item -Path "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion" -ItemType Directory  | Out-Null
 
 CopyTool "cc1"
 CopyTool "cc1plus"
+
+#In order to determine headers path and copy them, we compile sample program
+
+$Program = @'
+#include <bits/stdc++.h>
+#include <unistd.h>
+int main() {
+    return 0;
+}
+'@
+$DepInfo = $Program |  g++ -x c++ - -M
+
+$DepInfo = "$DepInfo".Substring(2)
+$DepInfo = "$DepInfo".Replace('\', ' ') -split ' ' | Where-Object {$_.Trim() -ne ""}
+$DepInfo | ForEach-Object { CopyHeader $_.Trim() }
+$DIL = $DepInfo.Length
+Write-Host "$DIL files copies"

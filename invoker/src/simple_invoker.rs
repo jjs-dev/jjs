@@ -143,7 +143,7 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         ),
         format!("{}/{}", &child_share, &toolchain.filename),
     )
-        .expect("Couldn't copy submission source into chroot");
+    .expect("Couldn't copy submission source into chroot");
 
     let mut exposed_paths = vec![minion::PathExpositionOptions {
         src: child_share,
@@ -181,7 +181,6 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         .expect("couldn't create dominion");
 
     let em = minion::setup();
-
 
     for cmd in &toolchain.build_commands {
         let mut dict = BTreeMap::new();

@@ -326,7 +326,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-        .unwrap();
+    .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -338,7 +338,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-        .unwrap();
+    .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -707,7 +707,6 @@ pub(crate) unsafe fn start_jobserver(
     if f == -1 {
         return Err(crate::ErrorKind::System(errno::errno().0).into());
     }
-
 
     if f != 0 {
         //thread A: entered start_jobserver() normally, returns from function

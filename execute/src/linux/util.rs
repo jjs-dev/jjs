@@ -66,7 +66,8 @@ fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
                 logger,
                 "validation error: invalid class (expected {}, got {})",
                 expected_class, wm.0.class
-            ).unwrap();
+            )
+            .unwrap();
             Err(crate::ErrorKind::Communication)?
         }
     };

@@ -74,7 +74,7 @@ fn route_auth_simple(
     Ok(Json(res))
 }
 
-#[post("/submission/send", data = "<data>")]
+#[post("/submissions/send", data = "<data>")]
 fn route_submissions_send(
     data: Json<frontend_api::SubmitDeclaration>,
     db: State<DbPool>,

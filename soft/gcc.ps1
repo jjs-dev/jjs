@@ -49,4 +49,4 @@ $DepInfo = "$DepInfo".Substring(2)
 $DepInfo = "$DepInfo".Replace('\', ' ') -split ' ' | Where-Object {$_.Trim() -ne ""}
 $DepInfo | ForEach-Object { CopyHeader $_.Trim() }
 $DIL = $DepInfo.Length
-Write-Host "$DIL files copies"
+Write-Host "$DIL header files copied"

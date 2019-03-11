@@ -19,6 +19,12 @@ function CopyTool {
     cargo run -- "--with=$SrcPath" "--root=$Sysroot"
 }
 
+function CopyFile {
+    param([String]$Path)
+    $DestPath = "$Sysroot$Path"
+    Copy-Item -Path $Path -Destination $DestPath
+}
+
 function CopyHeader {
     param([String]$HeaderName)
     $Dest = "$Sysroot/$HeaderName"
@@ -29,10 +35,21 @@ function Flatten($a) {
     ,@($a | ForEach-Object { $_ })
 }
 
+Set-Location $PSScriptRoot
+
 New-Item -Path "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion" -ItemType Directory  | Out-Null
 
 CopyTool "cc1"
 CopyTool "cc1plus"
+CopyTool "liblto_plugin.so"
+cargo run -- "--with=gcc" "--with=g++" "--with=as" "--with=ld" "--root=$Sysroot"
+$CrtObjectDir = "/usr/lib/$GccTarget/"
+CopyFile "$CrtObjectDir/Scrt1.o"
+CopyFile "$CrtObjectDir/crti.o"
+CopyFile "$CrtObjectDir/crtn.o"
+CopyTool crtbeginS.o
+CopyTool crtendS.o
+#cargo run -- "--root=$Sysroot" "--deb=g++-8" "--deb=gcc-8"
 
 #In order to determine headers path and copy them, we compile sample program
 

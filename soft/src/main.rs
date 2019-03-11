@@ -4,6 +4,7 @@ use std::{
     process::{Command, Stdio},
 };
 use structopt::StructOpt;
+
 #[derive(StructOpt)]
 struct Options {
     /// Where to put files
@@ -12,6 +13,9 @@ struct Options {
     /// What toolchains to search
     #[structopt(long = "with")]
     with: Vec<String>,
+    /// What debs to install
+    #[structopt(long = "deb")]
+    deb: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -89,16 +93,134 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         let base_path = path.parent().unwrap().to_str().unwrap();
         let resulting_path = format!("{}{}", args.target, base_path);
         fs::create_dir_all(&resulting_path).ok();
-        println!("Copying: {}", &item);
         fs_extra::copy_items(&vec![item], resulting_path, &options)
             .expect("Couldn't copy binary with its dependencies");
     }
 }
+
+trait CommandExt {
+    fn exec(&mut self);
+}
+
+impl CommandExt for std::process::Command {
+    fn exec(&mut self) {
+        let output = self.output().expect("Couldn't execute");
+        let out = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        println!("{}", out);
+    }
+}
+
+fn setup_dpkg(dir: &str) {
+    for path in ["/var/lib/dpkg/updates", "/var/lib/dpkg/info", "/var/lib/dpkg/tmp.ci"].iter() {
+        fs::create_dir_all(format!("{}/{}", dir, path)).expect("Couldn't create dir");
+    }
+    fs::File::create(format!("{}/var/lib/dpkg/status", dir)).unwrap();
+}
+
+fn resolve_dependencies(pkg: &str) -> Vec<String> {
+    let out = Command::new("apt-cache")
+        .arg("depends")
+        .arg(pkg)
+        .output().expect("Couldn't query dependencies");
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+    let out = out.split('\n').skip(1);
+    let mut res = Vec::new();
+    for line in out {
+        let t: Vec<_> = line.split(' ').map(|x| x.trim().to_string()).filter(|x| x.len() > 0).collect();
+        if t.is_empty() {
+            continue;
+        }
+        if t.len() != 2 {
+            eprintln!("warning: skipping line {} of unknown format", &line);
+            continue;
+        }
+        let mut relation: String = t[0].clone();
+        let package: String = t[1].clone();
+        relation.pop().expect("parse error");
+        if relation == "Depends" {
+            res.push(package);
+        }
+    };
+    res
+}
+
+fn resolve_dependencies_recursive(start: &[String]) -> Vec<String> {
+    //just BFS
+    let mut queue = std::collections::VecDeque::<String>::new();
+    let mut visited = std::collections::HashSet::<String>::new();
+    for pkg in start {
+        queue.push_back(pkg.clone());
+    }
+    while !queue.is_empty() {
+        let pkg = queue.pop_front().unwrap();
+        visited.insert(pkg.clone());
+        let deps = resolve_dependencies(&pkg);
+        for dep in &deps {
+            if !visited.contains(dep.as_str()) {
+                queue.push_back(dep.clone());
+                visited.insert(dep.clone());
+            }
+        }
+    }
+
+    visited.into_iter().collect()
+}
+
+fn fetch_debian_package(pkg: &str) -> String {
+    println!("adding package {}", pkg);
+    let workdir = "/tmp/jjs-soft-debs";
+    fs::create_dir(workdir).ok();
+    Command::new("apt")
+        .current_dir(workdir)
+        .arg("download")
+        .arg(pkg)
+        .exec();
+    let pat = format!("{}/{}_*.deb", workdir, pkg);
+    let items: Vec<_> = glob::glob(&pat).expect("Couldn't search for package").collect();
+    if items.is_empty() {
+        panic!("Package not found");
+    }
+    if items.len() > 1 {
+        panic!("More than one candidate is found: {:?}", items);
+    }
+    let item = items.into_iter().next().unwrap().expect("io error");
+    let item = item.to_str().unwrap();
+    item.to_string()
+}
+
+fn add_debian_packages(pkg: &[&str], dir: &str) {
+    let mut cmd = Command::new("dpkg");
+    cmd
+        .arg("-i")
+        .arg("--force-not-root")
+        .arg(format!("--root={}", dir));
+
+    for &p in pkg {
+        cmd.arg(p);
+    }
+    cmd.exec();
+}
+
 
 fn main() {
     let opt: Options = Options::from_args();
     let arg = FindArgs { target: &opt.root };
     for bin in opt.with {
         find_binary(arg, bin.as_str());
+    }
+    if !opt.deb.is_empty() {
+        println!("installing selected debs ({} requested)", opt.deb.len());
+        setup_dpkg(&opt.root);
+
+        let input_packages = opt.deb.clone();
+        let packages_with_deps = resolve_dependencies_recursive(&input_packages);
+        let mut archives = Vec::new();
+        println!("installing packages: {:?}", &archives);
+        for p in &packages_with_deps {
+            let saved_path = fetch_debian_package(p);
+            archives.push(saved_path);
+        }
+        let debs: Vec<&str> = archives.iter().map(|x| x.as_str()).collect();
+        add_debian_packages(debs.as_slice(), &opt.root);
     }
 }

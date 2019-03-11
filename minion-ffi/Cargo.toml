@@ -11,4 +11,4 @@ crate-type = ["cdylib", "staticlib"]
 execute = {path = "../execute"}
 
 [build-dependencies]
-cbindgen = "0.8.0"
+cbindgen = "0.8.2"

@@ -5,16 +5,16 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-libc= "0.2.49"
+libc= "0.2.50"
 errno= "0.2.4"
 rand = "0.6.5"
-cfg-if = "0.1.6"
+cfg-if = "0.1.7"
 field-offset = "0.1.1"
-serde = "1.0.88"
+serde = "1.0.89"
 serde_json = "1.0.39"
-serde_derive = "1.0.88"
+serde_derive = "1.0.89"
 failure = "0.1.5"
-procfs = "0.4.6"
+procfs = "0.4.7"
 tiny-nix-ipc = { version = "0.1.0", features = ["ser_cbor"] }
 nix = "0.13.0"
 downcast-rs = "1.0.3"

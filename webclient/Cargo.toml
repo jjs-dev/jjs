@@ -9,14 +9,14 @@ frontend-api = {path = "../frontend-api"}
 rocket = "0.4.0"
 rocket_codegen = "0.4.0"
 handlebars = "1.1.0"
-serde = "1.0.88"
-serde_derive = "1.0.88"
+serde = "1.0.89"
+serde_derive = "1.0.89"
 serde_json = "1.0.39"
 uuid = { version = "0.7.2", features = ["v4"] }
 failure = "0.1.5"
 multipart = "0.16.1"
 base64 = "0.10.1"
-reqwest = "0.9.10"
+reqwest = "0.9.11"
 
 [dependencies.rocket_contrib]
 version = "0.4.0"

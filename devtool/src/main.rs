@@ -50,7 +50,7 @@ fn get_project_dir() -> String {
 
 fn add_binary_artifact(build_name: &str, inst_name: &str) {
     let binary_dir = format!(
-        "{}/target/x86_64-unknown-linux-musl/release",
+        "{}/target/x86_64-unknown-linux-gnu/release",
         get_project_dir()
     );
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
@@ -61,7 +61,7 @@ fn add_binary_artifact(build_name: &str, inst_name: &str) {
     .unwrap();
 }
 
-fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
+fn build_package(pkg_name: &str, features: &[&str]) {
     print_section(&format!("Building package {}", pkg_name));
     let mut cmd = Command::new(resolve_tool_path("cargo"));
     cmd.current_dir(get_project_dir()).args(&[
@@ -70,7 +70,7 @@ fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
         pkg_name,
         "--release",
         "--target",
-        target,
+        "x86_64-unknown-linux-gnu",
     ]);
     if !features.is_empty() {
         cmd.arg("--features");
@@ -84,7 +84,7 @@ fn build_package(pkg_name: &str, target: &str, features: &[&str]) {
 fn task_package() {
     print_section("Creating directories");
     let binary_dir = format!(
-        "{}/target/x86_64-unknown-linux-musl/release",
+        "{}/target/x86_64-unknown-linux-gnu/release",
         get_project_dir()
     );
     let dylib_dir = format!(
@@ -101,13 +101,11 @@ fn task_package() {
     fs::create_dir(format!("{}/include", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
 
-    let target_musl = "x86_64-unknown-linux-musl";
-
-    build_package("minion-cli", target_musl, &["dist"]);
-    build_package("cleanup", target_musl, &[]);
-    build_package("init-jjs-root", target_musl, &[]);
-    build_package("frontend", target_musl, &[]);
-    build_package("invoker", target_musl, &[]);
+    build_package("minion-cli", &["dist"]);
+    build_package("cleanup", &[]);
+    build_package("init-jjs-root", &[]);
+    build_package("frontend", &[]);
+    build_package("invoker", &[]);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
@@ -118,7 +116,7 @@ fn task_package() {
             "minion-ffi",
             "--release",
             "--target",
-            "x86_64-unknown-linux-musl",
+            "x86_64-unknown-linux-gnu",
         ])
         .status()
         .unwrap()

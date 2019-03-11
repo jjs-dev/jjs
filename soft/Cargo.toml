@@ -5,5 +5,6 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.14"
+structopt = "0.2.15"
 fs_extra = "1.1.0"
+glob = "0.3.0"

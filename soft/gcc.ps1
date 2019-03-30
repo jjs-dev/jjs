@@ -2,6 +2,8 @@ param([String]$GccVersion = 8,
     [String]$GccTarget = "x86_64-linux-gnu",
     [String]$Sysroot = "/tmp/jjs/opt")
 
+Set-StrictMode -Version Latest
+
 function GetTool {
     param([String]$ToolName)
     "/usr/lib/gcc/$GccTarget/$GccVersion/$ToolName"
@@ -67,3 +69,14 @@ $DepInfo = "$DepInfo".Replace('\', ' ') -split ' ' | Where-Object {$_.Trim() -ne
 $DepInfo | ForEach-Object { CopyHeader $_.Trim() }
 $DIL = $DepInfo.Length
 Write-Host "$DIL header files copied"
+
+# Copy libraries
+$LibDir = "/usr/lib/$GccTarget"
+$GccLibDir = "/usr/lib/gcc/$GccTarget/$GccVersion"
+$Libs = @("$LibDir/libm.a" , "$LibDir/libc.a", "$GccLibDir/libgcc.a", "$GccLibDir/libgcc_s.so", "$GccLibDir/libgcc_s.so.1", `
+    "$GccLibDir/libstdc++.a", "/usr/lib/x86_64-linux-gnu/libm-2.28.a", `
+    "/usr/lib/x86_64-linux-gnu/libmvec.a")
+foreach ($Lib in $Libs) {
+    Write-Host "Copying $Lib"
+    CopyFile $Lib
+}

@@ -140,7 +140,7 @@ fn resolve_dependencies(pkg: &str) -> Vec<String> {
         let t: Vec<_> = line
             .split(' ')
             .map(|x| x.trim().to_string())
-            .filter(|x| x.len() > 0)
+            .filter(|x| !x.is_empty())
             .collect();
         if t.is_empty() {
             continue;
@@ -235,7 +235,7 @@ fn main() {
             let saved_path = fetch_debian_package(p);
             archives.push(saved_path);
         }
-        let debs: Vec<&str> = archives.iter().map(|x| x.as_str()).collect();
+        let debs: Vec<&str> = archives.iter().map(String::as_str).collect();
         add_debian_packages(debs.as_slice(), &opt.root);
     }
 }

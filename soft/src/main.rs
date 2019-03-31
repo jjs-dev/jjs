@@ -50,7 +50,7 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         .stdout(Stdio::piped())
         .arg(bin_name)
         .output()
-        .unwrap_or_else(|e| panic!("Couldn't resolve path to {}: error {}", bin_name, e));
+        .unwrap_or_else(|e| panic!("couldn't resolve full path for '{}': {}", bin_name, e));
     assert_eq!(full_path.status.success(), true);
     let full_path = String::from_utf8(full_path.stdout)
         .expect("Couldn't parse utf8")
@@ -62,9 +62,9 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         .stdout(Stdio::piped())
         .arg(&full_path)
         .output()
-        .unwrap_or_else(|e| panic!("Couldn't get dependencies of {}: error {}", full_path, e));
+        .unwrap_or_else(|e| panic!("couldn't get dependencies of '{}': {}", full_path, e));
     let mut has_deps = true;
-    let ldd_output = String::from_utf8(ldd.stdout).expect("Couldn't parse utf8");
+    let ldd_output = String::from_utf8(ldd.stdout).expect("couldn't parse utf8");
 
     if ldd_output.contains("not a dynamic executable") {
         has_deps = false;
@@ -105,13 +105,23 @@ trait CommandExt {
 impl CommandExt for std::process::Command {
     fn exec(&mut self) {
         let output = self.output().expect("Couldn't execute");
-        let out = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        let out = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
         println!("{}", out);
     }
 }
 
 fn setup_dpkg(dir: &str) {
-    for path in ["/var/lib/dpkg/updates", "/var/lib/dpkg/info", "/var/lib/dpkg/tmp.ci"].iter() {
+    for path in [
+        "/var/lib/dpkg/updates",
+        "/var/lib/dpkg/info",
+        "/var/lib/dpkg/tmp.ci",
+    ]
+    .iter()
+    {
         fs::create_dir_all(format!("{}/{}", dir, path)).expect("Couldn't create dir");
     }
     fs::File::create(format!("{}/var/lib/dpkg/status", dir)).unwrap();
@@ -121,12 +131,17 @@ fn resolve_dependencies(pkg: &str) -> Vec<String> {
     let out = Command::new("apt-cache")
         .arg("depends")
         .arg(pkg)
-        .output().expect("Couldn't query dependencies");
+        .output()
+        .expect("Couldn't query dependencies");
     let out = String::from_utf8_lossy(&out.stdout).to_string();
     let out = out.split('\n').skip(1);
     let mut res = Vec::new();
     for line in out {
-        let t: Vec<_> = line.split(' ').map(|x| x.trim().to_string()).filter(|x| x.len() > 0).collect();
+        let t: Vec<_> = line
+            .split(' ')
+            .map(|x| x.trim().to_string())
+            .filter(|x| x.len() > 0)
+            .collect();
         if t.is_empty() {
             continue;
         }
@@ -140,7 +155,7 @@ fn resolve_dependencies(pkg: &str) -> Vec<String> {
         if relation == "Depends" {
             res.push(package);
         }
-    };
+    }
     res
 }
 
@@ -176,7 +191,9 @@ fn fetch_debian_package(pkg: &str) -> String {
         .arg(pkg)
         .exec();
     let pat = format!("{}/{}_*.deb", workdir, pkg);
-    let items: Vec<_> = glob::glob(&pat).expect("Couldn't search for package").collect();
+    let items: Vec<_> = glob::glob(&pat)
+        .expect("Couldn't search for package")
+        .collect();
     if items.is_empty() {
         panic!("Package not found");
     }
@@ -190,8 +207,7 @@ fn fetch_debian_package(pkg: &str) -> String {
 
 fn add_debian_packages(pkg: &[&str], dir: &str) {
     let mut cmd = Command::new("dpkg");
-    cmd
-        .arg("-i")
+    cmd.arg("-i")
         .arg("--force-not-root")
         .arg(format!("--root={}", dir));
 
@@ -200,7 +216,6 @@ fn add_debian_packages(pkg: &[&str], dir: &str) {
     }
     cmd.exec();
 }
-
 
 fn main() {
     let opt: Options = Options::from_args();

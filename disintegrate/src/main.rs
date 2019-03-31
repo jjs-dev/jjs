@@ -27,7 +27,7 @@ fn disintegrate(path: PathBuf, mounts: &[PathBuf]) {
             Result::<(), _>::Err(std::io::Error::last_os_error()).unwrap();
         }
     }
-    for item in fs::read_dir(&path).expect("coudln't list directory contents") {
+    for item in fs::read_dir(&path).expect("couldn't list directory contents") {
         let item = item.expect("couldn't get item info");
         disintegrate(item.path(), mounts);
     }

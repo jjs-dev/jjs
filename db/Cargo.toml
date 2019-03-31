@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 postgres = "0.15.2"
-diesel = { version = "1.4.1", features = ["postgres"] }
+diesel = { version = "1.4.2", features = ["postgres"] }
 diesel_derives = "1.4.0"
 diesel-derive-enum = { version = "0.4.4", features = ["postgres"] }
 serde = "1.0.89"

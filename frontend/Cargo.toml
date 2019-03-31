@@ -20,7 +20,7 @@ failure = "0.1.5"
 failure_derive = "0.1.5"
 rand = "0.6.5"
 db = {path = "../db"}
-diesel = { version = "1.4.1", features = ["postgres", "extras"] }
+diesel = { version = "1.4.2", features = ["postgres", "extras"] }
 rocket = "0.4.0"
 r2d2 = "0.8.3"
 dotenv = "0.13.0"
@@ -31,7 +31,7 @@ digest = "0.8.0"
 branca = "0.8.0"
 base64 = "0.10.1"
 structopt = "0.2.15"
-reqwest = "0.9.11"
+reqwest = "0.9.12"
 
 
 [dependencies.rocket_contrib]

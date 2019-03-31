@@ -7,5 +7,5 @@ edition = "2018"
 [dependencies]
 serde = "1.0.89"
 serde_derive = "1.0.89"
-ordered-float = "1.0.1"
+ordered-float = "1.0.2"
 try_from = "0.3.2"

@@ -1,6 +1,6 @@
 use frontend_api::*;
-use structopt::StructOpt;
 use serde_json;
+use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
@@ -19,7 +19,7 @@ fn resolve_toolchain(name: &str) -> u32 {
         if tc.name == name {
             return tc.id;
         }
-    };
+    }
     panic!("Couldn't find toolchain {}", name);
 }
 
@@ -33,7 +33,8 @@ fn main() {
         toolchain: tc_id,
         code: data,
     };
-    let resp: Result<SubmissionId, SubmitError> = reqwest::Client::new().post("http://localhost:1779/submissions/send")
+    let resp: Result<SubmissionId, SubmitError> = reqwest::Client::new()
+        .post("http://localhost:1779/submissions/send")
         .header("X-Jjs-Auth", token)
         .body(serde_json::to_string(&query).unwrap())
         .send()

@@ -49,8 +49,13 @@ $CrtObjectDir = "/usr/lib/$GccTarget/"
 CopyFile "$CrtObjectDir/Scrt1.o"
 CopyFile "$CrtObjectDir/crti.o"
 CopyFile "$CrtObjectDir/crtn.o"
+CopyFile "$CrtObjectDir/crt1.o"
+CopyFile "/usr/lib/gcc/$GccTarget/$GccVersion/crtbeginT.o"
+CopyFile "/usr/lib/gcc/$GccTarget/$GccVersion/libgcc_eh.a"
 CopyTool crtbeginS.o
 CopyTool crtendS.o
+CopyTool crtend.o
+CopyTool crtbegin.o
 #cargo run -- "--root=$Sysroot" "--deb=g++-8" "--deb=gcc-8"
 
 #In order to determine headers path and copy them, we compile sample program
@@ -73,7 +78,7 @@ Write-Host "$DIL header files copied"
 # Copy libraries
 $LibDir = "/usr/lib/$GccTarget"
 $GccLibDir = "/usr/lib/gcc/$GccTarget/$GccVersion"
-$Libs = @("$LibDir/libm.a" , "$LibDir/libc.a", "$GccLibDir/libgcc.a", "$GccLibDir/libgcc_s.so", "$GccLibDir/libgcc_s.so.1", `
+$Libs = @("$LibDir/libm.a" , "$LibDir/libc.a", "$GccLibDir/libgcc.a", "/lib/$GccTarget/libgcc_s.so.1", `
     "$GccLibDir/libstdc++.a", "/usr/lib/x86_64-linux-gnu/libm-2.28.a", `
     "/usr/lib/x86_64-linux-gnu/libmvec.a")
 foreach ($Lib in $Libs) {

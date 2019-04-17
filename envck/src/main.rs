@@ -5,7 +5,7 @@ fn main() {
     {
         let uid = unsafe { libc::getuid() };
         if uid != 0 {
-            eprintln!("ERROR: must be run as root");
+            eprintln!("ERROR: must be run as root, but uid is {}", uid);
             exit(1);
         }
     }
@@ -34,4 +34,5 @@ fn main() {
             }
         }
     }
+    println!("OK");
 }

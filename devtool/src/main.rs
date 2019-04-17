@@ -2,6 +2,12 @@ use std::{env, fs, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
+struct TouchArgs {
+    #[structopt(short ="v", long = "verbose")]
+    verbose: bool,
+}
+
+#[derive(StructOpt)]
 enum CliArgs {
     /// Create binary archive with all public components
     Pkg,
@@ -11,6 +17,8 @@ enum CliArgs {
     Man,
     /// Helper command to setup VM with jjs
     Vm,
+    /// Touch all crates in workspace, so cargo-check or clippy will lint them
+    Touch(TouchArgs),
 }
 
 fn get_primary_style() -> console::Style {
@@ -300,6 +308,30 @@ fn task_vm() {
     });
 }
 
+fn task_touch(arg: TouchArgs) {
+    let workspace_root = get_project_dir();
+    let items = fs::read_dir(workspace_root).expect("couldn't list dir");
+    //let mut roots = Vec::new();
+    for item in items {
+        let info = item.expect("couldn't describe item");
+        let item_type = info.file_type().expect("couldn't get item type");
+        if !item_type.is_file() {
+            continue;
+        }
+        let path = info.file_name().to_str().expect("couldn't decode item path").to_owned();
+        // TODO: touch bin/*
+        for root in &["src/main.rs", "src/lib.rs"] {
+            let p = format!("{}/{}", &path, root);
+            if let Ok(_) = std::fs::metadata(&p) {
+                if arg.verbose {
+                    println!("touching {}", &p);
+                }
+            }
+        }
+
+    }
+}
+
 fn main() {
     let args = CliArgs::from_args();
     match args {
@@ -307,5 +339,6 @@ fn main() {
         CliArgs::Publish => task_publish(),
         CliArgs::Man => task_man(),
         CliArgs::Vm => task_vm(),
+        CliArgs::Touch(arg) => task_touch(arg),
     }
 }

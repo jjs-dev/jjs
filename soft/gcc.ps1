@@ -4,30 +4,34 @@ param([String]$GccVersion = 8,
 
 Set-StrictMode -Version Latest
 
-function GetTool {
+function Get-Tool {
     param([String]$ToolName)
     "/usr/lib/gcc/$GccTarget/$GccVersion/$ToolName"
 }
-$Path_cc1plus = GetTool "cc1plus"
+$Path_cc1plus = Get-Tool "cc1plus"
 if (!(Test-Path $Path_cc1plus)) {
     Write-Error "Error: couldn't find cc1plus. Is's probably means params were incorrect"
     exit 1
 }
 
-function CopyTool {
-    param([String]$ToolName)
-    $SrcPath = GetTool $ToolName
+function Copy-Tool {
+    param([String]$ToolName, [Switch]$WithDependencies)
+    $SrcPath = Get-Tool $ToolName
     Set-Location $PSScriptRoot
-    cargo run -- "--with=$SrcPath" "--root=$Sysroot"
+    if ($WithDependencies) {
+        cargo run -- "--bin=$SrcPath" "--root=$Sysroot"
+    } else {
+        Copy-Item -Path $SrcPath -Destination "$Sysroot/$ToolName"
+    }
 }
 
-function CopyFile {
+function Copy-File {
     param([String]$Path)
     $DestPath = "$Sysroot$Path"
     Copy-Item -Path $Path -Destination $DestPath
 }
 
-function CopyHeader {
+function Copy-Header {
     param([String]$HeaderName)
     $Dest = "$Sysroot/$HeaderName"
     New-Item -ItemType File -Path $Dest -Force | Out-Null
@@ -41,21 +45,21 @@ Set-Location $PSScriptRoot
 
 New-Item -Path "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion" -ItemType Directory  | Out-Null
 
-CopyTool "cc1"
-CopyTool "cc1plus"
-CopyTool "liblto_plugin.so"
-cargo run -- "--with=gcc" "--with=g++" "--with=as" "--with=ld" "--root=$Sysroot"
+Copy-Tool "cc1" -WithDependencies
+Copy-Tool "cc1plus" -WithDependencies
+Copy-Tool "liblto_plugin.so" -WithDependencies
+cargo run -- "--bin=gcc" "--bin=g++" "--bin=as" "--bin=ld" "--root=$Sysroot"
 $CrtObjectDir = "/usr/lib/$GccTarget/"
-CopyFile "$CrtObjectDir/Scrt1.o"
-CopyFile "$CrtObjectDir/crti.o"
-CopyFile "$CrtObjectDir/crtn.o"
-CopyFile "$CrtObjectDir/crt1.o"
-CopyFile "/usr/lib/gcc/$GccTarget/$GccVersion/crtbeginT.o"
-CopyFile "/usr/lib/gcc/$GccTarget/$GccVersion/libgcc_eh.a"
-CopyTool crtbeginS.o
-CopyTool crtendS.o
-CopyTool crtend.o
-CopyTool crtbegin.o
+Copy-File "$CrtObjectDir/Scrt1.o"
+Copy-File "$CrtObjectDir/crti.o"
+Copy-File "$CrtObjectDir/crtn.o"
+Copy-File "$CrtObjectDir/crt1.o"
+Copy-File "/usr/lib/gcc/$GccTarget/$GccVersion/crtbeginT.o"
+Copy-File "/usr/lib/gcc/$GccTarget/$GccVersion/libgcc_eh.a"
+Copy-Tool crtbeginS.o
+Copy-Tool crtendS.o
+Copy-Tool crtend.o
+Copy-Tool crtbegin.o
 #cargo run -- "--root=$Sysroot" "--deb=g++-8" "--deb=gcc-8"
 
 #In order to determine headers path and copy them, we compile sample program
@@ -71,7 +75,7 @@ $DepInfo = $Program |  g++ -x c++ - -M
 
 $DepInfo = "$DepInfo".Substring(2)
 $DepInfo = "$DepInfo".Replace('\', ' ') -split ' ' | Where-Object {$_.Trim() -ne ""}
-$DepInfo | ForEach-Object { CopyHeader $_.Trim() }
+$DepInfo | ForEach-Object { Copy-Header $_.Trim() }
 $DIL = $DepInfo.Length
 Write-Host "$DIL header files copied"
 
@@ -83,5 +87,5 @@ $Libs = @("$LibDir/libm.a" , "$LibDir/libc.a", "$GccLibDir/libgcc.a", "/lib/$Gcc
     "/usr/lib/x86_64-linux-gnu/libmvec.a")
 foreach ($Lib in $Libs) {
     Write-Host "Copying $Lib"
-    CopyFile $Lib
+    Copy-File $Lib
 }

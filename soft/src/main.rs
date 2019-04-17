@@ -11,8 +11,8 @@ struct Options {
     #[structopt(default_value = "/", long = "root", short = "r")]
     root: String,
     /// What toolchains to search
-    #[structopt(long = "with")]
-    with: Vec<String>,
+    #[structopt(long = "bin")]
+    binaries: Vec<String>,
     /// What debs to install
     #[structopt(long = "deb")]
     deb: Vec<String>,
@@ -220,7 +220,7 @@ fn add_debian_packages(pkg: &[&str], dir: &str) {
 fn main() {
     let opt: Options = Options::from_args();
     let arg = FindArgs { target: &opt.root };
-    for bin in opt.with {
+    for bin in opt.binaries {
         find_binary(arg, bin.as_str());
     }
     if !opt.deb.is_empty() {

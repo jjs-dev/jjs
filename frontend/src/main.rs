@@ -159,6 +159,14 @@ fn route_toolchains_list(
 
     Ok(Json(res))
 }
+
+#[get("/")]
+fn route_api_info() -> String {
+    serde_json::to_string(&serde_json::json!({
+        "version": "0",
+    })).unwrap()
+}
+
 fn derive_branca_key(secret: &str) -> Vec<u8> {
     use digest::Digest;
     use rand::{Rng, SeedableRng};

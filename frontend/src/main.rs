@@ -164,7 +164,8 @@ fn route_toolchains_list(
 fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn derive_branca_key(secret: &str) -> Vec<u8> {
@@ -204,7 +205,10 @@ fn main() {
         .manage(config.clone())
         .attach(AdHoc::on_attach("DeriveBrancaSecretKey",|rocket| {
             let secret_key = rocket.config().get_string("jjs_secret_key").unwrap_or_else(|_|{
-                eprintln!("Warning: couldn't obtain jjs_secret_key from configuration, providing hardcoded");
+                let is_dev = rocket.config().environment.is_dev();
+                if !is_dev {
+                    eprintln!("Warning: couldn't obtain jjs_secret_key from configuration, providing hardcoded");
+                }
                 "HARDCODED_DEV_ONLY_KEY".to_string() //TODO: panic in production
             });
             let branca_key = derive_branca_key(&secret_key);
@@ -219,6 +223,7 @@ fn main() {
                 route_submissions_send,
                 route_submissions_list,
                 route_toolchains_list,
+                route_api_info,
             ],
         )
         .launch();

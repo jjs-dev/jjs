@@ -1,14 +1,15 @@
 phony:
     @just -l
 
-db_reset:
+db:
+    #! /bin/bash
+    echo "recreating db"
     dropdb jjs
     createdb jjs
-
-db_refresh: db_reset
-    #! /bin/bash
+    echo "running migrations"
     cd db
     diesel migration run
+    echo "re-running migrations"
     diesel migration redo
 
 sysroot:
@@ -27,5 +28,3 @@ package:
 
 lint:
     bash ./scripts/ci.sh
-
-devenv: install_tools sysroot db_refresh

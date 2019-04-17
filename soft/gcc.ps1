@@ -18,11 +18,12 @@ function Copy-Tool {
     param([String]$ToolName, [Switch]$WithDependencies)
     $SrcPath = Get-Tool $ToolName
     Set-Location $PSScriptRoot
+    $WithDepsFlag = ""
     if ($WithDependencies) {
-        cargo run -- "--bin=$SrcPath" "--root=$Sysroot"
-    } else {
-        Copy-Item -Path $SrcPath -Destination "$Sysroot/$ToolName"
+        $WithDepsFlag = "--with-dependencies"
     }
+
+    cargo run -- "--bin=$SrcPath" "--root=$Sysroot" "$WithDepsFlag"
 }
 
 function Copy-File {
@@ -48,7 +49,7 @@ New-Item -Path "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion" -ItemType Directory
 Copy-Tool "cc1" -WithDependencies
 Copy-Tool "cc1plus" -WithDependencies
 Copy-Tool "liblto_plugin.so" -WithDependencies
-cargo run -- "--bin=gcc" "--bin=g++" "--bin=as" "--bin=ld" "--root=$Sysroot"
+cargo run -- "--bin=gcc" "--bin=g++" "--bin=as" "--bin=ld" "--root=$Sysroot" "--with-dependencies"
 $CrtObjectDir = "/usr/lib/$GccTarget/"
 Copy-File "$CrtObjectDir/Scrt1.o"
 Copy-File "$CrtObjectDir/crti.o"

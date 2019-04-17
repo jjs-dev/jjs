@@ -3,7 +3,7 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct TouchArgs {
-    #[structopt(short ="v", long = "verbose")]
+    #[structopt(short = "v", long = "verbose")]
     verbose: bool,
 }
 
@@ -112,37 +112,18 @@ fn task_package() {
     build_package("minion-cli", &["dist"]);
     build_package("cleanup", &[]);
     build_package("init-jjs-root", &[]);
-    build_package("frontend", &[]);
     build_package("invoker", &[]);
+    build_package("frontend", &[]);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
         .current_dir(get_project_dir())
-        .args(&[
-            "build",
-            "--package",
-            "minion-ffi",
-            "--release",
-            "--target",
-            "x86_64-unknown-linux-gnu",
-        ])
+        .args(&["build", "--package", "minion-ffi", "--release"])
         .status()
         .unwrap()
         .success();
     assert_eq!(st, true);
-    let st = Command::new(resolve_tool_path("cargo"))
-        .args(&[
-            "build",
-            "--package",
-            "minion-ffi",
-            "--release",
-            "--target",
-            "x86_64-unknown-linux-gnu",
-        ])
-        .status()
-        .unwrap()
-        .success();
-    assert_eq!(st, true);
+
     print_section("Generating migration script");
     {
         let mut migration_script: Vec<_> =
@@ -315,20 +296,25 @@ fn task_touch(arg: TouchArgs) {
     for item in items {
         let info = item.expect("couldn't describe item");
         let item_type = info.file_type().expect("couldn't get item type");
-        if !item_type.is_file() {
+        if !item_type.is_dir() {
             continue;
         }
-        let path = info.file_name().to_str().expect("couldn't decode item path").to_owned();
+        let path = info
+            .file_name()
+            .to_str()
+            .expect("couldn't decode item path")
+            .to_owned();
         // TODO: touch bin/*
         for root in &["src/main.rs", "src/lib.rs"] {
             let p = format!("{}/{}", &path, root);
-            if let Ok(_) = std::fs::metadata(&p) {
+            if std::fs::metadata(&p).is_ok() {
                 if arg.verbose {
                     println!("touching {}", &p);
                 }
+                let time = filetime::FileTime::from_system_time(std::time::SystemTime::now());
+                filetime::set_file_times(&p, time, time).expect("couldn't touch");
             }
         }
-
     }
 }
 

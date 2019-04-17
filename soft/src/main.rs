@@ -8,11 +8,14 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 struct Options {
     /// Where to put files
-    #[structopt(default_value = "/", long = "root", short = "r")]
+    #[structopt(default_value = "/", long = "root")]
     root: String,
     /// What toolchains to search
     #[structopt(long = "bin")]
     binaries: Vec<String>,
+    /// for --bin: resolve dependencies
+    #[structopt(long = "with-dependencies")]
+    with_dependencies: bool,
     /// What debs to install
     #[structopt(long = "deb")]
     deb: Vec<String>,
@@ -22,6 +25,7 @@ struct Options {
 struct FindArgs<'a> {
     //TODO: root: &'a str,
     target: &'a str,
+    with_deps: bool,
 }
 
 fn deduce_interpreter(path: &str) -> Option<String> {
@@ -64,26 +68,29 @@ fn find_binary(args: FindArgs, bin_name: &str) {
         .output()
         .unwrap_or_else(|e| panic!("couldn't get dependencies of '{}': {}", full_path, e));
     let mut has_deps = true;
-    let ldd_output = String::from_utf8(ldd.stdout).expect("couldn't parse utf8");
 
-    if ldd_output.contains("not a dynamic executable") {
-        has_deps = false;
-    }
     let base_files = [full_path.clone()];
     let mut files: Vec<String> = base_files.to_vec();
-    if has_deps {
-        assert!(ldd.status.success());
-        let deps = ldd_output
-            .split('\n')
-            .filter_map(|line| line.split("=>").nth(1))
-            .filter_map(|x| x.split_whitespace().nth(0))
-            .map(std::string::ToString::to_string);
-        let interp = deduce_interpreter(full_path.as_str());
-        if let Some(interp) = interp {
-            files.push(interp);
+    if args.with_deps {
+        let ldd_output = String::from_utf8(ldd.stdout).expect("couldn't parse utf8");
+
+        if ldd_output.contains("not a dynamic executable") {
+            has_deps = false;
         }
-        for x in deps {
-            files.push(x);
+        if has_deps {
+            assert!(ldd.status.success());
+            let deps = ldd_output
+                .split('\n')
+                .filter_map(|line| line.split("=>").nth(1))
+                .filter_map(|x| x.split_whitespace().nth(0))
+                .map(std::string::ToString::to_string);
+            let interp = deduce_interpreter(full_path.as_str());
+            if let Some(interp) = interp {
+                files.push(interp);
+            }
+            for x in deps {
+                files.push(x);
+            }
         }
     }
     let mut options = fs_extra::dir::CopyOptions::new();
@@ -219,7 +226,10 @@ fn add_debian_packages(pkg: &[&str], dir: &str) {
 
 fn main() {
     let opt: Options = Options::from_args();
-    let arg = FindArgs { target: &opt.root };
+    let arg = FindArgs {
+        target: &opt.root,
+        with_deps: opt.with_dependencies,
+    };
     for bin in opt.binaries {
         find_binary(arg, bin.as_str());
     }

@@ -1,6 +1,6 @@
 name="cpp"
 filename="source.cpp"
 [[build]]
-argv=["/usr/bin/g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
+argv=["/usr/bin/g++", "$(System.SourceFilePath)", "-o", "$(System.BinaryFilePath)", "-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-static", "-DONLINE_JUDGE"]
 [run]
 argv=["$(System.BinaryFilePath)"]

@@ -15,6 +15,7 @@ pub enum ErrorCode {
 
 pub struct Backend(Box<dyn execute::Backend>);
 
+/// Must be called before any library usage
 #[no_mangle]
 pub unsafe extern "C" fn minion_lib_init() {
     std::panic::set_hook(Box::new(|info| {
@@ -245,7 +246,6 @@ pub unsafe extern "C" fn minion_cp_spawn(
     backend: *mut Backend,
     options: *mut ChildProcessOptionsWrapper,
 ) -> *mut ChildProcessWrapper {
-    use std::clone::Clone;
     let cp = (*backend).0.spawn((*options).0.clone()).unwrap();
     let cp = ChildProcessWrapper(cp);
     let cp = Box::new(cp);

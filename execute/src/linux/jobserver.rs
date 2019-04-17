@@ -649,7 +649,6 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
 //internal function, kills processes which used all their CPU time limit
 //timings are given in nanoseconds
 unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit: u64) -> ! {
-    use std::time;
     let start = time::Instant::now();
     loop {
         libc::sleep(1);

@@ -12,3 +12,4 @@ cmake-build-*
 /dev_tool/cfg
 /sysroot
 /man/book
+/db/src/schema_raw.rs

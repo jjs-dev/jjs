@@ -314,7 +314,7 @@ fn task_touch(arg: TouchArgs) {
             .expect("couldn't decode item path")
             .to_owned();
         // TODO: touch bin/*
-        for root in &["src/main.rs", "src/lib.rs"] {
+        for root in &["src/main.rs", "src/lib.rs", "build.rs"] {
             let p = format!("{}/{}", &path, root);
             if std::fs::metadata(&p).is_ok() {
                 if arg.verbose {

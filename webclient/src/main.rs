@@ -109,17 +109,14 @@ fn route_authentificate(
     env_state: State<AppEnvState>,
 ) -> Result<Redirect, HttpError> {
     let form_data = form.into_inner();
-    let auth_query = frontend_api::SimpleAuthParams {
+    let auth_query = frontend_api::AuthSimpleParams {
         login: form_data.login.clone(),
         password: form_data.password,
     };
 
-    let client = reqwest::Client::new();
-    let auth_resp: frontend_api::AuthToken = client
-        .post("http://localhost:1779/auth/simple")
-        .body(serde_json::to_string(&auth_query).unwrap())
-        .send()?
-        .json()?;
+    let client = frontend_api::Client::new("http://localhost:1779".to_string(), "".to_string());
+
+    let auth_resp = client.auth_simple(&auth_query)?.unwrap();
 
     ses.clear();
     ses.data.auth = Some(session::Auth {
@@ -201,7 +198,7 @@ fn route_post_submit(cont_type: &ContentType, data: Data) -> Result<Redirect, Ht
     file.read_to_end(&mut contents)?;
     let contents = base64::encode(&contents);
 
-    let frontend_query = frontend_api::SubmitDeclaration {
+    let frontend_query = frontend_api::SubmissionSendParams {
         toolchain: 0, //TODO
         code: contents,
     };

@@ -1,3 +1,5 @@
+#![allow(unused_attributes)] //FIXME: workaround for https://github.com/rust-lang/rust/issues/60050
+
 use execute;
 use std::{
     collections::HashMap,

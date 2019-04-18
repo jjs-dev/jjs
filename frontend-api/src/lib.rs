@@ -1,87 +1,31 @@
-#[macro_use]
-extern crate serde_derive;
+#![allow(clippy::trivially_copy_pass_by_ref)]
 
-/// Represents errors, which can happen in (almost) each method.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum CommonError {
-    AccessDenied,
-    InternalError,
-    AuthTokenFault,
+pub struct Client {
+    endpoint: String,
+    token: String,
+}
+use serde::{de::DeserializeOwned, Serialize};
+
+impl Client {
+    pub fn new(endpoint: String, token: String) -> Client {
+        Client { endpoint, token }
+    }
+
+    fn exec_query<In: Serialize, Out: DeserializeOwned>(
+        &self,
+        method: &str,
+        params: &In,
+    ) -> Result<Out, reqwest::Error> {
+        let url = format!("{}/{}", self.endpoint, method);
+        let params = serde_json::to_string(params).unwrap();
+        let rw = reqwest::Client::new();
+        let mut res = rw
+            .post(&url)
+            .header("X-JJS-Auth", self.token.as_str())
+            .body(params)
+            .send()?;
+        res.json()
+    }
 }
 
-// some typedefs
-pub type ToolchainId = u32;
-pub type SubmissionId = u32;
-
-// auth
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AuthToken {
-    pub buf: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SimpleAuthParams {
-    pub login: String,
-    pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum SimpleAuthError {
-    UnknownLogin,
-    IncorrectPassword,
-    NotSuitable,
-    Common(CommonError),
-}
-
-// submissions
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SubmitDeclaration {
-    pub toolchain: ToolchainId,
-    /// Must be correct base64-encoded string
-    pub code: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum SubmitError {
-    UnknownToolchain,
-    ContestIsOver,
-    SizeLimitExceeded,
-    Base64,
-    Common(CommonError),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SubmissionInformation {
-    pub id: SubmissionId,
-    pub toolchain_name: String,
-    pub status: String,
-    pub score: Option<u32>,
-}
-
-// toolchains
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ToolchainInformation {
-    pub name: String,
-    pub id: u32,
-}
-
-/// This traits serve for documentation-only purposes
-///
-/// Argument passing:
-/// POST, PUT, etc: argument is JSON-encoded and sent as a body (not form!)
-/// GET, DELETE, etc: argument is JSON-encoded as send as query string parameter arg
-pub trait Frontend {
-    /// POST /auth/anonymous
-    fn auth_anonymous() -> Result<AuthToken, CommonError>;
-    /// POST /auth/simple
-    fn auth_simple(auth_params: SimpleAuthParams) -> Result<AuthToken, SimpleAuthError>;
-
-    /// POST /submissions/send
-    fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
-
-    /// GET /submissions/list?<limit>
-    fn submissions_list(limit: u32) -> Result<Vec<SubmissionInformation>, CommonError>;
-
-    /// GET /toolchains/list
-    fn toolchains_list() -> Result<Vec<ToolchainInformation>, CommonError>;
-}
+include!(concat!(env!("OUT_DIR"), "/client_gen.rs"));

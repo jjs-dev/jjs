@@ -58,9 +58,9 @@ fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_a
 
 #[post("/auth/simple", data = "<data>")]
 fn route_auth_simple(
-    data: Json<frontend_api::SimpleAuthParams>,
+    data: Json<frontend_api::AuthSimpleParams>,
     secret_key: State<SecretKey>,
-) -> Response<Result<frontend_api::AuthToken, frontend_api::SimpleAuthError>> {
+) -> Response<Result<frontend_api::AuthToken, frontend_api::AuthSimpleError>> {
     let succ = data.login == data.password;
     let res = if succ {
         let tok = Token::create_for_user(data.login.clone());
@@ -68,7 +68,7 @@ fn route_auth_simple(
             buf: tok.serialize(&secret_key.0),
         })
     } else {
-        Err(frontend_api::SimpleAuthError::IncorrectPassword)
+        Err(frontend_api::AuthSimpleError::IncorrectPassword)
     };
 
     Ok(Json(res))
@@ -76,7 +76,7 @@ fn route_auth_simple(
 
 #[post("/submissions/send", data = "<data>")]
 fn route_submissions_send(
-    data: Json<frontend_api::SubmitDeclaration>,
+    data: Json<frontend_api::SubmissionSendParams>,
     db: State<DbPool>,
     cfg: State<Config>,
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {

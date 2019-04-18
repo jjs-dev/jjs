@@ -1,5 +1,4 @@
 use frontend_api::*;
-use serde_json;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -29,18 +28,12 @@ fn main() {
     let data = std::fs::read(&opt.filename).expect("Couldn't read file");
     let data = base64::encode(&data);
     let tc_id = resolve_toolchain(&opt.toolchain);
-    let query = SubmitDeclaration {
+    let query = SubmissionSendParams {
         toolchain: tc_id,
         code: data,
     };
-    let resp: Result<SubmissionId, SubmitError> = reqwest::Client::new()
-        .post("http://localhost:1779/submissions/send")
-        .header("X-Jjs-Auth", token)
-        .body(serde_json::to_string(&query).unwrap())
-        .send()
-        .expect("network error")
-        .json()
-        .expect("parse error");
+    let client = Client::new("http://localhost:1779".to_string(), token);
+    let resp = client.submissions_send(&query).expect("network error");
     let resp = resp.expect("submit failed");
     println!("submitted successfully, id={}", resp);
 }

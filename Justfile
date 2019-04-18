@@ -24,7 +24,7 @@ install_tools:
     cargo install diesel_cli mdbook || true
 
 package:
-    cargo run --bin devtool -- Pkg
+    cargo run --bin devtool -- pkg
 
 lint:
-    bash ./scripts/ci.sh
+    bash ./scripts/lint.sh

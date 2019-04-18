@@ -10,14 +10,19 @@ struct TouchArgs {
 #[derive(StructOpt)]
 enum CliArgs {
     /// Create binary archive with all public components
+    #[structopt(name = "pkg")]
     Pkg,
     /// Publish archive to Yandex.Drive (don't forget to run Pkg first)
+    #[structopt(name = "publish")]
     Publish,
     /// Build man and publish to Github Pages
+    #[structopt(name = "man")]
     Man,
     /// Helper command to setup VM with jjs
+    #[structopt(name = "vm")]
     Vm,
     /// Touch all crates in workspace, so cargo-check or clippy will lint them
+    #[structopt(name = "touch")]
     Touch(TouchArgs),
 }
 
@@ -114,6 +119,8 @@ fn task_package() {
     build_package("init-jjs-root", &[]);
     build_package("invoker", &[]);
     build_package("frontend", &[]);
+    build_package("envck", &[]);
+    build_package("userlist", &[]);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
@@ -157,6 +164,8 @@ fn task_package() {
     add_binary_artifact("minion-cli", "jjs-minion-cli");
     add_binary_artifact("frontend", "jjs-frontend");
     add_binary_artifact("invoker", "jjs-invoker");
+    add_binary_artifact("envck", "jjs-env-check");
+    add_binary_artifact("userlist", "jjs-userlist");
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),

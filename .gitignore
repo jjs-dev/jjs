@@ -1,15 +1,9 @@
 /target
 **/*.rs.bk
 Cargo.lock
-/docker-build-cache
-/venv
 /.idea
-/frontend_api/src/proto.rs
 .env
 /pkg
-/run
 cmake-build-*
-/dev_tool/cfg
-/sysroot
 /man/book
 /db/src/schema_raw.rs

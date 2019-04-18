@@ -7,8 +7,8 @@
 ```bash
 cd jjs_root
 cd devtool
-cargo run -- Pkg
-cargo run -- Vm
+cargo run -- pkg
+cargo run -- pm
 ```
 ## Install jjs
 IP = ip-address of host

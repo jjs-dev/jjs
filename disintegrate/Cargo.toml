@@ -1,8 +1,0 @@
-[package]
-name = "disintegrate"
-version = "0.1.0"
-authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
-edition = "2018"
-
-[dependencies]
-libc = "0.2.51"

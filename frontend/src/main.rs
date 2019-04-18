@@ -123,9 +123,9 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
     }
 }
 
-#[get("/submissions/list?<limit>")]
+#[post("/submissions/list", data = "<limit>")]
 fn route_submissions_list(
-    limit: u32,
+    limit: Json<u32>,
     db: State<DbPool>,
     _token: Token,
 ) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
@@ -142,7 +142,7 @@ fn route_submissions_list(
     Ok(Json(res))
 }
 
-#[get("/toolchains/list")]
+#[post("/toolchains/list")]
 fn route_toolchains_list(
     cfg: State<Config>,
 ) -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {

@@ -1,0 +1,9 @@
+[package]
+name = "userlist"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.15"
+snafu = "0.2.1"

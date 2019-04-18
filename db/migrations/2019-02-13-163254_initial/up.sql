@@ -15,3 +15,12 @@ CREATE TABLE submissions
 
 CREATE UNIQUE INDEX submissions_id_unique_index ON submissions (id);
 CREATE INDEX submissions_state_index ON submissions (state); -- optimizes invoker queries
+
+CREATE SEQUENCE user_id_seq as INTEGER START WITH 0 MINVALUE 0;
+
+CREATE TABLE users
+(
+    id unsigned_integer DEFAULT nextval('user_id_seq') PRIMARY KEY NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(128) NOT NULL -- SHA3-512, in hex encoding
+);

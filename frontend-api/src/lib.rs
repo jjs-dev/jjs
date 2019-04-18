@@ -65,11 +65,17 @@ pub struct ToolchainInformation {
     pub id: u32,
 }
 
-/// This traits serve for documentation-only purposes
+// users
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserCreationParams {
+    pub username: String,
+    pub password: String,
+}
+
+/// This trait serves for documentation-only purposes
 ///
-/// Argument passing:
-/// POST, PUT, etc: argument is JSON-encoded and sent as a body (not form!)
-/// GET, DELETE, etc: argument is JSON-encoded as send as query string parameter arg
+/// # Argument passing
+/// Argument must be JSON-encoded and sent as a body (not form!)
 pub trait Frontend {
     /// POST /auth/anonymous
     fn auth_anonymous() -> Result<AuthToken, CommonError>;
@@ -79,9 +85,15 @@ pub trait Frontend {
     /// POST /submissions/send
     fn submissions_send(sd: SubmitDeclaration) -> Result<SubmissionId, SubmitError>;
 
-    /// GET /submissions/list?<limit>
+    /// POST /submissions/list?<limit>
     fn submissions_list(limit: u32) -> Result<Vec<SubmissionInformation>, CommonError>;
 
-    /// GET /toolchains/list
+    /// POST /toolchains/list
     fn toolchains_list() -> Result<Vec<ToolchainInformation>, CommonError>;
+
+    /// POST /util/ping
+    fn util_ping() -> Result<(), CommonError>;
+
+    /// POST /users/create
+    fn users_create(user_data: UserCreationParams) -> Result<(), CommonError>;
 }

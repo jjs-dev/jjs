@@ -11,6 +11,12 @@ mod args {
         /// Auth token. If not set, will be read from JJS_AUTH environment variable
         #[structopt(long = "auth", short = "a")]
         pub token: Option<String>,
+        /// JJS frontend host or IP
+        #[structopt(long = "host", short = "h", default_value = "http://localhost")]
+        pub host: String,
+        /// JJS frontend port
+        #[structopt(long = "port", short = "p", default_value = "1779")]
+        pub port: u16,
     }
 
     #[derive(StructOpt)]
@@ -32,6 +38,10 @@ enum Error {
     #[snafu(display("userlist is malformed: {}", &description))]
     Format {
         description: String,
+    },
+    #[snafu(display("frontend returned error: {:?}", &inner))]
+    Frontend {
+        inner: Box<dyn std::fmt::Debug>,
     },
 }
 
@@ -85,14 +95,22 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         }),
     };
 
+    let endpoint = format!("{}:{}", &arg.host, &arg.port);
+
+    let client = frontend_api::Client::new(endpoint, token);
+    for (login, password) in data {
+        let req = frontend_api::UsersCreateParams { login, password };
+        client
+            .users_create(&req)
+            .expect("network error").context(|e| Frontend {inner: Box::new(e)})?;
+    }
+
     Ok(())
 }
 
 fn main() {
     let arg: args::Args = args::Args::from_args();
-    let arg: args::Add = match arg {
-        args::Args::Add(x) => x,
-    };
+    let args::Args::Add(arg) = arg;
     let res = add_users(arg);
     match res {
         Ok(_) => (),

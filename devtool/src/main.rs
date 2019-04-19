@@ -117,10 +117,10 @@ fn task_package() {
     build_package("minion-cli", &["dist"]);
     build_package("cleanup", &[]);
     build_package("init-jjs-root", &[]);
-    build_package("invoker", &[]);
-    build_package("frontend", &[]);
     build_package("envck", &[]);
     build_package("userlist", &[]);
+    build_package("invoker", &[]);
+    build_package("frontend", &[]);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))

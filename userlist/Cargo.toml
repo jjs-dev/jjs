@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 structopt = "0.2.15"
 snafu = "0.2.1"
+frontend-api = {path = "../frontend-api"}

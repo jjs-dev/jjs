@@ -66,7 +66,7 @@ pub struct SubmissionInformation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SubmissionListParams {
+pub struct SubmissionsListParams {
     pub limit: u32,
 }
 
@@ -77,7 +77,22 @@ pub struct ToolchainInformation {
     pub id: u32,
 }
 
-/// This traits serve for documentation-only purposes
+// users
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsersCreateParams {
+    pub login: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum UsersCreateError {
+    InvalidLogin,
+    PasswordRejected,
+    Common(CommonError),
+}
+
+
+/// This trait serves for documentation-only purposes
 ///
 /// Argument must be JSON-encoded and sent as a body (not form!)
 pub trait Frontend {
@@ -87,7 +102,9 @@ pub trait Frontend {
 
     fn submissions_send(sd: SubmissionSendParams) -> Result<SubmissionId, SubmitError>;
 
-    fn submissions_list(selection_params: SubmissionListParams) -> Result<Vec<SubmissionInformation>, CommonError>;
+    fn submissions_list(selection_params: SubmissionsListParams) -> Result<Vec<SubmissionInformation>, CommonError>;
 
     fn toolchains_list(nope: EmptyParams) -> Result<Vec<ToolchainInformation>, CommonError>;
+
+    fn users_create(params: UsersCreateParams) -> Result<(), UsersCreateError>;
 }

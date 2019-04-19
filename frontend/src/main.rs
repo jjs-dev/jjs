@@ -123,16 +123,16 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
     }
 }
 
-#[post("/submissions/list", data = "<limit>")]
+#[post("/submissions/list", data = "<params>")]
 fn route_submissions_list(
-    limit: Json<u32>,
+    params: Json<frontend_api::SubmissionsListParams>,
     db: State<DbPool>,
     _token: Token,
 ) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
     use db::schema::submissions::dsl::*;
     let conn = db.get().expect("Couldn't connect to DB");
     let user_submissions = submissions
-        .limit(i64::from(limit))
+        .limit(i64::from(params.limit))
         .load::<Submission>(&conn)?;
     let user_submissions = user_submissions
         .iter()

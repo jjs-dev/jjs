@@ -6,4 +6,3 @@ Cargo.lock
 /pkg
 cmake-build-*
 /man/book
-/db/src/schema_raw.rs

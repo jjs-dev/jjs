@@ -18,12 +18,14 @@ function Copy-Tool {
     param([String]$ToolName, [Switch]$WithDependencies)
     $SrcPath = Get-Tool $ToolName
     Set-Location $PSScriptRoot
-    $WithDepsFlag = ""
     if ($WithDependencies) {
-        $WithDepsFlag = "--with-dependencies"
+        cargo run -- "--bin=$SrcPath" "--root=$Sysroot" "--with-dependencies"
+    } else {
+        $DestPath = "$Sysroot$ToolName"
+        Copy-Item -Path $SrcPath -Destination $DestPath
     }
 
-    cargo run -- "--bin=$SrcPath" "--root=$Sysroot" "$WithDepsFlag"
+
 }
 
 function Copy-File {
@@ -48,7 +50,7 @@ New-Item -Path "$Sysroot/usr/lib/gcc/$GccTarget/$GccVersion" -ItemType Directory
 
 Copy-Tool "cc1" -WithDependencies
 Copy-Tool "cc1plus" -WithDependencies
-Copy-Tool "liblto_plugin.so" -WithDependencies
+Copy-Tool "liblto_plugin.so"
 cargo run -- "--bin=gcc" "--bin=g++" "--bin=as" "--bin=ld" "--root=$Sysroot" "--with-dependencies"
 $CrtObjectDir = "/usr/lib/$GccTarget/"
 Copy-File "$CrtObjectDir/Scrt1.o"
@@ -84,7 +86,7 @@ Write-Host "$DIL header files copied"
 $LibDir = "/usr/lib/$GccTarget"
 $GccLibDir = "/usr/lib/gcc/$GccTarget/$GccVersion"
 $Libs = @("$LibDir/libm.a" , "$LibDir/libc.a", "$GccLibDir/libgcc.a", "/lib/$GccTarget/libgcc_s.so.1", `
-    "$GccLibDir/libstdc++.a", "/usr/lib/x86_64-linux-gnu/libm-2.28.a", `
+    "$GccLibDir/libstdc++.a", "/usr/lib/x86_64-linux-gnu/libm-2.29.a", `
     "/usr/lib/x86_64-linux-gnu/libmvec.a")
 foreach ($Lib in $Libs) {
     Write-Host "Copying $Lib"

@@ -24,8 +24,6 @@ function Copy-Tool {
         $DestPath = "$Sysroot$ToolName"
         Copy-Item -Path $SrcPath -Destination $DestPath
     }
-
-
 }
 
 function Copy-File {

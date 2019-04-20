@@ -9,7 +9,7 @@ use std::{
     time,
 };
 
-#[repr(u8)]
+#[repr(i32)]
 pub enum ErrorCode {
     Ok,
     Unknown,

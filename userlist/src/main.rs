@@ -41,7 +41,7 @@ enum Error {
     },
     #[snafu(display("frontend returned error: {:?}", &inner))]
     Frontend {
-        inner: Box<dyn std::fmt::Debug>,
+        inner: Box<dyn frontend_api::FrontendError>,
     },
 }
 
@@ -100,9 +100,10 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
     let client = frontend_api::Client::new(endpoint, token);
     for (login, password) in data {
         let req = frontend_api::UsersCreateParams { login, password };
-        client
-            .users_create(&req)
-            .expect("network error").context(|e| Frontend {inner: Box::new(e)})?;
+        match client.users_create(&req).expect("network error") {
+            Ok(_) => {}
+            Err(e) => return Err(Error::Frontend { inner: Box::new(e) }),
+        }
     }
 
     Ok(())

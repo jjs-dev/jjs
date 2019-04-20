@@ -7,6 +7,8 @@ extern crate rocket;
 extern crate serde_derive;
 
 mod security;
+mod util;
+mod password;
 
 use cfg::Config;
 use db::schema::{NewSubmission, Submission, SubmissionState};
@@ -16,22 +18,20 @@ use rocket_contrib::json::Json;
 use security::{SecretKey, Token};
 use std::fmt::Debug;
 
-#[get("/ping")]
-fn route_ping() -> &'static str {
-    "\"pong\""
-}
-
 #[derive(Debug)]
 enum FrontendError {
     Internal(Option<Box<dyn Debug>>),
     Db(diesel::result::Error),
+    DbConn(r2d2::Error),
 }
 
 impl<'r> rocket::response::Responder<'r> for FrontendError {
     fn respond_to(self, _request: &rocket::Request) -> rocket::response::Result<'r> {
         eprintln!("FrontendError: {:?}", &self);
         let res = match self {
-            FrontendError::Internal(_) | FrontendError::Db(_) => Status::InternalServerError,
+            FrontendError::Internal(_) | FrontendError::Db(_) | FrontendError::DbConn(_) => {
+                Status::InternalServerError
+            }
         };
         Err(res)
     }
@@ -43,15 +43,34 @@ impl From<diesel::result::Error> for FrontendError {
     }
 }
 
+impl From<r2d2::Error> for FrontendError {
+    fn from(e: r2d2::Error) -> Self {
+        FrontendError::DbConn(e)
+    }
+}
+
 type Response<R> = Result<Json<R>, FrontendError>;
 
 type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>;
 
+#[catch(400)]
+fn catch_bad_request() -> &'static str {
+    r#"
+Your request is incorrect.
+Possible reasons:
+- Query body is missing or is not valid JSON
+- X-Jjs-Auth header is missing or is not valid access token
+    "#
+}
+
 #[post("/auth/anonymous")]
-fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
-    let res = Ok(frontend_api::AuthToken {
-        buf: "".to_string(),
-    });
+fn route_auth_anonymous(
+    secret_key: State<SecretKey>,
+) -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
+    let tok = Token::new_guest();
+
+    let buf = tok.serialize(&secret_key.0);
+    let res = Ok(frontend_api::AuthToken { buf });
 
     Ok(Json(res))
 }
@@ -60,10 +79,24 @@ fn route_auth_anonymous() -> Response<Result<frontend_api::AuthToken, frontend_a
 fn route_auth_simple(
     data: Json<frontend_api::AuthSimpleParams>,
     secret_key: State<SecretKey>,
+    db_pool: State<DbPool>,
 ) -> Response<Result<frontend_api::AuthToken, frontend_api::AuthSimpleError>> {
-    let succ = data.login == data.password;
+    let succ = {
+        use db::schema::users::dsl::*;
+
+        let conn = db_pool.get()?;
+        let user= users
+            .filter(username.eq(&data.0.login))
+            .load::<db::schema::User>(&conn)?;
+        if user.len() != 0 {
+            let us = &user[0];
+            password::check_password_hash(data.0.password.as_str(), us.password_hash.as_str())
+        } else {
+            false
+        }
+    };
     let res = if succ {
-        let tok = Token::create_for_user(data.login.clone());
+        let tok = Token::new_for_user(data.login.clone());
         Ok(frontend_api::AuthToken {
             buf: tok.serialize(&secret_key.0),
         })
@@ -160,6 +193,37 @@ fn route_toolchains_list(
     Ok(Json(res))
 }
 
+#[post("/users/create", data = "<params>")]
+fn route_users_create(
+    token: Token,
+    params: Json<frontend_api::UsersCreateParams>,
+    db: State<DbPool>,
+) -> Response<Result<(), frontend_api::UsersCreateError>> {
+    use db::schema::users::dsl::*;
+    if !token.is_root() {
+        let res = Err(frontend_api::UsersCreateError::Common(
+            frontend_api::CommonError::AccessDenied,
+        ));
+        return Ok(Json(res));
+    }
+
+    let provided_password_hash = password::get_password_hash(params.0.password.as_str());
+
+    let new_user = db::schema::NewUser {
+        username: params.0.login,
+        password_hash: provided_password_hash,
+    };
+
+    let conn = db.get()?;
+
+    let _user: db::schema::User = diesel::insert_into(users)
+        .values(&new_user)
+        .get_result(&conn)?;
+
+    let res = Ok(());
+    Ok(Json(res))
+}
+
 #[get("/")]
 fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
@@ -214,17 +278,26 @@ fn main() {
             let branca_key = derive_branca_key(&secret_key);
             Ok(rocket.manage(SecretKey(branca_key)))
         }))
+        .attach(AdHoc::on_attach("GetEnvironmentKind", |rocket| {
+            let env = if rocket.config().environment.is_dev() {
+                util::Env::Dev
+            }  else{
+                util::Env::Prod
+            };
+            Ok(rocket.manage(env))
+        }))
         .mount(
             "/",
             routes![
-                route_ping,
                 route_auth_anonymous,
                 route_auth_simple,
                 route_submissions_send,
                 route_submissions_list,
                 route_toolchains_list,
+                route_users_create,
                 route_api_info,
             ],
         )
+        .register(catchers![catch_bad_request])
         .launch();
 }

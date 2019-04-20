@@ -24,6 +24,26 @@ pub struct NewSubmission {
     pub status_kind: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
+pub struct User {
+    id: i32,
+    pub username: String,
+    pub password_hash: String,
+}
+
+impl User {
+    pub fn id(&self) -> u32 {
+        self.id as u32
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "users"]
+pub struct NewUser {
+    pub username: String,
+    pub password_hash: String,
+}
+
 #[derive(DbEnum, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[DieselType = "Submission_state"]
 #[PgType = "submission_state"]

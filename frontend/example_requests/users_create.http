@@ -1,0 +1,10 @@
+POST http://localhost:1779/users/create
+Content-Type: application/json
+X-Jjs-Auth: dev_root
+
+{
+  "login": "jon_snow",
+  "password": "wings of winter"
+}
+
+###

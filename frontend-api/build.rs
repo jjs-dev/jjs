@@ -48,6 +48,54 @@ impl ApiCallInfo {
     }
 }
 
+fn get_item_name(item: &syn::Item) -> Option<&syn::Ident> {
+    match item {
+        syn::Item::Type(it) => Some(&it.ident),
+        syn::Item::Enum(it) => Some(&it.ident),
+        syn::Item::Struct(it) => Some(&it.ident),
+        _ => None,
+    }
+}
+
+fn derive_display(item: &syn::Item) -> String {
+    let mut out = String::new();
+    let item_ident = get_item_name(item).expect("unexpected item kind");
+    let item_name = item_ident.to_string();
+    {
+        let header = format!(
+            "impl std::fmt::Display for {} {{ fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{\n"
+            , &item_name);
+        out.push_str(&header);
+    }
+    //TODO good impl
+    let def = quote! {
+        return write!(f, "frontend_error({:?})", self);
+    };
+    out.push_str(def.to_string().as_str());
+
+    {
+        out.push_str("\n}}\n")
+    }
+    out
+}
+
+fn generate_derive_attribute(item: &syn::Item) -> Option<String> {
+    if let syn::Item::Type(_) = item {
+        return None;
+    }
+    let _item_name = get_item_name(item)?.to_string();
+    let derives = vec!["Debug", "Serialize", "Deserialize"];
+    let mut derive_line = String::new();
+    derive_line.push_str("#[derive(");
+    for der in derives {
+        derive_line.push_str(der);
+        derive_line.push_str(",");
+    }
+    derive_line.push_str(")]");
+
+    Some(derive_line)
+}
+
 fn main() {
     let file = std::fs::read("./src/typings.rs").unwrap();
     let file = String::from_utf8(file).unwrap();
@@ -67,9 +115,26 @@ fn main() {
             let def = quote! {
                 #item
             };
-            let mut def = def.to_string();
-            def.push('\n');
+            let item_name = get_item_name(item);
+            let def = def.to_string();
+
+            let derive_line = generate_derive_attribute(item).unwrap_or("".to_string());
+            let def = format!("{}\n{}\n\n", derive_line, def);
             out_file.write_all(def.as_bytes()).unwrap();
+            if let Some(item_name) = item_name {
+                dbg!(item_name);
+                if item_name.to_string().ends_with("Error") {
+                    let display_impl = derive_display(item);
+                    out_file.write_all(display_impl.as_bytes()).unwrap();
+                    let def = quote! {
+                        impl std::error::Error for #item_name {}
+                        impl FrontendError for #item_name {}
+                    };
+                    let mut def = def.to_string();
+                    def.push('\n');
+                    out_file.write_all(def.as_bytes()).unwrap();
+                }
+            }
         }
     }
     let api_trait = api_trait.expect("Couldn't find Frontend trait");

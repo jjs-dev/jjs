@@ -28,4 +28,5 @@ impl Client {
     }
 }
 
+pub trait FrontendError: std::error::Error + std::fmt::Debug {}
 include!(concat!(env!("OUT_DIR"), "/client_gen.rs"));

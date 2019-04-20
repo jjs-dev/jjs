@@ -2,7 +2,6 @@
 extern crate serde_derive;
 
 /// Represents errors, which can happen in (almost) each method.
-#[derive(Debug, Serialize, Deserialize)]
 pub enum CommonError {
     /// Authorization failed
     AccessDenied,
@@ -21,18 +20,15 @@ pub type EmptyParams = ();
 /// Opaque struct that represents auth token
 /// You mustn't make any assumptions regarding 'buf' field, except that is ASCII string
 /// without any whitespaces
-#[derive(Debug, Serialize, Deserialize)]
 pub struct AuthToken {
     pub buf: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSimpleParams {
     pub login: String,
     pub password: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub enum AuthSimpleError {
     UnknownLogin,
     IncorrectPassword,
@@ -41,14 +37,12 @@ pub enum AuthSimpleError {
 }
 
 // submissions
-#[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionSendParams {
     pub toolchain: ToolchainId,
     /// Must be correct base64-encoded string
     pub code: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub enum SubmitError {
     UnknownToolchain,
     ContestIsOver,
@@ -57,7 +51,6 @@ pub enum SubmitError {
     Common(CommonError),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionInformation {
     pub id: SubmissionId,
     pub toolchain_name: String,
@@ -65,32 +58,27 @@ pub struct SubmissionInformation {
     pub score: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionsListParams {
     pub limit: u32,
 }
 
 // toolchains
-#[derive(Debug, Serialize, Deserialize)]
 pub struct ToolchainInformation {
     pub name: String,
     pub id: u32,
 }
 
 // users
-#[derive(Debug, Serialize, Deserialize)]
 pub struct UsersCreateParams {
     pub login: String,
     pub password: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub enum UsersCreateError {
     InvalidLogin,
     PasswordRejected,
     Common(CommonError),
 }
-
 
 /// This trait serves for documentation-only purposes
 ///

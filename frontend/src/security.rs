@@ -103,7 +103,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Token {
 
             let decoded = match branca::decode(token_data, &key, 0 /*TODO: check TTL*/) {
                 Ok(dec) => dec,
-                Err(br_err) =>  return Err(TokenFromRequestError::Branca(br_err)),
+                Err(br_err) => return Err(TokenFromRequestError::Branca(br_err)),
             };
             let de = serde_json::from_str(&decoded).expect("Couldn't deserialize Token");
             Ok(de)
@@ -111,7 +111,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Token {
         let res = inner();
         match res {
             Ok(tok) => Outcome::Success(tok),
-            Err(err) => Outcome::Failure((rocket::http::Status::BadRequest, err))
+            Err(err) => Outcome::Failure((rocket::http::Status::BadRequest, err)),
         }
     }
 }

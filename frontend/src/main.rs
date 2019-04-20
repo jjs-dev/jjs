@@ -6,9 +6,9 @@ extern crate rocket;
 #[macro_use]
 extern crate serde_derive;
 
+mod password;
 mod security;
 mod util;
-mod password;
 
 use cfg::Config;
 use db::schema::{NewSubmission, Submission, SubmissionState};
@@ -85,10 +85,10 @@ fn route_auth_simple(
         use db::schema::users::dsl::*;
 
         let conn = db_pool.get()?;
-        let user= users
+        let user = users
             .filter(username.eq(&data.0.login))
             .load::<db::schema::User>(&conn)?;
-        if user.len() != 0 {
+        if !user.is_empty() {
             let us = &user[0];
             password::check_password_hash(data.0.password.as_str(), us.password_hash.as_str())
         } else {

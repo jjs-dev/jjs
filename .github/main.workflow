@@ -21,7 +21,7 @@ action "Publish" {
 action "Docs" {
   uses = "docker://mikailbag/jjs-dev:latest"
   needs = ["Check"]
-  runs = "cargo run -p devtool -- Man"
+  runs = "cargo run -p devtool -- man"
   secrets = ["GITHUB_TOKEN"]
   env = {
     "RUST_BACKTRACE" = "1"

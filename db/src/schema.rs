@@ -1,5 +1,3 @@
-//use diesel::prelude::*;
-
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
 pub struct Submission {
     id: i32,

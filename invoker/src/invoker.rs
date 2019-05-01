@@ -13,3 +13,10 @@ pub struct Status {
     pub kind: StatusKind,
     pub code: String,
 }
+/*
+#[derive(Debug)]
+pub struct Limits {
+    pub memory: u64,
+    pub time: std::time::Duration,
+}
+*/

@@ -242,7 +242,6 @@ fn task_man() {
         .success();
     assert_eq!(st, true);
     print_section("copying built man files");
-    fs::create_dir_all("/tmp/jjs-pages").unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -255,7 +254,8 @@ fn task_man() {
         .unwrap()
         .map(|e| e.unwrap().path())
         .collect();
-    let dst = "/tmp/jjs-pages";
+    let dst = "/tmp/jjs-pages/manual";
+    fs::create_dir_all(dst).unwrap();
     fs_extra::copy_items(&src, dst, &opts).unwrap();
     print_section("pushing pages");
     let helper_script_path = format!("{}/devtool/scripts/pages-push.sh", get_project_dir());

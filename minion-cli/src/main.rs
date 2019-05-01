@@ -1,7 +1,7 @@
 #![feature(never_type, nll)]
 
 use cfg_if::cfg_if;
-use execute;
+use minion;
 use std::time::Duration;
 use structopt::StructOpt;
 
@@ -23,7 +23,7 @@ fn parse_env_item(src: &str) -> Result<EnvItem, !> {
     })
 }
 
-fn parse_path_exposition_item(src: &str) -> Result<execute::PathExpositionOptions, !> {
+fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions, !> {
     let sep1 = match src.find(':') {
         Some(x) => x,
         None => panic!("--expose item must contain to colons(`:`), but no one was provided"),
@@ -40,11 +40,11 @@ fn parse_path_exposition_item(src: &str) -> Result<execute::PathExpositionOption
         );
     }
     let access = match amask {
-        "rwx" => execute::DesiredAccess::Full,
-        "r-x" => execute::DesiredAccess::Readonly,
+        "rwx" => minion::DesiredAccess::Full,
+        "r-x" => minion::DesiredAccess::Readonly,
         _ => panic!("unknown access mask {}. rwx or r-x expected", amask),
     };
-    Ok(execute::PathExpositionOptions {
+    Ok(minion::PathExpositionOptions {
         src: (&src[..sep1]).to_string(),
         dest: (&src[sep2 + 1..]).to_string(),
         access,
@@ -88,13 +88,13 @@ struct ExecOpt {
     #[structopt(short = "r", long = "root")]
     isolation_root: String,
 
-    /// Exposed paths (/source/path:MASK:/dest/path), MASK is ignored currently, possible value is ---
+    /// Exposed paths (/source/path:MASK:/dest/path), MASK is r-x for readonly access and rwx for full access
     #[structopt(
         short = "x",
         long = "expose",
         parse(try_from_str = "parse_path_exposition_item")
     )]
-    exposed_paths: Vec<execute::PathExpositionOptions>,
+    exposed_paths: Vec<minion::PathExpositionOptions>,
 
     /// Process working dir, relative to `isolation_root`
     #[structopt(short = "p", long = "pwd", default_value = "/")]
@@ -137,11 +137,9 @@ fn main() {
     if options.dump_argv {
         println!("{:#?}", options);
     }
-    let execution_manager = execute::setup();
+    let execution_manager = minion::setup();
 
-    let dominion = execution_manager.new_dominion(execute::DominionOptions {
-        allow_network: false,
-        allow_file_io: false,
+    let dominion = execution_manager.new_dominion(minion::DominionOptions {
         max_alive_process_count: options.num_processes,
         memory_limit: options.memory_limit,
         isolation_root: options.isolation_root,
@@ -151,7 +149,7 @@ fn main() {
 
     let dominion = dominion.unwrap();
 
-    let args = execute::ChildProcessOptions {
+    let args = minion::ChildProcessOptions {
         path: options.executable,
         arguments: options.argv,
         environment: options
@@ -160,20 +158,20 @@ fn main() {
             .map(|v| (v.name.clone(), v.value.clone()))
             .collect(),
         dominion,
-        stdio: execute::StdioSpecification {
+        stdio: minion::StdioSpecification {
             stdin: unsafe {
-                execute::InputSpecification::RawHandle(
-                    execute::HandleWrapper::new(0), /*stdin handle*/
+                minion::InputSpecification::RawHandle(
+                    minion::HandleWrapper::new(0), /*our stdin handle*/
                 )
             },
             stdout: unsafe {
-                execute::OutputSpecification::RawHandle(
-                    execute::HandleWrapper::new(1), /*stdout handle*/
+                minion::OutputSpecification::RawHandle(
+                    minion::HandleWrapper::new(1), /*our stdout handle*/
                 )
             },
             stderr: unsafe {
-                execute::OutputSpecification::RawHandle(
-                    execute::HandleWrapper::new(2), /*stderr handle*/
+                minion::OutputSpecification::RawHandle(
+                    minion::HandleWrapper::new(2), /*our stderr handle*/
                 )
             },
         },

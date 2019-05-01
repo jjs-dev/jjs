@@ -6,6 +6,30 @@ extern crate serde_derive;
 use std::{collections::HashMap, env, fs, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Limits {
+    #[serde(default = "Limits::default_time")]
+    pub memory: u64,
+    #[serde(default = "Limits::default_memory")]
+    pub time: u64,
+    #[serde(default = "Limits::default_num_procs")]
+    pub process_count: u64,
+}
+
+impl Limits {
+    fn default_num_procs() -> u64 {
+        16
+    }
+
+    fn default_memory() -> u64 {
+        256 * 1024
+    }
+
+    fn default_time() -> u64 {
+        1000
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Command {
     #[serde(default = "Command::default_env")]
     pub env: HashMap<String, String>,
@@ -42,6 +66,14 @@ pub struct Config {
     pub sysroot: String,
     #[serde(rename = "toolchain-root")]
     pub toolchain_root: String,
+    #[serde(rename = "global-limits")]
+    pub global_limits: Limits,
+}
+
+impl Config {
+    pub fn postprocess(&mut self) {
+        //TODO
+    }
 }
 
 pub fn parse_file(path: PathBuf) -> Config {
@@ -52,13 +84,15 @@ pub fn parse_file(path: PathBuf) -> Config {
         )
     });
     let raw_data: toml::Value = file_content.parse().unwrap();
-    match toml::from_str(&file_content) {
+    let mut cfg: Config = match toml::from_str(&file_content) {
         Ok(x) => x,
         Err(e) => panic!(
             "Error ocured when parsing config: {:?}.\nRaw config:\n{:#?}",
             e, raw_data
         ),
-    }
+    };
+    cfg.postprocess();
+    cfg
 }
 
 pub fn get_config() -> Config {

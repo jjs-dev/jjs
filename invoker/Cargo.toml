@@ -5,7 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-execute = {path = "../execute"}
+minion = {path = "../minion"}
 cfg = {path ="../cfg"}
 pretty_env_logger = "0.3.0"
 futures = "0.1.26"

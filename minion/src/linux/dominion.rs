@@ -75,8 +75,6 @@ impl LinuxDominion {
     pub(crate) unsafe fn create(options: DominionOptions) -> crate::Result<LinuxDominion> {
         let jail_id = jail_common::gen_jail_id();
         let jail_options = jail_common::JailOptions {
-            allow_network: options.allow_network,
-            allow_file_io: options.allow_file_io,
             max_alive_process_count: options.max_alive_process_count,
             memory_limit: options.memory_limit,
             time_limit: options.time_limit,

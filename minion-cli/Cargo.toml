@@ -8,7 +8,7 @@ edition = "2018"
 chrono = { version = "0.4.6", features = ["serde"] }
 
 [dependencies]
-execute = {path = "../execute"}
+minion = {path = "../minion"}
 structopt = "0.2.15"
 whoami = "0.5.0"
 human-panic = { version = "1.0.1", optional = true }

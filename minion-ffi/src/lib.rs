@@ -1,21 +1,80 @@
+#![feature(try_trait)]
 #![allow(unused_attributes)] //FIXME: workaround for https://github.com/rust-lang/rust/issues/60050
 
-use execute;
-use std::{
-    collections::HashMap,
-    ffi::CStr,
-    mem,
-    os::raw::{c_char, c_void},
-    time,
-};
+use minion;
+use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char};
 
 #[repr(i32)]
 pub enum ErrorCode {
+    /// operation completed successfully
     Ok,
+    /// passed arguments didn't pass some basic checks
+    /// examples:
+    /// - provided buffer was expected to be null-terminated utf8-encoded string, but wasn't
+    /// - something was expected to be unique, but wasn't, and so on
+    /// these errors usually imply bug exists in caller code
+    InvalidInput,
+    /// unknown error
     Unknown,
 }
 
-pub struct Backend(Box<dyn execute::Backend>);
+pub enum GetStringResult {
+    String(String),
+    Error,
+}
+
+unsafe fn get_string(buf: *const c_char) -> GetStringResult {
+    let r = CStr::from_ptr(buf)
+        .to_str()
+        .map(|s| GetStringResult::String(s.to_string()))
+        .map_err(|_| GetStringResult::Error);
+    match r {
+        Ok(r) => r,
+        Err(r) => r,
+    }
+}
+
+impl std::ops::Try for ErrorCode {
+    type Ok = ErrorCode;
+    type Error = ErrorCode;
+
+    fn into_result(self) -> Result<ErrorCode, ErrorCode> {
+        match self {
+            ErrorCode::Ok => Ok(ErrorCode::Ok),
+            oth => Err(oth),
+        }
+    }
+
+    fn from_ok(x: ErrorCode) -> Self {
+        x
+    }
+
+    fn from_error(x: ErrorCode) -> Self {
+        x
+    }
+}
+
+impl std::ops::Try for GetStringResult {
+    type Ok = String;
+    type Error = ErrorCode;
+
+    fn into_result(self) -> Result<String, ErrorCode> {
+        match self {
+            GetStringResult::String(x) => Ok(x),
+            GetStringResult::Error => Err(ErrorCode::InvalidInput),
+        }
+    }
+
+    fn from_error(_: ErrorCode) -> Self {
+        unimplemented!()
+    }
+
+    fn from_ok(_: String) -> Self {
+        unimplemented!()
+    }
+}
+
+pub struct Backend(Box<dyn minion::Backend>);
 
 /// Must be called before any library usage
 #[no_mangle]
@@ -27,13 +86,10 @@ pub unsafe extern "C" fn minion_lib_init() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_backend_create(
-    _backend_id: u32,
-    _backend_arg: *const c_void,
-) -> *mut Backend {
-    let backend = Backend(execute::setup());
+pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) {
+    let backend = Backend(minion::setup());
     let backend = Box::new(backend);
-    Box::into_raw(backend)
+    *out = Box::into_raw(backend);
 }
 
 #[no_mangle]
@@ -42,91 +98,63 @@ pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) {
     mem::drop(b);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn minion_get_last_error_info(data_ptr: *mut *mut c_void) -> i32 {
-    if !data_ptr.is_null() {
-        //TODO
-    };
-    ErrorCode::Ok as i32 //TODO
+#[repr(C)]
+pub struct TimeSpec {
+    pub seconds: u32,
+    pub nanoseconds: u32,
 }
 
-pub struct DominionOptionsWrapper(execute::DominionOptions);
-
-pub struct DominionWrapper(execute::DominionRef);
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_dominion_options_create() -> *mut DominionOptionsWrapper {
-    let opts = DominionOptionsWrapper(execute::DominionOptions {
-        allow_network: false,
-        allow_file_io: false,
-        max_alive_process_count: 0,
-        memory_limit: 0,
-        time_limit: time::Duration::new(0, 0),
-        isolation_root: "".into(),
-        exposed_paths: vec![],
-    });
-    let opts = Box::new(opts);
-    Box::into_raw(opts)
+#[repr(C)]
+pub struct DominionOptions {
+    pub time_limit: TimeSpec,
+    pub process_limit: u32,
+    pub memory_limit: u32,
+    pub isolation_root: *const c_char,
+    pub shared_directories: *mut SharedDirectoryAccess,
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn minion_dominion_options_time_limit(
-    options: *mut DominionOptionsWrapper,
-    seconds: u32,
-    nanoseconds: u32,
-) {
-    (*options).0.time_limit = time::Duration::new(u64::from(seconds), nanoseconds)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_dominion_options_process_limit(
-    options: *mut DominionOptionsWrapper,
-    limit: u32,
-) {
-    (*options).0.max_alive_process_count = limit as usize
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_dominion_options_isolation_root(
-    options: *mut DominionOptionsWrapper,
-    path: *const c_char,
-) {
-    let s = CStr::from_ptr(path).to_str().unwrap().to_string();
-    (*options).0.isolation_root = s;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_backend_setopt(
-    _backend: *mut Backend,
-    _option_name: *const c_char,
-    _option_value: *const c_char,
-) {
-    //TODO
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_backend_getopt(
-    _backend: *mut Backend,
-    _option_name: *const c_char,
-    _option_value: *mut c_char,
-    _option_value_size: *const u32,
-    _required_option_value_size: *mut u32,
-) {
-    //TODO
-}
+#[derive(Clone)]
+pub struct DominionWrapper(minion::DominionRef);
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_dominion_create(
     backend: *mut Backend,
-    options: *mut DominionOptionsWrapper,
-) -> *mut DominionWrapper {
-    let opts = (*options).0.clone();
+    options: DominionOptions,
+    out: *mut *mut DominionWrapper,
+) -> ErrorCode {
+    let mut exposed_paths = Vec::new();
+    {
+        let mut p = options.shared_directories;
+        while !(*p).host_path.is_null() {
+            let opt = minion::PathExpositionOptions {
+                src: get_string((*p).host_path)?,
+                dest: get_string((*p).sandbox_path)?,
+                access: match (*p).kind {
+                    SharedDirectoryAccessKind::Full => minion::DesiredAccess::Full,
+                    SharedDirectoryAccessKind::ReadOnly => minion::DesiredAccess::Readonly,
+                },
+            };
+            exposed_paths.push(opt);
+            p = p.offset(1);
+        }
+    }
+    let opts = minion::DominionOptions {
+        max_alive_process_count: options.process_limit as _,
+        memory_limit: options.memory_limit as _,
+        time_limit: std::time::Duration::new(
+            options.time_limit.seconds.into(),
+            options.time_limit.nanoseconds,
+        ),
+        isolation_root: get_string(options.isolation_root)?,
+        exposed_paths,
+    };
     let backend = &(*backend);
     let d = backend.0.new_dominion(opts);
     let d = d.unwrap();
 
     let dw = DominionWrapper(d);
-    Box::into_raw(Box::new(dw))
+    *out = Box::into_raw(Box::new(dw));
+    ErrorCode::Ok
 }
 
 #[no_mangle]
@@ -143,113 +171,96 @@ pub unsafe extern "C" fn minion_dominion_clone(
     *out2 = Box::into_raw(Box::new(DominionWrapper(dref2)));
 }
 
-pub struct ChildProcessOptionsWrapper(execute::ChildProcessOptions);
-#[no_mangle]
-pub unsafe extern "C" fn minion_cp_options_create(
-    dominion: *mut DominionWrapper,
-) -> *mut ChildProcessOptionsWrapper {
-    let dominion = (*Box::from_raw(dominion)).0;
-    let opts = ChildProcessOptionsWrapper(execute::ChildProcessOptions {
-        path: "".to_string(),
-        arguments: vec![],
-        environment: HashMap::new(),
-        dominion,
-        stdio: execute::StdioSpecification {
-            stdin: execute::InputSpecification::Null,
-            stdout: execute::OutputSpecification::Null,
-            stderr: execute::OutputSpecification::Null,
-        },
-        pwd: "".to_string(),
-    });
-    Box::into_raw(Box::new(opts))
+#[repr(C)]
+pub struct EnvItem {
+    pub name: *const c_char,
+    pub value: *const c_char,
 }
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_cp_options_set_image_path(
-    options: *mut ChildProcessOptionsWrapper,
-    path: *const c_char,
-) {
-    (*options).0.path = CStr::from_ptr(path).to_str().unwrap().to_string();
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_cp_options_add_arg(
-    options: *mut ChildProcessOptionsWrapper,
-    arg: *const c_char,
-) {
-    let arg = CStr::from_ptr(arg).to_str().unwrap().to_string();
-    (*options).0.arguments.push(arg);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn minion_cp_options_add_env(
-    options: *mut ChildProcessOptionsWrapper,
-    var_name: *const c_char,
-    var_value: *const c_char,
-) {
-    let var_name = CStr::from_ptr(var_name).to_str().unwrap().to_string();
-    let var_value = CStr::from_ptr(var_value).to_str().unwrap().to_string();
-    (*options).0.environment.insert(var_name, var_value);
-}
-
-#[repr(u8)]
+#[repr(C)]
 pub enum StdioMember {
     Stdin,
     Stdout,
     Stderr,
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn minion_cp_options_set_stdio_handle(
-    options: *mut ChildProcessOptionsWrapper,
-    member: StdioMember,
-    handle: u64,
-) {
-    let hw = execute::HandleWrapper::new(handle);
-    match member {
-        StdioMember::Stdin => (*options).0.stdio.stdin = execute::InputSpecification::RawHandle(hw),
-        StdioMember::Stdout => {
-            (*options).0.stdio.stdout = execute::OutputSpecification::RawHandle(hw)
-        }
-        StdioMember::Stderr => {
-            (*options).0.stdio.stderr = execute::OutputSpecification::RawHandle(hw)
-        }
-    }
+#[repr(C)]
+pub struct StdioHandleSet {
+    pub stdin: u64,
+    pub stdout: u64,
+    pub stderr: u64,
+}
+#[repr(C)]
+pub struct ChildProcessOptions {
+    pub image_path: *const c_char,
+    pub argv: *const *const c_char,
+    pub envp: *const EnvItem,
+    pub stdio: StdioHandleSet,
+    pub dominion: *mut DominionWrapper,
+    pub workdir: *const c_char,
 }
 
-#[repr(u8)]
-pub enum SharedDirectoryAccess {
+#[repr(C)]
+pub enum SharedDirectoryAccessKind {
     Full,
     ReadOnly,
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn minion_dominion_options_expose_path(
-    options: *mut DominionOptionsWrapper,
-    out_path: *const c_char,
-    inner_path: *const c_char,
-    shared_directory_access: SharedDirectoryAccess,
-) {
-    let opt = execute::PathExpositionOptions {
-        src: CStr::from_ptr(out_path).to_str().unwrap().to_string(),
-        dest: CStr::from_ptr(inner_path).to_str().unwrap().to_string(),
-        access: match shared_directory_access {
-            SharedDirectoryAccess::Full => execute::DesiredAccess::Full,
-            SharedDirectoryAccess::ReadOnly => execute::DesiredAccess::Readonly,
-        },
-    };
-    (*options).0.exposed_paths.push(opt)
+#[repr(C)]
+pub struct SharedDirectoryAccess {
+    pub kind: SharedDirectoryAccessKind,
+    pub host_path: *const c_char,
+    pub sandbox_path: *const c_char,
 }
 
-pub struct ChildProcessWrapper(Box<dyn execute::ChildProcess>);
+pub struct ChildProcessWrapper(Box<dyn minion::ChildProcess>);
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_cp_spawn(
     backend: *mut Backend,
-    options: *mut ChildProcessOptionsWrapper,
-) -> *mut ChildProcessWrapper {
-    let cp = (*backend).0.spawn((*options).0.clone()).unwrap();
+    options: ChildProcessOptions,
+    out: *mut *mut ChildProcessWrapper,
+) -> ErrorCode {
+    let mut arguments = Vec::new();
+    {
+        let p = options.argv;
+        while !(*p).is_null() {
+            arguments.push(get_string(*p)?);
+        }
+    }
+    let mut environment = HashMap::new();
+    {
+        let p = options.envp;
+        while !(*p).name.is_null() {
+            let name = get_string((*p).name)?;
+            let value = get_string((*p).value)?;
+            if environment.contains_key(&name) {
+                return ErrorCode::InvalidInput;
+            }
+            environment.insert(name, value);
+        }
+    }
+    let stdio = minion::StdioSpecification {
+        stdin: minion::InputSpecification::RawHandle(minion::HandleWrapper::new(
+            options.stdio.stdin,
+        )),
+        stdout: minion::OutputSpecification::RawHandle(minion::HandleWrapper::new(
+            options.stdio.stdout,
+        )),
+        stderr: minion::OutputSpecification::RawHandle(minion::HandleWrapper::new(
+            options.stdio.stderr,
+        )),
+    };
+    let options = minion::ChildProcessOptions {
+        path: get_string(options.image_path)?,
+        arguments,
+        environment,
+        dominion: (*options.dominion).0.clone(),
+        stdio,
+        pwd: get_string(options.workdir)?,
+    };
+    let cp = (*backend).0.spawn(options).unwrap();
     let cp = ChildProcessWrapper(cp);
     let cp = Box::new(cp);
-    Box::into_raw(cp)
+    *out = Box::into_raw(cp);
+    ErrorCode::Ok
 }

@@ -4,16 +4,16 @@
 use crate::invoker::{Status, StatusKind};
 use cfg::*;
 use db::schema::Submission;
-use execute as minion;
+use minion;
 use std::{collections::BTreeMap, fs, time::Duration};
 
 struct BuildResult {
     status: Status,
 }
 
-fn get_toolchain<'a>(submission: &Submission, cfg: &'a Config) -> Option<&'a Toolchain> {
+fn get_toolchain_by_name<'a>(name: &str, cfg: &'a Config) -> Option<&'a Toolchain> {
     for t in &cfg.toolchains {
-        if submission.toolchain == t.name {
+        if name == t.name {
             return Some(t);
         }
     }
@@ -39,8 +39,8 @@ fn interpolate_string(
     string: &str,
     dict: &BTreeMap<String, String>,
 ) -> Result<String, InterpolateError> {
-    // simple FSM
-
+    // simple finite state machine
+    // TODO enum
     // states
     const STATE_OUTER: u8 = 0;
     const STATE_OPEN_HALF: u8 = 1;
@@ -112,8 +112,29 @@ fn interpolate_command(
     Ok(res)
 }
 
-fn build(submission: &Submission, cfg: &Config) -> BuildResult {
-    let toolchain = get_toolchain(&submission, &cfg);
+fn derive_path_exposition_options(cfg: &Config) -> Vec<minion::PathExpositionOptions> {
+    let mut exposed_paths = vec![];
+    let toolchains_dir = format!("{}/opt", &cfg.sysroot);
+    let opt_items = fs::read_dir(&toolchains_dir).expect("Couldn't open child chroot");
+    for item in opt_items {
+        let item = item.expect("Couldn't open child chroot");
+        let item_type = item.file_type().expect("Coudln't get stats");
+        if !item_type.is_dir() {
+            panic!("couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory", item.file_name());
+        }
+        let name = item.file_name().into_string().expect("utf8 error");
+        let peo = minion::PathExpositionOptions {
+            src: format!("{}/{}", &toolchains_dir, &name),
+            dest: format!("/{}", &name),
+            access: minion::DesiredAccess::Readonly,
+        };
+        exposed_paths.push(peo)
+    }
+    exposed_paths
+}
+
+fn build(submission: &Submission, cfg: &Config, invokation_id: &str) -> BuildResult {
+    let toolchain = get_toolchain_by_name(&submission.toolchain, &cfg);
 
     let toolchain = match toolchain {
         Some(t) => t,
@@ -127,12 +148,11 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
         }
     };
 
-    let em = minion::setup();
+    let em = minion::setup(); // TODO cache
     let child_root = format!("{}/var/submissions/s-{}", cfg.sysroot, submission.id());
     let child_chroot = format!("{}/chroot", &child_root);
     fs::create_dir(&child_chroot).expect("Couldn't create child chroot");
-    let child_share = format!("{}/jjs", &child_root);
-    let toolchains_dir = format!("{}/opt", &cfg.sysroot);
+    let child_share = format!("{}/jjs-build-{}", &child_root, invokation_id);
     fs::create_dir(&child_share).expect("Couldn't create child share");
 
     fs::copy(
@@ -145,38 +165,21 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     )
     .expect("Couldn't copy submission source into chroot");
 
-    let mut exposed_paths = vec![minion::PathExpositionOptions {
+    let mut exposed_paths = derive_path_exposition_options(cfg);
+
+    exposed_paths.push(minion::PathExpositionOptions {
         src: child_share,
         dest: "/jjs".to_string(),
         access: minion::DesiredAccess::Full,
-    }];
-    {
-        let opt_items = fs::read_dir(&toolchains_dir).expect("Couldn't open child chroot");
-        for item in opt_items {
-            let item = item.expect("Couldn't open child chroot");
-            let item_type = item.file_type().expect("Coudln't get stats");
-            if !item_type.is_dir() {
-                panic!("couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory", item.file_name());
-            }
-            let name = item.file_name().into_string().expect("utf8 error");
-            let peo = minion::PathExpositionOptions {
-                src: format!("{}/{}", &toolchains_dir, &name),
-                dest: format!("/{}", &name),
-                access: minion::DesiredAccess::Readonly,
-            };
-            exposed_paths.push(peo)
-        }
-    }
+    });
 
     let dmn = em
         .new_dominion(minion::DominionOptions {
-            allow_network: false,
-            allow_file_io: false,
-            max_alive_process_count: 16,
-            memory_limit: 256 * (1 << 20),
+            max_alive_process_count: cfg.global_limits.process_count as _,
+            memory_limit: (cfg.global_limits.memory * 1024) as _,
             exposed_paths,
             isolation_root: child_chroot,
-            time_limit: Duration::from_millis(1000),
+            time_limit: Duration::from_millis(cfg.global_limits.time),
         })
         .expect("couldn't create dominion");
 
@@ -251,6 +254,10 @@ fn build(submission: &Submission, cfg: &Config) -> BuildResult {
     }
 }
 
+/*pub fn run_on_test(_submission: &Submission, _test_data: &[u8]) -> crate::invoker::Status {
+    unimplemented!()
+}*/
+
 pub fn judge(submission: &Submission, cfg: &Config) -> crate::invoker::Status {
-    build(submission, cfg).status
+    build(submission, cfg, "TODO").status
 }

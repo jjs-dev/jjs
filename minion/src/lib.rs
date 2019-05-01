@@ -53,8 +53,6 @@ pub struct ResourceUsageData {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DominionOptions {
-    pub allow_network: bool,
-    pub allow_file_io: bool,
     pub max_alive_process_count: usize,
     /// Memory limit for all processes in cgroup, in bytes
     pub memory_limit: usize,

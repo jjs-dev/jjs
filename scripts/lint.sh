@@ -5,3 +5,7 @@ export RUST_BACKTRACE=1
 cargo fmt --verbose --all -- --check
 cargo run -p devtool -- touch --verbose
 cargo clippy --all -- -D clippy::all -D warnings
+mkdir ./minion-ffi/example-c/cmake-build-debug || true
+cd ./minion-ffi/example-c/cmake-build-debug
+cmake ..
+cmake --build .

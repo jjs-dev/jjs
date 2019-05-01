@@ -6,8 +6,6 @@ use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {
-    pub(crate) allow_network: bool,
-    pub(crate) allow_file_io: bool,
     pub(crate) max_alive_process_count: usize,
     pub(crate) memory_limit: usize,
     ///specifies total CPU time for all dominion

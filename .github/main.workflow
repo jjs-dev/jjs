@@ -16,6 +16,9 @@ action "Publish" {
   needs = ["Check"]
   runs = "bash ./scripts/publish.sh"
   secrets = ["JJS_DEVTOOL_YANDEXDRIVE_ACCESS_TOKEN"]
+  env = {
+    RUST_BACKTRACE = "1"
+  }
 }
 
 action "Docs" {
@@ -24,6 +27,6 @@ action "Docs" {
   runs = "cargo run -p devtool -- man"
   secrets = ["GITHUB_TOKEN"]
   env = {
-    "RUST_BACKTRACE" = "1"
+    RUST_BACKTRACE = "1"
   }
 }

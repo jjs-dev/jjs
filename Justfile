@@ -27,4 +27,4 @@ package:
     cargo run --bin devtool -- pkg
 
 lint:
-    bash ./scripts/lint.sh
+    powershell ./scripts/lint.ps1

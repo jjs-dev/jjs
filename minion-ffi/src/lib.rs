@@ -78,24 +78,27 @@ pub struct Backend(Box<dyn minion::Backend>);
 
 /// Must be called before any library usage
 #[no_mangle]
-pub unsafe extern "C" fn minion_lib_init() {
+pub unsafe extern "C" fn minion_lib_init() -> ErrorCode {
     std::panic::set_hook(Box::new(|info| {
-        eprintln!("[minion-ffi] PANIC: {:?}", info);
+        eprintln!("[minion-ffi] PANIC: {} ({:?})", &info, info);
         std::process::abort();
     }));
+    ErrorCode::Ok
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) {
+pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) -> ErrorCode {
     let backend = Backend(minion::setup());
     let backend = Box::new(backend);
     *out = Box::into_raw(backend);
+    ErrorCode::Ok
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) {
+pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) -> ErrorCode {
     let b = Box::from_raw(b);
     mem::drop(b);
+    ErrorCode::Ok
 }
 
 #[repr(C)]
@@ -114,13 +117,13 @@ pub struct DominionOptions {
 }
 
 #[derive(Clone)]
-pub struct DominionWrapper(minion::DominionRef);
+pub struct Dominion(minion::DominionRef);
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_dominion_create(
     backend: *mut Backend,
     options: DominionOptions,
-    out: *mut *mut DominionWrapper,
+    out: *mut *mut Dominion,
 ) -> ErrorCode {
     let mut exposed_paths = Vec::new();
     {
@@ -131,7 +134,7 @@ pub unsafe extern "C" fn minion_dominion_create(
                 dest: get_string((*p).sandbox_path)?,
                 access: match (*p).kind {
                     SharedDirectoryAccessKind::Full => minion::DesiredAccess::Full,
-                    SharedDirectoryAccessKind::ReadOnly => minion::DesiredAccess::Readonly,
+                    SharedDirectoryAccessKind::Readonly => minion::DesiredAccess::Readonly,
                 },
             };
             exposed_paths.push(opt);
@@ -148,27 +151,20 @@ pub unsafe extern "C" fn minion_dominion_create(
         isolation_root: get_string(options.isolation_root)?,
         exposed_paths,
     };
-    let backend = &(*backend);
+    let backend = &*backend;
     let d = backend.0.new_dominion(opts);
     let d = d.unwrap();
 
-    let dw = DominionWrapper(d);
+    let dw = Dominion(d);
     *out = Box::into_raw(Box::new(dw));
     ErrorCode::Ok
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn minion_dominion_clone(
-    d_in: *mut DominionWrapper,
-    out1: *mut *mut DominionWrapper,
-    out2: *mut *mut DominionWrapper,
-) {
-    let dw = Box::from_raw(d_in);
-    let dw = (*dw).0;
-    let dref1 = dw.clone();
-    let dref2 = dw;
-    *out1 = Box::into_raw(Box::new(DominionWrapper(dref1)));
-    *out2 = Box::into_raw(Box::new(DominionWrapper(dref2)));
+pub unsafe extern "C" fn minion_dominion_free(dominion: *mut Dominion) -> ErrorCode {
+    let b = Box::from_raw(dominion);
+    mem::drop(b);
+    ErrorCode::Ok
 }
 
 #[repr(C)]
@@ -176,6 +172,15 @@ pub struct EnvItem {
     pub name: *const c_char,
     pub value: *const c_char,
 }
+
+// minion-ffi will never modify nave or value, so no races can occur
+unsafe impl Sync for EnvItem {}
+
+#[no_mangle]
+pub static ENV_ITEM_FIN: EnvItem = EnvItem {
+    name: std::ptr::null(),
+    value: std::ptr::null(),
+};
 #[repr(C)]
 pub enum StdioMember {
     Stdin,
@@ -195,14 +200,14 @@ pub struct ChildProcessOptions {
     pub argv: *const *const c_char,
     pub envp: *const EnvItem,
     pub stdio: StdioHandleSet,
-    pub dominion: *mut DominionWrapper,
+    pub dominion: *mut Dominion,
     pub workdir: *const c_char,
 }
 
 #[repr(C)]
 pub enum SharedDirectoryAccessKind {
     Full,
-    ReadOnly,
+    Readonly,
 }
 
 #[repr(C)]
@@ -212,13 +217,23 @@ pub struct SharedDirectoryAccess {
     pub sandbox_path: *const c_char,
 }
 
-pub struct ChildProcessWrapper(Box<dyn minion::ChildProcess>);
+// minion-ffi will never modify host_path or sandbox_path, so no races can occur
+unsafe impl Sync for SharedDirectoryAccess {}
+
+#[no_mangle]
+pub static SHARED_DIRECTORY_ACCESS_FIN: SharedDirectoryAccess = SharedDirectoryAccess {
+    kind: SharedDirectoryAccessKind::Full, //doesn't matter
+    host_path: std::ptr::null(),
+    sandbox_path: std::ptr::null(),
+};
+
+pub struct ChildProcess(Box<dyn minion::ChildProcess>);
 
 #[no_mangle]
 pub unsafe extern "C" fn minion_cp_spawn(
     backend: *mut Backend,
     options: ChildProcessOptions,
-    out: *mut *mut ChildProcessWrapper,
+    out: *mut *mut ChildProcess,
 ) -> ErrorCode {
     let mut arguments = Vec::new();
     {
@@ -259,7 +274,7 @@ pub unsafe extern "C" fn minion_cp_spawn(
         pwd: get_string(options.workdir)?,
     };
     let cp = (*backend).0.spawn(options).unwrap();
-    let cp = ChildProcessWrapper(cp);
+    let cp = ChildProcess(cp);
     let cp = Box::new(cp);
     *out = Box::into_raw(cp);
     ErrorCode::Ok

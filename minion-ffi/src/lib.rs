@@ -86,6 +86,7 @@ pub unsafe extern "C" fn minion_lib_init() -> ErrorCode {
     ErrorCode::Ok
 }
 
+/// Create backend, default for target platform
 #[no_mangle]
 pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) -> ErrorCode {
     let backend = Backend(minion::setup());
@@ -94,6 +95,7 @@ pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) -> ErrorC
     ErrorCode::Ok
 }
 
+/// Drop backend
 #[no_mangle]
 pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) -> ErrorCode {
     let b = Box::from_raw(b);
@@ -196,12 +198,12 @@ pub struct StdioHandleSet {
 }
 #[repr(C)]
 pub struct ChildProcessOptions {
-    pub image_path: *const c_char,
-    pub argv: *const *const c_char,
-    pub envp: *const EnvItem,
+    pub image_path: *mut c_char,
+    pub argv: *mut *mut c_char,
+    pub envp: *mut EnvItem,
     pub stdio: StdioHandleSet,
     pub dominion: *mut Dominion,
-    pub workdir: *const c_char,
+    pub workdir: *mut c_char,
 }
 
 #[repr(C)]

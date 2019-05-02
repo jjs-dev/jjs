@@ -5,7 +5,7 @@ workflow "OnPush" {
 
 action "Check" {
   uses = "docker://mikailbag/jjs-dev:latest"
-  runs = "bash -c \"just lint\""
+  runs = "bash -c 'just lint'"
   env = {
     RUST_BACKTRACE = "1"
   }

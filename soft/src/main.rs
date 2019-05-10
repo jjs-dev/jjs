@@ -1,251 +1,159 @@
-use std::{
-    fs,
-    path::PathBuf,
-    process::{Command, Stdio},
-};
+use std::collections::HashSet;
 use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Debug)]
+enum OutType {
+    Text,
+    Json,
+}
+
+impl OutType {
+    fn strcutopt_parse(inp: &str) -> Result<Self, &'static str> {
+        match inp.to_lowercase().as_str() {
+            "text" => Ok(OutType::Text),
+            "json" => Ok(OutType::Json),
+            _ => Err("unknown type")
+        }
+    }
+}
+
+impl std::str::FromStr for OutType {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::strcutopt_parse(s)
+    }
+}
+
+#[derive(Debug, StructOpt)]
 struct Options {
-    /// Where to put files
-    #[structopt(default_value = "/", long = "root")]
-    root: String,
-    /// What toolchains to search
-    #[structopt(long = "bin")]
-    binaries: Vec<String>,
-    /// for --bin: resolve dependencies
-    #[structopt(long = "with-dependencies")]
-    with_dependencies: bool,
-    /// What debs to install
-    #[structopt(long = "deb")]
-    deb: Vec<String>,
+    /// JSON log file to analyze
+    #[structopt(long="data", short="i")]
+    log_file: String,
+    /// Where to put result
+    #[structopt(long = "dest", short="d")]
+    dest_file: String,
+    /// Format (json or text)
+    #[structopt(long = "format", short="f")]
+    format: OutType,
+    /// Path prefix to skip (e.g., /home)
+    #[structopt(long = "skip", short="s")]
+    skip: Vec<String>,
+    /// Disable default skip  prefixes
+    #[structopt(long = "no-default-skip-list", short="k")]
+    no_def_skip: bool,
+    /// Resolve all paths from given dir (default is cwd)
+    #[structopt(long = "resolve-dir", short="r", default_value=".")] 
+    resolve_dir: String,
 }
 
-#[derive(Clone, Copy)]
-struct FindArgs<'a> {
-    //TODO: root: &'a str,
-    target: &'a str,
-    with_deps: bool,
-}
-
-fn deduce_interpreter(path: &str) -> Option<String> {
-    //TODO: check shebang
-    let file_output = Command::new("file")
-        .arg("--dereference") //follow symlinks
-        .arg(path)
-        .stderr(Stdio::inherit())
-        .stdin(Stdio::null())
-        .output()
-        .expect("Couldn't describe");
-
-    assert!(file_output.status.success());
-    let info = String::from_utf8_lossy(&file_output.stdout).to_string();
-    let info = info.split_whitespace();
-    let interp = info.skip_while(|t| *t != "interpreter").nth(1);
-    interp
-        .map(std::string::ToString::to_string)
-        .map(|s| s.replace(',', ""))
-}
-
-fn find_binary(args: FindArgs, bin_name: &str) {
-    let full_path = Command::new("which")
-        .stdin(Stdio::null())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .arg(bin_name)
-        .output()
-        .unwrap_or_else(|e| panic!("couldn't resolve full path for '{}': {}", bin_name, e));
-    assert_eq!(full_path.status.success(), true);
-    let full_path = String::from_utf8(full_path.stdout)
-        .expect("Couldn't parse utf8")
-        .trim()
-        .to_string();
-    let ldd = Command::new("ldd")
-        .stdin(Stdio::null())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .arg(&full_path)
-        .output()
-        .unwrap_or_else(|e| panic!("couldn't get dependencies of '{}': {}", full_path, e));
-    let mut has_deps = true;
-
-    let base_files = [full_path.clone()];
-    let mut files: Vec<String> = base_files.to_vec();
-    if args.with_deps {
-        let ldd_output = String::from_utf8(ldd.stdout).expect("couldn't parse utf8");
-
-        if ldd_output.contains("not a dynamic executable") {
-            has_deps = false;
-        }
-        if has_deps {
-            assert!(ldd.status.success());
-            let deps = ldd_output
-                .split('\n')
-                .filter_map(|line| line.split("=>").nth(1))
-                .filter_map(|x| x.split_whitespace().nth(0))
-                .map(std::string::ToString::to_string);
-            let interp = deduce_interpreter(full_path.as_str());
-            if let Some(interp) = interp {
-                files.push(interp);
-            }
-            for x in deps {
-                files.push(x);
-            }
+impl Options {
+    fn preprocess(&mut self) {
+        if !self.no_def_skip {
+            self.skip.push("/tmp".to_string());
+            self.skip.push("/proc".to_string());
         }
     }
-    let mut options = fs_extra::dir::CopyOptions::new();
-    options.skip_exist = true;
-    for item in files {
-        let path = PathBuf::from(&item);
-        let base_path = path.parent().unwrap().to_str().unwrap();
-        let resulting_path = format!("{}{}", args.target, base_path);
-        fs::create_dir_all(&resulting_path).ok();
-        fs_extra::copy_items(&vec![item], resulting_path, &options)
-            .expect("Couldn't copy binary with its dependencies");
+}
+
+trait ResultExt {
+    type Ok;
+    fn conv(self) -> Result<Self::Ok, ()>;
+}
+
+impl<T, E> ResultExt for Result<T, E> {
+    type Ok = T;
+    fn conv(self) -> Result<T, ()> {
+        self.map_err(|_err| ())
     }
 }
 
-trait CommandExt {
-    fn exec(&mut self);
-}
-
-impl CommandExt for std::process::Command {
-    fn exec(&mut self) {
-        let output = self.output().expect("Couldn't execute");
-        let out = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        println!("{}", out);
+impl<T> ResultExt for Option<T> {
+    type Ok = T;
+    fn conv(self) -> Result<T, ()> {
+        self.ok_or(())
     }
 }
 
-fn setup_dpkg(dir: &str) {
-    for path in [
-        "/var/lib/dpkg/updates",
-        "/var/lib/dpkg/info",
-        "/var/lib/dpkg/tmp.ci",
-    ]
-    .iter()
+fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Result<(), ()> {
+    let value = value.as_object().conv()?;
+    let syscall_name = value.get("syscall").conv()?.as_str().conv()?.to_owned();
+    let syscall_args = value.get("args").conv()?.as_array().conv()?;
+    //if !INTERESTING_CALLS.contains(&syscall_name.as_str()) {
+    //   return Ok(());
+    // }
+    let syscall_ret = value.get("result").conv()?.as_str().unwrap_or("");
+    if syscall_ret.find('-').is_some()
+        && syscall_ret.find('E').is_some()
+        && syscall_ret.find('(').is_some()
     {
-        fs::create_dir_all(format!("{}/{}", dir, path)).expect("Couldn't create dir");
+        // syscall likely to be failed
+        return Ok(());
     }
-    fs::File::create(format!("{}/var/lib/dpkg/status", dir)).unwrap();
+
+    match syscall_name.as_str() {
+        "execve" => {
+            //read argv[0]
+            out.insert(syscall_args[0].as_str().conv()?.to_owned());
+        }
+        "access" => {
+            //accessed file
+            out.insert(syscall_args[1].as_str().conv()?.to_owned());
+        }
+        "openat" => {
+            // opened file
+            out.insert(syscall_args[1].as_str().conv()?.to_owned());
+        }
+        _ => {}
+    }
+
+    Ok(())
 }
 
-fn resolve_dependencies(pkg: &str) -> Vec<String> {
-    let out = Command::new("apt-cache")
-        .arg("depends")
-        .arg(pkg)
-        .output()
-        .expect("Couldn't query dependencies");
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-    let out = out.split('\n').skip(1);
-    let mut res = Vec::new();
-    for line in out {
-        let t: Vec<_> = line
-            .split(' ')
-            .map(|x| x.trim().to_string())
-            .filter(|x| !x.is_empty())
-            .collect();
-        if t.is_empty() {
-            continue;
-        }
-        if t.len() != 2 {
-            eprintln!("warning: skipping line {} of unknown format", &line);
-            continue;
-        }
-        let mut relation: String = t[0].clone();
-        let package: String = t[1].clone();
-        relation.pop().expect("parse error");
-        if relation == "Depends" {
-            res.push(package);
+fn filter_file_name(name: &str, skip_list: &[&str]) -> bool {
+    for sk in skip_list {
+        if name.starts_with(sk) {
+            return false;
         }
     }
-    res
-}
-
-fn resolve_dependencies_recursive(start: &[String]) -> Vec<String> {
-    //just BFS
-    let mut queue = std::collections::VecDeque::<String>::new();
-    let mut visited = std::collections::HashSet::<String>::new();
-    for pkg in start {
-        queue.push_back(pkg.clone());
-    }
-    while !queue.is_empty() {
-        let pkg = queue.pop_front().unwrap();
-        visited.insert(pkg.clone());
-        let deps = resolve_dependencies(&pkg);
-        for dep in &deps {
-            if !visited.contains(dep.as_str()) {
-                queue.push_back(dep.clone());
-                visited.insert(dep.clone());
-            }
-        }
-    }
-
-    visited.into_iter().collect()
-}
-
-fn fetch_debian_package(pkg: &str) -> String {
-    println!("adding package {}", pkg);
-    let workdir = "/tmp/jjs-soft-debs";
-    fs::create_dir(workdir).ok();
-    Command::new("apt")
-        .current_dir(workdir)
-        .arg("download")
-        .arg(pkg)
-        .exec();
-    let pat = format!("{}/{}_*.deb", workdir, pkg);
-    let items: Vec<_> = glob::glob(&pat)
-        .expect("Couldn't search for package")
-        .collect();
-    if items.is_empty() {
-        panic!("Package not found");
-    }
-    if items.len() > 1 {
-        panic!("More than one candidate is found: {:?}", items);
-    }
-    let item = items.into_iter().next().unwrap().expect("io error");
-    let item = item.to_str().unwrap();
-    item.to_string()
-}
-
-fn add_debian_packages(pkg: &[&str], dir: &str) {
-    let mut cmd = Command::new("dpkg");
-    cmd.arg("-i")
-        .arg("--force-not-root")
-        .arg(format!("--root={}", dir));
-
-    for &p in pkg {
-        cmd.arg(p);
-    }
-    cmd.exec();
+    true
 }
 
 fn main() {
-    let opt: Options = Options::from_args();
-    let arg = FindArgs {
-        target: &opt.root,
-        with_deps: opt.with_dependencies,
-    };
-    for bin in opt.binaries {
-        find_binary(arg, bin.as_str());
+    let mut opt: Options = Options::from_args();
+    opt.preprocess();
+    dbg!(&opt);
+    let data = std::fs::read_to_string(opt.log_file).expect("couldn't open log");
+    let values: Vec<serde_json::Value> = serde_json::Deserializer::from_str(&data)
+        .into_iter()
+        .map(|x| x.unwrap())
+        .collect();
+    println!(
+        "got {} bytes, {} entries",
+        data.as_bytes().len(),
+        values.len()
+    );
+    let mut out = HashSet::new();
+    for value in values.iter() {
+        process_log_item(value, &mut out).ok() /*ignore possible errors, we are best-effort*/;
     }
-    if !opt.deb.is_empty() {
-        println!("installing selected debs ({} requested)", opt.deb.len());
-        setup_dpkg(&opt.root);
+    let skip_list:Vec<_> = opt.skip.iter().map(|s| s.as_str()).collect();
+    std::env::set_current_dir(opt.resolve_dir).unwrap();
+    let mut files: Vec<_> = out
+        .into_iter()
+        .filter_map(|file| std::fs::canonicalize(&file).ok().map(|x| x.to_str().unwrap().to_string()))
+        .filter(|file| filter_file_name(file, &skip_list))
+        .collect();
+    files.sort();
+    println!("{} files found", files.len());
 
-        let input_packages = opt.deb.clone();
-        let packages_with_deps = resolve_dependencies_recursive(&input_packages);
-        let mut archives = Vec::new();
-        println!("installing packages: {:?}", &archives);
-        for p in &packages_with_deps {
-            let saved_path = fetch_debian_package(p);
-            archives.push(saved_path);
+    let out_data: String;
+    match opt.format {
+        OutType::Json => {
+            out_data = serde_json::to_string(&files).unwrap();
+        },
+        OutType::Text => {
+            out_data = (&files).join("\n")
         }
-        let debs: Vec<&str> = archives.iter().map(String::as_str).collect();
-        add_debian_packages(debs.as_slice(), &opt.root);
     }
+    std::fs::write(opt.dest_file, out_data).unwrap();
 }

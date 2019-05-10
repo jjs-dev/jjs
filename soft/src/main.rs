@@ -12,7 +12,7 @@ impl OutType {
         match inp.to_lowercase().as_str() {
             "text" => Ok(OutType::Text),
             "json" => Ok(OutType::Json),
-            _ => Err("unknown type")
+            _ => Err("unknown type"),
         }
     }
 }
@@ -27,22 +27,22 @@ impl std::str::FromStr for OutType {
 #[derive(Debug, StructOpt)]
 struct Options {
     /// JSON log file to analyze
-    #[structopt(long="data", short="i")]
+    #[structopt(long = "data", short = "i")]
     log_file: String,
     /// Where to put result
-    #[structopt(long = "dest", short="d")]
+    #[structopt(long = "dest", short = "d")]
     dest_file: String,
     /// Format (json or text)
-    #[structopt(long = "format", short="f")]
+    #[structopt(long = "format", short = "f")]
     format: OutType,
     /// Path prefix to skip (e.g., /home)
-    #[structopt(long = "skip", short="s")]
+    #[structopt(long = "skip", short = "s")]
     skip: Vec<String>,
     /// Disable default skip  prefixes
-    #[structopt(long = "no-default-skip-list", short="k")]
+    #[structopt(long = "no-default-skip-list", short = "k")]
     no_def_skip: bool,
     /// Resolve all paths from given dir (default is cwd)
-    #[structopt(long = "resolve-dir", short="r", default_value=".")] 
+    #[structopt(long = "resolve-dir", short = "r", default_value = ".")]
     resolve_dir: String,
 }
 
@@ -102,6 +102,10 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
         "openat" => {
             // opened file
             out.insert(syscall_args[1].as_str().conv()?.to_owned());
+        },
+        "open" => {
+            // opened file
+            out.insert(syscall_args[0].as_str().conv()?.to_owned());
         }
         _ => {}
     }
@@ -121,7 +125,6 @@ fn filter_file_name(name: &str, skip_list: &[&str]) -> bool {
 fn main() {
     let mut opt: Options = Options::from_args();
     opt.preprocess();
-    dbg!(&opt);
     let data = std::fs::read_to_string(opt.log_file).expect("couldn't open log");
     let values: Vec<serde_json::Value> = serde_json::Deserializer::from_str(&data)
         .into_iter()
@@ -136,11 +139,15 @@ fn main() {
     for value in values.iter() {
         process_log_item(value, &mut out).ok() /*ignore possible errors, we are best-effort*/;
     }
-    let skip_list:Vec<_> = opt.skip.iter().map(|s| s.as_str()).collect();
+    let skip_list: Vec<_> = opt.skip.iter().map(|s| s.as_str()).collect();
     std::env::set_current_dir(opt.resolve_dir).unwrap();
     let mut files: Vec<_> = out
         .into_iter()
-        .filter_map(|file| std::fs::canonicalize(&file).ok().map(|x| x.to_str().unwrap().to_string()))
+        .filter_map(|file| {
+            std::fs::canonicalize(&file)
+                .ok()
+                .map(|x| x.to_str().unwrap().to_string())
+        })
         .filter(|file| filter_file_name(file, &skip_list))
         .collect();
     files.sort();
@@ -150,10 +157,8 @@ fn main() {
     match opt.format {
         OutType::Json => {
             out_data = serde_json::to_string(&files).unwrap();
-        },
-        OutType::Text => {
-            out_data = (&files).join("\n")
         }
+        OutType::Text => out_data = (&files).join("\n"),
     }
     std::fs::write(opt.dest_file, out_data).unwrap();
 }

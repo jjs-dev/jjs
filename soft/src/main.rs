@@ -1,6 +1,5 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 use structopt::StructOpt;
-
 #[derive(Debug)]
 enum OutType {
     Text,
@@ -51,6 +50,7 @@ impl Options {
         if !self.no_def_skip {
             self.skip.push("/tmp".to_string());
             self.skip.push("/proc".to_string());
+            self.skip.push("/dev".to_string());
         }
     }
 }
@@ -78,9 +78,6 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
     let value = value.as_object().conv()?;
     let syscall_name = value.get("syscall").conv()?.as_str().conv()?.to_owned();
     let syscall_args = value.get("args").conv()?.as_array().conv()?;
-    //if !INTERESTING_CALLS.contains(&syscall_name.as_str()) {
-    //   return Ok(());
-    // }
     let syscall_ret = value.get("result").conv()?.as_str().unwrap_or("");
     if syscall_ret.find('-').is_some()
         && syscall_ret.find('E').is_some()
@@ -102,7 +99,7 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
         "openat" => {
             // opened file
             out.insert(syscall_args[1].as_str().conv()?.to_owned());
-        },
+        }
         "open" => {
             // opened file
             out.insert(syscall_args[0].as_str().conv()?.to_owned());
@@ -122,10 +119,35 @@ fn filter_file_name(name: &str, skip_list: &[&str]) -> bool {
     true
 }
 
+fn normalize_path(path: PathBuf, root: PathBuf) -> Option<PathBuf> {
+    if path.is_absolute() {
+        return Some(path);
+    }
+    let path = root.join(path);
+
+    let mut out = PathBuf::new();
+
+    for item in path.into_iter() {
+        if item == "." {
+            continue;
+        } else if item == ".." {
+            if !out.pop() {
+                return None;
+            }
+        } else {
+            out.push(item);
+        }
+    }
+
+    dbg!(&out);
+
+    Some(out)
+}
+
 fn main() {
     let mut opt: Options = Options::from_args();
     opt.preprocess();
-    let data = std::fs::read_to_string(opt.log_file).expect("couldn't open log");
+    let data = std::fs::read_to_string(&opt.log_file).expect("couldn't open log");
     let values: Vec<serde_json::Value> = serde_json::Deserializer::from_str(&data)
         .into_iter()
         .map(|x| x.unwrap())
@@ -140,13 +162,18 @@ fn main() {
         process_log_item(value, &mut out).ok() /*ignore possible errors, we are best-effort*/;
     }
     let skip_list: Vec<_> = opt.skip.iter().map(|s| s.as_str()).collect();
-    std::env::set_current_dir(opt.resolve_dir).unwrap();
+    
+    let resolve_dir= std::fs::canonicalize(&opt.resolve_dir).unwrap();
+
     let mut files: Vec<_> = out
         .into_iter()
         .filter_map(|file| {
-            std::fs::canonicalize(&file)
-                .ok()
-                .map(|x| x.to_str().unwrap().to_string())
+            use std::str::FromStr;
+            normalize_path(
+                PathBuf::from_str(&file).unwrap(),
+                resolve_dir.clone(),
+            )
+            .map(|x| x.to_str().unwrap().to_string())
         })
         .filter(|file| filter_file_name(file, &skip_list))
         .collect();

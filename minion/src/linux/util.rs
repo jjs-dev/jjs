@@ -49,7 +49,7 @@ impl WaitMessage {
     }
 }
 
-fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
+unsafe fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
     use std::io::Write;
     let mut logger = strace_logger();
     let wm = match sock.recv_struct::<WaitMessage, [RawFd; 0]>() {
@@ -74,7 +74,7 @@ fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
     Ok(())
 }
 
-fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
+unsafe fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
     let wm = WaitMessage::new(wake_class);
     match sock.send_struct(&wm, None) {
         Ok(_) => Ok(()),
@@ -83,29 +83,29 @@ fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
 }
 
 pub trait IpcSocketExt {
-    fn lock(&mut self, expected_class: u16) -> crate::Result<()>;
-    fn wake(&mut self, wake_class: u16) -> crate::Result<()>;
+    unsafe fn lock(&mut self, expected_class: u16) -> crate::Result<()>;
+    unsafe fn wake(&mut self, wake_class: u16) -> crate::Result<()>;
 
-    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()>;
-    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T>;
+    unsafe fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()>;
+    unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T>;
 }
 
 impl IpcSocketExt for Socket {
-    fn lock(&mut self, expected_class: u16) -> crate::Result<()> {
+    unsafe fn lock(&mut self, expected_class: u16) -> crate::Result<()> {
         sock_lock(self, expected_class)
     }
 
-    fn wake(&mut self, wake_class: u16) -> crate::Result<()> {
+    unsafe fn wake(&mut self, wake_class: u16) -> crate::Result<()> {
         sock_wake(self, wake_class)
     }
 
-    fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()> {
+    unsafe fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()> {
         self.send_cbor(data, None)
             .map(|_num_read| ())
             .map_err(|_e| crate::ErrorKind::Communication.into())
     }
 
-    fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T> {
+    unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T> {
         self.recv_cbor::<T, [RawFd; 0]>(4096)
             .map(|(x, _fds)| x)
             .map_err(|_e| crate::ErrorKind::Communication.into())

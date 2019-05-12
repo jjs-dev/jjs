@@ -74,11 +74,19 @@ impl<T> ResultExt for Option<T> {
     }
 }
 
+fn decode_path(p: &serde_json::Value) -> Result<String, ()> {
+    let p = p.as_object().conv()?;
+    let p = p.get("str_params").conv()?;
+    let p = p.as_array().conv()?;
+    let p = p.get(0).conv()?;
+    Ok(p.as_str().conv()?.to_string())
+}
+
 fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Result<(), ()> {
     let value = value.as_object().conv()?;
     let syscall_name = value.get("syscall").conv()?.as_str().conv()?.to_owned();
     let syscall_args = value.get("args").conv()?.as_array().conv()?;
-    let syscall_ret = value.get("result").conv()?.as_str().unwrap_or("");
+    let syscall_ret = value.get("ans").conv()?.as_str().unwrap_or("");
     if syscall_ret.find('-').is_some()
         && syscall_ret.find('E').is_some()
         && syscall_ret.find('(').is_some()
@@ -90,19 +98,19 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
     match syscall_name.as_str() {
         "execve" => {
             //read argv[0]
-            out.insert(syscall_args[0].as_str().conv()?.to_owned());
+            out.insert(decode_path(&syscall_args[0])?);
         }
         "access" => {
             //accessed file
-            out.insert(syscall_args[1].as_str().conv()?.to_owned());
+            out.insert(decode_path(&syscall_args[1])?);
         }
         "openat" => {
             // opened file
-            out.insert(syscall_args[1].as_str().conv()?.to_owned());
+            out.insert(decode_path(&syscall_args[1])?);
         }
         "open" => {
             // opened file
-            out.insert(syscall_args[0].as_str().conv()?.to_owned());
+            out.insert(decode_path(&syscall_args[0])?);
         }
         _ => {}
     }

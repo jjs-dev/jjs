@@ -50,7 +50,7 @@ function Gcc {
 function Bash {
     $Prefix="$GlobalDataRoot/bash"
     $Strace = "$Prefix-str.txt"
-    strace -f -o $Strace -- bash -c "ls 2>&1" 
+    strace -f -o $Strace -- bash -c "busybox 2>&1" 
     Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
 }
 

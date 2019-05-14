@@ -156,6 +156,53 @@ fn duplicate_string_list(v: &[String]) -> *mut *mut c_char {
 
 const WAIT_MESSAGE_CLASS_EXECVE_PERMITTED: u16 = 1;
 
+// this function is called, when execve() returned ENOENT, to provide additional information on best effort basis
+fn print_diagnostics(path: &str) {
+    use std::str::FromStr;
+    let path = std::path::PathBuf::from_str(path);
+    let mut path = match path {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("couldn't parse path: {:?}", e);
+            return;
+        }
+    };
+    let existing_prefix;
+    loop {
+        let metadata = fs::metadata(&path);
+        if let Ok(m) = metadata {
+            if m.is_dir() {
+                existing_prefix = path;
+                break;
+            }
+        }
+        path.pop();
+    }
+    eprintln!(
+        "following path exists: {:?}, with the following items:",
+        &existing_prefix
+    );
+    let items = fs::read_dir(existing_prefix);
+    let items = match items {
+        Ok(it) => it,
+        Err(e) => {
+            eprintln!("couldn't list path: {:?}", e);
+            return;
+        }
+    };
+    for item in items {
+        eprint!("\t- ");
+        match item {
+            Ok(item) => {
+                eprintln!("{}", item.file_name().to_string_lossy());
+            }
+            Err(err) => {
+                eprintln!("<error: {:?}>", err);
+            }
+        }
+    }
+}
+
 #[allow(unreachable_code)]
 extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
     use std::iter::FromIterator;
@@ -244,7 +291,9 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         );
         let err_code = errno::errno().0;
         if err_code == libc::ENOENT {
-            eprintln!("FATAL ERROR: executable was not found");
+            eprintln!("FATAL ERROR: executable ({}) was not found", &arg.path);
+
+            print_diagnostics(&arg.path);
             libc::exit(108)
         } else {
             //execve doesn't return on success

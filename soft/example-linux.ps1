@@ -16,7 +16,7 @@ function Invoke-StraceLog {
     $StraceJSON = "$Prefix-str.json"
     Get-Content -Path $Strace | python3 $PSScriptRoot/strace-parser.py > $StraceJSON
     $FileList = "$Prefix-list.json"
-    cargo run -- "--data" $StraceJSON "--format" json "--dest" $FileList "--skip" "/dev" "--skip" "/home"
+    cargo run "--package" soft -- "--data" $StraceJSON "--format" json "--dest" $FileList "--skip" "/dev" "--skip" "/home"
     $Files = Get-Content $FileList | ConvertFrom-Json
     $Files += "/lib64/ld-linux-x86-64.so.2"
     foreach ($File in $Files ) {

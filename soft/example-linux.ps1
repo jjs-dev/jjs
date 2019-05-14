@@ -20,7 +20,6 @@ function Invoke-StraceLog {
     $Files = Get-Content $FileList | ConvertFrom-Json
     $Files += "/lib64/ld-linux-x86-64.so.2"
     foreach ($File in $Files ) {
-        $OutPath = "$OutDir$File"
         copy-ln "--file" $File "--prefix" $OutDir "--skip-exist"
     }
 }
@@ -41,10 +40,10 @@ function Gcc {
     Write-Output $Program > "$Prefix-prog.cpp"
     $Strace = "$Prefix-str-build.txt"
     strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin
-    Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
+    Invoke-StraceLog -Prefix $Prefix-build -LogPath $Strace
     $Strace = "$Prefix-str-run.txt"
     strace -f  -o $Strace -- $ProgBin
-    Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
+    Invoke-StraceLog -Prefix $Prefix-run -LogPath $Strace
 }
 
 function Bash {

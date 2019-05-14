@@ -140,8 +140,8 @@ fn main() {
     let execution_manager = minion::setup();
 
     let dominion = execution_manager.new_dominion(minion::DominionOptions {
-        max_alive_process_count: options.num_processes,
-        memory_limit: options.memory_limit,
+        max_alive_process_count: options.num_processes.min(u32::max_value() as usize) as u32,
+        memory_limit: options.memory_limit as u64,
         isolation_root: options.isolation_root,
         exposed_paths: options.exposed_paths,
         time_limit: Duration::from_millis(u64::from(options.time_limit)),

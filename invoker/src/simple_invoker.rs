@@ -27,10 +27,12 @@ enum InterpolateError {
 /// Few examples of correct template strings:
 /// - foo
 /// - fo$(KeyName)
-/// - fo$$$$(SomeKey))
+/// - fo$$$$(SomeKey)
 ///
 /// Few examples of incorrect strings:
 /// - $(
+/// - $(SomeKey))
+/// 
 fn interpolate_string(
     string: &str,
     dict: &BTreeMap<String, String>,
@@ -42,26 +44,26 @@ fn interpolate_string(
     let mut next_pat_id = 0;
     for m in matches {
         if m.pattern() != next_pat_id {
-            return Err(InterpolateError::BadSyntax);
+            return Err(InterpolateError::BadSyntax("get pattern start while parsing pattern or pattern end outside of pattern".to_string()));
         }
         
-        let chunk = string[cur_pos..m.start()];
+        let chunk = &string[cur_pos..m.start()];
         cur_pos = m.end();
         if next_pat_id == 0 {
-             out.push_str(chunk);
+             out.push_str(&chunk);
         } else {
             match dict.get(chunk) {
                 Some(ref val) => {
                     out.push_str(val);
                 },
                 None => {
-                    return InterpolateError::MissingKey;
+                    return Err(InterpolateError::MissingKey(chunk.to_string()));
                 }
             }
         }
         next_pat_id = 1- next_pat_id;
     }
-    let tail = string[cur_pos..];
+    let tail = &string[cur_pos..];
     out.push_str(tail);
     Ok(out)
 }

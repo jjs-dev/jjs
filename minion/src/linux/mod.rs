@@ -53,7 +53,7 @@ impl ChildProcess for LinuxChildProcess {
         Ok(ec)
     }
 
-    fn get_stdio(&mut self) -> crate::ChildStdio {
+    fn stdio(&mut self) -> crate::ChildStdio {
         (self.stdin.take(), self.stdout.take(), self.stderr.take())
     }
 

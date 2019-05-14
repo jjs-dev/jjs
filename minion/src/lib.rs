@@ -53,9 +53,9 @@ pub struct ResourceUsageData {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DominionOptions {
-    pub max_alive_process_count: usize,
+    pub max_alive_process_count: u32,
     /// Memory limit for all processes in cgroup, in bytes
-    pub memory_limit: usize,
+    pub memory_limit: u64,
     /// Specifies total CPU time for all dominion
     pub time_limit: Duration,
     pub isolation_root: String,
@@ -97,6 +97,11 @@ pub struct HandleWrapper {
 impl HandleWrapper {
     pub unsafe fn new(handle: u64) -> Self {
         Self { h: handle }
+    }
+
+    #[cfg(unix)]
+    pub unsafe fn from<T: std::os::unix::io::IntoRawFd>(obj: T) -> Self {
+        Self::new(obj.into_raw_fd() as u64)
     }
 }
 
@@ -228,9 +233,9 @@ pub trait ChildProcess: Drop {
     /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
     /// Otherwise, None will be returned
     ///
-    /// On all subsequent calls, (None, None, None) will be returned - `get_stdio` transfers ownership
+    /// On all subsequent calls, (None, None, None) will be returned - `stdio` transfers ownership
 
-    fn get_stdio(&mut self) -> ChildStdio;
+    fn stdio(&mut self) -> ChildStdio;
 
     /// Waits for child process exit with timeout
     fn wait_for_exit(&self, timeout: Duration) -> Result<WaitOutcome>;

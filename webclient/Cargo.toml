@@ -6,19 +6,19 @@ edition = "2018"
 
 [dependencies]
 frontend-api = {path = "../frontend-api"}
-rocket = "0.4.0"
-rocket_codegen = "0.4.0"
+rocket = "0.4.1"
+rocket_codegen = "0.4.1"
 handlebars = "1.1.0"
-serde = "1.0.90"
-serde_derive = "1.0.90"
+serde = "1.0.91"
+serde_derive = "1.0.91"
 serde_json = "1.0.39"
 uuid = { version = "0.7.4", features = ["v4"] }
 failure = "0.1.5"
 multipart = "0.16.1"
 base64 = "0.10.1"
-reqwest = "0.9.15"
+reqwest = "0.9.16"
 
 [dependencies.rocket_contrib]
-version = "0.4.0"
+version = "0.4.1"
 default-features = false
 features = ["handlebars_templates", "serve"]

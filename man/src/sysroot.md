@@ -20,5 +20,9 @@ __Note__: When running JJS on cluster, make sure sysroot is shared (e.g., using 
 
 * Initialize directory structure. You can use `jjs-init-sysroot` CLI utility for it.
 * Configure JJS (TODO: page about it). 
-* Setup `$ROOT/opt`. You can use `jjs-softinit` CLI utility for it, e.g. `jjs-softinit /tmp/jjs 
---with=g++ --with=gcc`. Note that `jjs-softinit` can produce invalid results.
+* Setup `$ROOT/opt` - toolchain root. 
+
+You can use various strategies to setup toolchain root.
+The simplest is to bind-mount / - this is appropriate for testing, but it is unsecure (as a possible attack, hacker can cpp-include /etc/shadow).
+Another option is to rebuild all compilers and interpreters from source with appropriate configure options. However, this approach can take much time.
+Finally, you can use strace-based toolchain installing. It is secure, fast and easy to use. check `/soft/example-linux.ps1` for details/

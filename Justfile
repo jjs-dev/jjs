@@ -16,8 +16,7 @@ sysroot:
     sh -c "rm -rf /tmp/jjs || true"
     mkdir /tmp/jjs
     @cargo run --bin init-jjs-root -- /tmp/jjs ./example-config
-    @cargo run --bin soft -- --root=/tmp/jjs/opt --bin=python3 --bin=bash --bin=busybox
-    pwsh ./soft/gcc.ps1
+    pwsh ./soft/example-linux.ps1
 
 install_tools:
     #! /bin/bash

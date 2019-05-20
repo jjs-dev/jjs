@@ -16,11 +16,10 @@ function Invoke-StraceLog {
     $StraceJSON = "$Prefix-str.json"
     Get-Content -Path $Strace | python3 $PSScriptRoot/strace-parser.py > $StraceJSON
     $FileList = "$Prefix-list.json"
-    cargo run -- "--data" $StraceJSON "--format" json "--dest" $FileList "--skip" "/dev" "--skip" "/home"
+    cargo run "--package" soft -- "--data" $StraceJSON "--format" json "--dest" $FileList "--skip" "/dev" "--skip" "/home"
     $Files = Get-Content $FileList | ConvertFrom-Json
     $Files += "/lib64/ld-linux-x86-64.so.2"
     foreach ($File in $Files ) {
-        $OutPath = "$OutDir$File"
         copy-ln "--file" $File "--prefix" $OutDir "--skip-exist"
     }
 }
@@ -41,16 +40,16 @@ function Gcc {
     Write-Output $Program > "$Prefix-prog.cpp"
     $Strace = "$Prefix-str-build.txt"
     strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin
-    Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
+    Invoke-StraceLog -Prefix $Prefix-build -LogPath $Strace
     $Strace = "$Prefix-str-run.txt"
     strace -f  -o $Strace -- $ProgBin
-    Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
+    Invoke-StraceLog -Prefix $Prefix-run -LogPath $Strace
 }
 
 function Bash {
     $Prefix="$GlobalDataRoot/bash"
     $Strace = "$Prefix-str.txt"
-    strace -f -o $Strace -- bash -c "ls 2>&1" 
+    strace -f -o $Strace -- bash -c "busybox 2>&1" 
     Invoke-StraceLog -Prefix $Prefix -LogPath $Strace
 }
 

@@ -5,6 +5,7 @@ use crate::invoker::{status_codes, Status, StatusKind};
 use cfg::{Command, Config, Toolchain};
 use db::schema::Submission;
 use minion;
+use slog::{debug, Logger};
 use std::{collections::BTreeMap, fs, time::Duration};
 
 fn get_toolchain_by_name<'a>(name: &str, cfg: &'a Config) -> Option<&'a Toolchain> {
@@ -32,7 +33,7 @@ enum InterpolateError {
 /// Few examples of incorrect strings:
 /// - $(
 /// - $(SomeKey))
-/// 
+///
 fn interpolate_string(
     string: &str,
     dict: &BTreeMap<String, String>,
@@ -44,31 +45,34 @@ fn interpolate_string(
     let mut next_pat_id = 0;
     for m in matches {
         if m.pattern() != next_pat_id {
-            return Err(InterpolateError::BadSyntax("get pattern start while parsing pattern or pattern end outside of pattern".to_string()));
+            return Err(InterpolateError::BadSyntax(
+                "get pattern start while parsing pattern or pattern end outside of pattern"
+                    .to_string(),
+            ));
         }
-        
+
         let chunk = &string[cur_pos..m.start()];
         cur_pos = m.end();
         if next_pat_id == 0 {
-             out.push_str(&chunk);
+            out.push_str(&chunk);
         } else {
             match dict.get(chunk) {
                 Some(ref val) => {
                     out.push_str(val);
-                },
+                }
                 None => {
                     return Err(InterpolateError::MissingKey(chunk.to_string()));
                 }
             }
         }
-        next_pat_id = 1- next_pat_id;
+        next_pat_id = 1 - next_pat_id;
     }
     let tail = &string[cur_pos..];
     out.push_str(tail);
     Ok(out)
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct CommandInterp {
     argv: Vec<String>,
     env: BTreeMap<String, String>,
@@ -138,7 +142,7 @@ fn derive_path_exposition_options(cfg: &Config) -> Vec<minion::PathExpositionOpt
 
 const MEGABYTE: u64 = 1 << 20;
 
-fn build(submission: &Submission, cfg: &Config, invokation_id: &str) -> Status {
+fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Logger) -> Status {
     let toolchain = get_toolchain_by_name(&submission.toolchain, &cfg);
 
     let toolchain = match toolchain {
@@ -205,6 +209,7 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str) -> Status {
         .expect("io error");
 
         let interp = interpolate_command(cmd, &dict).expect("syntax error in config");
+        debug!(logger, "executing command"; "command" => ?interp, "phase" => "build");
         let opts = minion::ChildProcessOptions {
             path: interp.argv[0].clone(),
             arguments: interp.argv[1..].to_vec(),
@@ -266,6 +271,7 @@ pub fn run_on_test(
     cfg: &Config,
     invokation_id: &str,
     test_data: &[u8],
+    logger: &Logger,
 ) -> crate::invoker::Status {
     let backend = minion::setup();
     let paths = SubmissionPaths::new(&cfg.sysroot, submission.id(), invokation_id);
@@ -301,6 +307,7 @@ pub fn run_on_test(
         }
     };
     let cmd = interpolate_command(&toolchain.run_command, &dict).expect("ill-formed interpolation");
+    debug!(logger, "executing command"; "command" => ?cmd, "phase" => "exec");
     let stdout_file = fs::File::create(format!(
         "{}/run-stdout-{}.txt",
         &paths.submission_root_dir, invokation_id
@@ -358,10 +365,10 @@ pub fn run_on_test(
     }
 }
 
-pub fn judge(submission: &Submission, cfg: &Config) -> crate::invoker::Status {
-    let build_res = build(submission, cfg, "TODO");
+pub fn judge(submission: &Submission, cfg: &Config, logger: &Logger) -> crate::invoker::Status {
+    let build_res = build(submission, cfg, "TODO", logger);
     if build_res.kind != StatusKind::Accepted {
         return build_res;
     }
-    run_on_test(submission, cfg, "TODO", b"foo")
+    run_on_test(submission, cfg, "TODO", b"foo", logger)
 }

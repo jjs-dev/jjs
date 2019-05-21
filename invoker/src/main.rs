@@ -9,12 +9,17 @@ struct InvokeRequest {
     submission: Submission,
 }
 
-fn handle_judge_task(task: InvokeRequest, cfg: &Config, conn: &PgConnection) {
+fn handle_judge_task(
+    task: InvokeRequest,
+    cfg: &Config,
+    conn: &PgConnection,
+    logger: &slog::Logger,
+) {
     use db::schema::submissions::dsl::*;
 
     let submission = task.submission.clone();
 
-    let judging_status = simple_invoker::judge(&submission, cfg);
+    let judging_status = simple_invoker::judge(&submission, cfg, logger);
 
     //db.submissions
     //    .update_submission_state(&task.submission, SubmissionState::Done);
@@ -23,7 +28,8 @@ fn handle_judge_task(task: InvokeRequest, cfg: &Config, conn: &PgConnection) {
         .set(state.eq(SubmissionState::Done))
         .execute(conn)
         .expect("Db error failed");
-    println!("Judging result: {:#?}", judging_status);
+    debug!(logger, "judging finished"; "outcome" => ?judging_status);
+    //println!("Judging result: {:#?}", judging_status);
 }
 fn main() {
     use db::schema::submissions::dsl::*;
@@ -67,6 +73,6 @@ fn main() {
         let ivr = InvokeRequest {
             submission: waiting_submission,
         };
-        handle_judge_task(ivr, &config, &db_conn);
+        handle_judge_task(ivr, &config, &db_conn, &root);
     }
 }

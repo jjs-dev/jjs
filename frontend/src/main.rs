@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro, type_alias_enum_variants, box_syntax)]
+#![feature(proc_macro_hygiene, decl_macro, type_alias_enum_variants)]
 
 #[macro_use]
 extern crate rocket;
@@ -142,7 +142,7 @@ fn route_submissions_send(
             Err(e) => return Ok(Json(Err(e))),
         };
     std::fs::write(submission_src_path, &decoded_code)
-        .map_err(|e| FrontendError::Internal(Some(box e)))?;
+        .map_err(|e| FrontendError::Internal(Some(Box::new(e))))?;
     let res = Ok(subm.id());
     Ok(Json(res))
 }

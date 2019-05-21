@@ -15,7 +15,7 @@ db:
 sysroot:
     sh -c "rm -rf /tmp/jjs || true"
     mkdir /tmp/jjs
-    @cargo run --bin init-jjs-root -- /tmp/jjs ./example-config
+    @cargo run --bin init-jjs-root -- /tmp/jjs ./example-config --symlink-config
     pwsh ./soft/example-linux.ps1
 
 install_tools:

@@ -1,5 +1,4 @@
 #![feature(try_trait)]
-#![allow(unused_attributes)] //FIXME: workaround for https://github.com/rust-lang/rust/issues/60050
 
 use minion;
 use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char};

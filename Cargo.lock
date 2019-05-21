@@ -1107,6 +1107,7 @@ name = "init-jjs-root"
 version = "0.1.0"
 dependencies = [
  "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -68,11 +68,33 @@ pub struct Config {
     pub toolchain_root: String,
     #[serde(rename = "global-limits")]
     pub global_limits: Limits,
+    #[serde(rename = "global-env")]
+    pub global_env: HashMap<String, String>,
+    #[serde(rename = "env-passing")]
+    pub env_passing: bool,
 }
 
 impl Config {
     pub fn postprocess(&mut self) {
-        //TODO
+        fn command_inherit_env(cmd: &mut Command, dfl: &HashMap<String, String>) {
+            for (key, val) in dfl.iter() {
+                cmd.env.entry(key.clone()).or_insert(val.clone());
+            }
+        }
+
+        let mut inherit_env = self.global_env.clone();
+        if self.env_passing {
+            for (key, value) in std::env::vars() {
+                inherit_env.entry(key).or_insert(value);
+            }
+        }
+
+        for toolchain in &mut self.toolchains {
+            for mut cmd in &mut toolchain.build_commands {
+                command_inherit_env(&mut cmd, &inherit_env);
+            }
+            command_inherit_env(&mut toolchain.run_command, &inherit_env);
+        }
     }
 }
 
@@ -84,14 +106,13 @@ pub fn parse_file(path: PathBuf) -> Config {
         )
     });
     let raw_data: toml::Value = file_content.parse().unwrap();
-    let mut cfg: Config = match toml::from_str(&file_content) {
+    let cfg: Config = match toml::from_str(&file_content) {
         Ok(x) => x,
         Err(e) => panic!(
             "Error ocured when parsing config: {:?}.\nRaw config:\n{:#?}",
             e, raw_data
         ),
     };
-    cfg.postprocess();
     cfg
 }
 
@@ -114,5 +135,6 @@ pub fn get_config() -> Config {
         c.toolchains.push(toolchain_spec);
     }
     c.sysroot = sysroot;
+    c.postprocess();
     c
 }

@@ -29,7 +29,8 @@ function Gcc {
     $Prefix="$GlobalDataRoot/g++"
     $Program = @'
     #include <bits/stdc++.h> 
-    #include <iostream>      
+    #include <string_view>
+    #include <bits/string_view.tcc>
 
     int main() {
     return 0;
@@ -38,10 +39,10 @@ function Gcc {
 
     $ProgBin = "$Prefix-prog.elf"
     Write-Output $Program > "$Prefix-prog.cpp"
-    $Strace = "$Prefix-str-build.txt"
-    strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin
+    $Strace = "$Prefix-build-strace.txt"
+    strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin -std=c++17
     Invoke-StraceLog -Prefix $Prefix-build -LogPath $Strace
-    $Strace = "$Prefix-str-run.txt"
+    $Strace = "$Prefix-run-strace.txt"
     strace -f  -o $Strace -- $ProgBin
     Invoke-StraceLog -Prefix $Prefix-run -LogPath $Strace
 }

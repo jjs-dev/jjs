@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Eq)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StatusKind {
     /// WA, TLE, rejected by teacher, etc
     Rejected,
@@ -26,7 +28,7 @@ pub mod status_codes {
     declare_code!(TIME_LIMIT_EXCEEDED, RUNTIME_ERROR, TEST_PASSED);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Status {
     pub kind: StatusKind,
     pub code: String,

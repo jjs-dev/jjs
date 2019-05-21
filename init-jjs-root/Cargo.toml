@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 fs_extra = "1.1.0"
+structopt = "0.2.15"

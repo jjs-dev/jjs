@@ -70,6 +70,8 @@ pub struct Config {
     pub global_limits: Limits,
     #[serde(rename = "global-env")]
     pub global_env: HashMap<String, String>,
+    #[serde(rename = "env-passing")]
+    pub env_passing: bool,
 }
 
 impl Config {
@@ -80,11 +82,18 @@ impl Config {
             }
         }
 
+        let mut inherit_env = self.global_env.clone();
+        if self.env_passing {
+            for (key, value) in std::env::vars() {
+                inherit_env.entry(key).or_insert(value);
+            }
+        }
+
         for toolchain in &mut self.toolchains {
             for mut cmd in &mut toolchain.build_commands {
-               command_inherit_env(&mut cmd, &self.global_env);
+                command_inherit_env(&mut cmd, &inherit_env);
             }
-            command_inherit_env(&mut toolchain.run_command, &self.global_env);
+            command_inherit_env(&mut toolchain.run_command, &inherit_env);
         }
     }
 }

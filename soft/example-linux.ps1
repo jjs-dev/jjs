@@ -40,7 +40,7 @@ function Gcc {
     $ProgBin = "$Prefix-prog.elf"
     Write-Output $Program > "$Prefix-prog.cpp"
     $Strace = "$Prefix-build-strace.txt"
-    strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin
+    strace -f -o $Strace -- g++ "$Prefix-prog.cpp" -o $ProgBin -std=c++17
     Invoke-StraceLog -Prefix $Prefix-build -LogPath $Strace
     $Strace = "$Prefix-run-strace.txt"
     strace -f  -o $Strace -- $ProgBin

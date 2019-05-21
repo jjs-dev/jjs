@@ -1,5 +1,5 @@
 toolchain-root= "/opt/jjs-tc/root"
-
+env-passing = true
 [global-limits]
 
 [global-env]

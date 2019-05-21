@@ -1,3 +1,7 @@
 toolchain-root= "/opt/jjs-tc/root"
 
 [global-limits]
+
+[global-env]
+PATH = "/usr/bin"
+LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/"

@@ -6,8 +6,6 @@
 * to know more
 */
 
-#![feature(integer_atomics, box_syntax)]
-
 #[macro_use]
 extern crate serde_derive;
 

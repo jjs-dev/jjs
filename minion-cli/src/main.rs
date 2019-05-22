@@ -5,10 +5,6 @@ use minion;
 use std::time::Duration;
 use structopt::StructOpt;
 
-static COMPILATION_TIME: &str = env!("MINION_CLI_COMPILATION_TIME");
-
-static VERSION: &str = env!("CARGO_PKG_VERSION");
-
 #[derive(Debug)]
 struct EnvItem {
     name: String,
@@ -101,16 +97,6 @@ struct ExecOpt {
     pwd: String,
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(version = "run `minion-cli version` for version details")]
-enum Opt {
-    /// Run subprocess
-    #[structopt(name = "run")]
-    Exec(ExecOpt),
-    /// Print version and exit
-    #[structopt(name = "version")]
-    Version,
-}
 
 cfg_if! {
 if #[cfg(feature="human_panic")] {
@@ -126,14 +112,7 @@ if #[cfg(feature="human_panic")] {
 
 fn main() {
     setup_human_panic();
-    let options: Opt = Opt::from_args();
-    let options = match options {
-        Opt::Version => {
-            println!("Minion CLI v{}, compiled {}", VERSION, COMPILATION_TIME);
-            return;
-        }
-        Opt::Exec(o) => o,
-    };
+    let options: ExecOpt = ExecOpt::from_args();
     if options.dump_argv {
         println!("{:#?}", options);
     }

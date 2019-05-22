@@ -23,7 +23,7 @@ db = {path = "../db"}
 diesel = { version = "1.4.2", features = ["postgres", "extras"] }
 rocket = "0.4.1"
 r2d2 = "0.8.4"
-dotenv = "0.14.0"
+dotenv = "0.14.1"
 serde_derive = "1.0.91"
 rand_chacha = "0.1.1"
 sha3 = "0.8.2"
@@ -31,7 +31,7 @@ digest = "0.8.0"
 branca = "0.8.0"
 base64 = "0.10.1"
 structopt = "0.2.15"
-reqwest = "0.9.16"
+reqwest = "0.9.17"
 constant_time_eq = "0.1.3"
 
 

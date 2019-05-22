@@ -1,3 +1,3 @@
 [workspace]
 members=["db", "invoker", "minion", "cfg", "init-jjs-root", "frontend", "frontend-api",
-"minion-cli", "cleanup", "minion-ffi", "devtool", "webclient", "soft", "envck", "userlist"]
+"minion-cli", "cleanup", "minion-ffi", "devtool", "webclient", "soft", "envck", "userlist", "invoker-api"]

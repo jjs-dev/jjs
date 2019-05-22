@@ -1,7 +1,7 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use crate::invoker::{status_codes, Status, StatusKind};
+use invoker_api::{status_codes, Status, StatusKind};
 use cfg::{Command, Config, Toolchain};
 use db::schema::Submission;
 use minion;
@@ -272,7 +272,7 @@ pub fn run_on_test(
     invokation_id: &str,
     test_data: &[u8],
     logger: &Logger,
-) -> crate::invoker::Status {
+) -> Status {
     let backend = minion::setup();
     let paths = SubmissionPaths::new(&cfg.sysroot, submission.id(), invokation_id);
     let time_limit = Duration::from_millis(cfg.global_limits.time as _);
@@ -365,7 +365,7 @@ pub fn run_on_test(
     }
 }
 
-pub fn judge(submission: &Submission, cfg: &Config, logger: &Logger) -> crate::invoker::Status {
+pub fn judge(submission: &Submission, cfg: &Config, logger: &Logger) -> Status {
     let build_res = build(submission, cfg, "TODO", logger);
     if build_res.kind != StatusKind::Accepted {
         return build_res;

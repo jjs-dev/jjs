@@ -27,7 +27,7 @@ fn handle_judge_task(
     diesel::update(target)
         .set(state.eq(SubmissionState::Done))
         .execute(conn)
-        .expect("Db error failed");
+        .expect("Db query failed");
     debug!(logger, "judging finished"; "outcome" => ?judging_status);
     //println!("Judging result: {:#?}", judging_status);
 }

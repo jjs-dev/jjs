@@ -97,11 +97,11 @@ fn build_package(pkg_name: &str, features: &[&str]) {
 fn task_package() {
     print_section("Creating directories");
     let binary_dir = format!(
-        "{}/target/x86_64-unknown-linux-gnu/release",
+        "{}/target/release",
         get_project_dir()
     );
     let dylib_dir = format!(
-        "{}/target/x86_64-unknown-linux-gnu/release",
+        "{}/target/release",
         get_project_dir()
     );
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());

@@ -1,6 +1,5 @@
 use std::{ffi::CString, fs};
 
-extern crate structopt;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]

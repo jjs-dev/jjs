@@ -135,7 +135,7 @@ fn normalize_path(path: PathBuf, root: PathBuf) -> Option<PathBuf> {
 
     let mut out = PathBuf::new();
 
-    for item in path.into_iter() {
+    for item in path.iter() {
         if item == "." {
             continue;
         } else if item == ".." {
@@ -170,18 +170,15 @@ fn main() {
         process_log_item(value, &mut out).ok() /*ignore possible errors, we are best-effort*/;
     }
     let skip_list: Vec<_> = opt.skip.iter().map(|s| s.as_str()).collect();
-    
-    let resolve_dir= std::fs::canonicalize(&opt.resolve_dir).unwrap();
+
+    let resolve_dir = std::fs::canonicalize(&opt.resolve_dir).unwrap();
 
     let mut files: Vec<_> = out
         .into_iter()
         .filter_map(|file| {
             use std::str::FromStr;
-            normalize_path(
-                PathBuf::from_str(&file).unwrap(),
-                resolve_dir.clone(),
-            )
-            .map(|x| x.to_str().unwrap().to_string())
+            normalize_path(PathBuf::from_str(&file).unwrap(), resolve_dir.clone())
+                .map(|x| x.to_str().unwrap().to_string())
         })
         .filter(|file| filter_file_name(file, &skip_list))
         .collect();

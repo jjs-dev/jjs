@@ -107,7 +107,6 @@ fn get_current_target() -> String {
 
 fn task_package(args: PackageArgs) {
     let target = args.target.unwrap_or_else(get_current_target);
-    dbg!(&target);
     let enabled_dll = !target.contains("musl");
     print_section("Creating directories");
     let binary_dir = format!("{}/target/{}/release", get_project_dir(), &target);
@@ -161,8 +160,8 @@ fn task_package(args: PackageArgs) {
 
     if enabled_dll {
         fs::copy(
-            dbg!(format!("{}/libminion_ffi.so", &dylib_dir)),
-            dbg!(format!("{}/lib/libminion_ffi.so", &pkg_dir)),
+            format!("{}/libminion_ffi.so", &dylib_dir),
+            format!("{}/lib/libminion_ffi.so", &pkg_dir),
         )
         .unwrap();
     }

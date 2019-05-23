@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
 #[derive(Clone, Debug, Display, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,7 +26,12 @@ pub mod status_codes {
         };
     }
 
-    declare_code!(TOOLCHAIN_SEARCH_ERROR, BUILT, COMPILATION_TIMED_OUT, COMPILER_FAILED);
+    declare_code!(
+        TOOLCHAIN_SEARCH_ERROR,
+        BUILT,
+        COMPILATION_TIMED_OUT,
+        COMPILER_FAILED
+    );
     declare_code!(TIME_LIMIT_EXCEEDED, RUNTIME_ERROR, TEST_PASSED);
 }
 

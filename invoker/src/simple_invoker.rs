@@ -1,9 +1,9 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
-use invoker_api::{status_codes, Status, StatusKind};
 use cfg::{Command, Config, Toolchain};
 use db::schema::Submission;
+use invoker_api::{status_codes, Status, StatusKind};
 use minion;
 use slog::{debug, Logger};
 use std::{collections::BTreeMap, fs, time::Duration};
@@ -261,7 +261,7 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
     .unwrap();
 
     Status {
-        kind: StatusKind::NotSet,
+        kind: StatusKind::Accepted,
         code: status_codes::BUILT.to_string(),
     }
 }

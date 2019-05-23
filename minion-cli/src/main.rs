@@ -97,7 +97,6 @@ struct ExecOpt {
     pwd: String,
 }
 
-
 cfg_if! {
 if #[cfg(feature="human_panic")] {
     fn setup_human_panic() {

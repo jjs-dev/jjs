@@ -8,10 +8,16 @@ struct TouchArgs {
 }
 
 #[derive(StructOpt)]
+struct PackageArgs {
+    #[structopt(short = "t", long = "target")]
+    target: Option<String>,
+}
+
+#[derive(StructOpt)]
 enum CliArgs {
     /// Create binary archive with all public components
     #[structopt(name = "pkg")]
-    Pkg,
+    Pkg(PackageArgs),
     /// Publish archive to Yandex.Drive (don't forget to run Pkg first)
     #[structopt(name = "publish")]
     Publish,
@@ -74,8 +80,8 @@ fn add_binary_artifact(build_name: &str, inst_name: &str) {
     .unwrap();
 }
 
-fn build_package(pkg_name: &str, features: &[&str]) {
-    print_section(&format!("Building package {}", pkg_name));
+fn build_package(pkg_name: &str, features: &[&str], target: &str) {
+    print_section(&format!("Building {}", pkg_name));
     let mut cmd = Command::new(resolve_tool_path("cargo"));
     cmd.current_dir(get_project_dir()).args(&[
         "build",
@@ -83,27 +89,29 @@ fn build_package(pkg_name: &str, features: &[&str]) {
         pkg_name,
         "--release",
         "--target",
-        "x86_64-unknown-linux-gnu",
+        target,
     ]);
     if !features.is_empty() {
         cmd.arg("--features");
-        let feat = features.join(" ");
+        let feat = features.join(",");
         cmd.arg(&feat);
     }
     let st = cmd.status().unwrap().success();
     assert_eq!(st, true);
 }
 
-fn task_package() {
+fn get_current_target() -> String {
+    //provided by build.rs
+    env!("TARGET").to_owned()
+}
+
+fn task_package(args: PackageArgs) {
+    let target = args.target.unwrap_or_else(get_current_target);
+    dbg!(&target);
+    let enabled_dll = !target.contains("musl");
     print_section("Creating directories");
-    let binary_dir = format!(
-        "{}/target/release",
-        get_project_dir()
-    );
-    let dylib_dir = format!(
-        "{}/target/release",
-        get_project_dir()
-    );
+    let binary_dir = format!("{}/target/{}/release", get_project_dir(), &target);
+    let dylib_dir = format!("{}/target/{}/release", get_project_dir(), &target);
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
 
     fs::create_dir_all(&pkg_dir).ok();
@@ -114,18 +122,18 @@ fn task_package() {
     fs::create_dir(format!("{}/include", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
 
-    build_package("minion-cli", &["dist"]);
-    build_package("cleanup", &[]);
-    build_package("init-jjs-root", &[]);
-    build_package("envck", &[]);
-    build_package("userlist", &[]);
-    build_package("invoker", &[]);
-    build_package("frontend", &[]);
+    build_package("cleanup", &[], &target);
+    build_package("envck", &[], &target);
+    build_package("init-jjs-root", &[], &target);
+    build_package("minion-cli", &["dist"], &target);
+    build_package("userlist", &[], &target);
+    build_package("invoker", &[], &target);
+    build_package("frontend", &[], &target);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
         .current_dir(get_project_dir())
-        .args(&["build", "--package", "minion-ffi", "--release"])
+        .args(&["build", "--package", "minion-ffi", "--release", "--target", &target])
         .status()
         .unwrap()
         .success();
@@ -151,11 +159,14 @@ fn task_package() {
     }
     print_section("Packaging[TGZ]");
 
-    fs::copy(
-        format!("{}/libminion_ffi.so", &dylib_dir),
-        format!("{}/lib/libminion_ffi.so", &pkg_dir),
-    )
-    .unwrap();
+    if enabled_dll {
+        fs::copy(
+            dbg!(format!("{}/libminion_ffi.so", &dylib_dir)),
+            dbg!(format!("{}/lib/libminion_ffi.so", &pkg_dir)),
+        )
+        .unwrap();
+    }
+
     fs::copy(
         format!("{}/libminion_ffi.a", &binary_dir),
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
@@ -330,7 +341,7 @@ fn task_touch(arg: TouchArgs) {
 fn main() {
     let args = CliArgs::from_args();
     match args {
-        CliArgs::Pkg => task_package(),
+        CliArgs::Pkg(args) => task_package(args),
         CliArgs::Publish => task_publish(),
         CliArgs::Man => task_man(),
         CliArgs::Vm => task_vm(),

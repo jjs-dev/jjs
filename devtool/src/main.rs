@@ -132,7 +132,14 @@ fn task_package(args: PackageArgs) {
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
         .current_dir(get_project_dir())
-        .args(&["build", "--package", "minion-ffi", "--release", "--target", &target])
+        .args(&[
+            "build",
+            "--package",
+            "minion-ffi",
+            "--release",
+            "--target",
+            &target,
+        ])
         .status()
         .unwrap()
         .success();

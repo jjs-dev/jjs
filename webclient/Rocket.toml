@@ -1,4 +1,0 @@
-[development]
-secret_key = "pyTFYl7ZOxRT02tq4iZS/8fgtCT47REHCDOMkmA65KE="
-env = "dev"
-port = 8080

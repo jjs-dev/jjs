@@ -9,16 +9,16 @@ minion = {path = "../minion"}
 cfg = {path ="../cfg"}
 pretty_env_logger = "0.3.0"
 futures = "0.1.27"
-serde = {version = "1.0.91", features = ["derive"]}
+serde = { version = "1.0.91", features = ["derive"] }
 serde_derive = "1.0.91"
 serde_json = "1.0.39"
-rocket = "0.4.1"
 frontend-api = {path = "../frontend-api"}
 db = {path = "../db"}
-dotenv = "0.14.0"
+dotenv = "0.14.1"
 slog = { version = "2.4.1", features = ["max_level_trace"] }
 slog-term = "2.4.0"
 slog-async = "2.3.0"
 ctrlc = { version = "3.1.2", features = ["termination"] }
 diesel = { version = "1.4.2", features = ["postgres", "extras"] }
 aho-corasick = "0.7.3"
+invoker-api = {path = "../invoker-api"}

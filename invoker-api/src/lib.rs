@@ -1,7 +1,9 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Display, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StatusKind {
+    Queue,
     /// WA, TLE, rejected by teacher, etc
     Rejected,
     /// e.g. Coding Style Violation
@@ -24,11 +26,16 @@ pub mod status_codes {
         };
     }
 
-    declare_code!(TOOLCHAIN_SEARCH_ERROR, BUILT, COMPILATION_TIMED_OUT, COMPILER_FAILED);
+    declare_code!(
+        TOOLCHAIN_SEARCH_ERROR,
+        BUILT,
+        COMPILATION_TIMED_OUT,
+        COMPILER_FAILED
+    );
     declare_code!(TIME_LIMIT_EXCEEDED, RUNTIME_ERROR, TEST_PASSED);
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Status {
     pub kind: StatusKind,
     pub code: String,

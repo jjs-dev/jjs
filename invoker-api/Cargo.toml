@@ -1,10 +1,10 @@
 [package]
-name = "cfg"
+name = "invoker-api"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0.91"
-serde_derive = "1.0.91"
-toml = "0.5.1"
+serde = {version = "1.0.91", features = ["derive"]}
+strum = "0.15.0"
+strum_macros = "0.15.0"

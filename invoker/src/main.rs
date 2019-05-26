@@ -1,4 +1,3 @@
-mod invoker;
 mod simple_invoker;
 use cfg::Config;
 use db::schema::{Submission, SubmissionState};
@@ -21,15 +20,16 @@ fn handle_judge_task(
 
     let judging_status = simple_invoker::judge(&submission, cfg, logger);
 
-    //db.submissions
-    //    .update_submission_state(&task.submission, SubmissionState::Done);
     let target = submissions.filter(id.eq(task.submission.id() as i32));
     diesel::update(target)
-        .set(state.eq(SubmissionState::Done))
+        .set((
+            state.eq(SubmissionState::Done),
+            status.eq(&judging_status.code.to_string()),
+            status_kind.eq(&judging_status.kind.to_string()),
+        ))
         .execute(conn)
-        .expect("Db error failed");
+        .expect("Db query failed");
     debug!(logger, "judging finished"; "outcome" => ?judging_status);
-    //println!("Judging result: {:#?}", judging_status);
 }
 fn main() {
     use db::schema::submissions::dsl::*;

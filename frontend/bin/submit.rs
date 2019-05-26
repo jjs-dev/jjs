@@ -5,14 +5,13 @@ use structopt::StructOpt;
 struct Opt {
     toolchain: String,
     filename: String,
-    #[structopt(long="token", short="t", default_value="dev:root")]
+    #[structopt(long = "token", short = "t", default_value = "dev:root")]
     token: String,
 }
 
 fn resolve_toolchain(client: &Client, name: &str) -> u32 {
-    let res: Result<Vec<ToolchainInformation>, CommonError> = client
-        .toolchains_list(&())
-        .expect("network error");
+    let res: Result<Vec<ToolchainInformation>, CommonError> =
+        client.toolchains_list(&()).expect("network error");
     let res = res.expect("Couldn't get toolchain information");
     for tc in res {
         if tc.name == name {

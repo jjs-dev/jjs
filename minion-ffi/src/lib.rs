@@ -144,7 +144,7 @@ pub unsafe extern "C" fn minion_dominion_create(
     }
     let opts = minion::DominionOptions {
         max_alive_process_count: options.process_limit as _,
-        memory_limit: options.memory_limit as _,
+        memory_limit: u64::from(options.memory_limit),
         time_limit: std::time::Duration::new(
             options.time_limit.seconds.into(),
             options.time_limit.nanoseconds,

@@ -97,11 +97,11 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
 
     match syscall_name.as_str() {
         "execve" => {
-            //read argv[0]
+            // read argv[0]
             out.insert(decode_path(&syscall_args[0])?);
         }
         "access" => {
-            //accessed file
+            // accessed file
             out.insert(decode_path(&syscall_args[1])?);
         }
         "openat" => {

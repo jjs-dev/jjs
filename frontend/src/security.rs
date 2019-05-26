@@ -46,8 +46,6 @@ impl Token {
         let mut rand_gen = rand::thread_rng();
         let mut nonce = [0 as u8; 24];
         rand_gen.fill(&mut nonce);
-        //let nonce =
-        //let timestamp = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH).unwrap().as_millis() as u32;
         branca::encode(&ser, key, &nonce, 0).expect("Token encoding error")
     }
 
@@ -78,7 +76,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Token {
             .clone();
 
         let env = req
-            .guard::<rocket::State<crate::util::Env>>()
+            .guard::<rocket::State<crate::config::Env>>()
             .expect("Couldn't fetch env");
 
         let token_data = req.headers().get_one("X-Jjs-Auth");

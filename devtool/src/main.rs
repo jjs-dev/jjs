@@ -7,10 +7,31 @@ struct TouchArgs {
     verbose: bool,
 }
 
+#[derive(Copy, Clone, Debug)]
+enum BuildProfile {
+    Debug,
+    Release,
+    RelWithDebInfo,
+}
+
+impl std::str::FromStr for BuildProfile {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "debug" => Ok(BuildProfile::Debug),
+            "release" => Ok(BuildProfile::Release),
+            "release-dbg" => Ok(BuildProfile::RelWithDebInfo),
+            _ => Err(format!("unknown profile: '{}'", s)),
+        }
+    }
+}
+
 #[derive(StructOpt)]
 struct PackageArgs {
     #[structopt(short = "t", long = "target")]
     target: Option<String>,
+    #[structopt(short = "p", long = "profile")]
+    profile: String,
 }
 
 #[derive(StructOpt)]
@@ -67,10 +88,15 @@ fn get_project_dir() -> String {
     }
 }
 
-fn add_binary_artifact(build_name: &str, inst_name: &str) {
+fn add_binary_artifact(build_name: &str, inst_name: &str, profile: BuildProfile) {
+    let comp = match profile {
+        BuildProfile::Debug => "debug",
+        BuildProfile::Release | BuildProfile::RelWithDebInfo => "release",
+    };
     let binary_dir = format!(
-        "{}/target/x86_64-unknown-linux-gnu/release",
-        get_project_dir()
+        "{}/target/x86_64-unknown-linux-gnu/{}",
+        get_project_dir(),
+        comp,
     );
     let pkg_dir = format!("{}/pkg/ar_data", get_project_dir());
     fs::copy(
@@ -80,21 +106,21 @@ fn add_binary_artifact(build_name: &str, inst_name: &str) {
     .unwrap();
 }
 
-fn build_package(pkg_name: &str, features: &[&str], target: &str) {
+fn build_package(pkg_name: &str, features: &[&str], target: &str, profile: BuildProfile) {
     print_section(&format!("Building {}", pkg_name));
     let mut cmd = Command::new(resolve_tool_path("cargo"));
-    cmd.current_dir(get_project_dir()).args(&[
-        "build",
-        "--package",
-        pkg_name,
-        "--release",
-        "--target",
-        target,
-    ]);
+    cmd.current_dir(get_project_dir())
+        .args(&["build", "--package", pkg_name, "--target", target]);
     if !features.is_empty() {
         cmd.arg("--features");
         let feat = features.join(",");
         cmd.arg(&feat);
+    }
+    if let BuildProfile::Release | BuildProfile::RelWithDebInfo = profile {
+        cmd.arg("--release");
+    }
+    if let BuildProfile::RelWithDebInfo = profile {
+        cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "true").args(&["-Z", "config-profile"]);
     }
     let st = cmd.status().unwrap().success();
     assert_eq!(st, true);
@@ -108,6 +134,8 @@ fn get_current_target() -> String {
 fn task_package(args: PackageArgs) {
     let target = args.target.unwrap_or_else(get_current_target);
     let enabled_dll = !target.contains("musl");
+    let build_profile: BuildProfile = args.profile.parse().expect("invalid build profile");
+
     print_section("Creating directories");
     let binary_dir = format!("{}/target/{}/release", get_project_dir(), &target);
     let dylib_dir = format!("{}/target/{}/release", get_project_dir(), &target);
@@ -121,13 +149,13 @@ fn task_package(args: PackageArgs) {
     fs::create_dir(format!("{}/include", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
 
-    build_package("cleanup", &[], &target);
-    build_package("envck", &[], &target);
-    build_package("init-jjs-root", &[], &target);
-    build_package("minion-cli", &["dist"], &target);
-    build_package("userlist", &[], &target);
-    build_package("invoker", &[], &target);
-    build_package("frontend", &[], &target);
+    build_package("cleanup", &[], &target, build_profile);
+    build_package("envck", &[], &target, build_profile);
+    build_package("init-jjs-root", &[], &target, build_profile);
+    build_package("minion-cli", &["dist"], &target, build_profile);
+    build_package("userlist", &[], &target, build_profile);
+    build_package("invoker", &[], &target, build_profile);
+    build_package("frontend", &[], &target, build_profile);
 
     print_section("Building minion-ffi");
     let st = Command::new(resolve_tool_path("cargo"))
@@ -178,11 +206,11 @@ fn task_package(args: PackageArgs) {
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
     )
     .unwrap();
-    add_binary_artifact("minion-cli", "jjs-minion-cli");
-    add_binary_artifact("frontend", "jjs-frontend");
-    add_binary_artifact("invoker", "jjs-invoker");
-    add_binary_artifact("envck", "jjs-env-check");
-    add_binary_artifact("userlist", "jjs-userlist");
+    add_binary_artifact("minion-cli", "jjs-minion-cli", build_profile);
+    add_binary_artifact("frontend", "jjs-frontend", build_profile);
+    add_binary_artifact("invoker", "jjs-invoker", build_profile);
+    add_binary_artifact("envck", "jjs-env-check", build_profile);
+    add_binary_artifact("userlist", "jjs-userlist", build_profile);
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),

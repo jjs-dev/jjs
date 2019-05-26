@@ -6,9 +6,10 @@ extern crate rocket;
 #[macro_use]
 extern crate serde_derive;
 
+mod config;
 mod password;
+mod root_auth;
 mod security;
-mod util;
 
 use cfg::Config;
 use db::schema::{NewSubmission, Submission, SubmissionState};
@@ -254,37 +255,25 @@ fn derive_branca_key(secret: &str) -> Vec<u8> {
     out
 }
 
-fn main() {
-    dotenv::dotenv().ok();
-    //let listen_address = format!("127.0.0.1:{}", port);
+fn launch_api(frcfg: &config::FrontendConfig) {
     let postgress_url =
         std::env::var("DATABASE_URL").expect("'DATABASE_URL' environment variable is not set");
     let pg_conn_manager =
         diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgress_url);
     let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
     let config = cfg::get_config();
-    //println!("JJS api frontend is listening on {}", &listen_address);
+
+    let cfg1 = frcfg.clone();
+    let cfg2 = frcfg.clone();
+
     rocket::ignite()
         .manage(pool)
         .manage(config.clone())
-        .attach(AdHoc::on_attach("DeriveBrancaSecretKey",|rocket| {
-            let secret_key = rocket.config().get_string("jjs_secret_key").unwrap_or_else(|_|{
-                let is_dev = rocket.config().environment.is_dev();
-                if !is_dev {
-                    eprintln!("Warning: couldn't obtain jjs_secret_key from configuration, providing hardcoded");
-                }
-                "HARDCODED_DEV_ONLY_KEY".to_string() //TODO: panic in production
-            });
-            let branca_key = derive_branca_key(&secret_key);
-            Ok(rocket.manage(SecretKey(branca_key)))
+        .attach(AdHoc::on_attach("DeriveBrancaSecretKey", move |rocket| {
+            Ok(rocket.manage(cfg1.secret.clone()))
         }))
-        .attach(AdHoc::on_attach("GetEnvironmentKind", |rocket| {
-            let env = if rocket.config().environment.is_dev() {
-                util::Env::Dev
-            }  else{
-                util::Env::Prod
-            };
-            Ok(rocket.manage(env))
+        .attach(AdHoc::on_attach("GetEnvironmentKind", move |rocket| {
+            Ok(rocket.manage(cfg2.env))
         }))
         .mount(
             "/",
@@ -300,4 +289,31 @@ fn main() {
         )
         .register(catchers![catch_bad_request])
         .launch();
+}
+
+fn launch_root_login_server(logger: &slog::Logger, cfg: &config::FrontendConfig) {
+    use std::sync::Arc;
+    let key = derive_branca_key(&cfg.secret);
+    let cfg = root_auth::Config {
+        socket_path: String::from("/tmp/jjs-auth-sock"), // FIXME dehardcode
+        token_provider: Arc::new(move || security::Token::new_root().serialize(&key)),
+    };
+    let sublogger = logger.new(slog::o!("app" => "jjs:frontend:localauth"));
+    root_auth::start(sublogger, cfg.clone());
+}
+
+fn main() {
+    use slog::Drain;
+    dotenv::dotenv().ok();
+    let cfg = config::FrontendConfig::obtain();
+
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let logger = slog::Logger::root(drain, slog::o!("app"=>"jjs:frontend"));
+    slog::info!(logger, "starting");
+
+    launch_root_login_server(&logger, &cfg);
+    launch_api(&cfg);
 }

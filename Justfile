@@ -21,9 +21,3 @@ sysroot:
 install_tools:
     #! /bin/bash
     cargo install diesel_cli mdbook || true
-
-package:
-    cargo run --bin devtool -- pkg
-
-lint:
-    powershell ./scripts/lint.ps1

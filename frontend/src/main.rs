@@ -259,7 +259,7 @@ fn launch_api(frcfg: &config::FrontendConfig) {
         .manage(pool)
         .manage(config.clone())
         .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
-            Ok(rocket.manage(cfg1.secret.clone()))
+            Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
         }))
         .attach(AdHoc::on_attach("GetEnvironmentKind", move |rocket| {
             Ok(rocket.manage(cfg2.env))

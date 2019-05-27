@@ -43,6 +43,7 @@ pub struct FrontendConfig {
     pub port: u16,
     pub host: String,
     pub secret: Vec<u8>,
+    pub unix_socket_path: String,
     pub env: Env,
 }
 
@@ -76,11 +77,14 @@ impl FrontendConfig {
                 }
             });
         let secret = derive_key_512(&secret);
+        let unix_socket_path = env::var("JJS_UNIX_SOCKET_PATH")
+            .unwrap_or("/tmp/jjs-auth-sock".to_string());
 
         FrontendConfig {
             port,
             host,
             secret,
+            unix_socket_path,
             env: environ,
         }
     }

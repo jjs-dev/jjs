@@ -502,8 +502,8 @@ unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<S
     let handles = setup_cgroups(&jail_params);
     //it's important cpu watcher will be outside of user namespace
     setup_time_watch(&jail_params)?;
-    setup_chroot(&jail_params);
     setup_namespaces(&jail_params);
+    setup_chroot(&jail_params);
     setup_uid_mapping(sock)?;
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
     let res = SetupData { cgroups: handles };

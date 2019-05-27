@@ -5,9 +5,9 @@ while True:
     except EOFError: break
     if '(' not in data or ('=' in data and data.find('(') > data.find('=')): continue
     syscall, args = data.split('(', 1)
-    syscall = syscall.split()
+    if '<' in syscall or '+++' in syscall: continue
     if '+++' in syscall: continue
-    syscall = syscall[-1]
+    syscall = syscall.split()[-1]
     args_arr = ['']
     strs_arr = [[]]
     i = iter(args)
@@ -35,7 +35,7 @@ while True:
     if '=' not in ans: ans = None
     else: ans = ans.split('=', 1)[1].strip()
     if ans == None:
-        assert args_arr[-1].endswith('<unfinished ...>')
+        assert args_arr[-1].endswith('<unfinished ...>'), (args_arr, data)
         args_arr[-1] = args_arr[-1][:-16]
     args_arr = [{'raw': j, 'str_params': [ast.literal_eval('b'+i).decode('latin-1') for i in k]} for j, k in ((j.strip(), k) for j, k in zip(args_arr, strs_arr)) if j]
     print(json.dumps({'syscall': syscall, 'args': args_arr, 'ans': ans}))

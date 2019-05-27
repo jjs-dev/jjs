@@ -35,7 +35,7 @@ fn handle_conn(logger: &Logger, cfg: &Config, mut conn: UnixStream) {
     }
     let my_uid = unsafe { libc::getuid() };
     if my_uid != peer_cred.uid {
-        conn.write_all(b"error: your uid doesn't match that of jjs")
+        conn.write_all(b"error: your uid doesn't match that of jjs\n")
             .ok();
         return;
     }

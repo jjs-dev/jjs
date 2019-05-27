@@ -231,8 +231,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         }
 
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
-        let fds_to_keep = vec![arg.stdio.stdin, arg.stdio.stdout, arg.stdio.stderr];
-        let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
         let fd_list;
         {
             let fd_list_path = "/proc/self/fd".to_string();
@@ -242,10 +240,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
             let fd: Handle = fd.parse().unwrap();
-            if fds_to_keep.contains(&fd) {
-                continue;
-            }
-            if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
+           if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
                 let mut fd_info = [0 as c_char; 4096];
@@ -280,11 +275,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         libc::dup2(arg.stdio.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stdio.stderr, libc::STDERR_FILENO);
-
-        //we close these FDs because they weren't affected by FD_CLOEXEC
-        libc::close(arg.stdio.stdin);
-        libc::close(arg.stdio.stdout);
-        libc::close(arg.stdio.stderr);
 
         libc::execve(
             path,

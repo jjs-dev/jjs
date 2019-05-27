@@ -230,30 +230,9 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-    .unwrap()
+        .unwrap()
 }
 
-fn derive_branca_key(secret: &str) -> Vec<u8> {
-    use digest::Digest;
-    use rand::{Rng, SeedableRng};
-    let secret_hash = {
-        let mut hasher = sha3::Sha3_512::new();
-        hasher.input(secret.as_bytes());
-        let result = &hasher.result()[16..48];
-        let mut out = [0 as u8; 32];
-        out.copy_from_slice(&result);
-        out
-    };
-    assert_eq!(secret_hash.len(), 32);
-    let mut gen = rand_chacha::ChaChaRng::from_seed(secret_hash);
-    let key_size = 32;
-    let mut out = Vec::with_capacity(key_size);
-    for _i in 0..key_size {
-        out.push(gen.gen::<u8>());
-    }
-
-    out
-}
 
 fn launch_api(frcfg: &config::FrontendConfig) {
     let postgress_url =
@@ -266,11 +245,21 @@ fn launch_api(frcfg: &config::FrontendConfig) {
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();
 
-    rocket::ignite()
+    let rocket_cfg_env = match frcfg.env {
+        config::Env::Prod => rocket::config::Environment::Production,
+        config::Env::Dev => rocket::config::Environment::Development,
+    };
+    let mut rocket_config = rocket::Config::new(rocket_cfg_env);
+
+    rocket_config.set_address(frcfg.host.clone()).unwrap();
+    rocket_config.set_port(frcfg.port.clone());
+    rocket_config.set_secret_key(base64::encode(&frcfg.secret)).unwrap();
+
+    rocket::custom(rocket_config)
         .manage(pool)
         .manage(config.clone())
-        .attach(AdHoc::on_attach("DeriveBrancaSecretKey", move |rocket| {
-            Ok(rocket.manage(cfg1.secret.clone()))
+        .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
+            Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
         }))
         .attach(AdHoc::on_attach("GetEnvironmentKind", move |rocket| {
             Ok(rocket.manage(cfg2.env))
@@ -293,7 +282,7 @@ fn launch_api(frcfg: &config::FrontendConfig) {
 
 fn launch_root_login_server(logger: &slog::Logger, cfg: &config::FrontendConfig) {
     use std::sync::Arc;
-    let key = derive_branca_key(&cfg.secret);
+    let key = cfg.secret.clone();
     let cfg = root_auth::Config {
         socket_path: String::from("/tmp/jjs-auth-sock"), // FIXME dehardcode
         token_provider: Arc::new(move || security::Token::new_root().serialize(&key)),

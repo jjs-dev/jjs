@@ -6,4 +6,4 @@
 - [Running JJS in vm](vm.md)
 - [Sysroot Layout](sysroot.md)
 - [Userlist](userlist.md)
-- [Authentification](authentification.md)
+- [Authentication](authentication.md)

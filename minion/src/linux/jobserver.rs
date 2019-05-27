@@ -18,6 +18,8 @@ use std::{
 };
 use tiny_nix_ipc::Socket;
 
+const SANDBOX_INTERNAL_UID: Uid = 179;
+
 struct Stdio {
     stdin: Handle,
     stdout: Handle,
@@ -205,7 +207,6 @@ fn print_diagnostics(path: &str) {
 
 #[allow(unreachable_code)]
 extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
-    use std::iter::FromIterator;
     unsafe {
         let path = duplicate_string(&arg.path);
 
@@ -219,7 +220,9 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let environ = arg.environment.clone();
         let envp = duplicate_string_list(&environ);
 
-        //join cgroups
+        // join cgroups
+        // this doesn't require any additional capablities, because we just write some stuff
+        // to preopened handle
         let my_pid = std::process::id();
         let my_pid = format!("{}", my_pid);
         for h in arg.cgroups_tasks {
@@ -227,8 +230,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         }
 
         //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
-        let fds_to_keep = vec![arg.stdio.stdin, arg.stdio.stdout, arg.stdio.stderr];
-        let fds_to_keep = std::collections::BTreeSet::from_iter(fds_to_keep.iter());
         let fd_list;
         {
             let fd_list_path = "/proc/self/fd".to_string();
@@ -238,10 +239,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
             let fd: Handle = fd.parse().unwrap();
-            if fds_to_keep.contains(&fd) {
-                continue;
-            }
-            if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
+           if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
                 let mut fd_info = [0 as c_char; 4096];
@@ -262,27 +260,20 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             );
         }
 
-        let sandbox_user_id = 1; //thanks to /proc/self/uid_map
-        if libc::setuid(sandbox_user_id as u32) != 0 {
+
+        if libc::setuid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setuid");
         }
-        if libc::setgid(sandbox_user_id as u32) != 0 {
+        if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setgid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
 
-        //cleanup (empty)
-
         //dup2 as late as possible for all panics to write to normal stdio instead of pipes
         libc::dup2(arg.stdio.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stdio.stderr, libc::STDERR_FILENO);
-
-        //we close these FDs because they weren't affected by FD_CLOEXEC
-        libc::close(arg.stdio.stdin);
-        libc::close(arg.stdio.stdout);
-        libc::close(arg.stdio.stderr);
 
         libc::execve(
             path,
@@ -296,6 +287,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             print_diagnostics(&arg.path);
             libc::exit(108)
         } else {
+            eprintln!("couldn't execute: error code {}", err_code);
             //execve doesn't return on success
             err_exit("execve");
         }
@@ -375,7 +367,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-    .unwrap();
+        .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -387,7 +379,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-    .unwrap();
+        .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -433,6 +425,10 @@ unsafe fn setup_chroot(jail_options: &JailOptions) {
     if libc::chroot(path.as_ptr()) == -1 {
         err_exit("chroot");
     }
+    let path_root = CString::new("/").unwrap();
+    if libc::chdir(path_root.as_ptr()) == -1 {
+        err_exit("chdir");
+    }
 }
 
 unsafe fn setup_procfs(jail_options: &JailOptions) {
@@ -470,23 +466,13 @@ unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     observe_time(&jail_options.jail_id, cpu_tl, real_tl)
 }
 
-struct UserIdInfo {
-    privileged: Uid,
-    restricted: Uid,
-}
 
 ///derives user_ids (in range 1_000_000 to 2_000_000) from jail_id in determined way
-fn derive_user_ids(jail_id: &str) -> UserIdInfo {
+fn derive_user_ids(jail_id: &str) -> Uid {
     let jail_id = jail_id.as_bytes();
     let mut hasher = DefaultHasher::new();
     hasher.write(jail_id);
-    let privileged = (hasher.finish() % 2_000_000 + 1_000_000) as Uid;
-    hasher.write(jail_id);
-    let restricted = (hasher.finish() % 2_000_000 + 1_000_000) as Uid;
-    UserIdInfo {
-        privileged,
-        restricted,
-    }
+    (hasher.finish() % 2_000_000 + 1_000_000) as Uid
 }
 
 unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
@@ -494,7 +480,7 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
 }
 
 unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<SetupData> {
-    let uid = derive_user_ids(&jail_params.jail_id).privileged;
+    let uid = derive_user_ids(&jail_params.jail_id);
     configure_dir(&jail_params.isolation_root, uid);
     setup_sighandler();
     setup_expositions(&jail_params, uid);
@@ -503,8 +489,8 @@ unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<S
     //it's important cpu watcher will be outside of user namespace
     setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);
-    setup_chroot(&jail_params);
     setup_uid_mapping(sock)?;
+    setup_chroot(&jail_params);
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
     let res = SetupData { cgroups: handles };
     Ok(res)
@@ -524,8 +510,6 @@ mod jobserver_main {
         setup_data: &SetupData,
     ) -> crate::Result<()> {
         //now we do some preprocessing
-        //let mut argv = vec![options.image_path.clone()];
-        //argv.extend_from_slice(&options.argv);
 
         let env: Vec<_> = options
             .environment
@@ -533,7 +517,6 @@ mod jobserver_main {
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
 
-        //let child_fds = [0 as Handle; 3];
         let mut child_fds = arg
             .sock
             .recv_struct::<u64, [Handle; 3]>()
@@ -542,9 +525,6 @@ mod jobserver_main {
             .unwrap();
         for f in child_fds.iter_mut() {
             *f = nix::unistd::dup(*f).unwrap();
-            //let new_fd = nix::unistd::dup(child_fds[i]).unwrap();
-            //child_fds[i] = new_fd;
-            //nix::fcntl::fcntl(child_fds[i], nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::FD_CLOEXEC));
         }
         let child_stdio = Stdio::from_fd_array(child_fds);
 
@@ -595,8 +575,6 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
     unsafe {
         let arg = arg as *mut WaiterArg;
         let arg = &mut *arg;
-        //let arg = arg as *mut WaiterArg;
-        //let arg = &mut *arg;
         let mut waitstatus = 0;
         let wcode = libc::waitpid(arg.pid, &mut waitstatus, libc::__WALL);
         if wcode == -1 {
@@ -797,9 +775,9 @@ pub(crate) unsafe fn start_jobserver(
     mem::drop(js_sock);
     let child_pid = fret as Pid;
 
-    let uid_info = derive_user_ids(&jail_id);
-    //child will have uid=1 or 2 in its namespace, but some random and not-privileged in outer one
-    let mapping = format!("1 {} 1\n2 {} 1", uid_info.privileged, uid_info.restricted);
+    let sandbox_uid = derive_user_ids(&jail_id);
+    // map 0 to 0; map sandbox uid: internal to external
+    let mapping = format!("0 0 1\n{} {} 1", SANDBOX_INTERNAL_UID, sandbox_uid);
     let uid_map_path = format!("/proc/{}/uid_map", child_pid);
     let gid_map_path = format!("/proc/{}/gid_map", child_pid);
     sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;

@@ -16,11 +16,33 @@ impl Env {
     }
 }
 
+fn derive_key_512(secret: &str) -> Vec<u8> {
+    use digest::Digest;
+    use rand::{Rng, SeedableRng};
+    let secret_hash = {
+        let mut hasher = sha3::Sha3_512::new();
+        hasher.input(secret.as_bytes());
+        let result = &hasher.result()[16..48];
+        let mut out = [0 as u8; 32];
+        out.copy_from_slice(&result);
+        out
+    };
+    assert_eq!(secret_hash.len(), 32);
+    let mut gen = rand_chacha::ChaChaRng::from_seed(secret_hash);
+    let key_size = 32;
+    let mut out = Vec::with_capacity(key_size);
+    for _i in 0..key_size {
+        out.push(gen.gen::<u8>());
+    }
+
+    out
+}
+
 #[derive(Clone, Debug)]
 pub struct FrontendConfig {
     pub port: u16,
     pub host: String,
-    pub secret: String,
+    pub secret: Vec<u8>,
     pub env: Env,
 }
 
@@ -53,6 +75,7 @@ impl FrontendConfig {
                     panic!("Error: running in production mode, but JJS_SECRET_KEY not specified");
                 }
             });
+        let secret = derive_key_512(&secret);
 
         FrontendConfig {
             port,

@@ -207,7 +207,6 @@ fn print_diagnostics(path: &str) {
 
 #[allow(unreachable_code)]
 extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
-    use std::iter::FromIterator;
     unsafe {
         let path = duplicate_string(&arg.path);
 

@@ -221,7 +221,9 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let environ = arg.environment.clone();
         let envp = duplicate_string_list(&environ);
 
-        //join cgroups
+        // join cgroups
+        // this doesn't require any additional capablities, because we just write some stuff
+        // to preopened handle
         let my_pid = std::process::id();
         let my_pid = format!("{}", my_pid);
         for h in arg.cgroups_tasks {
@@ -274,8 +276,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         //now we pause ourselves until parent process places us into appropriate groups
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
 
-        //cleanup (empty)
-
         //dup2 as late as possible for all panics to write to normal stdio instead of pipes
         libc::dup2(arg.stdio.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
@@ -298,6 +298,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             print_diagnostics(&arg.path);
             libc::exit(108)
         } else {
+            eprintln!("couldn't execute: error code {}", err_code);
             //execve doesn't return on success
             err_exit("execve");
         }

@@ -490,7 +490,7 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
 }
 
 unsafe fn setup(jail_params: &JailOptions, sock: &mut Socket) -> crate::Result<SetupData> {
-    let uid = derive_user_ids(&jail_params.jail_id).privileged;
+    let uid = derive_user_ids(&jail_params.jail_id);
     configure_dir(&jail_params.isolation_root, uid);
     setup_sighandler();
     setup_expositions(&jail_params, uid);
@@ -787,7 +787,7 @@ pub(crate) unsafe fn start_jobserver(
 
     let sandbox_uid = derive_user_ids(&jail_id);
     // map 0 to 0; map sandbox uid: internal to external
-    let mapping = format!("0 0 1\n{} {} 1", SANDBOX_INTERNAL_UID, uid_info.restricted);
+    let mapping = format!("0 0 1\n{} {} 1", SANDBOX_INTERNAL_UID, sandbox_uid);
     let uid_map_path = format!("/proc/{}/uid_map", child_pid);
     let gid_map_path = format!("/proc/{}/gid_map", child_pid);
     sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;

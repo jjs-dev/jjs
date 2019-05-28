@@ -35,11 +35,11 @@ enum Error {
     Utf8 {
         source: std::string::FromUtf8Error,
     },
-    #[snafu(display("userlist is malformed: {}", &description))]
+    #[snafu(display("userlist is malformed: {}", & description))]
     Format {
         description: String,
     },
-    #[snafu(display("frontend returned error: {:?}", &inner))]
+    #[snafu(display("frontend returned error: {:?}", & inner))]
     Frontend {
         inner: Box<dyn frontend_api::FrontendError>,
     },
@@ -49,6 +49,12 @@ enum ParseLineOutcome {
     Comment,
     User(String, String),
     Error(String),
+}
+
+fn decode_base64(s: &str) -> Option<String> {
+    let bytes = base64::decode(s).ok()?;
+    let s = String::from_utf8(bytes).ok()?;
+    Some(s)
 }
 
 fn parse_line(line: &str) -> ParseLineOutcome {
@@ -62,7 +68,11 @@ fn parse_line(line: &str) -> ParseLineOutcome {
             parts.len()
         ));
     }
-    ParseLineOutcome::User(parts[0].into(), parts[1].into())
+    let parts: Option<Vec<_>> = parts.into_iter().map(decode_base64).collect();
+    match parts {
+        Some(parts) => ParseLineOutcome::User(parts[0].clone(), parts[1].clone()),
+        None => ParseLineOutcome::Error("Provided data wasn't base64-encoded utf8 string".to_string())
+    }
 }
 
 fn add_users(arg: args::Add) -> Result<(), Error> {

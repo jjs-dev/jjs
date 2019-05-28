@@ -457,6 +457,9 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
 unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
     sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
     sock.lock(WM_CLASS_PID_MAP_CREATED)?;
+    if libc::setuid(0) == -1 {
+        err_exit("setuid");
+    }
     Ok(())
 }
 

@@ -239,7 +239,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
             let fd: Handle = fd.parse().unwrap();
-           if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
+            if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
                 let mut fd_info = [0 as c_char; 4096];
@@ -651,7 +651,9 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
                     if sys_err == libc::EINTR {
                         continue;
                     }
-                    return Err(crate::ErrorKind::System(sys_err).into());
+                    crate::errors::System {
+                        code: sys_err
+                    }.fail()?
                 }
                 0 => None,
                 1 => {
@@ -711,7 +713,7 @@ unsafe fn observe_time(
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {
-        Err(crate::ErrorKind::System(nix::errno::errno()))?;
+        crate::errors::System { code: nix::errno::errno() }.fail()?;
     }
     if fret == 0 {
         cpu_time_observer(jail_id, cpu_time_limit, real_time_limit)
@@ -734,7 +736,7 @@ pub(crate) unsafe fn start_jobserver(
 
     let f = libc::fork();
     if f == -1 {
-        return Err(crate::ErrorKind::System(errno::errno().0).into());
+        crate::errors::System { code: errno::errno().0 }.fail()?;
     }
 
     if f != 0 {

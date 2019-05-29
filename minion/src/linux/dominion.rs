@@ -5,6 +5,7 @@ use crate::{
     },
     Dominion, DominionOptions,
 };
+use serde::{Serialize, Deserialize};
 use std::{
     ffi::CString,
     fmt::{self, Debug},

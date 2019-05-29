@@ -3,12 +3,13 @@ mod jail_common;
 mod jobserver;
 mod pipe;
 mod util;
+pub mod check;
 
 pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
     linux::{
         pipe::{LinuxReadPipe, LinuxWritePipe},
-        util::{err_exit, get_last_error,Handle, IgnoreExt, Pid},
+        util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
     HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,

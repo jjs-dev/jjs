@@ -8,6 +8,10 @@
 #[cfg(target_os = "linux")]
 mod linux;
 
+#[cfg(target_os = "linux")]
+pub use linux::check::check as linux_check_environment;
+
+
 use serde::{Serialize, Deserialize};
 
 #[cfg(target_os = "linux")]

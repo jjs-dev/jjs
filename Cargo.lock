@@ -1131,6 +1131,7 @@ version = "0.1.0"
 dependencies = [
  "aho-corasick 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg 0.1.0",
+ "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 3.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "db 0.1.0",
  "diesel 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",

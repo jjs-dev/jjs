@@ -1,9 +1,12 @@
 mod simple_invoker;
+
 use cfg::Config;
 use db::schema::{Submission, SubmissionState};
 use diesel::{pg::PgConnection, prelude::*};
 use slog::*;
 use std::sync;
+use cfg_if::cfg_if;
+
 struct InvokeRequest {
     submission: Submission,
 }
@@ -31,9 +34,29 @@ fn handle_judge_task(
         .expect("Db query failed");
     debug!(logger, "judging finished"; "outcome" => ?judging_status);
 }
+
+cfg_if! {
+if #[cfg(target_os="linux")] {
+    fn check_system() -> bool {
+        if let Some(err) = minion::linux_check_environment() {
+            eprintln!("system configuration issue: {}", err);
+            return false;
+        }
+        true
+    }
+} else {
+    fn check_system() -> bool {
+        true
+    }
+}
+}
+
+
+
 fn main() {
     use db::schema::submissions::dsl::*;
     dotenv::dotenv().ok();
+
 
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
@@ -53,8 +76,16 @@ fn main() {
         ctrlc::set_handler(move || {
             should_run.store(false, sync::atomic::Ordering::SeqCst);
         })
-        .unwrap();
+            .unwrap();
     }
+
+
+    if check_system() {
+        debug!(root, "system check passed")
+    } else {
+        return;
+    }
+
     loop {
         if !should_run.load(sync::atomic::Ordering::SeqCst) {
             break;

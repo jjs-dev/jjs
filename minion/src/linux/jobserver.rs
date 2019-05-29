@@ -422,7 +422,7 @@ unsafe fn setup_namespaces(_jail_options: &JailOptions) {
 unsafe fn setup_chroot(jail_options: &JailOptions) {
     let path = jail_options.isolation_root.clone();
     let path = CString::new(path.as_str()).unwrap();
-    libc::open(path.as_ptr());
+    libc::open(path.as_ptr(), 0);
     if libc::chroot(path.as_ptr()) == -1 {
         err_exit("chroot");
     }

@@ -3,3 +3,7 @@
 /pkg
 cmake-build-*
 /man/book
+/vm-sysroot/sysroot
+/vm-sysroot/sysroot/*
+/vm-sysroot/image/hdd.img
+/vm-sysroot/typescript

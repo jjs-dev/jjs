@@ -260,12 +260,12 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             );
         }
 
+        if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
+            err_exit("setgid");
+        }
 
         if libc::setuid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setuid");
-        }
-        if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
-            err_exit("setgid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();

@@ -2,6 +2,17 @@
 
 set -e
 
+if [ "$$" != 1 ] && [ "x$1" != x ]
+then cat >&2 << EOF
+usage: ./uml-build.sh
+
+Build a disk image at image/hdd.img, using scripts in the scripts/ directory.
+See ./build.sh and image/build-image.sh for details.
+This script doesn't require root access.
+EOF
+exit 1
+fi
+
 SELF="$0"
 THE_PATH="$(base64 <<< "$PATH" | tr '\n' ' ' | sed 's/\s//g')"
 

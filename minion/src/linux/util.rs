@@ -12,6 +12,10 @@ pub type Pid = libc::pid_t;
 pub type ExitCode = c_int;
 pub type Uid = libc::uid_t;
 
+pub fn get_last_error() -> i32 {
+    errno::errno().0
+}
+
 pub fn err_exit(syscall_name: &str) -> ! {
     unsafe {
         let e = errno::errno();
@@ -56,7 +60,7 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()>
         Ok(x) => x,
         Err(e) => {
             write!(logger, "receive error: {:?}", e).unwrap();
-            Err(crate::ErrorKind::Communication)?
+            Err(crate::Error::Communication)?
         }
     };
     match wm.0.check(expected_class) {
@@ -68,7 +72,7 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()>
                 expected_class, wm.0.class
             )
             .unwrap();
-            Err(crate::ErrorKind::Communication)?
+            Err(crate::Error::Communication)?
         }
     };
     Ok(())
@@ -78,7 +82,7 @@ unsafe fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
     let wm = WaitMessage::new(wake_class);
     match sock.send_struct(&wm, None) {
         Ok(_) => Ok(()),
-        Err(_) => Err(crate::ErrorKind::Communication)?,
+        Err(_) => Err(crate::Error::Communication)?,
     }
 }
 
@@ -102,13 +106,13 @@ impl IpcSocketExt for Socket {
     unsafe fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()> {
         self.send_cbor(data, None)
             .map(|_num_read| ())
-            .map_err(|_e| crate::ErrorKind::Communication.into())
+            .map_err(|_e| crate::errors::Error::Communication)
     }
 
     unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T> {
         self.recv_cbor::<T, [RawFd; 0]>(4096)
             .map(|(x, _fds)| x)
-            .map_err(|_e| crate::ErrorKind::Communication.into())
+            .map_err(|_e| crate::errors::Error::Communication)
     }
 }
 

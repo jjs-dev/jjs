@@ -5,23 +5,27 @@
 * _warning_: not all features are supported by all backends. See documentation for particular backend
 * to know more
 */
-
-#[macro_use]
-extern crate serde_derive;
-
 #[cfg(target_os = "linux")]
 mod linux;
+
+#[cfg(target_os = "linux")]
+pub use linux::check::check as linux_check_environment;
+
+
+use serde::{Serialize, Deserialize};
+
 #[cfg(target_os = "linux")]
 pub use crate::linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
 use downcast_rs::impl_downcast;
 use std::{
     collections::HashMap,
-    fmt::{self, Debug},
+    fmt::Debug,
     io::{Read, Write},
     sync::{Arc, Mutex},
     time::Duration,
 };
+
 /// Represents way of isolation
 pub trait Backend: Debug + Send + Sync {
     fn new_dominion(&self, options: DominionOptions) -> Result<DominionRef>;
@@ -30,7 +34,6 @@ pub trait Backend: Debug + Send + Sync {
 
 #[cfg(target_os = "linux")]
 pub use crate::linux::DesiredAccess;
-use failure::Fail;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PathExpositionOptions {
@@ -141,63 +144,28 @@ pub struct ChildProcessOptions {
     pub pwd: String,
 }
 
-#[derive(Debug)]
-pub struct Error {
-    inner: failure::Context<ErrorKind>,
-}
+mod errors {
+    use snafu::Snafu;
 
-impl Fail for Error {
-    fn cause(&self) -> Option<&Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&failure::Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, fmt)
-    }
-}
-
-impl Error {
-    pub fn kind(&self) -> ErrorKind {
-        *self.inner.get_context()
+    #[derive(Debug, Snafu)]
+    #[snafu(visibility(pub))]
+    pub enum Error {
+        #[snafu(display("requested operation is not supported by backend"))]
+        NotSupported,
+        #[snafu(display("system call failed in undesired fashion (error code {})", code))]
+        System { code: i32 },
+        #[snafu(display("io error"))]
+        Io {
+            source: std::io::Error
+        },
+        #[snafu(display("job server connection failed"))]
+        Communication,
+        #[snafu(display("unknown error"))]
+        Unknown,
     }
 }
 
-impl From<ErrorKind> for Error {
-    fn from(k: ErrorKind) -> Error {
-        Error {
-            inner: failure::Context::new(k),
-        }
-    }
-}
-
-impl From<failure::Context<ErrorKind>> for Error {
-    fn from(c: failure::Context<ErrorKind>) -> Error {
-        Error { inner: c }
-    }
-}
-
-#[derive(Debug, Fail, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ErrorKind {
-    #[fail(display = "requested operation is not supported by backend")]
-    NotSupported,
-    #[fail(
-        display = "system call failed in undesired fashion (error code {})",
-        _0
-    )]
-    System(i32),
-    #[fail(display = "io error")]
-    Io,
-    #[fail(display = "job server connection failed")]
-    Communication,
-    #[fail(display = "unknown error")]
-    Unknown,
-}
+pub use errors::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

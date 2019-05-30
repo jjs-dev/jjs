@@ -34,7 +34,7 @@ structopt = "0.2.15"
 reqwest = "0.9.17"
 constant_time_eq = "0.1.3"
 libc = "0.2.55"
-slog = {version = "2.4.1", features = ["max_level_trace"]}
+slog = { version = "2.4.1", features = ["max_level_trace"] }
 envy = "0.4.0"
 slog-term = "2.4.0"
 slog-async = "2.3.0"

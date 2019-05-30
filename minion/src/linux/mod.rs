@@ -3,17 +3,18 @@ mod jail_common;
 mod jobserver;
 mod pipe;
 mod util;
+pub mod check;
 
 pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
     linux::{
         pipe::{LinuxReadPipe, LinuxWritePipe},
-        util::{err_exit, Handle, IgnoreExt, Pid},
+        util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    ErrorKind, HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
+    HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
 };
-use failure::ResultExt;
+use snafu::ResultExt;
 use nix::sys::memfd;
 use std::{
     ffi::CString,
@@ -40,8 +41,10 @@ pub struct LinuxChildProcess {
     pid: Pid,
 }
 
-const EXIT_CODE_STILL_RUNNING: i64 = i64::min_value(); // It doesn't intersect with normal exit codes
-                                                       // because they fit in i32
+const EXIT_CODE_STILL_RUNNING: i64 = i64::min_value();
+
+// It doesn't intersect with normal exit codes
+// because they fit in i32
 impl ChildProcess for LinuxChildProcess {
     fn get_exit_code(&self) -> crate::Result<Option<i64>> {
         self.poll()?;
@@ -122,7 +125,7 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
             Ok((None, h))
         }
         InputSpecification::Empty => {
-            let file = fs::File::create("/dev/null").context(ErrorKind::Io)?;
+            let file = fs::File::create("/dev/null").context(crate::errors::Io)?;
             let file = file.into_raw_fd();
             Ok((None, file))
         }
@@ -143,7 +146,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
             Ok((Some(h_in), f))
         }
         OutputSpecification::Ignore => {
-            let file = fs::File::open("/dev/null").context(ErrorKind::Io)?;
+            let file = fs::File::open("/dev/null").context(crate::errors::Io)?;
             let file = file.into_raw_fd();
             let fd = unsafe { libc::dup(file) };
             Ok((None, fd))
@@ -158,7 +161,9 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
             let mfd = memfd::memfd_create(&memfd_name, flags).unwrap();
             if let Some(sz) = sz {
                 if unsafe { libc::ftruncate(mfd, sz as i64) } == -1 {
-                    err_exit("ftruncate");
+                    crate::errors::System {
+                        code: get_last_error()
+                    }.fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -246,8 +251,7 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {
-}
+) {}
 
 fn fix_sigchild() {
     unsafe {

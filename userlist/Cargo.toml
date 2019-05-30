@@ -8,3 +8,4 @@ edition = "2018"
 structopt = "0.2.15"
 snafu = "0.4.1"
 frontend-api = {path = "../frontend-api"}
+base64 = "0.10.1"

@@ -239,7 +239,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             let fd = fd.unwrap();
             let fd = fd.file_name().to_string_lossy().to_string();
             let fd: Handle = fd.parse().unwrap();
-           if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
+            if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
                 let mut fd_info = [0 as c_char; 4096];
@@ -260,12 +260,12 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             );
         }
 
+        if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
+            err_exit("setgid");
+        }
 
         if libc::setuid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setuid");
-        }
-        if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
-            err_exit("setgid");
         }
         //now we pause ourselves until parent process places us into appropriate groups
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
@@ -422,6 +422,7 @@ unsafe fn setup_namespaces(_jail_options: &JailOptions) {
 unsafe fn setup_chroot(jail_options: &JailOptions) {
     let path = jail_options.isolation_root.clone();
     let path = CString::new(path.as_str()).unwrap();
+    libc::open(path.as_ptr(), 0);
     if libc::chroot(path.as_ptr()) == -1 {
         err_exit("chroot");
     }
@@ -457,6 +458,9 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
 unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
     sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
     sock.lock(WM_CLASS_PID_MAP_CREATED)?;
+    if libc::setuid(0) == -1 {
+        err_exit("setuid");
+    }
     Ok(())
 }
 
@@ -648,7 +652,9 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
                     if sys_err == libc::EINTR {
                         continue;
                     }
-                    return Err(crate::ErrorKind::System(sys_err).into());
+                    crate::errors::System {
+                        code: sys_err
+                    }.fail()?
                 }
                 0 => None,
                 1 => {
@@ -708,7 +714,7 @@ unsafe fn observe_time(
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {
-        Err(crate::ErrorKind::System(nix::errno::errno()))?;
+        crate::errors::System { code: nix::errno::errno() }.fail()?;
     }
     if fret == 0 {
         cpu_time_observer(jail_id, cpu_time_limit, real_time_limit)
@@ -731,7 +737,7 @@ pub(crate) unsafe fn start_jobserver(
 
     let f = libc::fork();
     if f == -1 {
-        return Err(crate::ErrorKind::System(errno::errno().0).into());
+        crate::errors::System { code: errno::errno().0 }.fail()?;
     }
 
     if f != 0 {

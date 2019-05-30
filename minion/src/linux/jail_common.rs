@@ -1,8 +1,9 @@
 use crate::{linux::util::Pid, PathExpositionOptions};
-use failure::ResultExt;
 use rand::seq::SliceRandom;
 use std::{collections::BTreeMap, fs, time::Duration};
 use tiny_nix_ipc::Socket;
+use snafu::ResultExt;
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {
@@ -31,6 +32,7 @@ pub(crate) fn gen_jail_id() -> String {
     }
     String::from_utf8_lossy(&out[..]).to_string()
 }
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct JobQuery {
     pub(crate) image_path: String,
@@ -72,10 +74,10 @@ pub(crate) unsafe fn cgroup_kill_all(
 
     //step 1: disallow forking
     let pids_max_file_path = format!("{}/pids.max", &pids_cgroup_path);
-    fs::write(pids_max_file_path, "0").context(crate::ErrorKind::Io)?;
+    fs::write(pids_max_file_path, "0").context(crate::errors::Io)?;
 
     let cgroup_members_path = format!("{}/tasks", &pids_cgroup_path);
-    let cgroup_members = fs::read_to_string(cgroup_members_path).context(crate::ErrorKind::Io)?;
+    let cgroup_members = fs::read_to_string(cgroup_members_path).context(crate::errors::Io)?;
 
     let cgroup_members = cgroup_members.split('\n');
     for pid in cgroup_members {

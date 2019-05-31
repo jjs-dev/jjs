@@ -32,7 +32,9 @@ New-Item -ItemType Directory -Path $GlobalDataRoot -ErrorAction SilentlyContinue
 function Gcc {
     $Prefix="$GlobalDataRoot/g++"
     $Program = @'
-    #include <bits/stdc++.h> 
+    #include <bits/stdc++.h>
+    #include <unistd.h>
+    #include <fcntl.h>
 //    #include <string_view>
 //    #include <bits/string_view.tcc>
 

@@ -1,0 +1,2 @@
+toolchain = "cpp"
+source-path = "main.cpp"

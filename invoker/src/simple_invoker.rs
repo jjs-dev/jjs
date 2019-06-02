@@ -1,8 +1,8 @@
 //! implements very simple logic
 //! if submission compiles, it's considered to be Accepted
 //! else it gets Compilation Error
+use crate::SubmissionInfo;
 use cfg::{Command, Config, Toolchain};
-use db::schema::Submission;
 use invoker_api::{status_codes, Status, StatusKind};
 use minion;
 use slog::{debug, Logger};
@@ -78,30 +78,6 @@ struct CommandInterp {
     env: BTreeMap<String, String>,
 }
 
-struct SubmissionPaths {
-    /// Ancestor for all other directories in this struct
-    submission_root_dir: String,
-    /// Directory to share with sandbox
-    submission_share_dir: String,
-    /// Directory which will be chroot for sandbox
-    submission_chroot_dir: String,
-}
-
-impl SubmissionPaths {
-    fn new(sysroot: &str, submission_id: u32, invokation_id: &str) -> SubmissionPaths {
-        let submission_root_dir = format!("{}/var/submissions/s-{}", sysroot, submission_id);
-        let submission_chroot_dir =
-            format!("{}/chroot-build-{}", &submission_root_dir, invokation_id);
-        let submission_share_dir =
-            format!("{}/share-build-{}", &submission_root_dir, invokation_id);
-        SubmissionPaths {
-            submission_chroot_dir,
-            submission_root_dir,
-            submission_share_dir,
-        }
-    }
-}
-
 fn interpolate_command(
     command: &Command,
     dict: &BTreeMap<String, String>,
@@ -142,7 +118,12 @@ fn derive_path_exposition_options(cfg: &Config) -> Vec<minion::PathExpositionOpt
 
 const MEGABYTE: u64 = 1 << 20;
 
-fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Logger) -> Status {
+fn build(
+    submission: &SubmissionInfo,
+    cfg: &Config,
+    invokation_id: &str,
+    logger: &Logger,
+) -> Status {
     let toolchain = get_toolchain_by_name(&submission.toolchain, &cfg);
 
     let toolchain = match toolchain {
@@ -156,20 +137,22 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
     };
 
     let em = minion::setup(); // TODO cache
-    let paths = SubmissionPaths::new(&cfg.sysroot, submission.id(), invokation_id);
-    fs::create_dir(&paths.submission_chroot_dir).expect("Couldn't create child chroot");
-    fs::create_dir(&paths.submission_share_dir).expect("Couldn't create child share");
+    fs::create_dir(&submission.chroot_dir).expect("Couldn't create child chroot");
+    fs::create_dir(&submission.share_dir).expect("Couldn't create child share");
 
     fs::copy(
-        format!("{}/source", &paths.submission_root_dir),
-        format!("{}/{}", &paths.submission_share_dir, &toolchain.filename),
+        format!("{}/source", &submission.root_dir),
+        format!(
+            "{}/{}",
+            &submission.share_dir, &toolchain.filename
+        ),
     )
     .expect("Couldn't copy submission source into chroot");
 
     let mut exposed_paths = derive_path_exposition_options(cfg);
 
     exposed_paths.push(minion::PathExpositionOptions {
-        src: paths.submission_share_dir.clone(),
+        src: submission.share_dir.clone(),
         dest: "/jjs".to_string(),
         access: minion::DesiredAccess::Full,
     });
@@ -181,7 +164,7 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
             max_alive_process_count: cfg.global_limits.process_count as _,
             memory_limit: (cfg.global_limits.memory * MEGABYTE) as _,
             exposed_paths,
-            isolation_root: paths.submission_chroot_dir.clone(),
+            isolation_root: submission.chroot_dir.clone(),
             time_limit,
         })
         .expect("couldn't create dominion");
@@ -199,12 +182,12 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
 
         let stdout_file = fs::File::create(format!(
             "{}/build-stdout-{}.txt",
-            &paths.submission_root_dir, invokation_id
+            &submission.root_dir, invokation_id
         ))
         .expect("io error");
         let stderr_file = fs::File::create(format!(
             "{}/build-stderr-{}.txt",
-            &paths.submission_root_dir, invokation_id
+            &submission.root_dir, invokation_id
         ))
         .expect("io error");
 
@@ -255,8 +238,8 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
     }
 
     fs::copy(
-        format!("{}/build", &paths.submission_share_dir),
-        format!("{}/build", &paths.submission_root_dir),
+        format!("{}/build", &submission.share_dir),
+        format!("{}/build", &submission.root_dir),
     )
     .unwrap();
 
@@ -267,18 +250,17 @@ fn build(submission: &Submission, cfg: &Config, invokation_id: &str, logger: &Lo
 }
 
 pub fn run_on_test(
-    submission: &Submission,
+    submission: &SubmissionInfo,
     cfg: &Config,
     invokation_id: &str,
     test_data: &[u8],
     logger: &Logger,
 ) -> Status {
     let backend = minion::setup();
-    let paths = SubmissionPaths::new(&cfg.sysroot, submission.id(), invokation_id);
     let time_limit = Duration::from_millis(cfg.global_limits.time as _);
     let mut exposed_paths = derive_path_exposition_options(cfg);
     exposed_paths.push(minion::PathExpositionOptions {
-        src: paths.submission_share_dir,
+        src: submission.share_dir.clone(),
         dest: "/jjs".to_string(),
         access: minion::DesiredAccess::Full,
     });
@@ -287,7 +269,7 @@ pub fn run_on_test(
             max_alive_process_count: cfg.global_limits.process_count as _,
             memory_limit: cfg.global_limits.memory * MEGABYTE as u64,
             time_limit,
-            isolation_root: paths.submission_chroot_dir.clone(),
+            isolation_root: submission.chroot_dir.clone(),
             exposed_paths,
         })
         .unwrap();
@@ -303,19 +285,19 @@ pub fn run_on_test(
             return Status {
                 kind: StatusKind::InternalError,
                 code: status_codes::TOOLCHAIN_SEARCH_ERROR.to_string(),
-            }
+            };
         }
     };
     let cmd = interpolate_command(&toolchain.run_command, &dict).expect("ill-formed interpolation");
     debug!(logger, "executing command"; "command" => ?cmd, "phase" => "exec");
     let stdout_file = fs::File::create(format!(
         "{}/run-stdout-{}.txt",
-        &paths.submission_root_dir, invokation_id
+        &submission.root_dir, invokation_id
     ))
     .expect("io error");
     let stderr_file = fs::File::create(format!(
         "{}/run-stderr-{}.txt",
-        &paths.submission_root_dir, invokation_id
+        &submission.root_dir, invokation_id
     ))
     .expect("io error");
     let mut cp = backend
@@ -349,7 +331,7 @@ pub fn run_on_test(
             return Status {
                 kind: StatusKind::Rejected,
                 code: status_codes::TIME_LIMIT_EXCEEDED.to_string(),
-            }
+            };
         }
     }
     if cp.get_exit_code().unwrap().unwrap() != 0 {
@@ -365,7 +347,7 @@ pub fn run_on_test(
     }
 }
 
-pub fn judge(submission: &Submission, cfg: &Config, logger: &Logger) -> Status {
+pub fn judge(submission: &SubmissionInfo, cfg: &Config, logger: &Logger) -> Status {
     let build_res = build(submission, cfg, "TODO", logger);
     if build_res.kind != StatusKind::Accepted {
         return build_res;

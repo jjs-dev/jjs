@@ -1,39 +1,10 @@
-mod simple_invoker;
-
 use cfg::Config;
+use cfg_if::cfg_if;
 use db::schema::{Submission, SubmissionState};
 use diesel::{pg::PgConnection, prelude::*};
 use slog::*;
 use std::sync;
-use cfg_if::cfg_if;
-
-struct InvokeRequest {
-    submission: Submission,
-}
-
-fn handle_judge_task(
-    task: InvokeRequest,
-    cfg: &Config,
-    conn: &PgConnection,
-    logger: &slog::Logger,
-) {
-    use db::schema::submissions::dsl::*;
-
-    let submission = task.submission.clone();
-
-    let judging_status = simple_invoker::judge(&submission, cfg, logger);
-
-    let target = submissions.filter(id.eq(task.submission.id() as i32));
-    diesel::update(target)
-        .set((
-            state.eq(SubmissionState::Done),
-            status.eq(&judging_status.code.to_string()),
-            status_kind.eq(&judging_status.kind.to_string()),
-        ))
-        .execute(conn)
-        .expect("Db query failed");
-    debug!(logger, "judging finished"; "outcome" => ?judging_status);
-}
+use invoker as lib;
 
 cfg_if! {
 if #[cfg(target_os="linux")] {
@@ -51,12 +22,43 @@ if #[cfg(target_os="linux")] {
 }
 }
 
+struct InvokeRequest {
+    submission: Submission,
+}
 
+fn derive_standard_submission_info(cfg: &Config, submission: &Submission, invokation_id: &str) -> lib::SubmissionInfo {
+    lib::SubmissionInfo::new(&cfg.sysroot, submission.id(), invokation_id, &submission.toolchain)
+}
+
+fn handle_judge_task(
+    task: InvokeRequest,
+    cfg: &Config,
+    conn: &PgConnection,
+    logger: &slog::Logger,
+) {
+    use db::schema::submissions::dsl::*;
+
+    let submission = task.submission.clone();
+
+    let submission_info = derive_standard_submission_info(cfg, &submission, "TODO");
+
+    let judging_status = lib::invoke(submission_info, logger, cfg);
+
+    let target = submissions.filter(id.eq(task.submission.id() as i32));
+    diesel::update(target)
+        .set((
+            state.eq(SubmissionState::Done),
+            status.eq(&judging_status.code.to_string()),
+            status_kind.eq(&judging_status.kind.to_string()),
+        ))
+        .execute(conn)
+        .expect("Db query failed");
+    debug!(logger, "judging finished"; "outcome" => ?judging_status);
+}
 
 fn main() {
     use db::schema::submissions::dsl::*;
     dotenv::dotenv().ok();
-
 
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
@@ -78,7 +80,6 @@ fn main() {
         })
             .unwrap();
     }
-
 
     if check_system() {
         debug!(root, "system check passed")

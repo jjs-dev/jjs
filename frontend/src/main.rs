@@ -230,9 +230,8 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-        .unwrap()
+    .unwrap()
 }
-
 
 fn launch_api(frcfg: &config::FrontendConfig) {
     let postgress_url =
@@ -253,7 +252,9 @@ fn launch_api(frcfg: &config::FrontendConfig) {
 
     rocket_config.set_address(frcfg.host.clone()).unwrap();
     rocket_config.set_port(frcfg.port.clone());
-    rocket_config.set_secret_key(base64::encode(&frcfg.secret)).unwrap();
+    rocket_config
+        .set_secret_key(base64::encode(&frcfg.secret))
+        .unwrap();
 
     rocket::custom(rocket_config)
         .manage(pool)

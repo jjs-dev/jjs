@@ -7,8 +7,8 @@ use std::{
         io::AsRawFd,
         net::{UnixListener, UnixStream},
     },
+    sync::Arc,
 };
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Config {

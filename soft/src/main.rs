@@ -89,7 +89,8 @@ fn process_log_item(value: &serde_json::Value, out: &mut HashSet<String>) -> Res
     let syscall_ret = value.get("ans").conv()?.as_str().unwrap_or("");
     if syscall_ret.find('-').is_some() // negative return code
         && syscall_ret.find('E').is_some() // ENOENT, EPERM, etc
-        && syscall_ret.find('(').is_some() // (error description)
+        && syscall_ret.find('(').is_some()
+    // (error description)
     {
         // syscall likely to be failed
         return Ok(());

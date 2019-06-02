@@ -11,8 +11,7 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::check::check as linux_check_environment;
 
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(target_os = "linux")]
 pub use crate::linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
@@ -155,9 +154,7 @@ mod errors {
         #[snafu(display("system call failed in undesired fashion (error code {})", code))]
         System { code: i32 },
         #[snafu(display("io error"))]
-        Io {
-            source: std::io::Error
-        },
+        Io { source: std::io::Error },
         #[snafu(display("job server connection failed"))]
         Communication,
         #[snafu(display("unknown error"))]

@@ -68,17 +68,16 @@ impl FrontendConfig {
                     Env::Prod
                 }
             });
-        let secret = env::var("JJS_SECRET_KEY")
-            .unwrap_or_else(|_| {
-                if let Env::Dev = environ {
-                    String::from("DEVEL_HARDCODED_TOKEN")
-                } else {
-                    panic!("Error: running in production mode, but JJS_SECRET_KEY not specified");
-                }
-            });
+        let secret = env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
+            if let Env::Dev = environ {
+                String::from("DEVEL_HARDCODED_TOKEN")
+            } else {
+                panic!("Error: running in production mode, but JJS_SECRET_KEY not specified");
+            }
+        });
         let secret = derive_key_512(&secret);
-        let unix_socket_path = env::var("JJS_UNIX_SOCKET_PATH")
-            .unwrap_or("/tmp/jjs-auth-sock".to_string());
+        let unix_socket_path =
+            env::var("JJS_UNIX_SOCKET_PATH").unwrap_or("/tmp/jjs-auth-sock".to_string());
 
         FrontendConfig {
             port,

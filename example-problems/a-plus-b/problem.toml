@@ -1,6 +1,6 @@
-interactive = false
 primary-solution = "full"
+check-type = "custom"
 
-[check]
+[custom-check]
 pass-correct = true
 protocol-version = 0

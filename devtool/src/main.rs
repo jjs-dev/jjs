@@ -120,7 +120,8 @@ fn build_package(pkg_name: &str, features: &[&str], target: &str, profile: Build
         cmd.arg("--release");
     }
     if let BuildProfile::RelWithDebInfo = profile {
-        cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "true").args(&["-Z", "config-profile"]);
+        cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "true")
+            .args(&["-Z", "config-profile"]);
     }
     let st = cmd.status().unwrap().success();
     assert_eq!(st, true);

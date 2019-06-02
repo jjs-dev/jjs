@@ -3,4 +3,4 @@ lto=true
 
 [workspace]
 members=["db", "invoker", "minion", "cfg", "init-jjs-root", "frontend", "frontend-api",
-"minion-cli", "cleanup", "minion-ffi", "devtool", "soft", "envck", "userlist", "invoker-api", "tt"]
+"minion-cli", "cleanup", "minion-ffi", "devtool", "soft", "envck", "userlist", "invoker-api", "tt", "pom"]

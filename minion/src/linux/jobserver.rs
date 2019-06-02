@@ -367,7 +367,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/pids.max", &pids_cgroup_path),
         format!("{}", jail_options.max_alive_process_count),
     )
-        .unwrap();
+    .unwrap();
 
     //configure memory subsystem
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
@@ -379,7 +379,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
         format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
         format!("{}", jail_options.memory_limit),
     )
-        .unwrap();
+    .unwrap();
 
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
@@ -469,7 +469,6 @@ unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     let real_tl = cpu_tl * 3; //TODO to JailOptions
     observe_time(&jail_options.jail_id, cpu_tl, real_tl)
 }
-
 
 ///derives user_ids (in range 1_000_000 to 2_000_000) from jail_id in determined way
 fn derive_user_ids(jail_id: &str) -> Uid {
@@ -652,9 +651,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
                     if sys_err == libc::EINTR {
                         continue;
                     }
-                    crate::errors::System {
-                        code: sys_err
-                    }.fail()?
+                    crate::errors::System { code: sys_err }.fail()?
                 }
                 0 => None,
                 1 => {
@@ -714,7 +711,10 @@ unsafe fn observe_time(
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {
-        crate::errors::System { code: nix::errno::errno() }.fail()?;
+        crate::errors::System {
+            code: nix::errno::errno(),
+        }
+        .fail()?;
     }
     if fret == 0 {
         cpu_time_observer(jail_id, cpu_time_limit, real_time_limit)
@@ -737,7 +737,10 @@ pub(crate) unsafe fn start_jobserver(
 
     let f = libc::fork();
     if f == -1 {
-        crate::errors::System { code: errno::errno().0 }.fail()?;
+        crate::errors::System {
+            code: errno::errno().0,
+        }
+        .fail()?;
     }
 
     if f != 0 {

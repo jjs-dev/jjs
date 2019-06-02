@@ -1,9 +1,9 @@
+pub mod check;
 mod dominion;
 mod jail_common;
 mod jobserver;
 mod pipe;
 mod util;
-pub mod check;
 
 pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
@@ -14,8 +14,8 @@ use crate::{
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
     HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
 };
-use snafu::ResultExt;
 use nix::sys::memfd;
+use snafu::ResultExt;
 use std::{
     ffi::CString,
     fs,
@@ -162,8 +162,9 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
             if let Some(sz) = sz {
                 if unsafe { libc::ftruncate(mfd, sz as i64) } == -1 {
                     crate::errors::System {
-                        code: get_last_error()
-                    }.fail()?
+                        code: get_last_error(),
+                    }
+                    .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -251,7 +252,8 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {}
+) {
+}
 
 fn fix_sigchild() {
     unsafe {

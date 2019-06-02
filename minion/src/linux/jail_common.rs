@@ -1,9 +1,9 @@
 use crate::{linux::util::Pid, PathExpositionOptions};
 use rand::seq::SliceRandom;
+use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::{collections::BTreeMap, fs, time::Duration};
 use tiny_nix_ipc::Socket;
-use snafu::ResultExt;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct JailOptions {

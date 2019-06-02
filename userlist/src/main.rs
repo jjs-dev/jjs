@@ -71,7 +71,9 @@ fn parse_line(line: &str) -> ParseLineOutcome {
     let parts: Option<Vec<_>> = parts.into_iter().map(decode_base64).collect();
     match parts {
         Some(parts) => ParseLineOutcome::User(parts[0].clone(), parts[1].clone()),
-        None => ParseLineOutcome::Error("Provided data wasn't base64-encoded utf8 string".to_string())
+        None => {
+            ParseLineOutcome::Error("Provided data wasn't base64-encoded utf8 string".to_string())
+        }
     }
 }
 

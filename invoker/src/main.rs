@@ -22,10 +22,6 @@ if #[cfg(target_os="linux")] {
 }
 }
 
-struct InvokeRequest {
-    submission: Submission,
-}
-
 fn derive_standard_submission_info(
     cfg: &Config,
     submission: &Submission,
@@ -40,20 +36,18 @@ fn derive_standard_submission_info(
 }
 
 fn handle_judge_task(
-    task: InvokeRequest,
+    task: lib::JudgeRequest,
     cfg: &Config,
     conn: &PgConnection,
     logger: &slog::Logger,
 ) {
     use db::schema::submissions::dsl::*;
 
-    let submission = task.submission.clone();
+    let sid = task.submission.id;
 
-    let submission_info = derive_standard_submission_info(cfg, &submission, "TODO");
+    let judging_status = lib::invoke(task, logger, cfg);
 
-    let judging_status = lib::invoke(submission_info, logger, cfg);
-
-    let target = submissions.filter(id.eq(task.submission.id() as i32));
+    let target = submissions.filter(id.eq(sid as i32));
     diesel::update(target)
         .set((
             state.eq(SubmissionState::Done),
@@ -111,9 +105,12 @@ fn main() {
             Some(s) => s.clone(),
             None => continue,
         };
-        let ivr = InvokeRequest {
-            submission: waiting_submission,
+        let submission_info = derive_standard_submission_info(&config, &waiting_submission, "TODO");
+
+        let req = lib::JudgeRequest {
+            submission: submission_info,
+            problem_name: "TODO".to_string()
         };
-        handle_judge_task(ivr, &config, &db_conn, &root);
+        handle_judge_task(req, &config, &db_conn, &root);
     }
 }

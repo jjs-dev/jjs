@@ -144,7 +144,7 @@ fn build(
         format!("{}/source", &submission.root_dir),
         format!("{}/{}", &submission.share_dir, &toolchain.filename),
     )
-    .expect("Couldn't copy submission source into chroot");
+        .expect("Couldn't copy submission source into chroot");
 
     let mut exposed_paths = derive_path_exposition_options(cfg);
 
@@ -181,12 +181,12 @@ fn build(
             "{}/build-stdout-{}.txt",
             &submission.root_dir, invokation_id
         ))
-        .expect("io error");
+            .expect("io error");
         let stderr_file = fs::File::create(format!(
             "{}/build-stderr-{}.txt",
             &submission.root_dir, invokation_id
         ))
-        .expect("io error");
+            .expect("io error");
 
         let interp = interpolate_command(cmd, &dict).expect("syntax error in config");
         debug!(logger, "executing command"; "command" => ?interp, "phase" => "build");
@@ -238,7 +238,7 @@ fn build(
         format!("{}/build", &submission.share_dir),
         format!("{}/build", &submission.root_dir),
     )
-    .unwrap();
+        .unwrap();
 
     Status {
         kind: StatusKind::Accepted,
@@ -291,12 +291,12 @@ pub fn run_on_test(
         "{}/run-stdout-{}.txt",
         &submission.root_dir, invokation_id
     ))
-    .expect("io error");
+        .expect("io error");
     let stderr_file = fs::File::create(format!(
         "{}/run-stderr-{}.txt",
         &submission.root_dir, invokation_id
     ))
-    .expect("io error");
+        .expect("io error");
     let mut cp = backend
         .spawn(minion::ChildProcessOptions {
             path: cmd.argv[0].clone(),
@@ -344,10 +344,27 @@ pub fn run_on_test(
     }
 }
 
-pub fn judge(submission: &SubmissionInfo, cfg: &Config, logger: &Logger) -> Status {
-    let build_res = build(submission, cfg, "TODO", logger);
+pub fn judge(request: crate::JudgeRequest, cfg: &Config, logger: &Logger) -> Status {
+    let problem_path = format!("{}/var/problems/{}", cfg.sysroot, &request.problem_name);
+    let manifest_path = format!("{}/manifest.json", &problem_path);
+    let manifest = fs::read(&manifest_path).unwrap_or_else(|_| panic!("couldn't read problem manifest at {}", manifest_path));
+    let manifest: pom::Problem = serde_json::from_str(&String::from_utf8_lossy(&manifest)).expect("deserialize failed");
+
+    let build_res = build(&request.submission, cfg, "TODO", logger);
     if build_res.kind != StatusKind::Accepted {
         return build_res;
     }
-    run_on_test(submission, cfg, "TODO", b"foo", logger)
+    for (i, test) in manifest.tests.iter().enumerate() {
+        let input_file = format!("{}/assets/{}", &problem_path, &test.path);
+        let test_data = std::fs::read(input_file).expect("couldn't read test");
+
+        let res = run_on_test(&request.submission, cfg, &format!("TODO-{}", i + 1), &test_data, logger);
+        if res.kind != StatusKind::Accepted {
+            return res;
+        }
+    }
+    Status {
+        kind: StatusKind::Accepted,
+        code: status_codes::ACCEPTED.to_string(),
+    }
 }

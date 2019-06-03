@@ -203,12 +203,13 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
-    fn build_tests(&self, testgens: &HashMap<String, magic_build::Command>) {
+    fn build_tests(&self, testgens: &HashMap<String, magic_build::Command>) -> Vec<pom::Test> {
         let pb = ProgressBar::new(self.cfg.tests.len() as u64);
         pb.set_style(get_progress_bar_style());
         pb.set_message(&"Generate tests".style_with(&style::in_progress()));
         let tests_path = format!("{}/assets/tests", self.out_dir.display());
         std::fs::create_dir_all(&tests_path).expect("couldn't create tests output dir");
+        let mut out = vec![];
         for (i, test_spec) in self.cfg.tests.iter().enumerate() {
             self.take_sleep();
             let tid = i + 1;
@@ -237,13 +238,18 @@ impl<'a> ProblemBuilder<'a> {
                     let pb_msg = format!("Copy: {}", &path);
                     pb.set_message(&pb_msg.style_with(&style::in_progress()));
                     let test_data = std::fs::read(&path).expect("Couldn't read test data file");
-                    std::fs::write(&path, test_data)
+                    std::fs::write(&out_file_path, test_data)
                         .expect("Couldn't write test data to target file");
                 }
             }
+            let test_info = pom::Test {
+                path: format!("tests/{}-in.txt", tid),
+            };
+            out.push(test_info);
             pb.inc(1);
         }
         pb.finish_with_message(&"Generate tests".style_with(&style::ready()));
+        out
     }
 
     fn build(&self) {
@@ -251,7 +257,14 @@ impl<'a> ProblemBuilder<'a> {
         self.take_sleep();
         let testgen_lauch_info = self.build_testgens();
         self.take_sleep();
-        self.build_tests(&testgen_lauch_info);
+        let tests = self.build_tests(&testgen_lauch_info);
+        let problem = pom::Problem {
+            name: "TODO".to_string(),
+            tests,
+        };
+        let manifest_path = format!("{}/manifest.json", self.out_dir.display());
+        let manifest_data = serde_json::to_string(&problem).expect("couldn't serialize manifest");
+        std::fs::write(manifest_path, manifest_data).expect("couldn't emit manifest")
     }
 }
 

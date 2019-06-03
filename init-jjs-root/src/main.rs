@@ -39,6 +39,7 @@ fn main() {
 
     add("var");
     add("var/submissions");
+    add("var/problems");
     add("opt");
     add("opt/bin");
     add("opt/lib64");

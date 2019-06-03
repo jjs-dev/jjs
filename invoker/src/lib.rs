@@ -5,13 +5,15 @@ use cfg::Config;
 #[derive(Debug)]
 pub struct SubmissionInfo {
     /// Ancestor for all other directories in this struct
-    root_dir: String,
+    pub root_dir: String,
     /// Directory to share with sandbox
-    share_dir: String,
+    pub share_dir: String,
     /// Directory which will be chroot for sandbox
-    chroot_dir: String,
+    pub chroot_dir: String,
     /// Submission toolchain name
-    toolchain: String,
+    pub toolchain: String,
+    /// Submission id
+    pub id: u32
 }
 
 impl SubmissionInfo {
@@ -26,15 +28,20 @@ impl SubmissionInfo {
             root_dir: submission_root_dir,
             share_dir: submission_share_dir,
             toolchain: toolchain.to_string(),
+            id: submission_id,
         }
     }
 }
 
+pub struct JudgeRequest {
+    pub submission: SubmissionInfo,
+    pub problem_name: String,
+}
+
 pub fn invoke(
-    submission_info: SubmissionInfo,
+    request: JudgeRequest,
     logger: &slog::Logger,
     cfg: &Config,
 ) -> invoker_api::Status {
-    dbg!(&submission_info);
-    simple_invoker::judge(&submission_info, cfg, logger)
+    simple_invoker::judge(request, cfg, logger)
 }

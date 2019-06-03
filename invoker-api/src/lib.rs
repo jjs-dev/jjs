@@ -26,13 +26,19 @@ pub mod status_codes {
         };
     }
 
+    // build-related status codes
     declare_code!(
         TOOLCHAIN_SEARCH_ERROR,
         BUILT,
         COMPILATION_TIMED_OUT,
         COMPILER_FAILED
     );
+
+    // per-test status codes
     declare_code!(TIME_LIMIT_EXCEEDED, RUNTIME_ERROR, TEST_PASSED);
+
+    // aggregated status codes
+    declare_code!(ACCEPTED, BUILD_ERROR);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

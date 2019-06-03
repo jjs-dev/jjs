@@ -36,7 +36,7 @@ mod errors {
 
 use args::Args;
 use indicatif::ProgressBar;
-use std::{path::Path, process::exit};
+use std::{collections::HashMap, path::Path, process::exit};
 
 fn check_dir(path: &Path, allow_nonempty: bool) {
     if !path.exists() {
@@ -67,13 +67,11 @@ struct ProblemBuilder<'a> {
 
 mod style {
     pub fn in_progress() -> console::Style {
-        console::Style::new()
-            .blue()
+        console::Style::new().blue()
     }
 
     pub fn ready() -> console::Style {
-        console::Style::new()
-            .green()
+        console::Style::new().green()
     }
 }
 
@@ -93,6 +91,18 @@ impl BeatufilStringExt for String {
     }
 }
 
+fn open_as_handle(path: &str) -> std::io::Result<i64> {
+    use std::os::unix::io::IntoRawFd;
+    // note: platform-dependent code
+    let file = std::fs::File::create(path)?;
+    let fd = file.into_raw_fd();
+    let fd_dup = unsafe { libc::dup(fd) }; // to cancel CLOEXEC behavior
+    unsafe {
+        libc::close(fd);
+    }
+    Ok(i64::from(fd_dup))
+}
+
 impl<'a> ProblemBuilder<'a> {
     /// this function is useful to check TUI (progress bars, text style, etc)
     fn take_sleep(&self) {
@@ -101,7 +111,7 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
-    fn call_magicbuild(&self, src: &Path, out: &Path) -> magic_build::MagicBuildSpec {
+    fn call_magicbuild(&self, src: &Path, out: &Path) -> magic_build::Command {
         std::fs::create_dir_all(out).expect("coudln't create dir");
         let params = magic_build::MagicBuildParams {
             path: &src,
@@ -127,7 +137,7 @@ impl<'a> ProblemBuilder<'a> {
             pb.inc(1);
         }
         pb.finish_and_clear();
-        spec
+        spec.run
     }
 
     fn build_solution(&self, sol_path: PathBuf) {
@@ -153,7 +163,10 @@ impl<'a> ProblemBuilder<'a> {
         self.take_sleep();
         for solution_path in globs {
             let sol_path = solution_path.expect("io error");
-            let pb_msg = format!("Build solution {}", sol_path.file_name().unwrap().to_str().expect("ut8 error"));
+            let pb_msg = format!(
+                "Build solution {}",
+                sol_path.file_name().unwrap().to_str().expect("ut8 error")
+            );
             pb.set_message(&pb_msg.style_with(&style::in_progress()));
             self.build_solution(sol_path);
             pb.inc(1);
@@ -161,13 +174,14 @@ impl<'a> ProblemBuilder<'a> {
         pb.finish_with_message(&"Build solutions".style_with(&style::ready()));
     }
 
-    fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) {
+    fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> magic_build::Command {
         self.take_sleep();
         let out_path = format!("{}/assets/testgen-{}", self.out_dir.display(), testgen_name);
-        self.call_magicbuild(testgen_path, &PathBuf::from(&out_path));
+        self.call_magicbuild(testgen_path, &PathBuf::from(&out_path))
     }
 
-    fn build_testgens(&self) {
+    fn build_testgens(&self) -> HashMap<String, magic_build::Command> {
+        let mut out = HashMap::new();
         let testgens_glob = format!("{}/testgens/*", self.problem_dir.display());
         let globs: Vec<_> = glob::glob(&testgens_glob)
             .expect("couldn't glob for testgens")
@@ -181,19 +195,65 @@ impl<'a> ProblemBuilder<'a> {
             let testgen_name = testgen.file_name().unwrap().to_str().expect("utf8 error");
             let pb_msg = format!("Build testgen {}", testgen_name);
             pb.set_message(&pb_msg.style_with(&style::in_progress()));
-            self.build_testgen(&testgen, testgen_name);
+            let testgen_launch_cmd = self.build_testgen(&testgen, testgen_name);
+            out.insert(testgen_name.to_string(), testgen_launch_cmd);
             pb.inc(1);
         }
         pb.finish_with_message(&"Build testgens".style_with(&style::ready()));
+        out
+    }
+
+    fn build_tests(&self, testgens: &HashMap<String, magic_build::Command>) {
+        let pb = ProgressBar::new(self.cfg.tests.len() as u64);
+        pb.set_style(get_progress_bar_style());
+        pb.set_message(&"Generate tests".style_with(&style::in_progress()));
+        let tests_path = format!("{}/assets/tests", self.out_dir.display());
+        std::fs::create_dir_all(&tests_path).expect("couldn't create tests output dir");
+        for (i, test_spec) in self.cfg.tests.iter().enumerate() {
+            self.take_sleep();
+            let tid = i + 1;
+            let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
+            match &test_spec.gen {
+                cfg::TestGenSpec::Generate { testgen } => {
+                    let testgen_cmd = testgens.get(testgen).unwrap_or_else(|| {
+                        eprintln!("error: unknown testgen {}", testgen);
+                        exit(1);
+                    });
+                    let mut cmd = testgen_cmd.to_std_command();
+                    cmd.env("JJS_TEST_ID", tid.to_string());
+                    let out_file_handle =
+                        open_as_handle(&out_file_path).expect("couldn't create test output file");
+                    cmd.env("JJS_TEST", out_file_handle.to_string());
+                    let pb_msg = format!("Run: {:?}", &cmd);
+                    pb.set_message(&pb_msg.style_with(&style::in_progress()));
+                    let status = cmd.status().expect("couldn't launch testgen");
+                    if !status.success() {
+                        eprintln!("testgen did not finished successfully");
+                        exit(1);
+                    }
+                }
+                cfg::TestGenSpec::File { path } => {
+                    let path = format!("{}/tests/{}", self.problem_dir.display(), path);
+                    let pb_msg = format!("Copy: {}", &path);
+                    pb.set_message(&pb_msg.style_with(&style::in_progress()));
+                    let test_data = std::fs::read(&path).expect("Couldn't read test data file");
+                    std::fs::write(&path, test_data)
+                        .expect("Couldn't write test data to target file");
+                }
+            }
+            pb.inc(1);
+        }
+        pb.finish_with_message(&"Generate tests".style_with(&style::ready()));
     }
 
     fn build(&self) {
         self.build_solutions();
         self.take_sleep();
-        self.build_testgens();
+        let testgen_lauch_info = self.build_testgens();
+        self.take_sleep();
+        self.build_tests(&testgen_lauch_info);
     }
 }
-
 
 fn main() {
     use structopt::StructOpt;

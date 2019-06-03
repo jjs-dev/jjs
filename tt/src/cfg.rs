@@ -111,7 +111,7 @@ pub enum TestGenSpec {
 
 #[derive(Debug)]
 pub struct TestSpec {
-    gen: TestGenSpec,
+    pub gen: TestGenSpec,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -251,7 +251,7 @@ fn launch_api(frcfg: &config::FrontendConfig) {
     let mut rocket_config = rocket::Config::new(rocket_cfg_env);
 
     rocket_config.set_address(frcfg.host.clone()).unwrap();
-    rocket_config.set_port(frcfg.port.clone());
+    rocket_config.set_port(frcfg.port);
     rocket_config
         .set_secret_key(base64::encode(&frcfg.secret))
         .unwrap();

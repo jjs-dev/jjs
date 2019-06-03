@@ -20,7 +20,7 @@ pub fn check() -> Option<String> {
 
     const REQUIRED_CAPS: u64 = 7 /*CAP_SETUID*/;
     if cap_info & REQUIRED_CAPS != REQUIRED_CAPS {
-        return Some(format!("some required capabilities are missing"));
+        return Some("some required capabilities are missing".to_string());
     }
 
     None

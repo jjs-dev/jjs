@@ -7,7 +7,7 @@ pub enum Env {
 }
 
 impl Env {
-    pub fn is_dev(&self) -> bool {
+    pub fn is_dev(self) -> bool {
         use Env::*;
         match self {
             Dev => true,
@@ -53,7 +53,7 @@ impl FrontendConfig {
             .map_err(|_| ())
             .and_then(|s| s.parse().map_err(|_| ()))
             .unwrap_or(1779);
-        let host = env::var("JJS_HOST").unwrap_or("127.0.0.1".to_string());
+        let host = env::var("JJS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
         let environ = env::var("JJS_ENV")
             .map_err(|_| ())
             .and_then(|e| match e.as_str() {
@@ -77,7 +77,7 @@ impl FrontendConfig {
         });
         let secret = derive_key_512(&secret);
         let unix_socket_path =
-            env::var("JJS_UNIX_SOCKET_PATH").unwrap_or("/tmp/jjs-auth-sock".to_string());
+            env::var("JJS_UNIX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/jjs-auth-sock".to_string());
 
         FrontendConfig {
             port,

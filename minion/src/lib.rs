@@ -178,27 +178,35 @@ pub enum WaitOutcome {
     Timeout,
 }
 
-pub type ChildInputStream = Box<dyn Write>;
-pub type ChildOutputStream = Box<dyn Read>;
-pub type ChildStdio = (
-    Option<ChildInputStream>,
-    Option<ChildOutputStream>,
-    Option<ChildOutputStream>,
-);
-
 /// Represents child process.
 pub trait ChildProcess: Drop {
     /// Returns exit code, if process had exited by the moment of call, or None otherwise.
     fn get_exit_code(&self) -> Result<Option<i64>>;
 
-    /// Returns streams, connected to child stdio
+    /// Returns writeable stream, connected to child stdin
     ///
     /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
     /// Otherwise, None will be returned
     ///
-    /// On all subsequent calls, (None, None, None) will be returned - `stdio` transfers ownership
+    /// On all subsequent calls, None will be returned
 
-    fn stdio(&mut self) -> ChildStdio;
+    fn stdin(&mut self) -> Option<Box<dyn Write + Send + Sync>>;
+
+    /// Returns readable stream, connected to child stdoutn
+    ///
+    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
+    /// Otherwise, None will be returned
+    ///
+    /// On all subsequent calls, None will be returned
+    fn stdout(&mut self) -> Option<Box<dyn Read + Send + Sync>>;
+
+    /// Returns readable stream, connected to child stderr
+    ///
+    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
+    /// Otherwise, None will be returned
+    ///
+    /// On all subsequent calls, None will be returned
+    fn stderr(&mut self) -> Option<Box<dyn Read + Send + Sync>>;
 
     /// Waits for child process exit with timeout
     fn wait_for_exit(&self, timeout: Duration) -> Result<WaitOutcome>;

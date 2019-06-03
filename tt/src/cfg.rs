@@ -153,8 +153,8 @@ impl RawProblem {
                 return Err(format!("test {} is specified more than once", test_ids[i]));
             }
         }
-        for i in 0..test_ids.len() {
-            if i + 1 != test_ids[i] as usize {
+        for (i, tid) in test_ids.iter().enumerate() {
+            if i + 1 != *tid as usize {
                 return Err(format!("test {} is not specified", i + 1));
             }
         }

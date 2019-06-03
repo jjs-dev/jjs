@@ -32,9 +32,9 @@ use std::{
 pub struct LinuxChildProcess {
     exit_code: AtomicI64,
 
-    stdin: Option<Box<dyn Write>>,
-    stdout: Option<Box<dyn Read>>,
-    stderr: Option<Box<dyn Read>>,
+    stdin: Option<Box<dyn Write + Send + Sync>>,
+    stdout: Option<Box<dyn Read + Send + Sync>>,
+    stderr: Option<Box<dyn Read + Send + Sync>>,
     //in order to save dominion while CP is alive
     _dominion_ref: DominionRef,
 
@@ -56,8 +56,14 @@ impl ChildProcess for LinuxChildProcess {
         Ok(ec)
     }
 
-    fn stdio(&mut self) -> crate::ChildStdio {
-        (self.stdin.take(), self.stdout.take(), self.stderr.take())
+    fn stdin(&mut self) -> Option<Box<dyn Write + Send + Sync>> {
+        self.stdin.take()
+    }
+    fn stdout(&mut self) -> Option<Box<dyn Read + Send + Sync>> {
+        self.stdout.take()
+    }
+    fn stderr(&mut self) -> Option<Box<dyn Read + Send + Sync>> {
+        self.stderr.take()
     }
 
     fn wait_for_exit(&self, timeout: std::time::Duration) -> crate::Result<WaitOutcome> {
@@ -164,7 +170,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
                     crate::errors::System {
                         code: get_last_error(),
                     }
-                    .fail()?
+                        .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -204,17 +210,17 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
 
         let mut stdin = None;
         if let Some(h) = in_w {
-            let box_in: Box<dyn Write> = Box::new(LinuxWritePipe::new(h));
+            let box_in: Box<dyn Write + Send + Sync> = Box::new(LinuxWritePipe::new(h));
             stdin.replace(box_in);
         }
         let mut stdout = None;
         if let Some(h) = out_r {
-            let b: Box<dyn Read> = Box::new(LinuxReadPipe::new(h));
+            let b: Box<dyn Read + Send + Sync> = Box::new(LinuxReadPipe::new(h));
             stdout.replace(b);
         }
         let mut stderr = None;
         if let Some(h) = err_r {
-            let b: Box<dyn Read> = Box::new(LinuxReadPipe::new(h));
+            let b: Box<dyn Read + Send + Sync> = Box::new(LinuxReadPipe::new(h));
             stderr.replace(b);
         }
         Ok(LinuxChildProcess {
@@ -252,8 +258,7 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {
-}
+) {}
 
 fn fix_sigchild() {
     unsafe {

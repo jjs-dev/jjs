@@ -1,10 +1,24 @@
+mod judge;
+
 use cfg::Config;
 use cfg_if::cfg_if;
 use db::schema::{Submission, SubmissionState};
 use diesel::{pg::PgConnection, prelude::*};
-use invoker as lib;
+use judge::Judger;
 use slog::*;
-use std::sync;
+use std::{collections::HashMap, sync};
+
+pub struct SubmissionProps {
+    pub toolchain: String,
+}
+
+pub struct JudgeRequest {
+    pub submission_root: String,
+    pub submission_metadata: HashMap<String, String>,
+    pub submission_props: SubmissionProps,
+    pub problem_name: String,
+    pub judging_id: u32,
+}
 
 cfg_if! {
 if #[cfg(target_os="linux")] {
@@ -22,32 +36,24 @@ if #[cfg(target_os="linux")] {
 }
 }
 
-fn derive_standard_submission_info(
-    cfg: &Config,
-    submission: &Submission,
-    invokation_id: &str,
-) -> lib::SubmissionInfo {
-    lib::SubmissionInfo::new(
-        &cfg.sysroot,
-        submission.id(),
-        invokation_id,
-        &submission.toolchain,
-    )
-}
-
 fn handle_judge_task(
-    task: lib::JudgeRequest,
+    request: JudgeRequest,
     cfg: &Config,
     conn: &PgConnection,
     logger: &slog::Logger,
+    submission_id: u32,
 ) {
     use db::schema::submissions::dsl::*;
 
-    let sid = task.submission.id;
+    let judger = Judger {
+        cfg,
+        logger,
+        request: &request,
+    };
+    let judging_status = judger.judge();
+    //let judging_status = lib::invoke(task, logger, cfg);
 
-    let judging_status = lib::invoke(task, logger, cfg);
-
-    let target = submissions.filter(id.eq(sid as i32));
+    let target = submissions.filter(id.eq(submission_id as i32));
     diesel::update(target)
         .set((
             state.eq(SubmissionState::Done),
@@ -105,12 +111,25 @@ fn main() {
             Some(s) => s.clone(),
             None => continue,
         };
-        let submission_info = derive_standard_submission_info(&config, &waiting_submission, "TODO");
 
-        let req = lib::JudgeRequest {
-            submission: submission_info,
-            problem_name: "TODO".to_string()
+        let submission_root = format!(
+            "{}/var/submissions/s-{}",
+            config.sysroot,
+            waiting_submission.id()
+        );
+
+        let mut submission_metadata = HashMap::new();
+        submission_metadata.insert("Id".to_string(), waiting_submission.id().to_string());
+
+        let req = JudgeRequest {
+            submission_root,
+            submission_metadata,
+            problem_name: "TODO".to_string(),
+            judging_id: 0,
+            submission_props: SubmissionProps {
+                toolchain: waiting_submission.toolchain.clone(),
+            },
         };
-        handle_judge_task(req, &config, &db_conn, &root);
+        handle_judge_task(req, &config, &db_conn, &root, waiting_submission.id());
     }
 }

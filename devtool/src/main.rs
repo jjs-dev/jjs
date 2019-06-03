@@ -155,6 +155,7 @@ fn task_package(args: PackageArgs) {
     build_package("init-jjs-root", &[], &target, build_profile);
     build_package("minion-cli", &["dist"], &target, build_profile);
     build_package("userlist", &[], &target, build_profile);
+    build_package("tt", &[], &target, build_profile);
     build_package("invoker", &[], &target, build_profile);
     build_package("frontend", &[], &target, build_profile);
 
@@ -212,6 +213,7 @@ fn task_package(args: PackageArgs) {
     add_binary_artifact("invoker", "jjs-invoker", build_profile);
     add_binary_artifact("envck", "jjs-env-check", build_profile);
     add_binary_artifact("userlist", "jjs-userlist", build_profile);
+    add_binary_artifact("tt", "jjs-tt", build_profile);
     fs::copy(
         format!("{}/target/minion-ffi.h", get_project_dir()),
         format!("{}/include/minion-ffi.h", &pkg_dir),

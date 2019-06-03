@@ -7,3 +7,6 @@
 - [Sysroot Layout](sysroot.md)
 - [Userlist](userlist.md)
 - [Authentication](authentication.md)
+- [Problem preparation](problems/README.md)
+    - [Package types](problems/packages.md)
+    - [TT](problems/tt.md)

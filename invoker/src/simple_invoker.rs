@@ -142,10 +142,7 @@ fn build(
 
     fs::copy(
         format!("{}/source", &submission.root_dir),
-        format!(
-            "{}/{}",
-            &submission.share_dir, &toolchain.filename
-        ),
+        format!("{}/{}", &submission.share_dir, &toolchain.filename),
     )
     .expect("Couldn't copy submission source into chroot");
 

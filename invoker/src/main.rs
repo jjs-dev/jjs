@@ -2,9 +2,9 @@ use cfg::Config;
 use cfg_if::cfg_if;
 use db::schema::{Submission, SubmissionState};
 use diesel::{pg::PgConnection, prelude::*};
+use invoker as lib;
 use slog::*;
 use std::sync;
-use invoker as lib;
 
 cfg_if! {
 if #[cfg(target_os="linux")] {
@@ -26,8 +26,17 @@ struct InvokeRequest {
     submission: Submission,
 }
 
-fn derive_standard_submission_info(cfg: &Config, submission: &Submission, invokation_id: &str) -> lib::SubmissionInfo {
-    lib::SubmissionInfo::new(&cfg.sysroot, submission.id(), invokation_id, &submission.toolchain)
+fn derive_standard_submission_info(
+    cfg: &Config,
+    submission: &Submission,
+    invokation_id: &str,
+) -> lib::SubmissionInfo {
+    lib::SubmissionInfo::new(
+        &cfg.sysroot,
+        submission.id(),
+        invokation_id,
+        &submission.toolchain,
+    )
 }
 
 fn handle_judge_task(
@@ -78,7 +87,7 @@ fn main() {
         ctrlc::set_handler(move || {
             should_run.store(false, sync::atomic::Ordering::SeqCst);
         })
-            .unwrap();
+        .unwrap();
     }
 
     if check_system() {

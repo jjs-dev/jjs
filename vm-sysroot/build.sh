@@ -10,6 +10,8 @@ EOF
 exit 1
 fi
 
+bash -c 'cd ../soft; cargo build'
+
 SYSROOT="$1"
 
 if [ "x$SYSROOT" == x ]

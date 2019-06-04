@@ -120,7 +120,7 @@ impl<'a> ProblemBuilder<'a> {
 
         let pb = ProgressBar::new(1);
         pb.set_style(get_progress_bar_style());
-        pb.set_message(&"initializing build".style_with(&style::in_progress()));
+        pb.set_message(&"Initialize build".style_with(&style::in_progress()));
 
         let spec = magic_build::magic_build(params).expect("magic-build error");
         pb.set_length(spec.build.len() as u64);
@@ -159,7 +159,7 @@ impl<'a> ProblemBuilder<'a> {
             .collect();
         let pb = ProgressBar::new(globs.len() as u64);
         pb.set_style(get_progress_bar_style());
-        pb.set_message(&"build solutions".style_with(&style::in_progress()));
+        pb.set_message(&"Build solutions".style_with(&style::in_progress()));
         self.take_sleep();
         for solution_path in globs {
             let sol_path = solution_path.expect("io error");

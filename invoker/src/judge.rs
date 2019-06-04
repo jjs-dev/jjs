@@ -242,12 +242,13 @@ impl<'a> Judger<'a> {
                 format!("{}/source", &task.paths.submission),
                 format!("{}/{}", &share_dir, &task.toolchain.filename),
             )
-                .expect("couldn't copy submission source into chroot");
+            .expect("couldn't copy submission source into chroot");
         } else {
             fs::copy(
                 format!("{}/build", &task.paths.judge),
                 format!("{}/build", &share_dir),
-            ).expect("couldn't copy submission binary into chroot");
+            )
+            .expect("couldn't copy submission binary into chroot");
         }
 
         for cmd in task.commands {
@@ -315,7 +316,7 @@ impl<'a> Judger<'a> {
                 format!("{}/build", &share_dir),
                 format!("{}/build", &task.paths.judge),
             )
-                .unwrap();
+            .unwrap();
         }
         WorkResult::Ok
     }

@@ -3,7 +3,6 @@ sudo mkdir "$SYSROOT"/{dev,proc,sys}
 sudo tee "$SYSROOT/init" >/dev/null << EOF
 #!/bin/sh
 
-mount -t devtmpfs udev /dev
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devpts /dev/pts
@@ -43,8 +42,9 @@ jjs-invoker &
 ifdown eth0
 ifup eth0
 
+if [ "$$" == 1 ]
+then
 sh
-
 killall jjs-frontend
 killall jjs-invoker
 killall -INT postgres
@@ -55,5 +55,8 @@ mount -o remount,sync /
 mount -o remount,ro /
 sync
 poweroff -f
+fi
 EOF
 sudo chmod +x "$SYSROOT/init"
+sudo mkdir -p "$SYSROOT/etc/init.d"
+sudo ln -s /init "$SYSROOT/etc/init.d/rcS"

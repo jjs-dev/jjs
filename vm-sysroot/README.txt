@@ -14,6 +14,12 @@ The resulting image is a single partition without any bootloader/kernel/whatsoev
 ./uml-build.sh
 Executes the two previous scripts, using UML to simulate root access. Doesn't require to be launched as root.
 
+Environment variables during build:
+
+SKIP_DEVTOOL_PKG=1
+Not run the `cd ../devtool; cargo run -- pkg` command during the build. You'll have to run it manually.
+This part of the build process is totally broken, so as of now you have to specify this flag.
+
 Other files:
 
 scripts/sysroot/*.sh

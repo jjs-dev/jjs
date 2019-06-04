@@ -232,15 +232,18 @@ fn task_package(args: PackageArgs) {
         &opts,
     )
     .unwrap();
-
-    let st = Command::new("tar")
-        .current_dir(format!("{}/pkg", get_project_dir()))
-        .args(&["cvzf", "jjs.tgz", "-C", "ar_data", "."])
-        .status()
-        .unwrap()
-        .success();
-
-    assert_eq!(st, true);
+    {
+        let out_file_path = format!("{}/pkg/jjs.tgz", get_project_dir());
+        let out_file =
+            std::fs::File::create(out_file_path).expect("couldn't open archive for writing");
+        let mut builder = tar::Builder::new(out_file);
+        builder
+            .append_dir_all("jjs", &pkg_dir)
+            .expect("couldn't add files to archive");
+        let _ = builder
+            .into_inner()
+            .expect("couldn't finish writing archive");
+    }
 }
 
 fn task_publish() {

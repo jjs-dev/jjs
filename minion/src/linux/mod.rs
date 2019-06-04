@@ -122,7 +122,7 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
             let mut h_in = 0;
             let mut h_out = 0;
             pipe::setup_pipe(&mut h_in, &mut h_out)?;
-            let f = unsafe { libc::dup(h_out) };
+            let f = unsafe { libc::dup(h_in) };
             unsafe { libc::close(h_in) };
             Ok((Some(h_out), f))
         }
@@ -170,7 +170,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
                     crate::errors::System {
                         code: get_last_error(),
                     }
-                        .fail()?
+                    .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -258,7 +258,8 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {}
+) {
+}
 
 fn fix_sigchild() {
     unsafe {

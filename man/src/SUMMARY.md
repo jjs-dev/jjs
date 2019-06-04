@@ -10,3 +10,4 @@
 - [Problem preparation](problems/README.md)
     - [Package types](problems/packages.md)
     - [TT](problems/tt.md)
+    - [Writing test generators](problems/testgen.md)

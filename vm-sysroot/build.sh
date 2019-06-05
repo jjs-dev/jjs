@@ -10,7 +10,20 @@ EOF
 exit 1
 fi
 
+if [ ! -f ../target/jjs.tgz ]
+then cat >&2 <<EOF
+ERROR: JJS package (../target/jjs.tgz) has not been built.
+To build it, do the following:
+
+    cd ../target
+    ../configure --enable-archive
+    make
+EOF
+exit 1
+fi
+
 bash -c 'cd ../soft; cargo build'
+bash -c 'cd ..; rm -rf pkg; mkdir -p pkg; cd pkg; tar -xvf ../target/jjs.tgz; mv jjs ar_data'
 
 SYSROOT="$1"
 

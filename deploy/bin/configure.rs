@@ -68,6 +68,7 @@ fn generate_make_script(opt: &Opt) {
     std::fs::write(&script_path, script).unwrap();
     let perms = std::fs::Permissions::from_mode(0o744);
     std::fs::set_permissions(&script_path, perms).unwrap();
+    println!("To trigger build, run {}", &script_path);
 }
 
 fn main() {

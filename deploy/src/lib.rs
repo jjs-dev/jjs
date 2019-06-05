@@ -83,10 +83,7 @@ fn build_jjs_components(params: &Params) {
     print_section("Creating directories");
     let binary_dir = format!("{}/target/{}/release", proj_root, &target);
     let dylib_dir = format!("{}/target/{}/release", proj_root, &target);
-    let pkg_dir = match &params.cfg.prefix {
-        Some(p) => p.clone(),
-        None => "/tmp/jjs-pkg".to_string(),
-    };
+    let pkg_dir = params.sysroot.clone();
 
     util::make_empty(&pkg_dir).unwrap();
     fs::create_dir(format!("{}/lib", &pkg_dir)).ok();

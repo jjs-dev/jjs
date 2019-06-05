@@ -239,11 +239,12 @@ fn env_add(var_name: &str, prepend: &str) -> String {
 }
 
 fn generate_envscript(params: &Params) {
+    print_section("Generate environ activate script");
     use std::fmt::Write;
     let mut out = String::new();
     writeln!(out, "export JJS_PATH={}", &params.sysroot).unwrap();
     writeln!(out, "{}", env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))).unwrap();
     writeln!(out, "{}", env_add("PATH", &format!("{}/bin", &params.sysroot))).unwrap();
-    let out_file_path = format!("{}/bin/jjs-env-activate.sh", &params.sysroot);
+    let out_file_path = format!("{}/bin/jjs-environ.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

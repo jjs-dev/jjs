@@ -1,3 +1,7 @@
 #!/bin/bash
 # Of course, it is NOT autotools
+export JJS_CFGR_SOURCE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+ # copy-pasted from https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+
+
 cargo run --bin configure --package deploy -- "$@"

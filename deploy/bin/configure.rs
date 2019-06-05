@@ -6,9 +6,6 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
-    /// Build directory
-    #[structopt(short = "I", long = "out-dir", default_value = "target")]
-    build_dir: String,
     /// Build and install testlib
     #[structopt(long = "enable-testlib")]
     testlib: bool,
@@ -39,24 +36,12 @@ struct Opt {
 }
 
 static MAKE_SCRIPT_TPL: &str = include_str!("../make-tpl.sh");
+static MAKEFILE_TPL: &str = include_str!("../makefile.tpl");
 
-fn check_cwd() {
-    let cwd = std::env::current_dir().unwrap();
-    let manif = cwd.join("Cargo.toml");
-    let data = std::fs::read(manif).unwrap();
-    let data = String::from_utf8(data).unwrap();
-    if !data.contains("workspace") {
-        eprintln!("Current dir is not JJS src root");
-        std::process::exit(1);
-    }
-}
-
-fn generate_make_script(opt: &Opt) {
-    use std::os::unix::fs::PermissionsExt;
+fn generate_make_script(src: &str, build: &str) {
     let mut substitutions = HashMap::new();
-    substitutions.insert("BUILD_DIR", opt.build_dir.clone());
-    let current_dir = std::env::current_dir().unwrap().canonicalize().unwrap();
-    substitutions.insert("SRC_DIR", current_dir.display().to_string());
+    substitutions.insert("BUILD_DIR", build.to_string());
+    substitutions.insert("SRC_DIR", src.to_string());
     let mut subst_text = String::new();
     for (k, v) in substitutions {
         let v_esc = shell_escape::escape(v.into());
@@ -64,15 +49,37 @@ fn generate_make_script(opt: &Opt) {
         subst_text.push_str(&line);
     }
     let script = MAKE_SCRIPT_TPL.replace("$SUBST$", &subst_text);
-    let script_path = format!("{}/make", &opt.build_dir);
+    let script_path = format!("{}/make", &build);
     std::fs::write(&script_path, script).unwrap();
-    let perms = std::fs::Permissions::from_mode(0o744);
-    std::fs::set_permissions(&script_path, perms).unwrap();
-    println!("To trigger build, run {}", &script_path);
+    let full_script_path = std::fs::canonicalize(&script_path).unwrap().to_str().unwrap().to_string();
+    let makefile = MAKEFILE_TPL.replace("___SCRIPT_PATH___", &full_script_path).replace("    ", "\t");
+    let makefile_path = format!("{}/Makefile", &build);
+    std::fs::write(&makefile_path, makefile).unwrap();
+    //println!("To trigger build, run {}", &script_path);
+}
+
+fn check_build_dir(_src: &str, build: &str) {
+    if deploy::util::create_or_empty(build).is_ok() {
+        return;
+    }
+    let dot_build_file = format!("{}/.jjsbuild", build);
+    if std::path::PathBuf::from(&dot_build_file).exists() {
+        return;
+    }
+    eprintln!("maybe, assumed build dir ({}) contains some important files. If you are sure, add .jjsbuild in this dir", build);
+    std::process::exit(1);
 }
 
 fn main() {
-    check_cwd();
+    let jjs_path = std::env::var("JJS_CFGR_SOURCE_DIR")
+        .unwrap();
+    let build_dir_path = std::env::current_dir()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    check_build_dir(&jjs_path, &build_dir_path);
+    //.unwrap();
     let opt: Opt = Opt::from_args();
     let tool_info = cfg::ToolInfo {
         cargo: opt
@@ -105,11 +112,11 @@ fn main() {
         tool_info,
         archive: opt.archive,
     };
-    let manifest_path = format!("{}/jjs-build-config.json", &opt.build_dir);
+    let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Configuration: {}", &build_config);
     println!("Emitting JJS build config: {}", &manifest_path);
     let out_file = std::fs::File::create(&manifest_path).unwrap();
     let mut ser = serde_json::Serializer::pretty(out_file);
     build_config.serialize(&mut ser).unwrap();
-    generate_make_script(&opt);
+    generate_make_script(&jjs_path, &build_dir_path);
 }

@@ -1,4 +1,5 @@
 use std::fs;
+
 pub fn make_empty(path: &str) -> Result<(), std::io::Error> {
     let path = std::path::PathBuf::from(path);
     if path.exists() {
@@ -15,6 +16,38 @@ pub fn make_empty(path: &str) -> Result<(), std::io::Error> {
     }
 
     Ok(())
+}
+
+#[derive(Debug)]
+struct MessageError(String);
+
+impl std::fmt::Display for MessageError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.write_str(&self.0)
+    }
+}
+
+impl From<MessageError> for std::io::Error {
+    fn from(e: MessageError) -> std::io::Error {
+        std::io::Error::new(std::io::ErrorKind::Other, e)
+    }
+}
+
+impl std::error::Error for MessageError {}
+
+pub fn create_or_empty(path: &str) -> Result<(), std::io::Error> {
+    let path = std::path::PathBuf::from(path);
+    if path.exists() {
+        if !path.is_dir() {
+            Err(MessageError("path is not directory".to_string()))?;
+        }
+        if path.read_dir()?.next().is_some() {
+            Err(MessageError("path is not empty".to_string()))?
+        }
+        Ok(())
+    } else {
+        std::fs::create_dir_all(path)
+    }
 }
 
 pub fn get_primary_style() -> console::Style {

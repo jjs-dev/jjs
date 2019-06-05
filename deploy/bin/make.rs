@@ -9,11 +9,10 @@ fn main() {
         src,
         build,
         sysroot: manifest.prefix.clone().unwrap_or_else(|| {
-            let path =
-            "/tmp/jjs-build-res-sysroot".to_string();
+            let path = "/tmp/jjs-build-res-sysroot".to_string();
             deploy::util::make_empty(&path).unwrap();
             path
-        })
+        }),
     };
     deploy::package(&params);
 }

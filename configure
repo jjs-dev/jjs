@@ -1,0 +1,3 @@
+#!/bin/bash
+# Of course, it is NOT autotools
+cargo run --bin configure --package deploy -- "$@"

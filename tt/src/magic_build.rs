@@ -103,6 +103,29 @@ fn mbuild_single_cpp(params: MagicBuildParams) -> Result<Option<MagicBuildSpec>>
     let out_file_name = format!("{}/bin", params.out.display());
     cmd.arg("-o").arg(&out_file_name);
 
+    let file_contents = std::fs::read_to_string(file)?;
+    for line in file_contents.lines() {
+        if line.starts_with("//magicbuild") {
+            dbg!(line);
+            let mbcmd = line.trim_start_matches("//magicbuild:");
+            let parts: Vec<_> = mbcmd.split('=').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            let k = parts[0];
+            let v = parts[1];
+            match k {
+                "link" => {
+                    cmd.arg(&format!("-l{}", v));
+                }
+                "arg" => {
+                    cmd.arg(v);
+                }
+                _ => {}
+            }
+        }
+    }
+
     let run_cmd = Command::new(&out_file_name);
 
     let spec = MagicBuildSpec {

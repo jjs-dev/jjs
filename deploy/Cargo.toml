@@ -1,8 +1,17 @@
 [package]
-name = "devtool"
+name = "deploy"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
+
+
+[[bin]]
+name = "configure"
+path = "bin/configure.rs"
+
+[[bin]]
+name = "make"
+path = "bin/make.rs"
 
 [dependencies]
 structopt = "0.2.15"
@@ -15,3 +24,6 @@ rouille = "3.0.0"
 filetime = "0.2.6"
 tar = "0.4.26"
 serde = { version = "1.0.92", features = ["derive"] }
+shell-escape = "0.1.4"
+#strum = "0.15.0"
+#strum_macros = "0.15.0"

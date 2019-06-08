@@ -35,7 +35,14 @@ pub mod status_codes {
     );
 
     // per-test status codes
-    declare_code!(TIME_LIMIT_EXCEEDED, RUNTIME_ERROR, TEST_PASSED);
+    declare_code!(
+        TIME_LIMIT_EXCEEDED,
+        RUNTIME_ERROR,
+        TEST_PASSED,
+        JUDGE_FAULT,
+        WRONG_ANSWER,
+        PRESENTATION_ERROR
+    );
 
     // aggregated status codes
     declare_code!(ACCEPTED, BUILD_ERROR);

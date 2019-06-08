@@ -1,6 +1,6 @@
-//! implements very simple logic
-//! if submission compiles and passes all tests, it's considered to be Accepted
-//! else it gets Compilation Error
+mod checker_proto;
+mod os_util;
+
 use crate::JudgeRequest;
 use cfg::{Command, Config, Toolchain};
 use invoker_api::{status_codes, Status, StatusKind};
@@ -123,22 +123,28 @@ pub struct Judger<'a> {
     pub cfg: &'a Config,
     pub logger: &'a Logger,
     pub request: &'a JudgeRequest,
+    pub problem: &'a pom::Problem,
 }
 
 enum WorkItemExtra<'a> {
     Build,
-    Run { input: &'a [u8] },
+    Run {
+        input: &'a [u8],
+        checker: String,
+        test_cfg: &'a pom::Test,
+    },
 }
 
 #[derive(Debug, Clone)]
 struct Paths {
+    problem: String,
     submission: String,
     judge: String,
     step: String,
 }
 
 impl Paths {
-    fn new(submission_root: &str, judging_id: u32, step_id: u32) -> Paths {
+    fn new(submission_root: &str, judging_id: u32, step_id: u32, problem: &str) -> Paths {
         let submission = submission_root.to_string();
         let judge = format!("{}/j-{}", &submission, judging_id);
         let step = format!("{}/s-{}", &judge, step_id);
@@ -146,6 +152,7 @@ impl Paths {
             submission,
             judge,
             step,
+            problem: problem.to_string(),
         }
     }
 }
@@ -165,6 +172,8 @@ enum WorkResult {
     Ok,
     Time,
     Runtime,
+    Error,
+    Other(Status),
 }
 
 impl WorkResult {
@@ -182,6 +191,11 @@ impl WorkResult {
                 kind: StatusKind::CompilationError,
                 code: status_codes::COMPILER_FAILED.to_string(),
             },
+            WorkResult::Error => Status {
+                kind: StatusKind::InternalError,
+                code: status_codes::JUDGE_FAULT.to_string(),
+            },
+            WorkResult::Other(s) => s,
         }
     }
 
@@ -199,21 +213,24 @@ impl WorkResult {
                 kind: StatusKind::Rejected,
                 code: status_codes::RUNTIME_ERROR.to_string(),
             },
+            WorkResult::Error => Status {
+                kind: StatusKind::InternalError,
+                code: status_codes::JUDGE_FAULT.to_string(),
+            },
+            WorkResult::Other(s) => s,
         }
     }
 }
 
 impl<'a> Judger<'a> {
-    fn read_manifest(&self, problem_path: &str) -> pom::Problem {
-        let manifest_path = format!("{}/manifest.json", problem_path);
-        let manifest = fs::read(&manifest_path)
-            .unwrap_or_else(|_| panic!("couldn't read problem manifest at {}", manifest_path));
-        serde_json::from_str(&String::from_utf8_lossy(&manifest)).expect("deserialize failed")
+    fn get_asset_path(&self, short_path: &str) -> String {
+        format!("{}/var/problems/{}/assets/{}", &self.cfg.sysroot, &self.problem.name, short_path)
     }
 
+
     fn do_task(&self, task: WorkItem) -> WorkResult {
+        use std::os::unix::prelude::*;
         fs::create_dir(&task.paths.step).expect("couldn't create per-step dir");
-        //let judge_dir = format!("{}/j-{}", self.cfg)
         let chroot_dir = format!("{}/chroot", task.paths.step);
         let share_dir = format!("{}/share", task.paths.step);
         fs::create_dir(&chroot_dir).expect("couldn't create chroot");
@@ -242,16 +259,16 @@ impl<'a> Judger<'a> {
                 format!("{}/source", &task.paths.submission),
                 format!("{}/{}", &share_dir, &task.toolchain.filename),
             )
-            .expect("couldn't copy submission source into chroot");
+                .expect("couldn't copy submission source into chroot");
         } else {
             fs::copy(
                 format!("{}/build", &task.paths.judge),
                 format!("{}/build", &share_dir),
             )
-            .expect("couldn't copy submission binary into chroot");
+                .expect("couldn't copy submission binary into chroot");
         }
 
-        for cmd in task.commands {
+        for (i, cmd) in task.commands.iter().enumerate() {
             let mut dict = BTreeMap::new();
             dict.insert(
                 String::from("System.SourceFilePath"),
@@ -264,11 +281,20 @@ impl<'a> Judger<'a> {
             let interp = interpolate_command(cmd, &dict).expect("syntax error in config");
             debug!(task.logger, "executing command"; "command" => ?interp);
 
+            let suffix;
+            // for build, we want to distinguish output from different commands
+            if let WorkItemExtra::Build { .. } = task.extra {
+                suffix = format!("-cmd{}", i);
+            } else {
+                suffix = "".to_string();
+            }
             let stdout_file =
-                fs::File::create(format!("{}/stdout.txt", &task.paths.step)).expect("io error");
+                fs::File::create(format!("{}/stdout{}.txt", &task.paths.step, &suffix))
+                    .expect("io error");
 
             let stderr_file =
-                fs::File::create(format!("{}/stderr.txt", &task.paths.step)).expect("io error");
+                fs::File::create(format!("{}/stderr{}.txt", &task.paths.step, &suffix))
+                    .expect("io error");
 
             let opts = minion::ChildProcessOptions {
                 path: interp.argv[0].clone(),
@@ -292,7 +318,7 @@ impl<'a> Judger<'a> {
             };
 
             let mut cp = task.backend.spawn(opts).expect("couldn't spawn submission");
-            if let WorkItemExtra::Run { input } = task.extra {
+            if let WorkItemExtra::Run { input, .. } = task.extra {
                 let mut stdin = cp.stdin().unwrap();
                 stdin.write_all(input).ok();
             }
@@ -316,7 +342,77 @@ impl<'a> Judger<'a> {
                 format!("{}/build", &share_dir),
                 format!("{}/build", &task.paths.judge),
             )
-            .unwrap();
+                .unwrap();
+        } else if let WorkItemExtra::Run {
+            input,
+            checker,
+            test_cfg,
+        } = task.extra
+        {
+            // run checker
+            let sol_file_path = format!("{}/stdout.txt", &task.paths.step);
+            let sol_file = fs::File::open(sol_file_path).unwrap();
+            let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
+            let full_checker_path = format!("{}/assets/{}", &task.paths.problem, checker);
+            let mut cmd = std::process::Command::new(full_checker_path);
+            // TODO: pass correct
+
+            let corr_handle;
+            if let Some(corr_path) = &test_cfg.correct {
+                let full_path = self.get_asset_path(corr_path);
+                let data = fs::read(full_path).unwrap();
+                corr_handle = os_util::buffer_to_file(&data, "invoker-correct-data");
+            } else {
+                corr_handle = os_util::buffer_to_file(&[], "invoker-correct-data");
+            }
+
+            let test_handle = os_util::buffer_to_file(input, "invoker-test-data");
+
+            cmd.env("JJS_CORR", corr_handle.to_string());
+            cmd.env("JJS_SOL", sol_handle.to_string());
+            cmd.env("JJS_TEST", test_handle.to_string());
+
+            let (out_judge_side, out_checker_side) = os_util::make_pipe();
+            cmd.env("JJS_CHECKER_OUT", out_checker_side.to_string());
+            let (_comments_judge_side, comments_checker_side) = os_util::make_pipe();
+            cmd.env("JJS_CHECKER_COMMENT", comments_checker_side.to_string());
+            let st = cmd.status().map(|st| st.success());
+            os_util::close(out_checker_side);
+            os_util::close(comments_checker_side);
+            let st = st.unwrap_or(false);
+            if !st {
+                slog::error!(task.logger, "checker failed");
+                return WorkResult::Error;
+            }
+            let checker_out = match String::from_utf8(os_util::handle_read_all(out_judge_side)) {
+                Ok(c) => c,
+                Err(_) => {
+                    slog::error!(task.logger, "checker produced non-utf8 output");
+                    return WorkResult::Error;
+                }
+            };
+            let parsed_out = match checker_proto::parse(&checker_out) {
+                Ok(o) => o,
+                Err(err) => {
+                    slog::error!(task.logger, "checker output couldn't be parsed"; "error" => ?err);
+                    return WorkResult::Error;
+                }
+            };
+            return match parsed_out.outcome {
+                checker_proto::Outcome::Ok => WorkResult::Ok,
+                checker_proto::Outcome::BadChecker => WorkResult::Other(Status {
+                    kind: StatusKind::InternalError,
+                    code: status_codes::JUDGE_FAULT.to_string(),
+                }),
+                checker_proto::Outcome::PresentationError => WorkResult::Other(Status {
+                    kind: StatusKind::Rejected,
+                    code: status_codes::PRESENTATION_ERROR.to_string(),
+                }),
+                checker_proto::Outcome::WrongAnswer => WorkResult::Other(Status {
+                    kind: StatusKind::Rejected,
+                    code: status_codes::WRONG_ANSWER.to_string(),
+                }),
+            };
         }
         WorkResult::Ok
     }
@@ -326,7 +422,7 @@ impl<'a> Judger<'a> {
             "{}/var/problems/{}",
             &self.cfg.sysroot, &self.request.problem_name
         );
-        let manifest = self.read_manifest(&problem_path);
+        let manifest = self.problem;
 
         //TODO cache
         let backend = minion::setup();
@@ -343,8 +439,12 @@ impl<'a> Judger<'a> {
             }
         };
 
-        let build_paths = Paths::new(&self.request.submission_root, /*TODO*/ 1, 0);
-        dbg!(&build_paths);
+        let build_paths = Paths::new(
+            &self.request.submission_root,
+            /*TODO*/ 1,
+            0,
+            &problem_path,
+        );
         fs::create_dir(&build_paths.judge).expect("couldn't create per-judge dir");
 
         let build_work_item = WorkItem {
@@ -366,9 +466,18 @@ impl<'a> Judger<'a> {
             let input_file = format!("{}/assets/{}", &problem_path, &test.path);
             let test_data = std::fs::read(input_file).expect("couldn't read test");
             let run_commands = [toolchain.run_command.clone()];
-            let run_paths = Paths::new(&self.request.submission_root, /*TODO*/ 1, tid);
+            let run_paths = Paths::new(
+                &self.request.submission_root,
+                /*TODO*/ 1,
+                tid,
+                &problem_path,
+            );
             let run_work_item = WorkItem {
-                extra: WorkItemExtra::Run { input: &test_data },
+                extra: WorkItemExtra::Run {
+                    input: &test_data,
+                    checker: manifest.checker.clone(),
+                    test_cfg: &test,
+                },
                 limits: &self.cfg.global_limits,
                 logger: self.logger.new(o!("phase" => "run", "test-id" => tid)),
                 backend: &*backend,

@@ -51,15 +51,26 @@ pub enum SubmitError {
     Common(CommonError),
 }
 
+pub struct Status {
+    pub kind: String,
+    pub code: String,
+}
+
 pub struct SubmissionInformation {
     pub id: SubmissionId,
     pub toolchain_name: String,
-    pub status: String,
+    pub status: Status,
     pub score: Option<u32>,
 }
 
 pub struct SubmissionsListParams {
     pub limit: u32,
+}
+
+pub struct SubmissionsSetInfoParams {
+    pub id: SubmissionId,
+    pub status: Option<Status>,
+    pub delete: bool,
 }
 
 // toolchains
@@ -91,6 +102,8 @@ pub trait Frontend {
     fn submissions_send(sd: SubmissionSendParams) -> Result<SubmissionId, SubmitError>;
 
     fn submissions_list(selection_params: SubmissionsListParams) -> Result<Vec<SubmissionInformation>, CommonError>;
+
+    fn submissions_set_info(info: SubmissionsSetInfoParams) -> Result<(), CommonError>;
 
     fn toolchains_list(nope: EmptyParams) -> Result<Vec<ToolchainInformation>, CommonError>;
 

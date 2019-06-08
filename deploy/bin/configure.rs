@@ -51,8 +51,14 @@ fn generate_make_script(src: &str, build: &str) {
     let script = MAKE_SCRIPT_TPL.replace("$SUBST$", &subst_text);
     let script_path = format!("{}/make", &build);
     std::fs::write(&script_path, script).unwrap();
-    let full_script_path = std::fs::canonicalize(&script_path).unwrap().to_str().unwrap().to_string();
-    let makefile = MAKEFILE_TPL.replace("___SCRIPT_PATH___", &full_script_path).replace("    ", "\t");
+    let full_script_path = std::fs::canonicalize(&script_path)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let makefile = MAKEFILE_TPL
+        .replace("___SCRIPT_PATH___", &full_script_path)
+        .replace("    ", "\t");
     let makefile_path = format!("{}/Makefile", &build);
     std::fs::write(&makefile_path, makefile).unwrap();
     //println!("To trigger build, run {}", &script_path);
@@ -71,8 +77,7 @@ fn check_build_dir(_src: &str, build: &str) {
 }
 
 fn main() {
-    let jjs_path = std::env::var("JJS_CFGR_SOURCE_DIR")
-        .unwrap();
+    let jjs_path = std::env::var("JJS_CFGR_SOURCE_DIR").unwrap();
     let build_dir_path = std::env::current_dir()
         .unwrap()
         .to_str()

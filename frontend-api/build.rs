@@ -36,7 +36,7 @@ impl ApiCallInfo {
         let self_name = Ident::new(&self.name, Span::call_site());
         let self_arg_type = &self.arg_type;
         let self_ret_type = &self.ret_type;
-        let self_url = self_name.to_string().replace('_', "/");
+        let self_url = self_name.to_string().replacen('_', "/", 1);
         (quote! {
             impl Client {
                 pub fn #self_name(&self, params: &#self_arg_type) -> Result<#self_ret_type, reqwest::Error> {

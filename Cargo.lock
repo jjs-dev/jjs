@@ -319,7 +319,7 @@ name = "cleanup"
 version = "0.1.0"
 dependencies = [
  "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1170,7 +1170,10 @@ dependencies = [
  "frontend-api 0.1.0",
  "futures 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "invoker-api 0.1.0",
+ "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memchr 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "minion 0.1.0",
+ "nix 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pom 0.1.0",
  "pretty_env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1179,6 +1182,9 @@ dependencies = [
  "slog 2.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-async 2.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-term 2.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "snafu 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "strum 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "strum_macros 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1330,6 +1336,14 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "mgr"
+version = "0.1.0"
+dependencies = [
+ "frontend-api 0.1.0",
+ "structopt 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "mime"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1376,7 +1390,7 @@ dependencies = [
  "errno 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "field-offset 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "procfs 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1521,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.14.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3317,7 +3331,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum native-tls 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "4b2df1a4c22fd44a62147fd8f13dd0f95c9d8ca7b2610299b2a2f9cf8964274e"
 "checksum net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "42550d9fb7b6684a6d404d9fa7250c2eb2646df731d1c06afc06dcee9e1bcf88"
 "checksum nix 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)" = "46f0f3210768d796e8fa79ec70ee6af172dacbe7147f5e69be5240a47778302b"
-"checksum nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d10caafde29a846a82ae0af70414e4643e072993441033b2c93217957e2f867"
+"checksum nix 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)" = "6c722bee1037d430d0f8e687bbdbf222f27cc6e4e68d5caf630857bb2b6dbdce"
 "checksum nodrop 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "2f9667ddcc6cc8a43afc9b7917599d7216aa09c463919ea32c59ed6cac8bc945"
 "checksum notify 4.0.11 (registry+https://github.com/rust-lang/crates.io-index)" = "ceb1a496a81dd6125f68ce772b41b83efe89a54d21768ed6d0c33c95832604e6"
 "checksum num-bigint 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "57450397855d951f1a41305e54851b1a7b8f5d2e349543a02a2effe25459f718"

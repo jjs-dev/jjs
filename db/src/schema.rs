@@ -18,8 +18,16 @@ impl Submission {
 pub struct NewSubmission {
     pub toolchain_id: String,
     pub state: SubmissionState,
-    pub status: String,
+    pub status_code: String,
     pub status_kind: String,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "submissions"]
+pub struct SubmissionPatch {
+    pub state: Option<SubmissionState>,
+    pub status_code: Option<String>,
+    pub status_kind: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]

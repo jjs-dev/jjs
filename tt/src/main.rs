@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate runtime_fmt;
 
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 mod cfg;
 mod magic_build;
@@ -36,7 +36,12 @@ mod errors {
 
 use args::Args;
 use indicatif::ProgressBar;
-use std::{collections::HashMap, path::Path, process::exit};
+use std::{
+    collections::HashMap,
+    io::Write,
+    path::Path,
+    process::{exit, Stdio},
+};
 
 fn check_dir(path: &Path, allow_nonempty: bool) {
     if !path.exists() {
@@ -140,7 +145,7 @@ impl<'a> ProblemBuilder<'a> {
         spec.run
     }
 
-    fn build_solution(&self, sol_path: PathBuf) {
+    fn build_solution(&self, sol_path: PathBuf) -> (String, magic_build::Command) {
         self.take_sleep();
         let sol_id = sol_path
             .file_name()
@@ -149,10 +154,14 @@ impl<'a> ProblemBuilder<'a> {
             .expect("path is not utf8")
             .to_owned();
         let out_path = format!("{}/assets/sol-{}", self.out_dir.display(), &sol_id);
-        self.call_magicbuild(&sol_path, &PathBuf::from(&out_path));
+        (
+            sol_id,
+            self.call_magicbuild(&sol_path, &PathBuf::from(&out_path)),
+        )
     }
 
-    fn build_solutions(&self) {
+    fn build_solutions(&self) -> HashMap<String, magic_build::Command> {
+        let mut out = HashMap::new();
         let solutions_glob = format!("{}/solutions/*", self.problem_dir.display());
         let globs: Vec<_> = glob::glob(&solutions_glob)
             .expect("couldn't glob for solutions")
@@ -168,10 +177,12 @@ impl<'a> ProblemBuilder<'a> {
                 sol_path.file_name().unwrap().to_str().expect("ut8 error")
             );
             pb.set_message(&pb_msg.style_with(&style::in_progress()));
-            self.build_solution(sol_path);
+            let (sol_id, cmd) = self.build_solution(sol_path);
+            out.insert(sol_id, cmd);
             pb.inc(1);
         }
         pb.finish_with_message(&"Build solutions".style_with(&style::ready()));
+        out
     }
 
     fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> magic_build::Command {
@@ -203,7 +214,11 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
-    fn build_tests(&self, testgens: &HashMap<String, magic_build::Command>) -> Vec<pom::Test> {
+    fn build_tests(
+        &self,
+        testgens: &HashMap<String, magic_build::Command>,
+        gen_answers: Option<&magic_build::Command>,
+    ) -> Vec<pom::Test> {
         let pb = ProgressBar::new(self.cfg.tests.len() as u64);
         pb.set_style(get_progress_bar_style());
         pb.set_message(&"Generate tests".style_with(&style::in_progress()));
@@ -242,9 +257,32 @@ impl<'a> ProblemBuilder<'a> {
                         .expect("Couldn't write test data to target file");
                 }
             }
-            let test_info = pom::Test {
+            let mut test_info = pom::Test {
                 path: format!("tests/{}-in.txt", tid),
+                correct: None,
             };
+            if let Some(cmd) = gen_answers {
+                let test_data = fs::read(&out_file_path).unwrap();
+                let mut sol = cmd
+                    .to_std_command()
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                sol.stdin.take().unwrap().write_all(&test_data).ok();
+                let out = sol.wait_with_output().unwrap();
+                if !out.status.success() {
+                    eprintln!(
+                        "Error when generating correct answer for test {}: primary solution failed",
+                        tid
+                    );
+                    exit(1);
+                }
+                let correct_file_path = format!("{}/{}-out.txt", &tests_path, tid);
+                fs::write(correct_file_path, &out.stdout).unwrap();
+                let short_file_path = format!("tests/{}-out.txt", tid);
+                test_info.correct.replace(short_file_path);
+            }
             out.push(test_info);
             pb.inc(1);
         }
@@ -252,14 +290,42 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
+    fn build_checkers(&self) {
+        let checker_path = format!("{}/checkers/main", self.problem_dir.display());
+        let pb = ProgressBar::new(1);
+        pb.set_style(get_progress_bar_style());
+        pb.set_message(&"Build checker".style_with(&style::in_progress()));
+        self.take_sleep();
+        self.build_checker(&checker_path);
+    }
+
+    fn build_checker(&self, checker_path: &str) {
+        self.take_sleep();
+        let out_path = format!("{}/assets/checker", self.out_dir.display());
+        self.call_magicbuild(&PathBuf::from(checker_path), &PathBuf::from(out_path));
+    }
+
     fn build(&self) {
-        self.build_solutions();
+        let solutions = self.build_solutions();
         self.take_sleep();
         let testgen_lauch_info = self.build_testgens();
         self.take_sleep();
-        let tests = self.build_tests(&testgen_lauch_info);
+
+        let tests = {
+            let gen_answers = match &self.cfg.check {
+                cfg::Check::Custom(cs) => cs.pass_correct,
+            };
+            let gen_answers = if gen_answers {
+                Some(solutions.get(&self.cfg.primary_solution).unwrap())
+            } else {
+                None
+            };
+            self.build_tests(&testgen_lauch_info, gen_answers)
+        };
+        self.build_checkers();
         let problem = pom::Problem {
             name: "TODO".to_string(),
+            checker: "checker/bin".to_string(),
             tests,
         };
         let manifest_path = format!("{}/manifest.json", self.out_dir.display());

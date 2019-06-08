@@ -1,12 +1,18 @@
 //magicbuild:link=jtl
-#include <cstdio>
-#include <cstdlib>
+#include <jtl.h>
 
 
-int main(int argc, char** argv) {
-    int test_id = get_env_int("JJS_TEST_ID");
-    int test_out_fd = get_env_int("JJS_TEST");
-    FILE* test = fdopen(test_out_fd, "w");
 
-    fprintf(test, "%d %d\n", test_id, test_id * 2 + 1);
+int main() {
+    CheckerInput inp = init_checker();
+    int contestant_answer, correct_answer;
+    check_utils::corr_scanf("%d", &correct_answer);
+    check_utils::sol_scanf("%d", &contestant_answer);
+    check_utils::check_corr_eof();
+    check_utils::check_sol_eof();
+    if (contestant_answer == correct_answer) {
+        checker_finish(CheckOutcome::OK);
+    } else {
+        checker_finish(CheckOutcome::WRONG_ANSWER);
+    }
 }

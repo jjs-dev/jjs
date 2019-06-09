@@ -34,8 +34,8 @@ unsafe fn get_string(buf: *const c_char) -> GetStringResult {
 }
 
 impl std::ops::Try for ErrorCode {
-    type Ok = ErrorCode;
     type Error = ErrorCode;
+    type Ok = ErrorCode;
 
     fn into_result(self) -> Result<ErrorCode, ErrorCode> {
         match self {
@@ -54,8 +54,8 @@ impl std::ops::Try for ErrorCode {
 }
 
 impl std::ops::Try for GetStringResult {
-    type Ok = String;
     type Error = ErrorCode;
+    type Ok = String;
 
     fn into_result(self) -> Result<String, ErrorCode> {
         match self {

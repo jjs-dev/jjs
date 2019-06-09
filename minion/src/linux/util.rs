@@ -48,6 +48,7 @@ impl WaitMessage {
             None
         }
     }
+
     pub fn new(class: u16) -> WaitMessage {
         WaitMessage { class }
     }

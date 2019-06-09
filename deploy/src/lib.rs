@@ -36,7 +36,7 @@ impl<'a> BinaryArtifactAdder<'a> {
             format!("{}/{}", &binary_dir, build_name),
             format!("{}/bin/{}", &self.pkg_dir, inst_name),
         )
-            .unwrap();
+        .unwrap();
 
         self
     }
@@ -169,21 +169,21 @@ fn build_jjs_components(params: &Params) {
             format!("{}/libminion_ffi.so", &dylib_dir),
             format!("{}/lib/libminion_ffi.so", &pkg_dir),
         )
-            .unwrap();
+        .unwrap();
     }
 
     fs::copy(
         format!("{}/libminion_ffi.a", &binary_dir),
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
 
     artifact_adder.add("minion-cli", "jjs-minion-cli");
     fs::copy(
         format!("{}/target/minion-ffi.h", &proj_root),
         format!("{}/include/minion-ffi.h", &pkg_dir),
     )
-        .unwrap();
+    .unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -196,7 +196,7 @@ fn build_jjs_components(params: &Params) {
         format!("{}/example-config", &pkg_dir),
         &opts,
     )
-        .unwrap();
+    .unwrap();
 }
 
 pub fn package(params: &Params) {
@@ -265,13 +265,13 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))
     )
-        .unwrap();
+    .unwrap();
     writeln!(
         out,
         "{}",
         env_add("PATH", &format!("{}/bin", &params.sysroot))
     )
-        .unwrap();
+    .unwrap();
     writeln!(
         out,
         "{}",
@@ -280,7 +280,7 @@ fn generate_envscript(params: &Params) {
             &format!("{}/include", &params.sysroot),
         )
     )
-        .unwrap();
+    .unwrap();
     let out_file_path = format!("{}/share/env.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

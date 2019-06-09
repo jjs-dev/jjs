@@ -18,6 +18,7 @@ impl OutType {
 
 impl std::str::FromStr for OutType {
     type Err = &'static str;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::strcutopt_parse(s)
     }
@@ -62,6 +63,7 @@ trait ResultExt {
 
 impl<T, E> ResultExt for Result<T, E> {
     type Ok = T;
+
     fn conv(self) -> Result<T, ()> {
         self.map_err(|_err| ())
     }
@@ -69,6 +71,7 @@ impl<T, E> ResultExt for Result<T, E> {
 
 impl<T> ResultExt for Option<T> {
     type Ok = T;
+
     fn conv(self) -> Result<T, ()> {
         self.ok_or(())
     }

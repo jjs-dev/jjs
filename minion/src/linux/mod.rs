@@ -59,9 +59,11 @@ impl ChildProcess for LinuxChildProcess {
     fn stdin(&mut self) -> Option<Box<dyn Write + Send + Sync>> {
         self.stdin.take()
     }
+
     fn stdout(&mut self) -> Option<Box<dyn Read + Send + Sync>> {
         self.stdout.take()
     }
+
     fn stderr(&mut self) -> Option<Box<dyn Read + Send + Sync>> {
         self.stderr.take()
     }

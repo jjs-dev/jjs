@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13.0)
+cmake_minimum_required(VERSION 3.7.0)
 set(SRC_FILES src/jtl.cpp)
 set(HEADER_FILES include/jtl.h)
 add_library(jtl STATIC ${SRC_FILES})

@@ -5,6 +5,18 @@ sudo chown "$(whoami):$(whoami)" "$SYSROOT/var/lib/jjs"
 cd ../init-jjs-root
 cargo run -- "$SYSROOT/var/lib/jjs" ../pkg/ar_data/example-config
 
+sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
+cd ../tt
+if [ -d "$ORIG_CWD/problems" ] && ! ls "$ORIG_CWD/problems" | cmp - /dev/null 2>/dev/null
+then for i in "$ORIG_CWD"/problems/*
+do
+    out="$SYSROOT/var/lib/jjs/var/problems/$(basename "$i")"
+    mkdir "$out"
+    CPLUS_INCLUDE_PATH="$ORIG_CWD/../pkg/ar_data/include" LIBRARY_PATH="$ORIG_CWD/../pkg/ar_data/lib" cargo run -- --pkg "$i" --out "$out"
+    out=
+done
+fi
+
 sudo chown -R 1:1 "$SYSROOT"/var/lib/jjs/*
 sudo chown root:root "$SYSROOT/var/lib/jjs"
 sudo chmod -R 0700 "$SYSROOT"/var/lib/jjs/*

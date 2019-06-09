@@ -26,3 +26,6 @@ These scripts are executed by ./build.sh after the core sysroot has been built t
 
 etc-network-interfaces.conf
 This file will be placed at /etc/network/interfaces inside the sysroot. Modify to match your network configuration.
+
+problems/*/
+This directory (if exists) should contain source problems. Problems will get compiled and bundled into the image.

@@ -1,5 +1,6 @@
 primary-solution = "full"
 check-type = "builtin"
+name = "a-plus-b"
 
 [builtin-check]
 name = "cmp-tokens"

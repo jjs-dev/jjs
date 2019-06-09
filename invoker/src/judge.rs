@@ -261,13 +261,13 @@ impl<'a> Judger<'a> {
                 format!("{}/source", &task.paths.submission),
                 format!("{}/{}", &share_dir, &task.toolchain.filename),
             )
-            .expect("couldn't copy submission source into chroot");
+                .expect("couldn't copy submission source into chroot");
         } else {
             fs::copy(
                 format!("{}/build", &task.paths.judge),
                 format!("{}/build", &share_dir),
             )
-            .expect("couldn't copy submission binary into chroot");
+                .expect("couldn't copy submission binary into chroot");
         }
 
         for (i, cmd) in task.commands.iter().enumerate() {
@@ -344,7 +344,7 @@ impl<'a> Judger<'a> {
                 format!("{}/build", &share_dir),
                 format!("{}/build", &task.paths.judge),
             )
-            .unwrap();
+                .unwrap();
         } else if let WorkItemExtra::Run {
             input,
             checker,
@@ -357,7 +357,6 @@ impl<'a> Judger<'a> {
             let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
             let full_checker_path = format!("{}/assets/{}", &task.paths.problem, checker);
             let mut cmd = std::process::Command::new(full_checker_path);
-            // TODO: pass correct
 
             let corr_handle;
             if let Some(corr_path) = &test_cfg.correct {
@@ -422,7 +421,7 @@ impl<'a> Judger<'a> {
     pub(crate) fn judge(self) -> Status {
         let problem_path = format!(
             "{}/var/problems/{}",
-            &self.cfg.sysroot, &self.request.problem_name
+            &self.cfg.sysroot, &self.request.problem.name
         );
         let manifest = self.problem;
 
@@ -443,7 +442,7 @@ impl<'a> Judger<'a> {
 
         let build_paths = Paths::new(
             &self.request.submission_root,
-            /*TODO*/ 1,
+            self.request.judging_id,
             0,
             &problem_path,
         );
@@ -470,7 +469,7 @@ impl<'a> Judger<'a> {
             let run_commands = [toolchain.run_command.clone()];
             let run_paths = Paths::new(
                 &self.request.submission_root,
-                /*TODO*/ 1,
+                self.request.judging_id,
                 tid,
                 &problem_path,
             );

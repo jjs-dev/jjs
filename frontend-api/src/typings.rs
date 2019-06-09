@@ -70,6 +70,7 @@ pub struct SubmissionInformation {
     pub status: JudgeStatus,
     pub state: SubmissionState,
     pub score: Option<u32>,
+    pub problem: String,
 }
 
 pub struct SubmissionsListParams {
@@ -80,6 +81,7 @@ pub struct SubmissionsSetInfoParams {
     pub id: SubmissionId,
     pub status: Option<JudgeStatus>,
     pub state: Option<SubmissionState>,
+    pub rejudge: bool,
     pub delete: bool,
 }
 

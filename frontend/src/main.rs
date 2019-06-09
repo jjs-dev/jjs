@@ -165,6 +165,7 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
             SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue
         },
         score: Some(42),
+        problem: submission.problem_name.clone(),
     }
 }
 
@@ -207,6 +208,17 @@ fn route_submissions_set_info(
         if let Some(new_status) = &params.status {
             changes.status_code = Some(new_status.code.to_string());
             changes.status_kind = Some(new_status.kind.to_string());
+        }
+        if let Some(new_state) = &params.state {
+            changes.state = Some(match new_state {
+                frontend_api::SubmissionState::Judge => SubmissionState::Invoke,
+                frontend_api::SubmissionState::Queue => SubmissionState::WaitInvoke,
+                frontend_api::SubmissionState::Error => SubmissionState::Error,
+                frontend_api::SubmissionState::Finish => SubmissionState::Done,
+            });
+        }
+        if params.rejudge {
+            changes.state = Some(SubmissionState::WaitInvoke);
         }
         diesel::update(submissions)
             .filter(id.eq(params.id as i32))

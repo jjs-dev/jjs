@@ -341,7 +341,7 @@ impl<'a> ProblemBuilder<'a> {
         self.build_checkers();
 
         let problem = pom::Problem {
-            name: "TODO".to_string(),
+            name: self.cfg.name.clone(),
             checker: "checker/bin".to_string(),
             tests,
         };

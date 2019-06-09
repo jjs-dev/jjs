@@ -8,15 +8,16 @@ use judge::Judger;
 use slog::*;
 use std::{collections::HashMap, fs, sync};
 
+#[derive(Debug)]
 pub struct SubmissionProps {
     pub toolchain: String,
 }
 
+#[derive(Debug)]
 pub struct JudgeRequest {
     pub submission_root: String,
     pub submission_metadata: HashMap<String, String>,
     pub submission_props: SubmissionProps,
-    pub problem_name: String,
     pub problem: pom::Problem,
     pub judging_id: u32,
 }
@@ -52,6 +53,7 @@ fn handle_judge_task(
         request: &request,
         problem: &request.problem,
     };
+    slog::debug!(logger, "Executing judge request"; "request" => ?request, "submission" => submission_id);
     let judging_status = judger.judge();
 
     let target = submissions.filter(id.eq(submission_id as i32));
@@ -136,8 +138,7 @@ fn main() {
         let req = JudgeRequest {
             submission_root,
             submission_metadata,
-            problem_name: prob_name.to_string(),
-            judging_id: waiting_submission.judge_revision as u32,
+            judging_id: (waiting_submission.judge_revision + 1) as u32,
             submission_props: SubmissionProps {
                 toolchain: waiting_submission.toolchain.clone(),
             },

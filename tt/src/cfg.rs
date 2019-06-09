@@ -120,6 +120,7 @@ pub struct TestSpec {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RawProblem {
+    name: String,
     #[serde(rename = "primary-solution")]
     primary_solution: String,
     #[serde(rename = "check-type")]
@@ -198,6 +199,7 @@ impl RawProblem {
                 }
             },
             tests,
+            name: self.name
         };
 
         Ok(out)
@@ -212,6 +214,7 @@ pub enum Check {
 
 #[derive(Debug)]
 pub struct Problem {
+    pub name: String,
     pub primary_solution: String,
     pub check: Check,
     pub tests: Vec<TestSpec>,

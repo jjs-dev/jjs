@@ -75,6 +75,7 @@ fn manage_submissions(gl_opt: &GlobalOptions, opt: &SubmissionOpt) {
                 println!("deleting submission {}", id);
                 let query = frontend_api::SubmissionsSetInfoParams {
                     delete: true,
+                    rejudge: false,
                     status: None,
                     state: None,
                     id,
@@ -91,6 +92,7 @@ fn manage_submissions(gl_opt: &GlobalOptions, opt: &SubmissionOpt) {
                 println!("queuing submission {} for rejudge", id);
                 let query = frontend_api::SubmissionsSetInfoParams {
                     delete: false,
+                    rejudge: false,
                     id,
                     status: None,
                     state: Some(frontend_api::SubmissionState::Queue),

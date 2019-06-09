@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
-    pass_correct: bool,
+    pub pass_correct: bool,
     #[serde(rename = "protocol-version")]
-    proto_version: u8,
+    pub proto_version: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

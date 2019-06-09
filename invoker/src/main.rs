@@ -6,7 +6,7 @@ use db::schema::{Submission, SubmissionState};
 use diesel::{pg::PgConnection, prelude::*};
 use judge::Judger;
 use slog::*;
-use std::{collections::HashMap, sync};
+use std::{collections::HashMap, fs, sync};
 
 pub struct SubmissionProps {
     pub toolchain: String,
@@ -17,6 +17,7 @@ pub struct JudgeRequest {
     pub submission_metadata: HashMap<String, String>,
     pub submission_props: SubmissionProps,
     pub problem_name: String,
+    pub problem: pom::Problem,
     pub judging_id: u32,
 }
 
@@ -49,17 +50,18 @@ fn handle_judge_task(
         cfg,
         logger,
         request: &request,
+        problem: &request.problem,
     };
     let judging_status = judger.judge();
-    //let judging_status = lib::invoke(task, logger, cfg);
 
     let target = submissions.filter(id.eq(submission_id as i32));
+    let subm_patch = db::schema::SubmissionPatch {
+        state: Some(db::schema::SubmissionState::Done),
+        status_code: Some(judging_status.code.to_string()),
+        status_kind: Some(judging_status.kind.to_string()),
+    };
     diesel::update(target)
-        .set((
-            state.eq(SubmissionState::Done),
-            status.eq(&judging_status.code.to_string()),
-            status_kind.eq(&judging_status.kind.to_string()),
-        ))
+        .set(subm_patch)
         .execute(conn)
         .expect("Db query failed");
     debug!(logger, "judging finished"; "outcome" => ?judging_status);
@@ -121,14 +123,23 @@ fn main() {
         let mut submission_metadata = HashMap::new();
         submission_metadata.insert("Id".to_string(), waiting_submission.id().to_string());
 
+        let problem_name = "TODO".to_string();
+        let problem_manifest_path = format!(
+            "{}/var/problems/{}/manifest.json",
+            config.sysroot, &problem_name
+        );
+        let problem: pom::Problem =
+            serde_json::from_reader(fs::File::open(problem_manifest_path).unwrap()).unwrap();
+
         let req = JudgeRequest {
             submission_root,
             submission_metadata,
-            problem_name: "TODO".to_string(),
+            problem_name,
             judging_id: 0,
             submission_props: SubmissionProps {
                 toolchain: waiting_submission.toolchain.clone(),
             },
+            problem,
         };
         handle_judge_task(req, &config, &db_conn, &root, waiting_submission.id());
     }

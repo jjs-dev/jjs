@@ -217,7 +217,7 @@ fn build_testlib(params: &Params) {
     let cmake_build_dir = format!("{}/target/jtl-cpp", &proj_dir);
     let sysroot_dir = params.sysroot.clone();
     util::ensure_exists(&cmake_build_dir).unwrap();
-    let st = Command::new("cmake")
+    let st = Command::new(&params.cfg.tool_info.cmake)
         .current_dir(&cmake_build_dir)
         .arg(&jtl_path)
         .arg(format!("-DCMAKE_INSTALL_PREFIX={}", &sysroot_dir))
@@ -226,7 +226,7 @@ fn build_testlib(params: &Params) {
 
     assert!(st.success());
 
-    let st = Command::new("cmake")
+    let st = Command::new(&params.cfg.tool_info.cmake)
         .arg("--build")
         .arg(&cmake_build_dir)
         .args(&["--target", "install"])
@@ -254,6 +254,15 @@ fn generate_envscript(params: &Params) {
         out,
         "{}",
         env_add("PATH", &format!("{}/bin", &params.sysroot))
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "{}",
+        env_add(
+            "CPLUS_INCLUDE_PATH",
+            &format!("{}/include", &params.sysroot)
+        )
     )
     .unwrap();
     let out_file_path = format!("{}/bin/jjs-environ.sh", &params.sysroot);

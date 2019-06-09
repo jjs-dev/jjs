@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate runtime_fmt;
 
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, env};
 
 mod cfg;
 mod magic_build;
@@ -68,6 +68,7 @@ struct ProblemBuilder<'a> {
     cfg: &'a cfg::Problem,
     problem_dir: &'a Path,
     out_dir: &'a Path,
+    jjs_dir: &'a Path,
 }
 
 mod style {
@@ -117,7 +118,7 @@ impl<'a> ProblemBuilder<'a> {
     }
 
     fn call_magicbuild(&self, src: &Path, out: &Path) -> magic_build::Command {
-        std::fs::create_dir_all(out).expect("coudln't create dir");
+        fs::create_dir_all(out).expect("coudln't create dir");
         let params = magic_build::MagicBuildParams {
             path: &src,
             out: &out,
@@ -302,7 +303,21 @@ impl<'a> ProblemBuilder<'a> {
     fn build_checker(&self, checker_path: &str) {
         self.take_sleep();
         let out_path = format!("{}/assets/checker", self.out_dir.display());
-        self.call_magicbuild(&PathBuf::from(checker_path), &PathBuf::from(out_path));
+
+        match self.cfg.check {
+            cfg::Check::Custom(_) => {
+                self.call_magicbuild(&PathBuf::from(checker_path), &PathBuf::from(out_path));
+            }
+            cfg::Check::Builtin(ref bc) => {
+                fs::create_dir_all(&out_path).unwrap();
+                let full_path = format!("{}/bin/checker-{}", self.jjs_dir.display(), &bc.name);
+                let out_path = format!("{}/bin", &out_path);
+                fs::copy(&full_path, &out_path).unwrap_or_else(|e|{
+                    eprintln!("couldn't copy builtin checker from {} to {}: {}", &full_path, &out_path, e);
+                    exit(1);
+                });
+            }
+        }
     }
 
     fn build(&self) {
@@ -314,6 +329,7 @@ impl<'a> ProblemBuilder<'a> {
         let tests = {
             let gen_answers = match &self.cfg.check {
                 cfg::Check::Custom(cs) => cs.pass_correct,
+                cfg::Check::Builtin(_) => true,
             };
             let gen_answers = if gen_answers {
                 Some(solutions.get(&self.cfg.primary_solution).unwrap())
@@ -323,6 +339,7 @@ impl<'a> ProblemBuilder<'a> {
             self.build_tests(&testgen_lauch_info, gen_answers)
         };
         self.build_checkers();
+
         let problem = pom::Problem {
             name: "TODO".to_string(),
             checker: "checker/bin".to_string(),
@@ -349,13 +366,15 @@ fn main() {
 
     let raw_problem_cfg: cfg::RawProblem =
         toml::from_str(&toplevel_manifest).expect("problem.toml parse error");
-    //dbg!(&raw_problem_cfg);
     let problem_cfg = raw_problem_cfg.postprocess().unwrap();
-    //dbg!(&problem_cfg);
+
+    let jjs_dir = env::var("JJS_PATH").expect("JJS_PATH not set");
+
     let builder = ProblemBuilder {
         cfg: &problem_cfg,
         problem_dir: &args.pkg_path,
         out_dir: &args.out_path,
+        jjs_dir: &PathBuf::from(&jjs_dir)
     };
     builder.build();
 }

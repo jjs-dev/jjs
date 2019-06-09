@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cctype>
+#include <cassert>
 
 char* get_env(const char* var_name) {
     char* res = getenv(var_name);
@@ -168,4 +169,45 @@ bool is_file_eof(FILE* f) {
         if (nread == 0) break;
     }
     return true;
+}
+
+char* check_utils::next_token(FILE* f) {
+    int cap = 16;
+    char* out = (char*) malloc(16);
+    assert(out);
+    int len = 0;
+    bool had_data = false;
+    while (true) {
+        char ch;
+        int ret = fread(&ch, 1, 1, f);
+        if (ret == -1) {
+            check_utils::comment("check_utils: read failed");
+            exit(1);
+        }
+        if (ret == 0) {
+            break;
+        }
+        if (isspace(ch)) {
+            if (had_data) {
+                break;
+            } else {
+                continue;
+            }
+        }
+        if (len+1 == cap) {
+            cap = 2 * cap;
+            out = (char*) realloc(out, cap);
+            assert(out);
+        }
+        had_data = true;
+        out[len] = ch;
+        ++len;
+    }
+    if (!had_data) {
+        // no chars were read
+        free(out);
+        return nullptr;
+    }
+    out[len] = '\0';
+    return out;
 }

@@ -1,9 +1,8 @@
 primary-solution = "full"
-check-type = "custom"
+check-type = "builtin"
 
-[custom-check]
-pass-correct = true
-protocol-version = 0
+[builtin-check]
+name = "cmp-tokens"
 
 [[tests]]
 map = "1..3"

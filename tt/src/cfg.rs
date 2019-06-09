@@ -4,8 +4,12 @@ use serde::{Deserialize, Serialize};
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
     pub pass_correct: bool,
-    #[serde(rename = "protocol-version")]
-    pub proto_version: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BuiltinCheck {
+    #[serde(rename = "name")]
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -122,6 +126,8 @@ pub struct RawProblem {
     check_type: String,
     #[serde(rename = "custom-check")]
     custom_check: Option<CustomCheck>,
+    #[serde(rename = "builtin-check")]
+    builtin_check: Option<BuiltinCheck>,
     tests: Vec<RawTestsSpec>,
 }
 
@@ -175,6 +181,18 @@ impl RawProblem {
                     };
                     Check::Custom(custom_check)
                 }
+                "builtin" => {
+                    let builtin_check = match self.builtin_check {
+                        Some(bc) => bc,
+                        None => {
+                            return Err(
+                                "check-type=builtin specified, but [builtin-check] section is absent"
+                                    .to_owned()
+                            );
+                        }
+                    };
+                    Check::Builtin(builtin_check)
+                }
                 other => {
                     return Err(format!("unknown check type: {}", other));
                 }
@@ -189,6 +207,7 @@ impl RawProblem {
 #[derive(Debug)]
 pub enum Check {
     Custom(CustomCheck),
+    Builtin(BuiltinCheck),
 }
 
 #[derive(Debug)]

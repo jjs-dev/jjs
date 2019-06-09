@@ -224,9 +224,11 @@ impl WorkResult {
 
 impl<'a> Judger<'a> {
     fn get_asset_path(&self, short_path: &str) -> String {
-        format!("{}/var/problems/{}/assets/{}", &self.cfg.sysroot, &self.problem.name, short_path)
+        format!(
+            "{}/var/problems/{}/assets/{}",
+            &self.cfg.sysroot, &self.problem.name, short_path
+        )
     }
-
 
     fn do_task(&self, task: WorkItem) -> WorkResult {
         use std::os::unix::prelude::*;
@@ -259,13 +261,13 @@ impl<'a> Judger<'a> {
                 format!("{}/source", &task.paths.submission),
                 format!("{}/{}", &share_dir, &task.toolchain.filename),
             )
-                .expect("couldn't copy submission source into chroot");
+            .expect("couldn't copy submission source into chroot");
         } else {
             fs::copy(
                 format!("{}/build", &task.paths.judge),
                 format!("{}/build", &share_dir),
             )
-                .expect("couldn't copy submission binary into chroot");
+            .expect("couldn't copy submission binary into chroot");
         }
 
         for (i, cmd) in task.commands.iter().enumerate() {
@@ -342,7 +344,7 @@ impl<'a> Judger<'a> {
                 format!("{}/build", &share_dir),
                 format!("{}/build", &task.paths.judge),
             )
-                .unwrap();
+            .unwrap();
         } else if let WorkItemExtra::Run {
             input,
             checker,

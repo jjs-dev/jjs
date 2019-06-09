@@ -53,4 +53,7 @@ namespace check_utils {
     void check_sol_eof();
     void check_corr_eof();
     void check_test_eof();
+
+    /// Reads next char sequence, followed by whitespace
+    char* next_token(FILE* f);
 }

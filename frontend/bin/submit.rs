@@ -32,7 +32,7 @@ fn main() {
     let query = SubmissionSendParams {
         toolchain: tc_id,
         code: data,
-        problem: opt.problem
+        problem: opt.problem,
     };
     let resp = client.submissions_send(&query).expect("network error");
     let resp = resp.expect("submit failed");

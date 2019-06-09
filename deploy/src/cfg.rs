@@ -66,6 +66,7 @@ pub struct Config {
     pub man: bool,
     pub testlib: bool,
     pub archive: bool,
+    pub tools: bool,
     pub tool_info: ToolInfo,
 }
 

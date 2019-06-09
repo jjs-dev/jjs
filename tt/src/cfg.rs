@@ -199,7 +199,7 @@ impl RawProblem {
                 }
             },
             tests,
-            name: self.name
+            name: self.name,
         };
 
         Ok(out)

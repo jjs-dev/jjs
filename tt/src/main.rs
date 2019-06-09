@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate runtime_fmt;
 
-use std::{fs, path::PathBuf, env};
+use std::{env, fs, path::PathBuf};
 
 mod cfg;
 mod magic_build;
@@ -312,8 +312,11 @@ impl<'a> ProblemBuilder<'a> {
                 fs::create_dir_all(&out_path).unwrap();
                 let full_path = format!("{}/bin/checker-{}", self.jjs_dir.display(), &bc.name);
                 let out_path = format!("{}/bin", &out_path);
-                fs::copy(&full_path, &out_path).unwrap_or_else(|e|{
-                    eprintln!("couldn't copy builtin checker from {} to {}: {}", &full_path, &out_path, e);
+                fs::copy(&full_path, &out_path).unwrap_or_else(|e| {
+                    eprintln!(
+                        "couldn't copy builtin checker from {} to {}: {}",
+                        &full_path, &out_path, e
+                    );
                     exit(1);
                 });
             }
@@ -374,7 +377,7 @@ fn main() {
         cfg: &problem_cfg,
         problem_dir: &args.pkg_path,
         out_dir: &args.out_path,
-        jjs_dir: &PathBuf::from(&jjs_dir)
+        jjs_dir: &PathBuf::from(&jjs_dir),
     };
     builder.build();
 }

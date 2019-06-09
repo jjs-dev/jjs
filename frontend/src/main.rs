@@ -162,7 +162,7 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
             SubmissionState::Done => frontend_api::SubmissionState::Finish,
             SubmissionState::Error => frontend_api::SubmissionState::Error,
             SubmissionState::Invoke => frontend_api::SubmissionState::Judge,
-            SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue
+            SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue,
         },
         score: Some(42),
         problem: submission.problem_name.clone(),
@@ -283,7 +283,7 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-        .unwrap()
+    .unwrap()
 }
 
 fn launch_api(frcfg: &config::FrontendConfig) {

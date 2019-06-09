@@ -97,7 +97,8 @@ fn manage_submissions(gl_opt: &GlobalOptions, opt: &SubmissionOpt) {
                     status: None,
                     state: Some(frontend_api::SubmissionState::Queue),
                 };
-                client.submissions_modify(&query)
+                client
+                    .submissions_modify(&query)
                     .unwrap()
                     .expect("reqwesr rejected");
             }

@@ -12,6 +12,9 @@ struct Opt {
     /// Build and install manual
     #[structopt(long = "disable-man")]
     no_man: bool,
+    /// Build and install additional tools
+    #[structopt(long = "disable-tools")]
+    no_tools: bool,
     /// Generate tarball
     #[structopt(long = "enable-archive")]
     archive: bool,
@@ -114,6 +117,7 @@ fn main() {
         profile,
         man: !opt.no_man,
         testlib: !opt.no_testlib,
+        tools: !opt.no_tools,
         tool_info,
         archive: opt.archive,
     };

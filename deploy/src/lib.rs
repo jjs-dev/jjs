@@ -16,6 +16,7 @@ pub struct Params {
     pub sysroot: String,
 }
 
+#[derive(Copy, Clone)]
 struct BinaryArtifactAdder<'a> {
     pkg_dir: &'a str,
     params: &'a Params,
@@ -35,12 +36,13 @@ impl<'a> BinaryArtifactAdder<'a> {
             format!("{}/{}", &binary_dir, build_name),
             format!("{}/bin/{}", &self.pkg_dir, inst_name),
         )
-        .unwrap();
+            .unwrap();
 
         self
     }
 }
 
+#[derive(Copy, Clone)]
 struct PackageBuilder<'a> {
     params: &'a Params,
 }
@@ -75,6 +77,22 @@ impl<'a> PackageBuilder<'a> {
     }
 }
 
+struct SimpleBuilder<'a> {
+    params: &'a Params,
+    pkg_builder: PackageBuilder<'a>,
+    art_adder: BinaryArtifactAdder<'a>,
+}
+
+impl<'a> SimpleBuilder<'a> {
+    fn build(&self, pkg_name: &str, inst_name: &str, cond: bool) -> &Self {
+        if cond {
+            self.pkg_builder.build(pkg_name, &[]);
+            self.art_adder.add(pkg_name, inst_name);
+        }
+        self
+    }
+}
+
 fn build_jjs_components(params: &Params) {
     let target = &params.cfg.target;
     let enabled_dll = !target.contains("musl");
@@ -92,16 +110,25 @@ fn build_jjs_components(params: &Params) {
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
 
     let package_builder = PackageBuilder { params };
-
-    package_builder
-        .build("cleanup", &[])
-        .build("envck", &[])
-        .build("init-jjs-root", &[])
-        .build("minion-cli", &["dist"])
-        .build("userlist", &[])
-        .build("tt", &[])
-        .build("invoker", &[])
-        .build("frontend", &[]);
+    let artifact_adder = BinaryArtifactAdder {
+        pkg_dir: &pkg_dir,
+        params,
+    };
+    let simple = SimpleBuilder {
+        params,
+        pkg_builder: package_builder,
+        art_adder: artifact_adder,
+    };
+    simple
+        .build("cleanup", "jjs-cleanup", params.cfg.tools)
+        .build("envck", "jjs-env-check", params.cfg.tools)
+        .build("init-jjs-root", "jjs-mkroot", true)
+        .build("tt", "jjs-tt", params.cfg.tools)
+        .build("userlist", "jjs-userlist", params.cfg.tools)
+        .build("invoker", "jjs-invoker", true)
+        .build("frontend", "jjs-frontend", true)
+        .build("mgr", "jjs-mgr", params.cfg.tools);
+    package_builder.build("minion-cli", &["dist"]);
 
     print_section("Building minion-ffi");
     let st = Command::new(&params.cfg.tool_info.cargo)
@@ -142,32 +169,21 @@ fn build_jjs_components(params: &Params) {
             format!("{}/libminion_ffi.so", &dylib_dir),
             format!("{}/lib/libminion_ffi.so", &pkg_dir),
         )
-        .unwrap();
+            .unwrap();
     }
 
     fs::copy(
         format!("{}/libminion_ffi.a", &binary_dir),
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
     )
-    .unwrap();
+        .unwrap();
 
-    let artifact_adder = BinaryArtifactAdder {
-        pkg_dir: &pkg_dir,
-        params,
-    };
-    artifact_adder
-        .add("minion-cli", "jjs-minion-cli")
-        .add("frontend", "jjs-frontend")
-        .add("invoker", "jjs-invoker")
-        .add("envck", "jjs-env-check")
-        .add("userlist", "jjs-userlist")
-        .add("tt", "jjs-tt")
-        .add("init-jjs-root", "jjs-mkroot");
+    artifact_adder.add("minion-cli", "jjs-minion-cli");
     fs::copy(
         format!("{}/target/minion-ffi.h", &proj_root),
         format!("{}/include/minion-ffi.h", &pkg_dir),
     )
-    .unwrap();
+        .unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -180,7 +196,7 @@ fn build_jjs_components(params: &Params) {
         format!("{}/example-config", &pkg_dir),
         &opts,
     )
-    .unwrap();
+        .unwrap();
 }
 
 pub fn package(params: &Params) {
@@ -249,22 +265,22 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))
     )
-    .unwrap();
+        .unwrap();
     writeln!(
         out,
         "{}",
         env_add("PATH", &format!("{}/bin", &params.sysroot))
     )
-    .unwrap();
+        .unwrap();
     writeln!(
         out,
         "{}",
         env_add(
             "CPLUS_INCLUDE_PATH",
-            &format!("{}/include", &params.sysroot)
+            &format!("{}/include", &params.sysroot),
         )
     )
-    .unwrap();
+        .unwrap();
     let out_file_path = format!("{}/share/env.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

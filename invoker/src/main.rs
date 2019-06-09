@@ -61,7 +61,7 @@ fn handle_judge_task(
         state: Some(db::schema::SubmissionState::Done),
         status_code: Some(judging_status.code.to_string()),
         status_kind: Some(judging_status.kind.to_string()),
-        judge_revision: Some(request.judging_id as i32)
+        judge_revision: Some(request.judging_id as i32),
     };
     diesel::update(target)
         .set(subm_patch)
@@ -92,7 +92,7 @@ fn main() {
         ctrlc::set_handler(move || {
             should_run.store(false, sync::atomic::Ordering::SeqCst);
         })
-            .unwrap();
+        .unwrap();
     }
 
     if check_system() {

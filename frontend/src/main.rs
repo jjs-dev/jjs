@@ -129,6 +129,8 @@ fn route_submissions_send(
         state: SubmissionState::WaitInvoke,
         status_code: "QUEUE_BUILD".to_string(),
         status_kind: "QUEUE".to_string(),
+        problem_name: data.problem.clone(),
+        judge_revision: 0,
     };
     let subm: Submission = diesel::insert_into(submissions)
         .values(&new_sub)
@@ -152,9 +154,15 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
     frontend_api::SubmissionInformation {
         id: submission.id(),
         toolchain_name: submission.toolchain.clone(),
-        status: frontend_api::Status {
+        status: frontend_api::JudgeStatus {
             kind: "".to_string(),
             code: submission.status.clone(),
+        },
+        state: match submission.state {
+            SubmissionState::Done => frontend_api::SubmissionState::Finish,
+            SubmissionState::Error => frontend_api::SubmissionState::Error,
+            SubmissionState::Invoke => frontend_api::SubmissionState::Judge,
+            SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue
         },
         score: Some(42),
     }
@@ -179,7 +187,7 @@ fn route_submissions_list(
     Ok(Json(res))
 }
 
-#[post("/submissions/set_info", data = "<params>")]
+#[post("/submissions/modify", data = "<params>")]
 fn route_submissions_set_info(
     params: Json<frontend_api::SubmissionsSetInfoParams>,
     db: State<DbPool>,
@@ -194,9 +202,7 @@ fn route_submissions_set_info(
             .execute(&conn)?;
     } else {
         let mut changes = db::schema::SubmissionPatch {
-            state: None,
-            status_code: None,
-            status_kind: None,
+            ..Default::default()
         };
         if let Some(new_status) = &params.status {
             changes.status_code = Some(new_status.code.to_string());
@@ -265,7 +271,7 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-    .unwrap()
+        .unwrap()
 }
 
 fn launch_api(frcfg: &config::FrontendConfig) {

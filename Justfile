@@ -19,8 +19,9 @@ sysroot:
     pwsh ./soft/example-linux.ps1
 
 problems:
-    mkdir /tmp/jjs/var/problems/TODO
-    @cargo run --bin tt -- --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/TODO
+    rm -rf /tmp/jjs/var/problems/*
+    mkdir /tmp/jjs/var/problems/a-plus-b
+    @cargo run --bin tt -- --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
 
 install_tools:
     #! /bin/bash

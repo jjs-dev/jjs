@@ -59,6 +59,7 @@ fn handle_judge_task(
         state: Some(db::schema::SubmissionState::Done),
         status_code: Some(judging_status.code.to_string()),
         status_kind: Some(judging_status.kind.to_string()),
+        judge_revision: Some(request.judging_id as i32)
     };
     diesel::update(target)
         .set(subm_patch)
@@ -89,7 +90,7 @@ fn main() {
         ctrlc::set_handler(move || {
             should_run.store(false, sync::atomic::Ordering::SeqCst);
         })
-        .unwrap();
+            .unwrap();
     }
 
     if check_system() {
@@ -123,10 +124,11 @@ fn main() {
         let mut submission_metadata = HashMap::new();
         submission_metadata.insert("Id".to_string(), waiting_submission.id().to_string());
 
-        let problem_name = "TODO".to_string();
+        let prob_name = &waiting_submission.problem_name;
+
         let problem_manifest_path = format!(
             "{}/var/problems/{}/manifest.json",
-            config.sysroot, &problem_name
+            config.sysroot, &prob_name
         );
         let problem: pom::Problem =
             serde_json::from_reader(fs::File::open(problem_manifest_path).unwrap()).unwrap();
@@ -134,8 +136,8 @@ fn main() {
         let req = JudgeRequest {
             submission_root,
             submission_metadata,
-            problem_name,
-            judging_id: 0,
+            problem_name: prob_name.to_string(),
+            judging_id: waiting_submission.judge_revision as u32,
             submission_props: SubmissionProps {
                 toolchain: waiting_submission.toolchain.clone(),
             },

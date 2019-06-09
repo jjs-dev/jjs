@@ -76,12 +76,28 @@ fn manage_submissions(gl_opt: &GlobalOptions, opt: &SubmissionOpt) {
                 let query = frontend_api::SubmissionsSetInfoParams {
                     delete: true,
                     status: None,
+                    state: None,
                     id,
                 };
                 client
-                    .submissions_set_info(&query)
+                    .submissions_modify(&query)
                     .unwrap()
                     .expect("reqwest rejected");
+            }
+        }
+        "rejudge" => {
+            for sbm in &submissions {
+                let id = sbm.id;
+                println!("queuing submission {} for rejudge", id);
+                let query = frontend_api::SubmissionsSetInfoParams {
+                    delete: false,
+                    id,
+                    status: None,
+                    state: Some(frontend_api::SubmissionState::Queue),
+                };
+                client.submissions_modify(&query)
+                    .unwrap()
+                    .expect("reqwesr rejected");
             }
         }
 

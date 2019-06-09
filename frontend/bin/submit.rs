@@ -3,6 +3,7 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
+    problem: String,
     toolchain: String,
     filename: String,
     #[structopt(long = "token", short = "t", default_value = "dev:root")]
@@ -31,6 +32,7 @@ fn main() {
     let query = SubmissionSendParams {
         toolchain: tc_id,
         code: data,
+        problem: opt.problem
     };
     let resp = client.submissions_send(&query).expect("network error");
     let resp = resp.expect("submit failed");

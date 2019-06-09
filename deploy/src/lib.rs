@@ -265,6 +265,6 @@ fn generate_envscript(params: &Params) {
         )
     )
     .unwrap();
-    let out_file_path = format!("{}/bin/jjs-environ.sh", &params.sysroot);
+    let out_file_path = format!("{}/share/env.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

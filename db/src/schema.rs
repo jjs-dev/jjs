@@ -5,6 +5,8 @@ pub struct Submission {
     pub state: SubmissionState,
     pub status: String,
     pub status_kind: String,
+    pub problem_name: String,
+    pub judge_revision: i32,
 }
 
 impl Submission {
@@ -20,14 +22,17 @@ pub struct NewSubmission {
     pub state: SubmissionState,
     pub status_code: String,
     pub status_kind: String,
+    pub problem_name: String,
+    pub judge_revision: i32,
 }
 
-#[derive(AsChangeset)]
+#[derive(AsChangeset, Default)]
 #[table_name = "submissions"]
 pub struct SubmissionPatch {
     pub state: Option<SubmissionState>,
     pub status_code: Option<String>,
     pub status_kind: Option<String>,
+    pub judge_revision: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]

@@ -7,6 +7,8 @@ table! {
         state -> Submission_state,
         status_code -> Varchar,
         status_kind -> Varchar,
+        problem_name -> Varchar,
+        judge_revision -> Int4,
     }
 }
 
@@ -16,7 +18,7 @@ table! {
     users (id) {
         id -> Int4,
         username -> Varchar,
-        password_hash -> Varchar,
+        password_hash -> Bpchar,
     }
 }
 

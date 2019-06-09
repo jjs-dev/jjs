@@ -7,11 +7,11 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 struct Opt {
     /// Build and install testlib
-    #[structopt(long = "enable-testlib")]
-    testlib: bool,
+    #[structopt(long = "disable-testlib")]
+    no_testlib: bool,
     /// Build and install manual
-    #[structopt(long = "enable-man")]
-    man: bool,
+    #[structopt(long = "disable-man")]
+    no_man: bool,
     /// Generate tarball
     #[structopt(long = "enable-archive")]
     archive: bool,
@@ -112,8 +112,8 @@ fn main() {
             None => deploy::util::get_current_target(),
         },
         profile,
-        man: opt.man,
-        testlib: opt.testlib,
+        man: !opt.no_man,
+        testlib: !opt.no_testlib,
         tool_info,
         archive: opt.archive,
     };

@@ -41,6 +41,7 @@ pub struct SubmissionSendParams {
     pub toolchain: ToolchainId,
     /// Must be correct base64-encoded string
     pub code: String,
+    pub problem: String,
 }
 
 pub enum SubmitError {
@@ -51,15 +52,23 @@ pub enum SubmitError {
     Common(CommonError),
 }
 
-pub struct Status {
+pub struct JudgeStatus {
     pub kind: String,
     pub code: String,
+}
+
+pub enum SubmissionState {
+    Queue,
+    Judge,
+    Finish,
+    Error,
 }
 
 pub struct SubmissionInformation {
     pub id: SubmissionId,
     pub toolchain_name: String,
-    pub status: Status,
+    pub status: JudgeStatus,
+    pub state: SubmissionState,
     pub score: Option<u32>,
 }
 
@@ -69,7 +78,8 @@ pub struct SubmissionsListParams {
 
 pub struct SubmissionsSetInfoParams {
     pub id: SubmissionId,
-    pub status: Option<Status>,
+    pub status: Option<JudgeStatus>,
+    pub state: Option<SubmissionState>,
     pub delete: bool,
 }
 
@@ -103,7 +113,7 @@ pub trait Frontend {
 
     fn submissions_list(selection_params: SubmissionsListParams) -> Result<Vec<SubmissionInformation>, CommonError>;
 
-    fn submissions_set_info(info: SubmissionsSetInfoParams) -> Result<(), CommonError>;
+    fn submissions_modify(info: SubmissionsSetInfoParams) -> Result<(), CommonError>;
 
     fn toolchains_list(nope: EmptyParams) -> Result<Vec<ToolchainInformation>, CommonError>;
 

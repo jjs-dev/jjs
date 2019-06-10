@@ -8,6 +8,7 @@ pub struct Test {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Problem {
+    pub title: String,
     pub name: String,
     pub tests: Vec<Test>,
     pub checker: String,

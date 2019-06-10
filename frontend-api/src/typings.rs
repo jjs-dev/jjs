@@ -9,11 +9,15 @@ pub enum CommonError {
     InternalError,
     /// Auth token is malformed or expired
     AuthTokenFault,
+    /// Resource specified was not found
+    NotFound,
 }
 
 // some typedefs
 pub type ToolchainId = u32;
 pub type SubmissionId = u32;
+pub type ProblemCode = String;
+pub type ContestId = String;
 pub type EmptyParams = ();
 
 // auth
@@ -41,10 +45,13 @@ pub struct SubmissionSendParams {
     pub toolchain: ToolchainId,
     /// Must be correct base64-encoded string
     pub code: String,
-    pub problem: String,
+    pub problem: ProblemCode,
+    pub contest: ContestId,
 }
 
 pub enum SubmitError {
+    UnknownProblem,
+    UnknownContest,
     UnknownToolchain,
     ContestIsOver,
     SizeLimitExceeded,
@@ -70,7 +77,7 @@ pub struct SubmissionInformation {
     pub status: JudgeStatus,
     pub state: SubmissionState,
     pub score: Option<u32>,
-    pub problem: String,
+    pub problem: ProblemCode,
 }
 
 pub struct SubmissionsListParams {
@@ -88,7 +95,7 @@ pub struct SubmissionsSetInfoParams {
 // toolchains
 pub struct ToolchainInformation {
     pub name: String,
-    pub id: u32,
+    pub id: ToolchainId,
 }
 
 // users
@@ -102,6 +109,26 @@ pub enum UsersCreateError {
     PasswordRejected,
     Common(CommonError),
 }
+
+// contests
+pub struct ContestInformation {
+    /// E.g. "Berlandian Olympiad in Informatics. Finals. Day 3."
+    pub title: String,
+    /// Configured by human, something readable like 'olymp-2019', or 'test-contest'
+    pub name: ContestId,
+    /// Only present in long form
+    /// ProblemInformation itself is provided in short form
+    pub problems: Option<Vec<ProblemInformation>>,
+}
+
+// problems
+pub struct ProblemInformation {
+    /// E.g. "Palindromic refrain"
+    pub title: String,
+    /// E.g. "F", "A1", "7"
+    pub code: String,
+}
+
 
 /// This trait serves for documentation-only purposes
 ///
@@ -120,4 +147,10 @@ pub trait Frontend {
     fn toolchains_list(nope: EmptyParams) -> Result<Vec<ToolchainInformation>, CommonError>;
 
     fn users_create(params: UsersCreateParams) -> Result<(), UsersCreateError>;
+
+    /// Returns information about contests available
+    /// Note that some contests can be missoing due to their security policy
+    fn contests_list(params: EmptyParams) -> Result<Vec<ContestInformation>, CommonError>;
+
+    fn contests_describe(contest_id: ContestId) -> Result<ContestInformation, CommonError>;
 }

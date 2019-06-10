@@ -120,6 +120,7 @@ pub struct TestSpec {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RawProblem {
+    title: String,
     name: String,
     #[serde(rename = "primary-solution")]
     primary_solution: String,
@@ -168,6 +169,7 @@ impl RawProblem {
         let tests: Vec<_> = tests.into_iter().map(|item| item.1).collect();
 
         let out = Problem {
+            title: self.title,
             primary_solution: self.primary_solution,
             check: match self.check_type.as_str() {
                 "custom" => {
@@ -214,6 +216,7 @@ pub enum Check {
 
 #[derive(Debug)]
 pub struct Problem {
+    pub title: String,
     pub name: String,
     pub primary_solution: String,
     pub check: Check,

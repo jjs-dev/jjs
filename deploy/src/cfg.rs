@@ -77,7 +77,9 @@ impl Display for Config {
             .field("Target triple", &self.target)
             .field_ext("Build profile", &self.profile)
             .field("With manual", &self.man)
+            .field("With archive", &self.archive)
             .field("With testlib", &self.testlib)
+            .field("With additional tools", &self.tools)
             .field_ext("External tools", &self.tool_info)
             .finish()
     }

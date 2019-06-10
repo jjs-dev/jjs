@@ -6,4 +6,4 @@ edition = "2018"
 description = "problems&contests object model (shared between invoker and tt)"
 
 [dependencies]
-serde = {version = "1.0.92", features = ["derive"]}
+serde = { version = "1.0.92", features = ["derive"] }

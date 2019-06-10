@@ -1,6 +1,7 @@
 primary-solution = "full"
 check-type = "builtin"
 name = "a-plus-b"
+title = "P == NP?" # Clickbait :)
 
 [builtin-check]
 name = "cmp-tokens"

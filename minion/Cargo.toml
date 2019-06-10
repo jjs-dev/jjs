@@ -5,15 +5,15 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-libc= "0.2.55"
+libc= "0.2.58"
 errno= "0.2.4"
 rand = "0.6.5"
 cfg-if = "0.1.9"
 field-offset = "0.1.1"
-serde = {version = "1.0.91", features = ["derive"]}
+serde = { version = "1.0.92", features = ["derive"] }
 serde_json = "1.0.39"
 tiny-nix-ipc = { git = "https://github.com/mikailbag/tiny-nix-ipc", rev = "bfd29b8b05098c132dd30cd1c7909377e88cb789", features = ["ser_cbor"] }
-procfs = "0.5.2"
-nix = "0.14.0"
+procfs = "0.5.3"
+nix = "0.14.1"
 downcast-rs = "1.0.4"
-snafu = {version="0.4.1", features = ["rust_1_30"]}
+snafu = { version = "0.4.1", features = ["rust_1_30"] }

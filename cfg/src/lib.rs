@@ -5,7 +5,7 @@ extern crate serde_derive;
 
 use std::{collections::HashMap, env, fs, path::PathBuf};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Limits {
     #[serde(default = "Limits::default_time")]
     pub memory: u64,
@@ -29,7 +29,7 @@ impl Limits {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Command {
     #[serde(default = "Command::default_env")]
     pub env: HashMap<String, String>,
@@ -48,7 +48,7 @@ impl Command {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Toolchain {
     pub name: String,
     pub filename: String,
@@ -58,7 +58,21 @@ pub struct Toolchain {
     pub run_command: Command,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
+pub struct Problem {
+    pub name: String,
+    pub code: String,
+    #[serde(skip)]
+    pub title: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Contest {
+    pub title: String,
+    pub problems: Vec<Problem>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     #[serde(skip)]
     pub toolchains: Vec<Toolchain>,
@@ -72,13 +86,15 @@ pub struct Config {
     pub global_env: HashMap<String, String>,
     #[serde(rename = "env-passing")]
     pub env_passing: bool,
+    #[serde(skip)]
+    pub contests: Vec<Contest>,
 }
 
 impl Config {
     pub fn postprocess(&mut self) {
         fn command_inherit_env(cmd: &mut Command, dfl: &HashMap<String, String>) {
             for (key, val) in dfl.iter() {
-                cmd.env.entry(key.clone()).or_insert(val.clone());
+                cmd.env.entry(key.clone()).or_insert_with(|| val.clone());
             }
         }
 
@@ -119,8 +135,9 @@ pub fn parse_file(path: PathBuf) -> Config {
 pub fn get_config() -> Config {
     let sysroot = env::var("JJS_SYSROOT").expect("Sysroot must be provided in JJS_SYSROOT");
     let mut c = parse_file(PathBuf::from(format!("{}/etc/jjs.toml", &sysroot)));
+    // load toolchains
     for item in fs::read_dir(format!("{}/etc/toolchains", &sysroot))
-        .expect("couldn't find toolchains config dir ($JJS_SYSROOT/etc/jjs/toolchains")
+        .expect("couldn't find toolchains config dir (JJS_SYSROOT/etc/jjs/toolchains")
     {
         let item = item.unwrap().path();
         let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
@@ -133,6 +150,23 @@ pub fn get_config() -> Config {
             ),
         };
         c.toolchains.push(toolchain_spec);
+    }
+    // load contests
+    // TODO: support multiple contests
+    {
+        let contest_cfg_path = format!("{}/etc/contest.toml", &sysroot);
+        let contest_cfg = fs::read_to_string(contest_cfg_path).expect("failed read contest config");
+        let mut contest: Contest = toml::from_str(&contest_cfg).expect("failed parse contest");
+        for problem in contest.problems.iter_mut() {
+            let problem_manifest_path =
+                format!("{}/var/problems/{}/manifest.json", &sysroot, &problem.name);
+            let problem_manifest: pom::Problem = serde_json::from_reader(
+                fs::File::open(problem_manifest_path).expect("failed read problem manifest"),
+            )
+            .unwrap();
+            problem.title = problem_manifest.title;
+        }
+        c.contests.push(contest);
     }
     c.sysroot = sysroot;
     c.postprocess();

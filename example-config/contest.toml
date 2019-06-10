@@ -1,0 +1,6 @@
+title = "JJS Demo contest"
+
+
+[[problems]]
+code = "A"
+name = "a-plus-b"

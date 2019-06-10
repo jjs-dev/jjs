@@ -27,6 +27,23 @@ impl Client {
         res.json()
     }
 }
+pub trait ResultExt {
+    type Response;
+    fn unwrap_response(self) -> Self::Response;
+}
+
+impl<Res> ResultExt for Result<Res, reqwest::Error> {
+    type Response = Res;
+
+    fn unwrap_response(self) -> Res {
+        match self {
+            Ok(res) => res,
+            Err(err) => {
+                panic!("frontend-api-client: network error: {}", err);
+            }
+        }
+    }
+}
 
 pub trait FrontendError: std::error::Error + std::fmt::Debug {}
 include!(concat!(env!("OUT_DIR"), "/client_gen.rs"));

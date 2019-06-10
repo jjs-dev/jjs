@@ -17,6 +17,7 @@ use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
 use security::{SecretKey, Token};
+use slog::Logger;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -108,14 +109,14 @@ fn route_auth_simple(
     Ok(Json(res))
 }
 
-#[post("/submissions/send", data = "<data>")]
+#[post("/submissions/send", data = "<params>")]
 fn route_submissions_send(
-    data: Json<frontend_api::SubmissionSendParams>,
+    params: Json<frontend_api::SubmissionSendParams>,
     db: State<DbPool>,
     cfg: State<Config>,
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
     use db::schema::submissions::dsl::*;
-    let toolchain = cfg.toolchains.get(data.toolchain as usize);
+    let toolchain = cfg.toolchains.get(params.toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
         None => {
@@ -124,12 +125,29 @@ fn route_submissions_send(
         }
     };
     let conn = db.get().expect("couldn't connect to DB");
+    if params.contest != "TODO" {
+        let res = Err(frontend_api::SubmitError::UnknownContest);
+        return Ok(Json(res));
+    }
+    let problem = cfg.contests[0]
+        .problems
+        .iter()
+        .find(|pr| pr.code == params.problem)
+        .cloned();
+    let problem = match problem {
+        Some(p) => p,
+        None => {
+            let res = Err(frontend_api::SubmitError::UnknownProblem);
+            return Ok(Json(res));
+        }
+    };
+    let prob_name = problem.name.clone();
     let new_sub = NewSubmission {
         toolchain_id: toolchain.name,
         state: SubmissionState::WaitInvoke,
         status_code: "QUEUE_BUILD".to_string(),
         status_kind: "QUEUE".to_string(),
-        problem_name: data.problem.clone(),
+        problem_name: prob_name,
         judge_revision: 0,
     };
     let subm: Submission = diesel::insert_into(submissions)
@@ -140,7 +158,7 @@ fn route_submissions_send(
     std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
     let submission_src_path = format!("{}/source", &submission_dir);
     let decoded_code =
-        match base64::decode(&data.code).map_err(|_e| frontend_api::SubmitError::Base64) {
+        match base64::decode(&params.code).map_err(|_e| frontend_api::SubmitError::Base64) {
             Ok(bytes) => bytes,
             Err(e) => return Ok(Json(Err(e))),
         };
@@ -278,6 +296,67 @@ fn route_users_create(
     Ok(Json(res))
 }
 
+fn describe_problem(problem: &cfg::Problem) -> frontend_api::ProblemInformation {
+    frontend_api::ProblemInformation {
+        code: problem.code.clone(),
+        title: "TBD".to_string(),
+    }
+}
+
+fn describe_contest(contest: &cfg::Contest, long_form: bool) -> frontend_api::ContestInformation {
+    frontend_api::ContestInformation {
+        title: contest.title.clone(),
+        name: "TODO".to_string(),
+        problems: if long_form {
+            Some(
+                contest
+                    .problems
+                    .iter()
+                    .map(|p| describe_problem(p))
+                    .collect(),
+            )
+        } else {
+            None
+        },
+    }
+}
+
+#[post("/contests/list", data = "<_params>")]
+fn route_contests_list(
+    _token: Token,
+    _params: Json<frontend_api::EmptyParams>,
+    cfg: State<Config>,
+) -> Response<Result<Vec<frontend_api::ContestInformation>, frontend_api::CommonError>> {
+    let data = cfg
+        .contests
+        .iter()
+        .map(|c| frontend_api::ContestInformation {
+            title: c.title.clone(),
+            name: "TODO".to_string(),
+            problems: None, // it is short form
+        })
+        .collect();
+    let res = Ok(data);
+
+    Ok(Json(res))
+}
+
+#[post("/contests/describe", data = "<params>")]
+fn route_contests_describe(
+    _token: Token,
+    params: Json<frontend_api::ContestId>,
+    cfg: State<Config>,
+) -> Response<Result<frontend_api::ContestInformation, frontend_api::CommonError>> {
+    if params.into_inner().as_str() != "TODO" {
+        let res = Err(frontend_api::CommonError::NotFound);
+        return Ok(Json(res));
+    }
+
+    let data = describe_contest(&cfg.contests[0], true);
+    let res = Ok(data);
+    Ok(Json(res))
+}
+
 #[get("/")]
 fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
@@ -286,7 +365,7 @@ fn route_api_info() -> String {
     .unwrap()
 }
 
-fn launch_api(frcfg: &config::FrontendConfig) {
+fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger) {
     let postgress_url =
         std::env::var("DATABASE_URL").expect("'DATABASE_URL' environment variable is not set");
     let pg_conn_manager =
@@ -305,6 +384,10 @@ fn launch_api(frcfg: &config::FrontendConfig) {
 
     rocket_config.set_address(frcfg.host.clone()).unwrap();
     rocket_config.set_port(frcfg.port);
+    rocket_config.set_log_level(match frcfg.env {
+        config::Env::Dev => rocket::config::LoggingLevel::Normal,
+        config::Env::Prod => rocket::config::LoggingLevel::Critical,
+    });
     rocket_config
         .set_secret_key(base64::encode(&frcfg.secret))
         .unwrap();
@@ -312,10 +395,11 @@ fn launch_api(frcfg: &config::FrontendConfig) {
     rocket::custom(rocket_config)
         .manage(pool)
         .manage(config.clone())
+        .manage(logger.clone())
         .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
             Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
         }))
-        .attach(AdHoc::on_attach("GetEnvironmentKind", move |rocket| {
+        .attach(AdHoc::on_attach("RegisterEnvironmentKind", move |rocket| {
             Ok(rocket.manage(cfg2.env))
         }))
         .mount(
@@ -328,6 +412,8 @@ fn launch_api(frcfg: &config::FrontendConfig) {
                 route_submissions_set_info,
                 route_toolchains_list,
                 route_users_create,
+                route_contests_describe,
+                route_contests_list,
                 route_api_info,
             ],
         )
@@ -359,5 +445,5 @@ fn main() {
     slog::info!(logger, "starting");
 
     launch_root_login_server(&logger, &cfg);
-    launch_api(&cfg);
+    launch_api(&cfg, &logger);
 }

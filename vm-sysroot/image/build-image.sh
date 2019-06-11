@@ -2,7 +2,7 @@
 
 set -e
 
-if [ "$$" != 1 ] || [ "x$1" != x ]
+if [ "$$" != 1 ] && [ "x$1" != x ]
 then cat >&2 << EOF
 usage: image/build-image.sh
 
@@ -26,7 +26,7 @@ fi
 
 cd "$(dirname "$0")"
 
-dd if=/dev/null of=hdd.img bs=1048576 seek=512
+dd if=/dev/null of=hdd.img bs=1048576 seek=1024
 mke2fs hdd.img
 insmod /usr/lib/uml/modules/$(uname -r)/kernel/drivers/block/loop.ko
 mount -t proc proc /proc

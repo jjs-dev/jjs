@@ -22,7 +22,8 @@ fi
 
 if [ "$$" != 1 ]
 then
-    env | sed "s/'/'\"'\"'/g" | sed "s/=/='/" | sed "s/$/'/g" | sed 's/^/export /g' > uml-env.txt
+    env | sed "s/'/'\"'\"'/g" | sed "s/=/='/" | sed "s/$/'/g" | sed 's/^/export /g' > uml-env.txt 
+    dd if=/dev/urandom of=random.bin bs=1024 count=1
     exec linux.uml mem=1024M root=/dev/root rw rootflags=/ rootfstype=hostfs init="$SELF" whoami="$(whoami)"
 fi
 
@@ -40,6 +41,9 @@ hostname -F /etc/hostname
 
 cd "$(dirname "$0")"
 
+dd if=random.bin of=/dev/urandom
+rm random.bin
+
 WHOAMI="$(sed 's/.* whoami=//' /proc/cmdline | cut -d ' ' -f 1-1)"
 
 cat > /dev/sudoers << EOF
@@ -53,7 +57,7 @@ mount --bind /dev/sudoers /etc/sudoers
 mkdir /dev/sysroot
 chown "$WHOAMI:$WHOAMI" /dev/sysroot
 
-su "$WHOAMI" -c 'script -c '"'"'. uml-env.txt; rm uml-env.txt; ./build.sh /dev/sysroot/sysroot'"'"
+su "$WHOAMI" -c 'script -c '"'"'. uml-env.txt; rm uml-env.txt; bash -x ./build.sh /dev/sysroot/sysroot'"'"
 
 rm -rf sysroot || true
 ln -s /dev/sysroot/sysroot sysroot

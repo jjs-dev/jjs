@@ -12,7 +12,7 @@ then for i in "$ORIG_CWD"/problems/*
 do
     out="$SYSROOT/var/lib/jjs/var/problems/$(basename "$i")"
     mkdir "$out"
-    CPLUS_INCLUDE_PATH="$ORIG_CWD/../pkg/ar_data/include" LIBRARY_PATH="$ORIG_CWD/../pkg/ar_data/lib" cargo run -- --pkg "$i" --out "$out"
+    CPLUS_INCLUDE_PATH="$ORIG_CWD/../pkg/ar_data/include" LIBRARY_PATH="$ORIG_CWD/../pkg/ar_data/lib" JJS_PATH="$ORIG_CWD/../pkg/ar_data" cargo run -- --pkg "$i" --out "$out"
     out=
 done
 fi

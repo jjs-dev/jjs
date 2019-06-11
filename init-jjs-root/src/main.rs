@@ -52,7 +52,7 @@ fn main() {
     } else {
         add("etc");
         add("etc/toolchains");
-        let cfg_dir_items = vec!["/jjs.toml", "toolchains"]
+        let cfg_dir_items = vec!["jjs.toml", "toolchains", "contest.toml"]
             .iter()
             .map(|x| format!("{}/{}", cfg_dir_path, x))
             .collect();

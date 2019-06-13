@@ -16,7 +16,7 @@ use db::schema::{NewSubmission, Submission, SubmissionState};
 use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
-use security::{AccessControlData, SecretKey, Token};
+use security::{SecretKey, AccessCheckService, Token};
 use slog::Logger;
 use std::fmt::Debug;
 
@@ -191,7 +191,6 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
 fn route_submissions_list(
     params: Json<frontend_api::SubmissionsListParams>,
     db: State<DbPool>,
-    _token: Token,
 ) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
     use db::schema::submissions::dsl::*;
     let conn = db.get().expect("Couldn't connect to DB");
@@ -206,13 +205,18 @@ fn route_submissions_list(
     Ok(Json(res))
 }
 
+
 #[post("/submissions/modify", data = "<params>")]
 fn route_submissions_set_info(
     params: Json<frontend_api::SubmissionsSetInfoParams>,
     db: State<DbPool>,
-    _token: Token,
+    access: AccessCheckService,
 ) -> Response<Result<(), frontend_api::CommonError>> {
     use db::schema::submissions::dsl::*;
+    if !access.to_access_checker().can_manage_submissions() {
+        let res = Err(frontend_api::CommonError::AccessDenied);
+        return Ok(Json(res));
+    }
     let conn = db.get()?;
     let should_delete = params.delete;
     if should_delete {
@@ -267,13 +271,12 @@ fn route_toolchains_list(
 
 #[post("/users/create", data = "<params>")]
 fn route_users_create(
-    token: Token,
     params: Json<frontend_api::UsersCreateParams>,
     db: State<DbPool>,
-    sec_data: State<AccessControlData>,
+    access: AccessCheckService,
 ) -> Response<Result<(), frontend_api::UsersCreateError>> {
     use db::schema::users::dsl::*;
-    if token.to_access_checker(&*sec_data).can_create_users() {
+    if !access.to_access_checker().can_create_users() {
         let res = Err(frontend_api::UsersCreateError::Common(
             frontend_api::CommonError::AccessDenied,
         ));
@@ -323,9 +326,9 @@ fn describe_contest(contest: &cfg::Contest, long_form: bool) -> frontend_api::Co
     }
 }
 
+// FIXME: check VIEW right
 #[post("/contests/list", data = "<_params>")]
 fn route_contests_list(
-    _token: Token,
     _params: Json<frontend_api::EmptyParams>,
     cfg: State<Config>,
 ) -> Response<Result<Vec<frontend_api::ContestInformation>, frontend_api::CommonError>> {
@@ -345,17 +348,16 @@ fn route_contests_list(
 
 #[post("/contests/describe", data = "<params>")]
 fn route_contests_describe(
-    token: Token,
+    access: AccessCheckService,
     params: Json<frontend_api::ContestId>,
     cfg: State<Config>,
-    sec_data: State<AccessControlData>,
 ) -> Response<Result<frontend_api::ContestInformation, frontend_api::CommonError>> {
     if params.into_inner().as_str() != "TODO" {
         let res = Err(frontend_api::CommonError::NotFound);
         return Ok(Json(res));
     }
 
-    if !token.to_access_checker(&sec_data).can_view_contest() {
+    if !access.to_access_checker().can_view_contest() {
         let res = Err(frontend_api::CommonError::NotFound);
         return Ok(Json(res));
     }

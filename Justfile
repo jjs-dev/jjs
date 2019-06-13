@@ -18,6 +18,9 @@ sysroot:
     @cargo run --bin init-jjs-root -- /tmp/jjs ./example-config --symlink-config
     pwsh ./soft/example-linux.ps1
 
+users:
+    cargo run --bin userlist -- add   --auth dev_root  ./example-config/userlist.txt
+
 problems:
     rm -rf /tmp/jjs/var/problems/*
     mkdir /tmp/jjs/var/problems/a-plus-b

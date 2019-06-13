@@ -1,5 +1,6 @@
 use snafu::{ResultExt, Snafu};
 use structopt::StructOpt;
+use std::process::exit;
 
 mod args {
     use structopt::StructOpt;
@@ -57,11 +58,11 @@ fn decode_base64(s: &str) -> Option<String> {
     Some(s)
 }
 
-fn decode_base64_list(s: &str) -> Option<Vec<String>> {
+fn decode_value_list(s: &str, cfg: &Config) -> Option<Vec<String>> {
     let elems = s.split(':');
     let mut out = Vec::new();
     for elem in elems {
-        match decode_base64(elem) {
+        match decode_value(elem, cfg) {
             Some(s) => out.push(s),
             None => return None,
         };
@@ -69,7 +70,34 @@ fn decode_base64_list(s: &str) -> Option<Vec<String>> {
     Some(out)
 }
 
-fn parse_line(line: &str) -> ParseLineOutcome {
+struct Config {
+    base64: bool,
+}
+
+fn decode_value(s: &str, cfg: &Config) -> Option<String> {
+    if cfg.base64 {
+        return decode_base64(s);
+    } else {
+        Some(s.to_string())
+    }
+}
+
+fn parse_header(line: &str) -> Config {
+    if !line.starts_with('!') {
+        eprintln!("error: header doesn't start from !");
+        exit(1);
+    }
+    let items: Vec<_> = line
+        .splitn(2, ' ')
+        .nth(1)
+        .unwrap_or("")
+        .split(',')
+        .collect();
+    let base64 = items.contains(&"BASE64");
+    Config { base64 }
+}
+
+fn parse_line(line: &str, cfg: &Config) -> ParseLineOutcome {
     if line.starts_with('#') {
         return ParseLineOutcome::Comment;
     }
@@ -80,15 +108,15 @@ fn parse_line(line: &str) -> ParseLineOutcome {
             parts.len()
         ));
     }
-    let username = match decode_base64(&parts[0]) {
+    let username = match decode_value(&parts[0], cfg) {
         Some(s) => s,
         None => return ParseLineOutcome::Error("Username has invalid format".to_string()),
     };
-    let password = match decode_base64(&parts[1]) {
+    let password = match decode_value(&parts[1], cfg) {
         Some(s) => s,
         None => return ParseLineOutcome::Error("Password has invalid format".to_string()),
     };
-    let groups = match decode_base64_list(&parts[2]) {
+    let groups = match decode_value_list(&parts[2], cfg) {
         Some(s) => s,
         None => return ParseLineOutcome::Error("Groups has invalid format".to_string()),
     };
@@ -102,9 +130,16 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
             filename: arg.file.clone(),
         })?;
         let file = String::from_utf8(file).context(Utf8)?;
-        let lines = file.lines();
+        let mut lines = file.lines();
+        let header_line = match lines.next() {
+            Some(s) => s,
+            None => return Err(Error::Format {
+                description: "Header entry mising (file is empty)".to_string()
+            })
+        };
+        let cfg = parse_header(header_line);
         for (i, line) in lines.enumerate() {
-            let outcome = parse_line(line);
+            let outcome = parse_line(line, &cfg);
             let entry = match outcome {
                 ParseLineOutcome::Error(desc) => {
                     let description = format!("line {}: {}", i, desc);
@@ -151,6 +186,7 @@ fn main() {
         Ok(_) => (),
         Err(e) => {
             eprintln!("error: {}", e);
+            exit(1);
         }
     }
 }

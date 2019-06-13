@@ -4,13 +4,7 @@ use super::{
 };
 use rocket::request::{FromRequest, Outcome, Request};
 use slog::{debug, Logger};
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum TokenKind {
-    User,
-    Root,
-    Guest,
-}
+use crate::security::AccessControlData;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Token {
@@ -56,16 +50,6 @@ impl Token {
         rand_gen.fill(&mut nonce);
         branca::encode(&ser, key, &nonce, 0).expect("Token encoding error")
     }
-
-    pub fn to_access_checker<'a>(
-        &'a self,
-        sec_data: &'a super::access_control::AccessControlData,
-    ) -> AccessChecker<'a> {
-        AccessChecker {
-            root: &sec_data.root,
-            user_info: &self.user_info,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -76,10 +60,28 @@ pub enum TokenFromRequestError {
     Branca(branca::errors::Error),
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for Token {
+pub struct AccessCheckService<'a> {
+    token: Token,
+    access_control_data: &'a AccessControlData,
+    logger: Logger,
+}
+
+impl<'a> AccessCheckService<'a> {
+    pub fn to_access_checker(
+        &'a self,
+    ) -> AccessChecker<'a> {
+        AccessChecker {
+            root: &self.access_control_data.root,
+            user_info: &self.token.user_info,
+            logger: self.logger.clone()
+        }
+    }
+}
+
+impl<'a, 'r> FromRequest<'a, 'r> for AccessCheckService<'a> {
     type Error = TokenFromRequestError;
 
-    fn from_request(req: &'a Request<'r>) -> Outcome<Token, TokenFromRequestError> {
+    fn from_request(req: &'a Request<'r>) -> Outcome<AccessCheckService<'a>, TokenFromRequestError> {
         let key = req
             .guard::<rocket::State<SecretKey>>()
             .expect("Couldn't fetch SecretKey")
@@ -94,6 +96,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for Token {
             .guard::<rocket::State<Logger>>()
             .expect("Couldn't fetch logger")
             .clone();
+
+        let access_control_data = req.guard::<rocket::State<AccessControlData>>()
+            .expect("Couldn't fetch access control data");
 
         let token_data = req.headers().get_one("X-Jjs-Auth");
 
@@ -123,7 +128,11 @@ impl<'a, 'r> FromRequest<'a, 'r> for Token {
         };
         let res = inner();
         match res {
-            Ok(tok) => Outcome::Success(tok),
+            Ok(token) => Outcome::Success(AccessCheckService {
+                token,
+                access_control_data: access_control_data.inner(),
+                logger: logger.clone(),
+            }),
             Err(err) => {
                 debug!(
                     logger,

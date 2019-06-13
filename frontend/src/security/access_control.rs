@@ -9,7 +9,7 @@ bitflags! {
         /// Submit solution, when contest is running
         const SUBMIT = 1;
 
-        /// Judge mode
+        /// Judge mode TODO: split
         const JUDGE = 1 << 1;
 
         /// View contest

@@ -16,7 +16,7 @@ use db::schema::{NewSubmission, Submission, SubmissionState};
 use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
-use security::{SecretKey, Token};
+use security::{AccessControlData, SecretKey, Token};
 use slog::Logger;
 use std::fmt::Debug;
 
@@ -83,10 +83,10 @@ fn route_auth_simple(
     secret_key: State<SecretKey>,
     db_pool: State<DbPool>,
 ) -> Response<Result<frontend_api::AuthToken, frontend_api::AuthSimpleError>> {
+    let conn = db_pool.get()?;
     let succ = {
         use db::schema::users::dsl::*;
 
-        let conn = db_pool.get()?;
         let user = users
             .filter(username.eq(&data.0.login))
             .load::<db::schema::User>(&conn)?;
@@ -98,7 +98,7 @@ fn route_auth_simple(
         }
     };
     let res = if succ {
-        let tok = Token::new_for_user(data.login.clone());
+        let tok = Token::issue_for_user(&data.login, &conn);
         Ok(frontend_api::AuthToken {
             buf: tok.serialize(&secret_key.0),
         })
@@ -270,9 +270,10 @@ fn route_users_create(
     token: Token,
     params: Json<frontend_api::UsersCreateParams>,
     db: State<DbPool>,
+    sec_data: State<AccessControlData>,
 ) -> Response<Result<(), frontend_api::UsersCreateError>> {
     use db::schema::users::dsl::*;
-    if !token.is_root() {
+    if token.to_access_checker(&*sec_data).can_create_users() {
         let res = Err(frontend_api::UsersCreateError::Common(
             frontend_api::CommonError::AccessDenied,
         ));
@@ -282,8 +283,9 @@ fn route_users_create(
     let provided_password_hash = password::get_password_hash(params.0.password.as_str());
 
     let new_user = db::schema::NewUser {
-        username: params.0.login,
+        username: params.login.clone(),
         password_hash: provided_password_hash,
+        groups: params.groups.clone(),
     };
 
     let conn = db.get()?;
@@ -343,11 +345,17 @@ fn route_contests_list(
 
 #[post("/contests/describe", data = "<params>")]
 fn route_contests_describe(
-    _token: Token,
+    token: Token,
     params: Json<frontend_api::ContestId>,
     cfg: State<Config>,
+    sec_data: State<AccessControlData>,
 ) -> Response<Result<frontend_api::ContestInformation, frontend_api::CommonError>> {
     if params.into_inner().as_str() != "TODO" {
+        let res = Err(frontend_api::CommonError::NotFound);
+        return Ok(Json(res));
+    }
+
+    if !token.to_access_checker(&sec_data).can_view_contest() {
         let res = Err(frontend_api::CommonError::NotFound);
         return Ok(Json(res));
     }
@@ -362,19 +370,24 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-    .unwrap()
+        .unwrap()
 }
 
-fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger) {
+fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Config) {
     let postgress_url =
         std::env::var("DATABASE_URL").expect("'DATABASE_URL' environment variable is not set");
     let pg_conn_manager =
         diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgress_url);
     let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
-    let config = cfg::get_config();
 
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();
+
+    let security_data = security::init(&config);
+
+    if let Ok(_) = std::env::var("JJS_FRONTEND_DBG_DUMP_ACL") {
+        println!("security configs: {:?}", &security_data);
+    }
 
     let rocket_cfg_env = match frcfg.env {
         config::Env::Prod => rocket::config::Environment::Production,
@@ -396,6 +409,7 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger) {
         .manage(pool)
         .manage(config.clone())
         .manage(logger.clone())
+        .manage(security_data)
         .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
             Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
         }))
@@ -435,7 +449,8 @@ fn launch_root_login_server(logger: &slog::Logger, cfg: &config::FrontendConfig)
 fn main() {
     use slog::Drain;
     dotenv::dotenv().ok();
-    let cfg = config::FrontendConfig::obtain();
+    let frontend_cfg = config::FrontendConfig::obtain();
+    let cfg = cfg::get_config();
 
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
@@ -444,6 +459,6 @@ fn main() {
     let logger = slog::Logger::root(drain, slog::o!("app"=>"jjs:frontend"));
     slog::info!(logger, "starting");
 
-    launch_root_login_server(&logger, &cfg);
-    launch_api(&cfg, &logger);
+    launch_root_login_server(&logger, &frontend_cfg);
+    launch_api(&frontend_cfg, &logger, &cfg);
 }

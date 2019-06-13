@@ -1,5 +1,6 @@
 title = "JJS Demo contest"
-
+vis-unreg = true
+vis-anon = true
 
 [[problems]]
 code = "A"

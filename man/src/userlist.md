@@ -7,4 +7,8 @@ Userlist is a tool, which helps you managing users
 File format:
 Each line is handled separately. It can be
 - A comment. Such line must start from # character
-- User entry. It must contain login and password, both base64-encoded, separated with whitespace
+- User entry. It must contain login, password, and groups.
+### User Entry Format
+`USERNAME PASSWORD GROUP1:GROUP2...`
+all item must be base64 encoded and separated by one color/whitespace as shown upper
+Username, login base64-encoded, separated with whitespace

@@ -47,7 +47,7 @@ enum Error {
 
 enum ParseLineOutcome {
     Comment,
-    User(String, String),
+    User(String, String, Vec<String>),
     Error(String),
 }
 
@@ -57,24 +57,42 @@ fn decode_base64(s: &str) -> Option<String> {
     Some(s)
 }
 
+fn decode_base64_list(s: &str) -> Option<Vec<String>> {
+    let elems = s.split(':');
+    let mut out = Vec::new();
+    for elem in elems {
+        match decode_base64(elem) {
+            Some(s) => out.push(s),
+            None => return None,
+        };
+    }
+    Some(out)
+}
+
 fn parse_line(line: &str) -> ParseLineOutcome {
     if line.starts_with('#') {
         return ParseLineOutcome::Comment;
     }
     let parts: Vec<_> = line.split_whitespace().collect();
-    if parts.len() != 2 {
+    if parts.len() != 3 {
         return ParseLineOutcome::Error(format!(
-            "Line must contain 2 items, but got {}",
+            "Line must contain 3 whitespace-separated items, but got {}",
             parts.len()
         ));
     }
-    let parts: Option<Vec<_>> = parts.into_iter().map(decode_base64).collect();
-    match parts {
-        Some(parts) => ParseLineOutcome::User(parts[0].clone(), parts[1].clone()),
-        None => {
-            ParseLineOutcome::Error("Provided data wasn't base64-encoded utf8 string".to_string())
-        }
-    }
+    let username = match decode_base64(&parts[0]) {
+        Some(s) => s,
+        None => return ParseLineOutcome::Error("Username has invalid format".to_string()),
+    };
+    let password = match decode_base64(&parts[1]) {
+        Some(s) => s,
+        None => return ParseLineOutcome::Error("Password has invalid format".to_string()),
+    };
+    let groups = match decode_base64_list(&parts[2]) {
+        Some(s) => s,
+        None => return ParseLineOutcome::Error("Groups has invalid format".to_string()),
+    };
+    ParseLineOutcome::User(username, password, groups)
 }
 
 fn add_users(arg: args::Add) -> Result<(), Error> {
@@ -93,7 +111,7 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
                     return Err(Error::Format { description });
                 }
                 ParseLineOutcome::Comment => continue,
-                ParseLineOutcome::User(us, pw) => (us, pw),
+                ParseLineOutcome::User(us, pw, grs) => (us, pw, grs),
             };
             data.push(entry);
         }
@@ -110,8 +128,12 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
     let endpoint = format!("{}:{}", &arg.host, &arg.port);
 
     let client = frontend_api::Client::new(endpoint, token);
-    for (login, password) in data {
-        let req = frontend_api::UsersCreateParams { login, password };
+    for (login, password, groups) in data {
+        let req = frontend_api::UsersCreateParams {
+            login,
+            password,
+            groups,
+        };
         match client.users_create(&req).expect("network error") {
             Ok(_) => {}
             Err(e) => return Err(Error::Frontend { inner: Box::new(e) }),

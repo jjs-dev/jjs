@@ -47,7 +47,8 @@ impl GlobalOptions {
         if let Some(ep) = &opt.endpoint {
             endpoint = ep.to_string();
         } else {
-            endpoint = std::env::var("JJS_ENDPOINT").unwrap_or("http://localhost:1779".to_string());
+            endpoint = std::env::var("JJS_ENDPOINT")
+                .unwrap_or_else(|_| "http://localhost:1779".to_string());
         }
         GlobalOptions { token, endpoint }
     }

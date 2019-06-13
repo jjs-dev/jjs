@@ -19,6 +19,7 @@ table! {
         id -> Int4,
         username -> Varchar,
         password_hash -> Bpchar,
+        groups -> Array<Text>,
     }
 }
 

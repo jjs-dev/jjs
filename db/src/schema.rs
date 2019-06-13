@@ -40,6 +40,7 @@ pub struct User {
     id: i32,
     pub username: String,
     pub password_hash: String,
+    pub groups: Vec<String>,
 }
 
 impl User {
@@ -53,6 +54,7 @@ impl User {
 pub struct NewUser {
     pub username: String,
     pub password_hash: String,
+    pub groups: Vec<String>,
 }
 
 #[derive(DbEnum, Serialize, Deserialize, Debug, Clone, PartialEq)]

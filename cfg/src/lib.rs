@@ -69,7 +69,15 @@ pub struct Problem {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Contest {
     pub title: String,
+    /// Information about problems, not related to judging
+    /// process (which is controlled by problem itself)
     pub problems: Vec<Problem>,
+    /// Whether contest is visible for users that are not included in contestants
+    #[serde(rename = "vis-unreg")]
+    pub unregistered_visible: bool,
+    /// Whether contest is visible for anonymous users
+    #[serde(rename = "vis-anon")]
+    pub anon_visible: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -138,19 +146,19 @@ pub fn get_config() -> Config {
     // load toolchains
     for item in fs::read_dir(format!("{}/etc/toolchains", &sysroot))
         .expect("couldn't find toolchains config dir (JJS_SYSROOT/etc/jjs/toolchains")
-    {
-        let item = item.unwrap().path();
-        let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
-        let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
-        let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
-            Ok(x) => x,
-            Err(e) => panic!(
-                "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
-                e, raw_toolchain_spec_data
-            ),
-        };
-        c.toolchains.push(toolchain_spec);
-    }
+        {
+            let item = item.unwrap().path();
+            let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
+            let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
+            let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
+                Ok(x) => x,
+                Err(e) => panic!(
+                    "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
+                    e, raw_toolchain_spec_data
+                ),
+            };
+            c.toolchains.push(toolchain_spec);
+        }
     // load contests
     // TODO: support multiple contests
     {
@@ -163,7 +171,7 @@ pub fn get_config() -> Config {
             let problem_manifest: pom::Problem = serde_json::from_reader(
                 fs::File::open(problem_manifest_path).expect("failed read problem manifest"),
             )
-            .unwrap();
+                .unwrap();
             problem.title = problem_manifest.title;
         }
         c.contests.push(contest);

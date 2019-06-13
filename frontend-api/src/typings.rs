@@ -102,6 +102,7 @@ pub struct ToolchainInformation {
 pub struct UsersCreateParams {
     pub login: String,
     pub password: String,
+    pub groups: Vec<String>,
 }
 
 pub enum UsersCreateError {

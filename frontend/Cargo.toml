@@ -38,6 +38,8 @@ slog = { version = "2.4.1", features = ["max_level_trace"] }
 envy = "0.4.0"
 slog-term = "2.4.0"
 slog-async = "2.3.0"
+acl = {git = "https://github.com/mikailbag/acl", rev = "051c87c"}
+bitflags = "1.1.0"
 
 
 [dependencies.rocket_contrib]

@@ -1,6 +1,6 @@
 use snafu::{ResultExt, Snafu};
-use structopt::StructOpt;
 use std::process::exit;
+use structopt::StructOpt;
 
 mod args {
     use structopt::StructOpt;
@@ -133,9 +133,11 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         let mut lines = file.lines();
         let header_line = match lines.next() {
             Some(s) => s,
-            None => return Err(Error::Format {
-                description: "Header entry mising (file is empty)".to_string()
-            })
+            None => {
+                return Err(Error::Format {
+                    description: "Header entry mising (file is empty)".to_string(),
+                });
+            }
         };
         let cfg = parse_header(header_line);
         for (i, line) in lines.enumerate() {
@@ -162,7 +164,11 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
 
     let endpoint = format!("{}:{}", &arg.host, &arg.port);
 
-    let client = frontend_api::Client::new(endpoint, token);
+    let client = frontend_api::Client {
+        endpoint,
+        token,
+        logger: None,
+    };
     for (login, password, groups) in data {
         let req = frontend_api::UsersCreateParams {
             login,

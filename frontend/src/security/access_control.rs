@@ -24,12 +24,14 @@ bitflags! {
     }
 }
 
+const LOGGED_IN_GROUP: &str = "$JJS.LoggedIn";
+
 #[derive(Debug)]
 pub struct AccessControlData {
     pub root: Prefix,
 }
 
-pub fn init_contest(_cfg: &cfg::Contest) -> Prefix {
+pub fn init_contest(cfg: &cfg::Contest) -> Prefix {
     let mut root = Prefix::new(); // no global restrictions
 
     let contest_name = "TODO";
@@ -49,30 +51,47 @@ pub fn init_contest(_cfg: &cfg::Contest) -> Prefix {
         );
     }
     {
-        let rights_participant = ContestRights::SUBMIT | ContestRights::VIEW;
+        let rights_participants = ContestRights::SUBMIT | ContestRights::VIEW;
         let contest_common_rights_participants = Entry {
-            subject: RuleSubject::Group(format!("Contest-{}-Participants", contest_name)),
-            effect: Effect::Allow(Some(rights_participant.bits())),
+            subject: RuleSubject::Group(cfg.group.clone()),
+            effect: Effect::Allow(Some(rights_participants.bits())),
         };
 
-        let rights_judges = rights_participant | ContestRights::JUDGE;
+        let rights_judges = rights_participants | ContestRights::JUDGE;
 
         let contest_common_rights_judges = Entry {
-            subject: RuleSubject::Group(format!("Contet-{}-Judges", contest_name)),
+            subject: RuleSubject::Group("Judges".to_string()),
             effect: Effect::Allow(Some(rights_judges.bits())),
         };
+
+        let mut acl = vec![
+            contest_common_rights_participants,
+            contest_common_rights_judges,
+        ];
+        let spectator_rights = ContestRights::VIEW;
+
+        if cfg.anon_visible {
+            let entry = Entry {
+                subject: RuleSubject::Everyone,
+                effect: Effect::Allow(Some(spectator_rights.bits())),
+            };
+            acl.push(entry);
+        }
+
+        if cfg.unregistered_visible {
+            let entry = Entry {
+                subject: RuleSubject::Group(LOGGED_IN_GROUP.to_string()),
+                effect: Effect::Allow(Some(spectator_rights.bits())),
+            };
+            acl.push(entry);
+        }
 
         let common_rights_obj_name = "CommonRights";
 
         root.add_item(
             common_rights_obj_name,
             Item::Object(Object {
-                security: SecurityDescriptor {
-                    acl: vec![
-                        contest_common_rights_participants,
-                        contest_common_rights_judges,
-                    ],
-                },
+                security: SecurityDescriptor { acl },
             }),
         );
     }

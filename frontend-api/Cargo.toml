@@ -12,6 +12,7 @@ try_from = "0.3.2"
 serde_json = "1.0.39"
 reqwest = "0.9.18"
 snafu = "0.4.1"
+slog = "2.4.1"
 
 [build-dependencies]
 syn = { version = "0.15.35", features = ["full", "extra-traits"] }

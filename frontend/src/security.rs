@@ -3,7 +3,7 @@ mod acl_query;
 mod token;
 
 pub use access_control::{init, AccessControlData};
-pub use token::{Token, AccessCheckService};
+pub use token::{AccessCheckService, Token};
 
 #[derive(Clone)]
 pub struct SecretKey(pub Vec<u8>);

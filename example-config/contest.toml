@@ -1,7 +1,7 @@
 title = "JJS Demo contest"
 vis-unreg = true
 vis-anon = true
-registered = ["Users"]
+group = "Users"
 
 [[problems]]
 code = "A"

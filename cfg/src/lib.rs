@@ -72,6 +72,9 @@ pub struct Contest {
     /// Information about problems, not related to judging
     /// process (which is controlled by problem itself)
     pub problems: Vec<Problem>,
+    /// Which group members are considered registered for contest
+    // TODO support several groups
+    pub group: String,
     /// Whether contest is visible for users that are not included in contestants
     #[serde(rename = "vis-unreg")]
     pub unregistered_visible: bool,

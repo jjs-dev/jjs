@@ -2,9 +2,9 @@ use super::{
     acl_query::{AccessChecker, UserInfo},
     SecretKey,
 };
+use crate::security::AccessControlData;
 use rocket::request::{FromRequest, Outcome, Request};
 use slog::{debug, Logger};
-use crate::security::AccessControlData;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Token {
@@ -67,13 +67,11 @@ pub struct AccessCheckService<'a> {
 }
 
 impl<'a> AccessCheckService<'a> {
-    pub fn to_access_checker(
-        &'a self,
-    ) -> AccessChecker<'a> {
+    pub fn to_access_checker(&'a self) -> AccessChecker<'a> {
         AccessChecker {
             root: &self.access_control_data.root,
             user_info: &self.token.user_info,
-            logger: self.logger.clone()
+            logger: self.logger.clone(),
         }
     }
 }
@@ -81,7 +79,9 @@ impl<'a> AccessCheckService<'a> {
 impl<'a, 'r> FromRequest<'a, 'r> for AccessCheckService<'a> {
     type Error = TokenFromRequestError;
 
-    fn from_request(req: &'a Request<'r>) -> Outcome<AccessCheckService<'a>, TokenFromRequestError> {
+    fn from_request(
+        req: &'a Request<'r>,
+    ) -> Outcome<AccessCheckService<'a>, TokenFromRequestError> {
         let key = req
             .guard::<rocket::State<SecretKey>>()
             .expect("Couldn't fetch SecretKey")
@@ -97,7 +97,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessCheckService<'a> {
             .expect("Couldn't fetch logger")
             .clone();
 
-        let access_control_data = req.guard::<rocket::State<AccessControlData>>()
+        let access_control_data = req
+            .guard::<rocket::State<AccessControlData>>()
             .expect("Couldn't fetch access control data");
 
         let token_data = req.headers().get_one("X-Jjs-Auth");

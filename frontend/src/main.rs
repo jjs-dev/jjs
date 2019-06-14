@@ -16,7 +16,7 @@ use db::schema::{NewSubmission, Submission, SubmissionState};
 use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
-use security::{SecretKey, AccessCheckService, Token};
+use security::{AccessCheckService, SecretKey, Token};
 use slog::Logger;
 use std::fmt::Debug;
 
@@ -173,7 +173,7 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
         id: submission.id(),
         toolchain_name: submission.toolchain.clone(),
         status: frontend_api::JudgeStatus {
-            kind: "".to_string(),
+            kind: submission.status_kind.clone(),
             code: submission.status.clone(),
         },
         state: match submission.state {
@@ -204,7 +204,6 @@ fn route_submissions_list(
     let res = Ok(user_submissions);
     Ok(Json(res))
 }
-
 
 #[post("/submissions/modify", data = "<params>")]
 fn route_submissions_set_info(
@@ -372,7 +371,7 @@ fn route_api_info() -> String {
     serde_json::to_string(&serde_json::json!({
         "version": "0",
     }))
-        .unwrap()
+    .unwrap()
 }
 
 fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Config) {

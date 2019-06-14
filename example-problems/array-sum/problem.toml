@@ -1,0 +1,15 @@
+primary-solution = "simple_loop"
+check-type = "custom"
+name = "array-sum"
+title = "Now mine all the Bitcoins, buy Microsoft, and push JJS into Windows 11."
+
+[custom-check]
+pass-correct = false
+
+[[tests]]
+map = "1..2"
+files = "{:0>1}.txt"
+
+[[tests]]
+map = "3..20"
+testgen = "main"

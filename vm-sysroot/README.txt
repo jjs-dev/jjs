@@ -8,6 +8,7 @@ Executable scripts:
 ./build.sh [sysroot_path]
 Build a jjs sysroot at $sysroot_path (default = ./sysroot)
 This script assumes that you have working sudo command. Don't run directly as root!
+Note: PostgreSQL MUST be stopped for this to succeed!
 
 sudo image/build-image.sh
 Build the disk image image/hdd.img, using sysroot in ./sysroot. Uses UML to isolate itself.

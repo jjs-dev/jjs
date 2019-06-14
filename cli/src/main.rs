@@ -10,6 +10,8 @@ use std::process::exit;
 struct Opt {
     #[structopt(long = "token", short = "t", default_value = "dev_root")]
     token: String,
+    #[structopt(long = "verbose", short = "v")]
+    verbose: bool,
     #[structopt(subcommand)]
     sub: SubOpt,
 }
@@ -22,7 +24,7 @@ enum SubOpt {
     #[structopt(name = "manage-submissions")]
     ManageSubmissions(submissions::Opt),
     #[structopt(name = "contests")]
-    Contests(contests::Opt)
+    Contests(contests::Opt),
 }
 
 pub struct CommonParams {
@@ -42,8 +44,12 @@ fn main() {
     use sloggers::Build;
     let opt: Opt = Opt::from_args();
 
-    let logger = sloggers::terminal::TerminalLoggerBuilder::new()
-        .build()
+    let mut builder = sloggers::terminal::TerminalLoggerBuilder::new();
+    if opt.verbose {
+        builder.level(sloggers::types::Severity::Debug);
+    }
+
+    let logger = builder.build()
         .expect("couldn't setup logger");
 
     let token = opt.token.clone();

@@ -153,7 +153,7 @@ void check_utils::check_sol_eof() {
 }
 
 bool is_char_whitespace(char c) {
-    return isspace(c);
+    return c == ' ' || c == '\n' || c == '\t';
 }
 
 bool is_file_eof(FILE* f) {

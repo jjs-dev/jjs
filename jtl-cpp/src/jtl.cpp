@@ -42,15 +42,15 @@ TestgenInput init_testgen() {
 }
 
 struct CheckerData {
-    CheckerInput inp;
+    checker::CheckerInput inp;
     FILE* out_file;
     FILE* comment_file;
 };
 
 CheckerData CHECKER;
 
-CheckerInput init_checker() {
-    CheckerInput inp;
+checker::CheckerInput checker::init() {
+    checker::CheckerInput inp;
     inp.corr_answer = get_env_file("JJS_CORR", "r");
     inp.sol_answer = get_env_file("JJS_SOL", "r");
     inp.test = get_env_file("JJS_TEST", "r");
@@ -60,20 +60,20 @@ CheckerInput init_checker() {
     return inp;
 }
 
-Uninhabited checker_finish(CheckOutcome outcome) {
+Uninhabited checker::finish(Outcome outcome) {
     FILE* proto_file = CHECKER.out_file;
     fprintf(proto_file, "outcome: ");
     switch (outcome) {
-        case CheckOutcome::WRONG_ANSWER:
+        case Outcome::WRONG_ANSWER:
             fprintf(proto_file, "WrongAnswer");
             break;
-        case CheckOutcome::CHECKER_LOGIC_ERROR:
+        case Outcome::CHECKER_LOGIC_ERROR:
             fprintf(proto_file, "CheckerLogicError");
             break;
-        case CheckOutcome::OK:
+        case Outcome::OK:
             fprintf(proto_file, "Ok");
             break;
-        case CheckOutcome::PRESENTATION_ERROR:
+        case Outcome::PRESENTATION_ERROR:
             fprintf(proto_file, "PresentationError");
             break;
     }
@@ -85,7 +85,7 @@ const int COMMENT_OUT_BUF_LEN = 4096;
 
 char COMMENT_OUT_BUF[COMMENT_OUT_BUF_LEN];
 
-void check_utils::comment(const char* format, ...) {
+void checker::comment(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int num_written = vsnprintf(COMMENT_OUT_BUF, COMMENT_OUT_BUF_LEN, format, args);
@@ -98,57 +98,57 @@ void check_utils::comment(const char* format, ...) {
 
 }
 
-void check_utils::corr_scanf(const char* format, ...) {
+void checker::corr_scanf(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int res = vfscanf(CHECKER.inp.corr_answer, format, args);
     va_end(args);
     if (res == EOF) {
-        check_utils::comment("fatal: unexpected EOF when reading correct answer");
-        checker_finish(CheckOutcome::CHECKER_LOGIC_ERROR);
+        comment("fatal: unexpected EOF when reading correct answer");
+        finish(Outcome::CHECKER_LOGIC_ERROR);
     }
 }
 
-void check_utils::sol_scanf(const char* format, ...) {
+void checker::sol_scanf(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int res = vfscanf(CHECKER.inp.sol_answer, format, args);
     va_end(args);
     if (res == EOF) {
-        check_utils::comment("error: unexpected EOF when reading provided answer");
-        checker_finish(CheckOutcome::PRESENTATION_ERROR);
+        comment("error: unexpected EOF when reading provided answer");
+        finish(Outcome::PRESENTATION_ERROR);
     }
 }
 
-void check_utils::test_scanf(const char* format, ...) {
+void checker::test_scanf(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int res = vfscanf(CHECKER.inp.test, format, args);
     va_end(args);
     if (res == EOF) {
-        check_utils::comment("fatal: unexpected EOF when reading test file");
-        checker_finish(CheckOutcome::CHECKER_LOGIC_ERROR);
+        comment("fatal: unexpected EOF when reading test file");
+        finish(Outcome::CHECKER_LOGIC_ERROR);
     }
 }
 
-void check_utils::check_corr_eof() {
+void checker::check_corr_eof() {
     if (!is_file_eof(CHECKER.inp.corr_answer)) {
-        check_utils::comment("fatal: correct answer has data yet");
-        checker_finish(CheckOutcome::CHECKER_LOGIC_ERROR);
+        comment("fatal: correct answer has data yet");
+        finish(Outcome::CHECKER_LOGIC_ERROR);
     }
 }
 
-void check_utils::check_test_eof() {
+void checker::check_test_eof() {
     if (!is_file_eof(CHECKER.inp.test)) {
-        check_utils::comment("fatal: test file has data yet");
-        checker_finish(CheckOutcome::CHECKER_LOGIC_ERROR);
+        comment("fatal: test file has data yet");
+        finish(Outcome::CHECKER_LOGIC_ERROR);
     }
 }
 
-void check_utils::check_sol_eof() {
+void checker::check_sol_eof() {
     if (!is_file_eof(CHECKER.inp.sol_answer)) {
-        check_utils::comment("error: solution has data yet");
-        checker_finish(CheckOutcome::PRESENTATION_ERROR);
+        comment("error: solution has data yet");
+        finish(Outcome::PRESENTATION_ERROR);
     }
 }
 
@@ -171,7 +171,8 @@ bool is_file_eof(FILE* f) {
     return true;
 }
 
-char* check_utils::next_token(FILE* f) {
+/// returns owning pointer to token. This pointer should be freed by free()
+char* checker::next_token(FILE* f) {
     int cap = 16;
     char* out = (char*) malloc(16);
     assert(out);
@@ -181,7 +182,7 @@ char* check_utils::next_token(FILE* f) {
         char ch;
         int ret = fread(&ch, 1, 1, f);
         if (ret == -1) {
-            check_utils::comment("check_utils: read failed");
+            comment("check_utils: read failed");
             exit(1);
         }
         if (ret == 0) {

@@ -127,7 +127,7 @@ fn build_jjs_components(params: &Params) {
         .build("userlist", "jjs-userlist", params.cfg.tools)
         .build("invoker", "jjs-invoker", true)
         .build("frontend", "jjs-frontend", true)
-        .build("mgr", "jjs-mgr", params.cfg.tools);
+        .build("cli", "jjs-cli", params.cfg.tools);
     package_builder.build("minion-cli", &["dist"]);
 
     print_section("Building minion-ffi");

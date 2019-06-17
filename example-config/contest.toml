@@ -6,3 +6,7 @@ group = "Users"
 [[problems]]
 code = "A"
 name = "a-plus-b"
+
+[[problems]]
+code = "B"
+name = "array-sum"

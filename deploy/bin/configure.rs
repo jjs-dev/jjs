@@ -33,6 +33,9 @@ struct Opt {
     /// Debug symbols
     #[structopt(long = "dbg-dym", short = "D")]
     dbg_sym: bool,
+    /// Emit verbose information about build
+    #[structopt(long = "verbose", short = "V")]
+    verbose: bool,
     /// Prefix
     #[structopt(long = "prefix", short = "P")]
     install_prefix: Option<String>,
@@ -120,6 +123,7 @@ fn main() {
         tools: !opt.no_tools,
         tool_info,
         archive: opt.archive,
+        verbose: opt.verbose,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Configuration: {}", &build_config);

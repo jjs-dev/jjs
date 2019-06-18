@@ -15,6 +15,6 @@ snafu = "0.4.1"
 slog = "2.4.1"
 
 [build-dependencies]
-syn = { version = "0.15.35", features = ["full", "extra-traits"] }
+syn = { version = "0.15.36", features = ["full", "extra-traits"] }
 quote = "0.6.12"
 proc-macro2 = "0.4.30"

@@ -1,10 +1,10 @@
-mod submit;
-mod submissions;
 mod contests;
+mod submissions;
+mod submit;
 
 use frontend_api::*;
-use structopt::StructOpt;
 use std::process::exit;
+use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
@@ -15,7 +15,6 @@ struct Opt {
     #[structopt(subcommand)]
     sub: SubOpt,
 }
-
 
 #[derive(StructOpt)]
 enum SubOpt {
@@ -33,7 +32,11 @@ pub struct CommonParams {
 
 fn gen_completion() {
     let mut clap_app = Opt::clap();
-    clap_app.gen_completions_to("jjs-cli", structopt::clap::Shell::Bash, &mut std::io::stdout());
+    clap_app.gen_completions_to(
+        "jjs-cli",
+        structopt::clap::Shell::Bash,
+        &mut std::io::stdout(),
+    );
 }
 
 fn main() {
@@ -49,8 +52,7 @@ fn main() {
         builder.level(sloggers::types::Severity::Debug);
     }
 
-    let logger = builder.build()
-        .expect("couldn't setup logger");
+    let logger = builder.build().expect("couldn't setup logger");
 
     let token = opt.token.clone();
 
@@ -60,10 +62,7 @@ fn main() {
         token,
     };
 
-
-    let common = CommonParams {
-        client
-    };
+    let common = CommonParams { client };
 
     match opt.sub {
         SubOpt::Submit(sopt) => submit::exec(sopt, &common),

@@ -2,6 +2,7 @@ primary-solution = "full"
 check-type = "builtin"
 name = "a-plus-b"
 title = "P == NP?" # Clickbait :)
+seed = "TheVerySecretSeed"
 
 [builtin-check]
 name = "cmp-tokens"
@@ -13,3 +14,7 @@ testgen = "main"
 [[tests]]
 map = "4..5"
 files = "{:0>1}.txt"
+
+[[tests]]
+map = "6..20"
+testgen = "random"

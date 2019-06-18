@@ -1,11 +1,11 @@
+#ifndef JTL_MAIN
+#define JTL_MAIN
 #include <cstdio>
+#include "testgen.h"
 
-struct TestgenInput {
-    FILE* out_file;
-    int test_id;
-};
 
-TestgenInput init_testgen();
+
+testgen::Input init_testgen();
 
 
 /// return type for functions that do not return
@@ -15,15 +15,21 @@ enum class Uninhabited {
 /// utility functions checks than only whitespace chars are remaining in file
 bool is_file_eof(FILE* f);
 
+#ifdef __GNUC__
+#define FORMAT_FN(x) __attribute__ (( format( printf, x, x+1 ) ))
+#else
+#define FORMAT_FN(x)
+#endif
+
 namespace checker {
 
-    void comment(const char* format, ...);
+    void comment(const char* format, ...) FORMAT_FN(1);
 
-    void sol_scanf(const char* format, ...);
+    void sol_scanf(const char* format, ...) FORMAT_FN(1);
 
-    void corr_scanf(const char* format, ...);
+    void corr_scanf(const char* format, ...) FORMAT_FN(1);
 
-    void test_scanf(const char* format, ...);
+    void test_scanf(const char* format, ...) FORMAT_FN(1);
 
     void check_sol_eof();
 
@@ -48,17 +54,19 @@ namespace checker {
 
     enum class Outcome {
         /// Checker couldn't recognize answer
-        PRESENTATION_ERROR,
+            PRESENTATION_ERROR,
         /// Answer was wrong
-        WRONG_ANSWER,
+            WRONG_ANSWER,
         /// Correct answer
-        OK,
+            OK,
         /// Checker is incorrect
         /// for example, contestant provided more optimal answer than jury
-        CHECKER_LOGIC_ERROR,
+            CHECKER_LOGIC_ERROR,
     };
 
 /// Checker exits using this function
 /// If checker simply exits with e.g. exit(0) protocol will be broken and internal judging error will be diagnosed
     Uninhabited finish(Outcome outcome);
 }
+
+#endif

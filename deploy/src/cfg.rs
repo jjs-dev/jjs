@@ -68,6 +68,7 @@ pub struct Config {
     pub archive: bool,
     pub tools: bool,
     pub tool_info: ToolInfo,
+    pub verbose: bool,
 }
 
 impl Display for Config {
@@ -81,6 +82,7 @@ impl Display for Config {
             .field("With testlib", &self.testlib)
             .field("With additional tools", &self.tools)
             .field_ext("External tools", &self.tool_info)
+            .field("Verbose", &self.verbose)
             .finish()
     }
 }

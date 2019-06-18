@@ -1,5 +1,8 @@
 #include <jtl.h>
+
 using namespace checker;
+struct Random;
+
 int main() {
     checker::CheckerInput checker_input = init();
     int i = 0;
@@ -34,6 +37,7 @@ int main() {
         }
         ++i;
     }
+
     comment("success: %d tokens", i);
     finish(Outcome::OK);
 

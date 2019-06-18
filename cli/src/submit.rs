@@ -1,6 +1,6 @@
-use structopt::StructOpt;
-use frontend_api::{Client, ToolchainInformation, CommonError, SubmissionSendParams};
+use frontend_api::{Client, CommonError, SubmissionSendParams, ToolchainInformation};
 use std::process::exit;
+use structopt::StructOpt;
 
 #[derive(StructOpt)]
 pub struct Opt {
@@ -9,7 +9,6 @@ pub struct Opt {
     toolchain: String,
     filename: String,
 }
-
 
 fn resolve_toolchain(client: &Client, name: &str) -> u32 {
     let res: Result<Vec<ToolchainInformation>, CommonError> =
@@ -69,7 +68,10 @@ pub fn exec(opt: Opt, params: &super::CommonParams) {
         problem,
         contest,
     };
-    let resp = params.client.submissions_send(&query).expect("network error");
+    let resp = params
+        .client
+        .submissions_send(&query)
+        .expect("network error");
     let resp = resp.expect("submit failed");
     println!("submitted successfully, id={}", resp);
 }

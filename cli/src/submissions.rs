@@ -1,6 +1,6 @@
-use structopt::StructOpt;
-use frontend_api::{ SubmissionsListParams, SubmissionState, SubmissionsSetInfoParams};
+use frontend_api::{SubmissionState, SubmissionsListParams, SubmissionsSetInfoParams};
 use std::process::exit;
+use structopt::StructOpt;
 
 #[derive(StructOpt)]
 pub struct Opt {
@@ -14,7 +14,8 @@ pub fn exec(opt: Opt, params: &super::CommonParams) {
     let subm_list_query = SubmissionsListParams {
         limit: u32::max_value(),
     };
-    let submissions = params.client
+    let submissions = params
+        .client
         .submissions_list(&subm_list_query)
         .unwrap()
         .expect("request rejected");
@@ -34,7 +35,8 @@ pub fn exec(opt: Opt, params: &super::CommonParams) {
                     state: None,
                     id,
                 };
-                params.client
+                params
+                    .client
                     .submissions_modify(&query)
                     .unwrap()
                     .expect("request rejected");
@@ -51,7 +53,8 @@ pub fn exec(opt: Opt, params: &super::CommonParams) {
                     status: None,
                     state: Some(SubmissionState::Queue),
                 };
-                params.client
+                params
+                    .client
                     .submissions_modify(&query)
                     .unwrap()
                     .expect("request rejected");

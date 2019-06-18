@@ -108,6 +108,7 @@ fn build_jjs_components(params: &Params) {
     fs::create_dir(format!("{}/bin", &pkg_dir)).ok();
     fs::create_dir(format!("{}/include", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
+    fs::create_dir(format!("{}/share/cmake", &pkg_dir)).ok();
 
     let package_builder = PackageBuilder { params };
     let artifact_adder = BinaryArtifactAdder {
@@ -230,15 +231,25 @@ fn build_testlib(params: &Params) {
     let proj_dir = &params.src;
     print_section("Build testlib[C++]");
     let jtl_path = format!("{}/jtl-cpp", &proj_dir);
-    let cmake_build_dir = format!("{}/target/jtl-cpp", &proj_dir);
+    let cmake_build_dir = format!("{}/jtl-cpp/cmake-build-debug", &proj_dir);
     let sysroot_dir = params.sysroot.clone();
     util::ensure_exists(&cmake_build_dir).unwrap();
-    let st = Command::new(&params.cfg.tool_info.cmake)
-        .current_dir(&cmake_build_dir)
+    let cmake_build_type = match params.cfg.profile {
+        BuildProfile::Debug => "Debug",
+        BuildProfile::Release => "Release",
+        BuildProfile::RelWithDebInfo => "RelWithDebInfo",
+    };
+    let mut cmd = Command::new(&params.cfg.tool_info.cmake);
+    cmd.current_dir(&cmake_build_dir)
         .arg(&jtl_path)
         .arg(format!("-DCMAKE_INSTALL_PREFIX={}", &sysroot_dir))
-        .status()
-        .unwrap();
+        .arg(format!("-DCMAKE_BUILD_TYPE={}", cmake_build_type));
+
+    if params.cfg.verbose {
+        cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
+    }
+
+    let st = cmd.status().unwrap();
 
     assert!(st.success());
 
@@ -278,6 +289,15 @@ fn generate_envscript(params: &Params) {
         env_add(
             "CPLUS_INCLUDE_PATH",
             &format!("{}/include", &params.sysroot),
+        )
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "{}",
+        env_add(
+            "CMAKE_MODULE_PATH",
+            &format!("{}/share/cmake", &params.sysroot),
         )
     )
     .unwrap();

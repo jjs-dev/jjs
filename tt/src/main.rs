@@ -5,7 +5,7 @@ extern crate runtime_fmt;
 use std::{env, fs, path::PathBuf};
 
 mod cfg;
-mod magic_build;
+mod command;
 
 mod args {
     use structopt::StructOpt;
@@ -21,6 +21,9 @@ mod args {
         /// Rewrite dir
         #[structopt(long = "force", short = "F")]
         pub force: bool,
+        /// Verbose
+        #[structopt(long = "verbose", short = "V")]
+        pub verbose: bool,
     }
 }
 
@@ -69,6 +72,7 @@ struct ProblemBuilder<'a> {
     problem_dir: &'a Path,
     out_dir: &'a Path,
     jjs_dir: &'a Path,
+    args: &'a Args,
 }
 
 mod style {
@@ -109,6 +113,28 @@ fn open_as_handle(path: &str) -> std::io::Result<i64> {
     Ok(i64::from(fd_dup))
 }
 
+fn get_entropy_hex(s: &mut [u8]) {
+    let n = s.len();
+    assert_eq!(n % 2, 0);
+    let m = n / 2;
+    let rnd_buf = &mut s[m..];
+    getrandom::getrandom(rnd_buf).expect("get entropy failed");
+    for i in 0..m {
+        let c = s[m + i];
+        let lo = c % 16;
+        let hi = c / 16;
+        s[i] = hi;
+        s[i + m] = lo;
+    }
+    for x in s.iter_mut() {
+        if *x < 10 {
+            *x += b'0';
+        } else {
+            *x += b'a' - 10;
+        }
+    }
+}
+
 impl<'a> ProblemBuilder<'a> {
     /// this function is useful to check TUI (progress bars, text style, etc)
     fn take_sleep(&self) {
@@ -117,36 +143,47 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
-    fn call_magicbuild(&self, src: &Path, out: &Path) -> magic_build::Command {
+    // TODO support not only cmake
+    fn call_magicbuild(&self, src: &Path, out: &Path) -> command::Command {
         fs::create_dir_all(out).expect("coudln't create dir");
-        let params = magic_build::MagicBuildParams {
-            path: &src,
-            out: &out,
-        };
+
+        let build_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_micros()
+            .to_string();
+        let build_dir = format!("/tmp/tt-build-{}", &build_id);
+        fs::create_dir(&build_dir).expect("couldn't create build dir");
 
         let pb = ProgressBar::new(1);
         pb.set_style(get_progress_bar_style());
-        pb.set_message(&"Initialize build".style_with(&style::in_progress()));
-
-        let spec = magic_build::magic_build(params).expect("magic-build error");
-        pb.set_length(spec.build.len() as u64);
-        self.take_sleep();
-        for scmd in &spec.build {
-            let mut cmd = scmd.to_std_command();
-            pb.set_message(&scmd.to_string_pretty());
-            self.take_sleep();
-            let status = cmd.status().expect("couldn't execute build command");
-            if !status.success() {
-                eprintln!("command did not terminated successfully");
-                exit(1);
+        {
+            pb.set_message(&"CMake: Configure".style_with(&style::in_progress()));
+            let mut cmd = command::Command::new("cmake");
+            cmd.current_dir(&build_dir).arg(src.canonicalize().unwrap().to_str().unwrap());
+            if self.args.verbose {
+                cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
             }
-            pb.inc(1);
+            cmd.run_quiet();
+        }
+        {
+            pb.set_message(&"CMake: Build".style_with(&style::in_progress()));
+            let mut cmd = command::Command::new("cmake");
+            cmd.current_dir(&build_dir).arg("--build").arg(".");
+            cmd.run_quiet();
+        }
+        {
+            pb.set_message(&"Copy artifacts".style_with(&style::in_progress()));
+            let bin_src = format!("{}/Out", &build_dir);
+            let bin_dst = format!("{}/bin", out.display());
+            fs::copy(&bin_src, &bin_dst)
+                .expect("Couldn't copy CMake-compiled artifact to assets dir (hint: does CMakeLists.txt define Out binary target?)");
         }
         pb.finish_and_clear();
-        spec.run
+        command::Command::new(&format!("{}/bin", out.display()))
     }
 
-    fn build_solution(&self, sol_path: PathBuf) -> (String, magic_build::Command) {
+    fn build_solution(&self, sol_path: PathBuf) -> (String, command::Command) {
         self.take_sleep();
         let sol_id = sol_path
             .file_name()
@@ -161,7 +198,7 @@ impl<'a> ProblemBuilder<'a> {
         )
     }
 
-    fn build_solutions(&self) -> HashMap<String, magic_build::Command> {
+    fn build_solutions(&self) -> HashMap<String, command::Command> {
         let mut out = HashMap::new();
         let solutions_glob = format!("{}/solutions/*", self.problem_dir.display());
         let globs: Vec<_> = glob::glob(&solutions_glob)
@@ -186,13 +223,13 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
-    fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> magic_build::Command {
+    fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> command::Command {
         self.take_sleep();
         let out_path = format!("{}/assets/testgen-{}", self.out_dir.display(), testgen_name);
         self.call_magicbuild(testgen_path, &PathBuf::from(&out_path))
     }
 
-    fn build_testgens(&self) -> HashMap<String, magic_build::Command> {
+    fn build_testgens(&self) -> HashMap<String, command::Command> {
         let mut out = HashMap::new();
         let testgens_glob = format!("{}/testgens/*", self.problem_dir.display());
         let globs: Vec<_> = glob::glob(&testgens_glob)
@@ -217,8 +254,8 @@ impl<'a> ProblemBuilder<'a> {
 
     fn build_tests(
         &self,
-        testgens: &HashMap<String, magic_build::Command>,
-        gen_answers: Option<&magic_build::Command>,
+        testgens: &HashMap<String, command::Command>,
+        gen_answers: Option<&command::Command>,
     ) -> Vec<pom::Test> {
         let pb = ProgressBar::new(self.cfg.tests.len() as u64);
         pb.set_style(get_progress_bar_style());
@@ -236,18 +273,21 @@ impl<'a> ProblemBuilder<'a> {
                         eprintln!("error: unknown testgen {}", testgen);
                         exit(1);
                     });
-                    let mut cmd = testgen_cmd.to_std_command();
-                    cmd.env("JJS_TEST_ID", tid.to_string());
+
+                    let mut entropy_buf = [0; 64];
+                    get_entropy_hex(&mut entropy_buf);
+                    let entropy = String::from_utf8(entropy_buf.to_vec()).unwrap(); // only ASCII can be here
+
+                    let mut cmd = testgen_cmd.clone();
+                    cmd.env("JJS_TEST_ID", &tid.to_string());
                     let out_file_handle =
                         open_as_handle(&out_file_path).expect("couldn't create test output file");
-                    cmd.env("JJS_TEST", out_file_handle.to_string());
+                    cmd.env("JJS_TEST", &out_file_handle.to_string());
+                    cmd.env("JJS_RANDOM_SEED", &entropy);
                     let pb_msg = format!("Run: {:?}", &cmd);
                     pb.set_message(&pb_msg.style_with(&style::in_progress()));
-                    let status = cmd.status().expect("couldn't launch testgen");
-                    if !status.success() {
-                        eprintln!("testgen did not finished successfully");
-                        exit(1);
-                    }
+                    cmd.run_quiet();
+
                 }
                 cfg::TestGenSpec::File { path } => {
                     let path = format!("{}/tests/{}", self.problem_dir.display(), path);
@@ -379,6 +419,7 @@ fn main() {
         problem_dir: &args.pkg_path,
         out_dir: &args.out_path,
         jjs_dir: &PathBuf::from(&jjs_dir),
+        args: &args,
     };
     builder.build();
 }

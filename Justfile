@@ -24,9 +24,9 @@ users:
 problems:
     rm -rf /tmp/jjs/var/problems/*
     mkdir /tmp/jjs/var/problems/a-plus-b
-    @cargo run --bin tt -- --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
+    @cargo run --bin tt -- compile --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
     mkdir /tmp/jjs/var/problems/array-sum
-    @cargo run --bin tt -- --pkg ./example-problems/array-sum --out /tmp/jjs/var/problems/array-sum
+    @cargo run --bin tt -- compile --pkg ./example-problems/array-sum --out /tmp/jjs/var/problems/array-sum
 
 install_tools:
     #! /bin/bash

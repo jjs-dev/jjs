@@ -28,7 +28,6 @@ enum CliArgs {
     Touch(TouchArgs),
 }
 
-
 fn task_publish() {
     let client = reqwest::Client::new();
     let access_token =

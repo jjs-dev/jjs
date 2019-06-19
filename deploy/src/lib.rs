@@ -296,7 +296,7 @@ fn generate_envscript(params: &Params) {
         out,
         "{}",
         env_add(
-            "CMAKE_MODULE_PATH",
+            "CMAKE_PREFIX_PATH",
             &format!("{}/share/cmake", &params.sysroot),
         )
     )

@@ -160,7 +160,8 @@ impl<'a> ProblemBuilder<'a> {
         {
             pb.set_message(&"CMake: Configure".style_with(&style::in_progress()));
             let mut cmd = command::Command::new("cmake");
-            cmd.current_dir(&build_dir).arg(src.canonicalize().unwrap().to_str().unwrap());
+            cmd.current_dir(&build_dir)
+                .arg(src.canonicalize().unwrap().to_str().unwrap());
             if self.args.verbose {
                 cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
             }
@@ -287,7 +288,6 @@ impl<'a> ProblemBuilder<'a> {
                     let pb_msg = format!("Run: {:?}", &cmd);
                     pb.set_message(&pb_msg.style_with(&style::in_progress()));
                     cmd.run_quiet();
-
                 }
                 cfg::TestGenSpec::File { path } => {
                     let path = format!("{}/tests/{}", self.problem_dir.display(), path);

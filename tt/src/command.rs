@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use snafu::Snafu;
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Command {
@@ -39,8 +41,7 @@ impl Command {
     }
 
     pub fn run_quiet(&mut self) {
-        use std::os::unix::process::ExitStatusExt;
-        use std::process::exit;
+        use std::{os::unix::process::ExitStatusExt, process::exit};
         let mut s = self.to_std_command();
         let out = s.output().expect("couldn't spawn");
         let status = out.status;
@@ -54,8 +55,10 @@ impl Command {
         } else {
             format!("signaled: {}", status.signal().unwrap())
         };
-        eprintln!("testgen did not finished successfully (exit code {})", exit_code);
-
+        eprintln!(
+            "testgen did not finished successfully (exit code {})",
+            exit_code
+        );
 
         eprintln!("command: `{}`", self);
         eprintln!("child stdout:\n{}", String::from_utf8_lossy(&out.stdout));

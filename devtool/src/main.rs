@@ -78,44 +78,6 @@ fn task_publish() {
         .unwrap();
 }
 
-fn task_man() {
-    print_section("building docs");
-    let book_dir = format!("{}/man", get_project_dir());
-    let st = Command::new("mdbook")
-        .current_dir(&book_dir)
-        .arg("build")
-        .status()
-        .unwrap()
-        .success();
-    assert_eq!(st, true);
-    print_section("copying built man files");
-    let opts = fs_extra::dir::CopyOptions {
-        overwrite: true,
-        skip_exist: false,
-        buffer_size: 64 * 1024,
-        copy_inside: true,
-        depth: 0,
-    };
-    let src = format!("{}/man/book", get_project_dir());
-    let src = fs::read_dir(src)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .collect();
-    let dst = "/tmp/jjs-pages/manual";
-    fs::create_dir_all(dst).unwrap();
-    fs_extra::copy_items(&src, dst, &opts).unwrap();
-    print_section("pushing pages");
-    let helper_script_path = format!("{}/devtool/scripts/pages-push.sh", get_project_dir());
-    let st = Command::new("bash")
-        .current_dir("/tmp/jjs-pages")
-        .args(&[&helper_script_path])
-        .status()
-        .unwrap()
-        .success();
-
-    assert_eq!(st, true);
-}
-
 fn task_vm() {
     let addr = "0.0.0.0:4567";
     println!("address: {}", addr);
@@ -177,11 +139,7 @@ fn task_touch(arg: TouchArgs) {
 fn main() {
     let args = CliArgs::from_args();
     match args {
-        // CliArgs::Pkg(args) => task_package(args),
-        //CliArgs::Publish => task_publish(),
-        //CliArgs::Man => task_man(),
         CliArgs::Vm => task_vm(),
         CliArgs::Touch(arg) => task_touch(arg),
-        //CliArgs::Testlib => task_testlib(),
     }
 }

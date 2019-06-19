@@ -1,9 +1,5 @@
 use serde::{Deserialize, Serialize};
-use snafu::Snafu;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Command {

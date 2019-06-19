@@ -170,6 +170,7 @@ impl RawProblem {
         }
         Ok(tests.into_iter().map(|item| item.1).collect())
     }
+
     pub fn postprocess(mut self) -> Result<(Problem, /* warnings */ Vec<String>), String> {
         let mut warnings = Vec::new();
         let tests = self.process_tests()?;

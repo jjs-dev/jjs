@@ -12,7 +12,7 @@ pub struct Params {
     pub src: String,
     // jjs build dir
     pub build: String,
-    // Intermediate sysroot dir (for gzipping / copying)
+    // Intermediate sysroot dir (for gzipping / copying), containing only build artifacts
     pub sysroot: String,
 }
 
@@ -78,7 +78,7 @@ impl<'a> PackageBuilder<'a> {
 }
 
 struct SimpleBuilder<'a> {
-    params: &'a Params,
+    _params: &'a Params,
     pkg_builder: PackageBuilder<'a>,
     art_adder: BinaryArtifactAdder<'a>,
 }
@@ -116,7 +116,7 @@ fn build_jjs_components(params: &Params) {
         params,
     };
     let simple = SimpleBuilder {
-        params,
+        _params: params,
         pkg_builder: package_builder,
         art_adder: artifact_adder,
     };
@@ -205,6 +205,9 @@ pub fn package(params: &Params) {
     if params.cfg.testlib {
         build_testlib(params);
     }
+    if params.cfg.man {
+        generate_man(params);
+    }
     if params.cfg.archive {
         generate_archive(params);
     }
@@ -260,6 +263,36 @@ fn build_testlib(params: &Params) {
         .status()
         .unwrap();
     assert!(st.success());
+}
+
+fn generate_man(params: &Params) {
+    print_section("building docs");
+    let book_dir = format!("{}/man", &params.src);
+    let st = Command::new("mdbook")
+        .current_dir(&book_dir)
+        .arg("build")
+        .status()
+        .unwrap()
+        .success();
+    assert_eq!(st, true);
+    print_section("copying built man files");
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    };
+    let src = format!("{}/man/book", &params.src);
+    let src = fs::read_dir(src)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    let dst = format!("/{}/share/docs", &params.sysroot);
+    fs::create_dir_all(&dst).unwrap();
+    fs_extra::copy_items(&src, &dst, &opts).unwrap();
+
+    assert_eq!(st, true);
 }
 
 fn env_add(var_name: &str, prepend: &str) -> String {

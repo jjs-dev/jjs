@@ -28,19 +28,6 @@ enum CliArgs {
     Touch(TouchArgs),
 }
 
-fn get_primary_style() -> console::Style {
-    console::Style::new().green()
-}
-
-fn print_section(section: &str) {
-    let msg = format!("----> {}", section);
-    println!("{}", get_primary_style().apply_to(msg));
-}
-
-fn resolve_tool_path(toolname: &str) -> String {
-    //TODO
-    toolname.into()
-}
 
 fn task_publish() {
     let client = reqwest::Client::new();

@@ -69,6 +69,7 @@ pub struct Config {
     pub tools: bool,
     pub tool_info: ToolInfo,
     pub verbose: bool,
+    pub core: bool,
 }
 
 impl Display for Config {
@@ -77,6 +78,7 @@ impl Display for Config {
             .field("Install prefix", &self.prefix)
             .field("Target triple", &self.target)
             .field_ext("Build profile", &self.profile)
+            .field("Build core components", &self.core)
             .field("With manual", &self.man)
             .field("With archive", &self.archive)
             .field("With testlib", &self.testlib)

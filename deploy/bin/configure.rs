@@ -6,15 +6,18 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
-    /// Build and install testlib
+    /// Do not build and install testlib
     #[structopt(long = "disable-testlib")]
     no_testlib: bool,
-    /// Build and install manual
+    /// Do not generate and install manual
     #[structopt(long = "disable-man")]
     no_man: bool,
-    /// Build and install additional tools
+    /// Do not build and install additional tools
     #[structopt(long = "disable-tools")]
     no_tools: bool,
+    /// Do not build and install JJS core components
+    #[structopt(long = "disable-core")]
+    no_core: bool,
     /// Generate tarball
     #[structopt(long = "enable-archive")]
     archive: bool,
@@ -124,6 +127,7 @@ fn main() {
         tool_info,
         archive: opt.archive,
         verbose: opt.verbose,
+        core: !opt.no_core,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Configuration: {}", &build_config);

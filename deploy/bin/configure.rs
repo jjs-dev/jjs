@@ -70,7 +70,6 @@ fn generate_make_script(src: &str, build: &str) {
         .replace("    ", "\t");
     let makefile_path = format!("{}/Makefile", &build);
     std::fs::write(&makefile_path, makefile).unwrap();
-    //println!("To trigger build, run {}", &script_path);
 }
 
 fn check_build_dir(_src: &str, build: &str) {

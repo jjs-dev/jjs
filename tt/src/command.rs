@@ -28,7 +28,7 @@ impl Command {
         use std::fmt::Write;
         let mut out = String::new();
         if let Some(cwd) = &self.cwd {
-            write!(out, "in '{}': ", cwd).unwrap();
+            write!(out, "cd {} && ", cwd).unwrap();
         }
         for (k, v) in &self.env {
             write!(out, "{}={} ", k, v).unwrap();

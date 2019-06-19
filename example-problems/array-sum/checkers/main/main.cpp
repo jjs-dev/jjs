@@ -1,16 +1,13 @@
-//magicbuild:link=jtl
 #include <jtl.h>
 
 using namespace checker;
 
-int main()
-{
+int main() {
     CheckerInput args = init();
     int n;
     test_scanf("%d", &n);
     long long ans = 0;
-    for(int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         int cur;
         test_scanf("%d", &cur);
         ans += cur;
@@ -19,6 +16,6 @@ int main()
     sol_scanf("%lld", &sol_ans);
     check_test_eof();
     check_sol_eof();
-    finish((sol_ans==ans) ? Outcome::OK : Outcome::WRONG_ANSWER);
+    finish((sol_ans == ans) ? Outcome::OK : Outcome::WRONG_ANSWER);
     return 0;
 }

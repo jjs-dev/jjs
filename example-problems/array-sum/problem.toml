@@ -1,7 +1,7 @@
 primary-solution = "simple_loop"
 check-type = "custom"
 name = "array-sum"
-title = "Now mine all the Bitcoins, buy Microsoft, and push JJS into Windows 11."
+title = "Finding Maximal Flow in Highly Parallel Networks"
 
 [custom-check]
 pass-correct = false

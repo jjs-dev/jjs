@@ -131,12 +131,14 @@ pub struct RawProblem {
     #[serde(rename = "builtin-check")]
     builtin_check: Option<BuiltinCheck>,
     tests: Vec<RawTestsSpec>,
+    #[serde(rename = "random-seed")]
+    random_seed: Option<String>,
 }
 
 impl RawProblem {
-    pub fn postprocess(self) -> Result<Problem, String> {
+    fn process_tests(&self) -> Result<Vec<TestSpec>, String> {
         let mut tests = Vec::new();
-        for test_spec in self.tests {
+        for test_spec in &self.tests {
             let res = test_spec.postprocess();
             match res {
                 Ok(mut new_tests) => {
@@ -166,7 +168,28 @@ impl RawProblem {
                 return Err(format!("test {} is not specified", i + 1));
             }
         }
-        let tests: Vec<_> = tests.into_iter().map(|item| item.1).collect();
+        Ok(tests.into_iter().map(|item| item.1).collect())
+    }
+    pub fn postprocess(mut self) -> Result<(Problem, /* warnings */ Vec<String>), String> {
+        let mut warnings = Vec::new();
+        let tests = self.process_tests()?;
+
+        let random_seed = match self.random_seed.take() {
+            Some(s) => {
+                if s.len() != 64 {
+                    return Err(format!("random-seed must have length of 64"));
+                }
+                if s.chars().all(|c| c.is_ascii_hexdigit()) {
+                    s.to_lowercase()
+                } else {
+                    return Err(format!("random-seed is not hex"));
+                }
+            }
+            None => {
+                warnings.push("random-seed not present, hardcoded seed is used".to_string());
+                "1f56fd326365e6184b133b04e330b456004a1c852f2a9cf26a2c1750a93b8184".to_string()
+            }
+        };
 
         let out = Problem {
             title: self.title,
@@ -202,9 +225,10 @@ impl RawProblem {
             },
             tests,
             name: self.name,
+            random_seed,
         };
 
-        Ok(out)
+        Ok((out, warnings))
     }
 }
 
@@ -221,4 +245,5 @@ pub struct Problem {
     pub primary_solution: String,
     pub check: Check,
     pub tests: Vec<TestSpec>,
+    pub random_seed: String,
 }

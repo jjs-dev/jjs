@@ -410,7 +410,14 @@ fn main() {
 
     let raw_problem_cfg: cfg::RawProblem =
         toml::from_str(&toplevel_manifest).expect("problem.toml parse error");
-    let problem_cfg = raw_problem_cfg.postprocess().unwrap();
+    let (problem_cfg, warnings) = raw_problem_cfg.postprocess().unwrap();
+
+    if !warnings.is_empty() {
+        eprintln!("{} warnings", warnings.len());
+        for warn in warnings {
+            eprintln!("- {}", warn);
+        }
+    }
 
     let jjs_dir = env::var("JJS_PATH").expect("JJS_PATH not set");
 

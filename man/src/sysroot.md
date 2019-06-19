@@ -6,11 +6,9 @@ and it __must not__ contain `./jjs` directory
     - /etc/jjs.toml - main config; 
     - /etc/toolchains/*.toml - toolchain configs
 * /var/submissions contains submissions info
-* /var/submissions/s-<submission_id> contains info for a submission
-    - ./source - file with source code
-    - ./toolchain toolchain name
-    - ./build-workdir pwd when submission was built
-    - ./build submission build artifact
+* /var/submissions/s-<submission_id> contains some submission data
+* /var/submissions/s-<submission_id>/j-<judge_revision> contains info for a particular judging of submission 
+(submission can be judged multiple times e.g. due to rejudge)
     
 Sysroot path is referred throughout the manual as $ROOT
 
@@ -18,11 +16,11 @@ Sysroot path is referred throughout the manual as $ROOT
 
 __Note__: When running JJS on cluster, make sure sysroot is shared (e.g., using NFS) between all instances.
 
-* Initialize directory structure. You can use `jjs-init-sysroot` CLI utility for it.
+* Initialize directory structure. You can use `jjs-mkroot` CLI utility for it.
 * Configure JJS (TODO: page about it). 
 * Setup `$ROOT/opt` - toolchain root. 
 
 You can use various strategies to setup toolchain root.
 The simplest is to bind-mount / - this is appropriate for testing, but it is unsecure (as a possible attack, hacker can cpp-include /etc/shadow).
 Another option is to rebuild all compilers and interpreters from source with appropriate configure options. However, this approach can take much time.
-Finally, you can use strace-based toolchain installing. It is secure, fast and easy to use. check `/soft/example-linux.ps1` for details/
+Finally, you can use `ptrace`-based toolchain installing. It is secure, fast and easy to use. check `soft/example-linux.ps1` for details.

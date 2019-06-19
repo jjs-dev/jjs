@@ -1,4 +1,4 @@
-# Installing JJS in virtual machine
+# Installing JJS in Virtual Machine
 ## Launch VM
 - Launch VM.
 - Make sure you are logged in as a non-root user, and your user can run `sudo` without password prompt.

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 sudo mkdir -p "$SYSROOT/usr/bin"
 sudo tee "$SYSROOT/usr/bin/postgres" >/dev/null << EOF
 #!/bin/sh

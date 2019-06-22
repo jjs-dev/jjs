@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 sudo mkdir "$SYSROOT"/{dev,proc,sys}
 
 sudo tee "$SYSROOT/init" >/dev/null << EOF

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 sudo mkdir -p "$SYSROOT/etc"
 sudo tee "$SYSROOT/etc/passwd" >/dev/null << EOF
 root:x:0:0:root:/:/bin/sh

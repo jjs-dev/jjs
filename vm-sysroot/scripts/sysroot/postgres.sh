@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 rm -rf tmp
 mkdir tmp
 /usr/lib/postgresql/*/bin/initdb tmp >&2

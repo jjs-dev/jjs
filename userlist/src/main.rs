@@ -76,7 +76,7 @@ struct Config {
 
 fn decode_value(s: &str, cfg: &Config) -> Option<String> {
     if cfg.base64 {
-        return decode_base64(s);
+        decode_base64(s)
     } else {
         Some(s.to_string())
     }

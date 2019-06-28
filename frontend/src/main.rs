@@ -154,9 +154,12 @@ fn route_submissions_send(
         .values(&new_sub)
         .get_result(&conn)?;
     // Put submission in sysroot
-    let submission_dir = format!("{}/var/submissions/s-{}", &cfg.sysroot, subm.id());
+    let submission_dir = cfg
+        .sysroot
+        .join("var/submissions")
+        .join(&format!("s-{}", subm.id()));
     std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
-    let submission_src_path = format!("{}/source", &submission_dir);
+    let submission_src_path = submission_dir.join("source");
     let decoded_code =
         match base64::decode(&params.code).map_err(|_e| frontend_api::SubmitError::Base64) {
             Ok(bytes) => bytes,
@@ -386,7 +389,7 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
 
     let security_data = security::init(&config);
 
-    if let Ok(_) = std::env::var("JJS_FRONTEND_DBG_DUMP_ACL") {
+    if std::env::var("JJS_FRONTEND_DBG_DUMP_ACL").is_ok() {
         println!("security configs: {:?}", &security_data);
     }
 

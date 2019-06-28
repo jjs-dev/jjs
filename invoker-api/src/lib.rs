@@ -41,11 +41,12 @@ pub mod status_codes {
         TEST_PASSED,
         JUDGE_FAULT,
         WRONG_ANSWER,
-        PRESENTATION_ERROR
+        PRESENTATION_ERROR,
+        LAUNCH_ERROR
     );
 
     // aggregated status codes
-    declare_code!(ACCEPTED, BUILD_ERROR);
+    declare_code!(ACCEPTED, INCORRECT, BUILD_ERROR);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

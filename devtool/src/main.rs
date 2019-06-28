@@ -1,6 +1,6 @@
 mod util;
 
-use std::{env, fs, process::Command};
+use std::{env, fs};
 use structopt::StructOpt;
 use util::get_project_dir;
 
@@ -8,14 +8,6 @@ use util::get_project_dir;
 struct TouchArgs {
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
-}
-
-#[derive(StructOpt)]
-struct PackageArgs {
-    #[structopt(short = "t", long = "target")]
-    target: Option<String>,
-    #[structopt(short = "p", long = "profile")]
-    profile: String,
 }
 
 #[derive(StructOpt)]

@@ -1,11 +1,11 @@
+use serde_json::Value;
 use structopt::StructOpt;
-
 #[derive(StructOpt)]
 pub struct Opt {
     contest: Option<String>,
 }
 
-pub fn exec(opt: Opt, common: &super::CommonParams) {
+pub fn exec(opt: Opt, common: &super::CommonParams) -> Value {
     match opt.contest {
         Some(name) => {
             let info = common
@@ -13,8 +13,7 @@ pub fn exec(opt: Opt, common: &super::CommonParams) {
                 .contests_describe(&name)
                 .expect("network error")
                 .expect("error");
-            println!("contest name: {}", &info.name);
-            println!("contest title: {}", &info.title);
+            serde_json::to_value(info).unwrap()
         }
         None => {
             let information = common
@@ -22,9 +21,7 @@ pub fn exec(opt: Opt, common: &super::CommonParams) {
                 .contests_list(&())
                 .expect("network error")
                 .expect("error");
-            for (i, contest) in information.iter().enumerate() {
-                println!("{}) {}", i + 1, contest.name);
-            }
+            serde_json::to_value(information).unwrap()
         }
-    };
+    }
 }

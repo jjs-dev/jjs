@@ -55,7 +55,6 @@ fn server_loop(logger: Logger, cfg: Config, sock: UnixListener) {
 }
 
 pub fn start(logger: Logger, cfg: Config) {
-    dbg!();
     info!(logger, "binding login server at {}", &cfg.socket_path);
     let listener = match UnixListener::bind(&cfg.socket_path) {
         Ok(l) => l,

@@ -178,12 +178,12 @@ impl RawProblem {
         let random_seed = match self.random_seed.take() {
             Some(s) => {
                 if s.len() != 64 {
-                    return Err(format!("random-seed must have length of 64"));
+                    return Err("random-seed must have length of 64".to_string());
                 }
                 if s.chars().all(|c| c.is_ascii_hexdigit()) {
                     s.to_lowercase()
                 } else {
-                    return Err(format!("random-seed is not hex"));
+                    return Err("random-seed is not hex".to_string());
                 }
             }
             None => {

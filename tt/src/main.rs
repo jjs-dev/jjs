@@ -1,8 +1,8 @@
-#![feature(is_sorted, option_xor)]
+#![feature(is_sorted)]
 #[macro_use]
 extern crate runtime_fmt;
 
-use std::{env, fs, path::PathBuf};
+use std::{env, path::PathBuf};
 
 mod cfg;
 mod command;
@@ -131,7 +131,7 @@ fn compile_problem(args: args::CompileArgs) {
         std::fs::remove_dir_all(&args.out_path).expect("couldn't remove");
         std::fs::create_dir(&args.out_path).expect("couldn't recreate")
     } else {
-        check_dir(&args.out_path, false /*TODO*/);
+        check_dir(&args.out_path, false /* TODO */);
     }
     let toplevel_manifest = args.pkg_path.join("problem.toml");
     let toplevel_manifest = std::fs::read_to_string(toplevel_manifest).unwrap();

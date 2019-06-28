@@ -7,10 +7,11 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    ffi::CString,
+    ffi::{CString, OsStr, OsString},
     fmt::{self, Debug},
     fs,
     os::unix::io::AsRawFd,
+    path::{Path, PathBuf},
     time::Duration,
 };
 use tiny_nix_ipc::Socket;
@@ -20,24 +21,24 @@ pub struct LinuxDominion {
     id: String,
     options: DominionOptions,
     jobserver_sock: Socket,
-    util_cgroup_path: String,
+    util_cgroup_path: OsString,
 }
 
 #[derive(Debug)]
-struct LinuxDominionDebugHelper {
-    id: String,
-    options: DominionOptions,
+struct LinuxDominionDebugHelper<'a> {
+    id: &'a str,
+    options: &'a DominionOptions,
     jobserver_sock: Handle,
-    util_cgroup_path: String,
+    util_cgroup_path: &'a OsStr,
 }
 
 impl Debug for LinuxDominion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let h = LinuxDominionDebugHelper {
-            id: self.id.clone(),
-            options: self.options.clone(),
+            id: &self.id,
+            options: &self.options,
             jobserver_sock: self.jobserver_sock.as_raw_fd(),
-            util_cgroup_path: self.util_cgroup_path.clone(),
+            util_cgroup_path: &self.util_cgroup_path,
         };
 
         h.fmt(f)
@@ -57,8 +58,6 @@ impl Dominion for LinuxDominion {
 /// Anyway, SUID-bit will be disabled.
 ///
 /// Warning: this type is __unstable__ (i.e. not covered by SemVer) and __non-portable__
-///
-///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DesiredAccess {
     Readonly,
@@ -101,37 +100,40 @@ impl LinuxDominion {
     pub(crate) unsafe fn spawn_job(
         &mut self,
         query: ExtendedJobQuery,
-    ) -> jail_common::JobStartupInfo {
+    ) -> Option<jail_common::JobStartupInfo> {
         let q = jail_common::Query::Spawn(query.job_query.clone());
 
-        let fds = [query.stdin, query.stdout, query.stderr];
-        self.jobserver_sock.send(&q).unwrap();
+        // note that we ignore errors, because jobserver can be already killed for some reason
+        self.jobserver_sock.send(&q).ok();
 
+        let fds = [query.stdin, query.stdout, query.stderr];
         let empty: u64 = 0xDEAD_F00D_B17B_00B5;
-        self.jobserver_sock.send_struct(&empty, Some(&fds)).unwrap();
-        self.jobserver_sock.recv().unwrap()
+        self.jobserver_sock.send_struct(&empty, Some(&fds)).ok();
+        self.jobserver_sock.recv().ok()
     }
 
     pub(crate) unsafe fn poll_job(&mut self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
 
-        self.jobserver_sock.send(&q).unwrap();
-        self.jobserver_sock.recv().unwrap()
+        self.jobserver_sock.send(&q).ok();
+        self.jobserver_sock.recv().ok()
     }
 }
 
 impl Drop for LinuxDominion {
     #[allow(unused_must_use)]
     fn drop(&mut self) {
+        use std::os::unix::ffi::OsStrExt;
+        // kill all processes
         unsafe { self.exit() };
-        //remove cgroups
+        // remove cgroups
         for subsys in &["pids", "memory", "cpuacct"] {
             fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id));
         }
 
-        let do_umount = |inner_path: &str| {
-            let mount_path = format!("{}/{}", &self.options.isolation_root, inner_path);
-            let mount_path = CString::new(mount_path.as_str()).unwrap();
+        let do_umount = |inner_path: &Path| {
+            let mount_path = self.options.isolation_root.join(inner_path);
+            let mount_path = CString::new(mount_path.as_os_str().as_bytes()).unwrap();
             unsafe {
                 if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {
                     err_exit("umount2");
@@ -139,10 +141,11 @@ impl Drop for LinuxDominion {
             }
         };
 
-        do_umount("proc");
-        fs::remove_dir(format!("{}/proc", &self.options.isolation_root));
+        do_umount(Path::new("proc"));
+        fs::remove_dir(&self.options.isolation_root.join(PathBuf::from("proc")));
+
         for x in &self.options.exposed_paths {
-            do_umount(x.dest.as_str());
+            do_umount(&x.dest);
         }
     }
 }

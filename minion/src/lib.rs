@@ -1,10 +1,12 @@
 /*!
-* This crate provides ability to spawn highly isolated processes
-*
-* # Platform support
-* _warning_: not all features are supported by all backends. See documentation for particular backend
-* to know more
-*/
+ * This crate provides ability to spawn highly isolated processes
+ *
+ * # Platform support
+ * _warning_: not all features are supported by all backends. See documentation for particular backend
+ * to know more
+ */
+mod command;
+
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -34,10 +36,14 @@ pub trait Backend: Debug + Send + Sync {
 #[cfg(target_os = "linux")]
 pub use crate::linux::DesiredAccess;
 
+pub use command::Command;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PathExpositionOptions {
-    pub src: String,
-    pub dest: String,
+    /// Path on system
+    pub src: PathBuf,
+    /// Path for child
+    pub dest: PathBuf,
     pub access: DesiredAccess,
 }
 
@@ -58,8 +64,26 @@ pub struct DominionOptions {
     pub memory_limit: u64,
     /// Specifies total CPU time for all dominion
     pub time_limit: Duration,
-    pub isolation_root: String,
+    pub isolation_root: PathBuf,
     pub exposed_paths: Vec<PathExpositionOptions>,
+}
+
+impl DominionOptions {
+    fn make_relative<'a>(&self, p: &'a Path) -> &'a Path {
+        if p.starts_with("/") {
+            p.strip_prefix("/").unwrap()
+        } else {
+            p
+        }
+    }
+
+    fn postprocess(&mut self) {
+        let mut paths = std::mem::replace(&mut self.exposed_paths, Vec::new());
+        for x in &mut paths {
+            x.dest = self.make_relative(&x.dest).to_path_buf();
+        }
+        std::mem::swap(&mut paths, &mut self.exposed_paths);
+    }
 }
 
 /// Represents highly-isolated sandbox
@@ -132,19 +156,29 @@ pub struct StdioSpecification {
     pub stderr: OutputSpecification,
 }
 
+/// This type should only be used by Backend implementations
+/// Use `Command` instead
 #[derive(Debug, Clone)]
 pub struct ChildProcessOptions {
-    pub path: String,
-    pub arguments: Vec<String>,
-    pub environment: HashMap<String, String>,
+    pub path: PathBuf,
+    pub arguments: Vec<OsString>,
+    pub environment: HashMap<OsString, OsString>,
     pub dominion: DominionRef,
     pub stdio: StdioSpecification,
     /// Child's working dir. Relative to `dominion` isolation_root
-    pub pwd: String,
+    pub pwd: PathBuf,
 }
 
 mod errors {
     use snafu::Snafu;
+
+    #[derive(Eq, PartialEq)]
+    pub enum ErrorKind {
+        /// This error typically means that isolated process tried to break its sandbox
+        Sandbox,
+        /// Bug in code, using minion, or in minion itself
+        System,
+    }
 
     #[derive(Debug, Snafu)]
     #[snafu(visibility(pub))]
@@ -155,14 +189,38 @@ mod errors {
         System { code: i32 },
         #[snafu(display("io error"))]
         Io { source: std::io::Error },
-        #[snafu(display("job server connection failed"))]
-        Communication,
+        #[snafu(display("sandbox interaction failed"))]
+        Sandbox,
         #[snafu(display("unknown error"))]
         Unknown,
+    }
+
+    impl Error {
+        pub fn kind(&self) -> ErrorKind {
+            match self {
+                Error::NotSupported => ErrorKind::System,
+                Error::System { .. } => ErrorKind::System,
+                Error::Io { .. } => ErrorKind::System,
+                Error::Sandbox => ErrorKind::Sandbox,
+                Error::Unknown => ErrorKind::System,
+            }
+        }
+
+        pub fn is_system(&self) -> bool {
+            self.kind() == ErrorKind::System
+        }
+
+        pub fn is_sandbox(&self) -> bool {
+            self.kind() == ErrorKind::Sandbox
+        }
     }
 }
 
 pub use errors::Error;
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

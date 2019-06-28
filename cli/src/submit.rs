@@ -1,4 +1,5 @@
 use frontend_api::{Client, CommonError, SubmissionSendParams, ToolchainInformation};
+use serde_json::{json, Value};
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -56,7 +57,7 @@ fn resolve_problem(
     exit(1);
 }
 
-pub fn exec(opt: Opt, params: &super::CommonParams) {
+pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     let data = std::fs::read(&opt.filename).expect("Couldn't read file");
     let data = base64::encode(&data);
 
@@ -73,5 +74,5 @@ pub fn exec(opt: Opt, params: &super::CommonParams) {
         .submissions_send(&query)
         .expect("network error");
     let resp = resp.expect("submit failed");
-    println!("submitted successfully, id={}", resp);
+    json!({ "id": resp })
 }

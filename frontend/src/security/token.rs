@@ -118,7 +118,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessCheckService<'a> {
                 }
             }
 
-            let decoded = match branca::decode(token_data, &key, 0 /*TODO: check TTL*/) {
+            let decoded = match branca::decode(token_data, &key, 0 /* TODO: check TTL */) {
                 Ok(dec) => dec,
                 Err(br_err) => {
                     return Err(TokenFromRequestError::Branca(br_err));

@@ -20,7 +20,7 @@ struct Opt {
 enum SubOpt {
     #[structopt(name = "submit")]
     Submit(submit::Opt),
-    #[structopt(name = "manage-submissions")]
+    #[structopt(name = "runs")]
     ManageSubmissions(submissions::Opt),
     #[structopt(name = "contests")]
     Contests(contests::Opt),
@@ -40,11 +40,13 @@ fn gen_completion() {
 }
 
 fn main() {
-    if std::env::var("GEN_COMPLETION").is_ok() {
+    use sloggers::Build;
+
+    if std::env::var("COMPLETION").is_ok() {
         gen_completion();
         exit(0);
     }
-    use sloggers::Build;
+
     let opt: Opt = Opt::from_args();
 
     let mut builder = sloggers::terminal::TerminalLoggerBuilder::new();
@@ -64,9 +66,13 @@ fn main() {
 
     let common = CommonParams { client };
 
-    match opt.sub {
+    let data = match opt.sub {
         SubOpt::Submit(sopt) => submit::exec(sopt, &common),
         SubOpt::ManageSubmissions(sopt) => submissions::exec(sopt, &common),
         SubOpt::Contests(sopt) => contests::exec(sopt, &common),
-    }
+    };
+
+    let data = serde_json::to_string_pretty(&data).unwrap();
+
+    println!("{}", data);
 }

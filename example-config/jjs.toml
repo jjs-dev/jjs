@@ -1,4 +1,5 @@
 toolchain-root= "/opt/jjs-tc/root"
+# TODO disable this option
 env-passing = true
 [global-limits]
 

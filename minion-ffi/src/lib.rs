@@ -1,7 +1,12 @@
 #![feature(try_trait)]
 
 use minion;
-use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char};
+use std::{
+    collections::HashMap,
+    ffi::{CStr, OsStr, OsString},
+    mem,
+    os::raw::c_char,
+};
 
 #[repr(i32)]
 pub enum ErrorCode {
@@ -16,21 +21,12 @@ pub enum ErrorCode {
     /// unknown error
     Unknown,
 }
-
-pub enum GetStringResult {
-    String(String),
-    Error,
-}
-
-unsafe fn get_string(buf: *const c_char) -> GetStringResult {
-    let r = CStr::from_ptr(buf)
-        .to_str()
-        .map(|s| GetStringResult::String(s.to_string()))
-        .map_err(|_| GetStringResult::Error);
-    match r {
-        Ok(r) => r,
-        Err(r) => r,
-    }
+unsafe fn get_string(buf: *const c_char) -> OsString {
+    use std::os::unix::ffi::OsStrExt;
+    let buf = CStr::from_ptr(buf);
+    let buf = buf.to_bytes();
+    let s = OsStr::from_bytes(buf);
+    s.to_os_string()
 }
 
 impl std::ops::Try for ErrorCode {
@@ -44,32 +40,12 @@ impl std::ops::Try for ErrorCode {
         }
     }
 
-    fn from_ok(x: ErrorCode) -> Self {
-        x
-    }
-
     fn from_error(x: ErrorCode) -> Self {
         x
     }
-}
 
-impl std::ops::Try for GetStringResult {
-    type Error = ErrorCode;
-    type Ok = String;
-
-    fn into_result(self) -> Result<String, ErrorCode> {
-        match self {
-            GetStringResult::String(x) => Ok(x),
-            GetStringResult::Error => Err(ErrorCode::InvalidInput),
-        }
-    }
-
-    fn from_error(_: ErrorCode) -> Self {
-        unimplemented!()
-    }
-
-    fn from_ok(_: String) -> Self {
-        unimplemented!()
+    fn from_ok(x: ErrorCode) -> Self {
+        x
     }
 }
 
@@ -131,8 +107,8 @@ pub unsafe extern "C" fn minion_dominion_create(
         let mut p = options.shared_directories;
         while !(*p).host_path.is_null() {
             let opt = minion::PathExpositionOptions {
-                src: get_string((*p).host_path)?,
-                dest: get_string((*p).sandbox_path)?,
+                src: get_string((*p).host_path).into(),
+                dest: get_string((*p).sandbox_path).into(),
                 access: match (*p).kind {
                     SharedDirectoryAccessKind::Full => minion::DesiredAccess::Full,
                     SharedDirectoryAccessKind::Readonly => minion::DesiredAccess::Readonly,
@@ -149,7 +125,7 @@ pub unsafe extern "C" fn minion_dominion_create(
             options.time_limit.seconds.into(),
             options.time_limit.nanoseconds,
         ),
-        isolation_root: get_string(options.isolation_root)?,
+        isolation_root: get_string(options.isolation_root).into(),
         exposed_paths,
     };
     let backend = &*backend;
@@ -240,15 +216,15 @@ pub unsafe extern "C" fn minion_cp_spawn(
     {
         let p = options.argv;
         while !(*p).is_null() {
-            arguments.push(get_string(*p)?);
+            arguments.push(get_string(*p));
         }
     }
     let mut environment = HashMap::new();
     {
         let p = options.envp;
         while !(*p).name.is_null() {
-            let name = get_string((*p).name)?;
-            let value = get_string((*p).value)?;
+            let name = get_string((*p).name);
+            let value = get_string((*p).value);
             if environment.contains_key(&name) {
                 return ErrorCode::InvalidInput;
             }
@@ -267,12 +243,12 @@ pub unsafe extern "C" fn minion_cp_spawn(
         )),
     };
     let options = minion::ChildProcessOptions {
-        path: get_string(options.image_path)?,
+        path: get_string(options.image_path).into(),
         arguments,
         environment,
         dominion: (*options.dominion).0.clone(),
         stdio,
-        pwd: get_string(options.workdir)?,
+        pwd: get_string(options.workdir).into(),
     };
     let cp = (*backend).0.spawn(options).unwrap();
     let cp = ChildProcess(cp);

@@ -2,7 +2,7 @@ use crate::{linux::util::Pid, PathExpositionOptions};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
-use std::{collections::BTreeMap, fs, time::Duration};
+use std::{collections::HashMap, ffi::OsString, fs, path::PathBuf, time::Duration};
 use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -11,7 +11,7 @@ pub(crate) struct JailOptions {
     pub(crate) memory_limit: u64,
     ///specifies total CPU time for all dominion
     pub(crate) time_limit: Duration,
-    pub(crate) isolation_root: String,
+    pub(crate) isolation_root: PathBuf,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
     pub(crate) jail_id: String,
 }
@@ -35,10 +35,10 @@ pub(crate) fn gen_jail_id() -> String {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct JobQuery {
-    pub(crate) image_path: String,
-    pub(crate) argv: Vec<String>,
-    pub(crate) environment: BTreeMap<String, String>,
-    pub(crate) pwd: String,
+    pub(crate) image_path: PathBuf,
+    pub(crate) argv: Vec<OsString>,
+    pub(crate) environment: HashMap<String, OsString>,
+    pub(crate) pwd: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -54,7 +54,7 @@ pub(crate) struct JobStartupInfo {
 
 pub(crate) struct JobServerStartupInfo {
     pub(crate) socket: Socket,
-    pub(crate) wrapper_cgroup_path: String,
+    pub(crate) wrapper_cgroup_path: OsString,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

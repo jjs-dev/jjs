@@ -20,7 +20,7 @@ use std::{
     ffi::CString,
     fs,
     io::{Read, Write},
-    os::unix::io::IntoRawFd,
+    os::unix::{ffi::OsStrExt, io::IntoRawFd},
     ptr,
     sync::{
         atomic::{AtomicI64, Ordering},
@@ -189,7 +189,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             environment: options
                 .environment
                 .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
+                .map(|(k, v)| (base64::encode(k.as_bytes()), v.clone()))
                 .collect(),
             pwd: options.pwd.clone(),
         };
@@ -208,7 +208,10 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
         let mut d = options.dominion.d.lock().unwrap();
         let d = d.b.downcast_mut::<LinuxDominion>().unwrap();
 
-        let ret = d.spawn_job(q);
+        let ret = match d.spawn_job(q) {
+            Some(x) => x,
+            None => return Err(crate::Error::Sandbox),
+        };
 
         let mut stdin = None;
         if let Some(h) = in_w {
@@ -240,7 +243,8 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
 pub struct LinuxBackend {}
 
 impl Backend for LinuxBackend {
-    fn new_dominion(&self, options: DominionOptions) -> crate::Result<DominionRef> {
+    fn new_dominion(&self, mut options: DominionOptions) -> crate::Result<DominionRef> {
+        options.postprocess();
         let pd = Box::new(unsafe { LinuxDominion::create(options)? });
         Ok(DominionRef {
             d: Arc::new(Mutex::new(DominionPointerOwner { b: pd })),

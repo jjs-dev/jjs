@@ -41,8 +41,8 @@ fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions
         _ => panic!("unknown access mask {}. rwx or r-x expected", amask),
     };
     Ok(minion::PathExpositionOptions {
-        src: (&src[..sep1]).to_string(),
-        dest: (&src[sep2 + 1..]).to_string(),
+        src: (&src[..sep1]).to_string().into(),
+        dest: (&src[sep2 + 1..]).to_string().into(),
         access,
     })
 }
@@ -120,7 +120,7 @@ fn main() {
     let dominion = execution_manager.new_dominion(minion::DominionOptions {
         max_alive_process_count: options.num_processes.min(u32::max_value() as usize) as u32,
         memory_limit: options.memory_limit as u64,
-        isolation_root: options.isolation_root,
+        isolation_root: options.isolation_root.into(),
         exposed_paths: options.exposed_paths,
         time_limit: Duration::from_millis(u64::from(options.time_limit)),
     });
@@ -128,32 +128,32 @@ fn main() {
     let dominion = dominion.unwrap();
 
     let args = minion::ChildProcessOptions {
-        path: options.executable,
-        arguments: options.argv,
+        path: options.executable.into(),
+        arguments: options.argv.iter().map(|x| x.into()).collect(),
         environment: options
             .env
             .iter()
-            .map(|v| (v.name.clone(), v.value.clone()))
+            .map(|v| (v.name.clone().into(), v.value.clone().into()))
             .collect(),
         dominion,
         stdio: minion::StdioSpecification {
             stdin: unsafe {
                 minion::InputSpecification::RawHandle(
-                    minion::HandleWrapper::new(0), /*our stdin handle*/
+                    minion::HandleWrapper::new(0), /* our stdin handle */
                 )
             },
             stdout: unsafe {
                 minion::OutputSpecification::RawHandle(
-                    minion::HandleWrapper::new(1), /*our stdout handle*/
+                    minion::HandleWrapper::new(1), /* our stdout handle */
                 )
             },
             stderr: unsafe {
                 minion::OutputSpecification::RawHandle(
-                    minion::HandleWrapper::new(2), /*our stderr handle*/
+                    minion::HandleWrapper::new(2), /* our stderr handle */
                 )
             },
         },
-        pwd: options.pwd.clone(),
+        pwd: options.pwd.into(),
     };
     if options.dump_minion_params {
         println!("{:#?}", args);

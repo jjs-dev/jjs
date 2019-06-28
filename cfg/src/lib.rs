@@ -7,10 +7,13 @@ use std::{collections::HashMap, env, fs, path::PathBuf};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Limits {
-    #[serde(default = "Limits::default_time")]
-    pub memory: u64,
+    /// Memory limit in bytes
     #[serde(default = "Limits::default_memory")]
+    pub memory: u64,
+    /// Time limit in milliseconds
+    #[serde(default = "Limits::default_time")]
     pub time: u64,
+    /// Process count limit
     #[serde(default = "Limits::default_num_procs")]
     pub process_count: u64,
 }
@@ -21,7 +24,7 @@ impl Limits {
     }
 
     fn default_memory() -> u64 {
-        256 * 1024
+        256 * 1024 * 1024
     }
 
     fn default_time() -> u64 {
@@ -88,7 +91,7 @@ pub struct Config {
     #[serde(skip)]
     pub toolchains: Vec<Toolchain>,
     #[serde(skip)]
-    pub sysroot: String,
+    pub sysroot: PathBuf,
     #[serde(rename = "toolchain-root")]
     pub toolchain_root: String,
     #[serde(rename = "global-limits")]
@@ -122,6 +125,15 @@ impl Config {
             }
             command_inherit_env(&mut toolchain.run_command, &inherit_env);
         }
+    }
+
+    pub fn find_toolchain<'a>(&'a self, name: &str) -> Option<&'a Toolchain> {
+        for t in &self.toolchains {
+            if name == t.name {
+                return Some(t);
+            }
+        }
+        None
     }
 }
 
@@ -171,15 +183,15 @@ pub fn get_config() -> Config {
         for problem in contest.problems.iter_mut() {
             let problem_manifest_path =
                 format!("{}/var/problems/{}/manifest.json", &sysroot, &problem.name);
-            let problem_manifest: pom::Problem = serde_json::from_reader(
+            let problem_manifest: pom::Problem = serde_json::from_reader(std::io::BufReader::new(
                 fs::File::open(problem_manifest_path).expect("failed read problem manifest"),
-            )
+            ))
             .unwrap();
             problem.title = problem_manifest.title;
         }
         c.contests.push(contest);
     }
-    c.sysroot = sysroot;
+    c.sysroot = sysroot.into();
     c.postprocess();
     c
 }

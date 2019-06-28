@@ -58,6 +58,7 @@ impl<'a> PackageBuilder<'a> {
             "--target",
             &self.params.cfg.target,
         ]);
+        cmd.arg("--no-default-features");
         if !features.is_empty() {
             cmd.arg("--features");
             let feat = features.join(",");
@@ -123,11 +124,11 @@ fn build_jjs_components(params: &Params) {
     simple
         .build("cleanup", "jjs-cleanup", params.cfg.tools)
         .build("envck", "jjs-env-check", params.cfg.tools)
-        .build("init-jjs-root", "jjs-mkroot", true)
+        .build("init-jjs-root", "jjs-mkroot", params.cfg.tools)
         .build("tt", "jjs-tt", params.cfg.tools)
         .build("userlist", "jjs-userlist", params.cfg.tools)
-        .build("invoker", "jjs-invoker", true)
-        .build("frontend", "jjs-frontend", true)
+        .build("invoker", "jjs-invoker", params.cfg.core)
+        .build("frontend", "jjs-frontend", params.cfg.core)
         .build("cli", "jjs-cli", params.cfg.tools);
     package_builder.build("minion-cli", &["dist"]);
 

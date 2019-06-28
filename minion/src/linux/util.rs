@@ -1,12 +1,12 @@
 use libc::{self, c_char, c_int, c_void};
 use std::{
-    ffi::CString,
-    fmt::{self, Display, Formatter},
+    ffi::{CString, OsStr},
     io, mem,
-    os::unix::io::RawFd,
+    os::unix::{ffi::OsStrExt, io::RawFd},
     ptr,
 };
 use tiny_nix_ipc::{self, Socket};
+
 pub type Handle = RawFd;
 pub type Pid = libc::pid_t;
 pub type ExitCode = c_int;
@@ -28,92 +28,81 @@ pub fn err_exit(syscall_name: &str) -> ! {
     }
 }
 
-#[derive(Debug)]
-pub struct WaitMessage {
-    class: u16,
-}
-
-impl Display for WaitMessage {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.class)
-    }
-}
-
-impl WaitMessage {
-    #[must_use]
-    pub fn check(&self, oth_class: u16) -> Option<()> {
-        if self.class == oth_class {
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    pub fn new(class: u16) -> WaitMessage {
-        WaitMessage { class }
-    }
-}
-
-unsafe fn sock_lock(sock: &mut Socket, expected_class: u16) -> crate::Result<()> {
+unsafe fn sock_lock(sock: &mut Socket, expected_class: &'static [u8]) -> crate::Result<()> {
     use std::io::Write;
     let mut logger = strace_logger();
-    let wm = match sock.recv_struct::<WaitMessage, [RawFd; 0]>() {
+    let mut recv_buf = vec![0; expected_class.len()];
+    match sock.recv_into_slice::<[RawFd; 0]>(&mut recv_buf) {
         Ok(x) => x,
         Err(e) => {
             write!(logger, "receive error: {:?}", e).unwrap();
-            Err(crate::Error::Communication)?
+            Err(crate::Error::Sandbox)?
         }
     };
-    match wm.0.check(expected_class) {
-        Some(_) => (),
-        None => {
-            write!(
-                logger,
-                "validation error: invalid class (expected {}, got {})",
-                expected_class, wm.0.class
-            )
-            .unwrap();
-            Err(crate::Error::Communication)?
-        }
+    if recv_buf != expected_class {
+        write!(
+            logger,
+            "validation error: invalid class (expected {}, got {})",
+            String::from_utf8_lossy(expected_class),
+            String::from_utf8_lossy(&recv_buf)
+        )
+        .unwrap();
+        Err(crate::Error::Sandbox)?
     };
     Ok(())
 }
 
-unsafe fn sock_wake(sock: &mut Socket, wake_class: u16) -> crate::Result<()> {
-    let wm = WaitMessage::new(wake_class);
-    match sock.send_struct(&wm, None) {
+unsafe fn sock_wake(sock: &mut Socket, wake_class: &'static [u8]) -> crate::Result<()> {
+    match sock.send_slice(&wake_class, None) {
         Ok(_) => Ok(()),
-        Err(_) => Err(crate::Error::Communication)?,
+        Err(_) => Err(crate::Error::Sandbox)?,
     }
 }
 
 pub trait IpcSocketExt {
-    unsafe fn lock(&mut self, expected_class: u16) -> crate::Result<()>;
-    unsafe fn wake(&mut self, wake_class: u16) -> crate::Result<()>;
+    unsafe fn lock(&mut self, expected_class: &'static [u8]) -> crate::Result<()>;
+    unsafe fn wake(&mut self, wake_class: &'static [u8]) -> crate::Result<()>;
 
     unsafe fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()>;
     unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T>;
 }
 
+const MAX_MSG_SIZE: usize = 8192;
+
 impl IpcSocketExt for Socket {
-    unsafe fn lock(&mut self, expected_class: u16) -> crate::Result<()> {
+    unsafe fn lock(&mut self, expected_class: &'static [u8]) -> crate::Result<()> {
         sock_lock(self, expected_class)
     }
 
-    unsafe fn wake(&mut self, wake_class: u16) -> crate::Result<()> {
+    unsafe fn wake(&mut self, wake_class: &'static [u8]) -> crate::Result<()> {
         sock_wake(self, wake_class)
     }
 
     unsafe fn send<T: serde::ser::Serialize>(&mut self, data: &T) -> crate::Result<()> {
-        self.send_cbor(data, None)
-            .map(|_num_read| ())
-            .map_err(|_e| crate::errors::Error::Communication)
+        let data = serde_json::to_vec(data).unwrap();
+        assert!(data.len() <= MAX_MSG_SIZE);
+        self.send_slice(&data, None)
+            .map(|_num_written| ())
+            .map_err(|_e| crate::errors::Error::Sandbox)
     }
 
     unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T> {
-        self.recv_cbor::<T, [RawFd; 0]>(4096)
-            .map(|(x, _fds)| x)
-            .map_err(|_e| crate::errors::Error::Communication)
+        use std::io::Write;
+        let mut logger = StraceLogger::new();
+        let mut buf = vec![0; MAX_MSG_SIZE];
+
+        let num_read = match self.recv_into_slice::<[RawFd; 0]>(&mut buf) {
+            Ok(cnt) => cnt.0,
+            Err(_e) => return Err(crate::errors::Error::Sandbox),
+        };
+        write!(logger, "util::recv() got message of {} bytes", num_read).ok();
+        match serde_json::from_slice(&buf[..num_read]) {
+            Ok(x) => Ok(x),
+            Err(e) => {
+                write!(logger, "ERROR: deserialization failed: {}", e).ok();
+                Err(crate::errors::Error::Sandbox)
+            }
+        }
     }
 }
 
@@ -126,15 +115,15 @@ pub trait IgnoreExt: Sized {
 
 impl<T, E> IgnoreExt for Result<T, E> {}
 
-pub fn duplicate_string(arg: &str) -> *mut c_char {
+pub fn duplicate_string(arg: &OsStr) -> *mut c_char {
     unsafe {
-        let cstr = CString::new(arg).unwrap();
+        let cstr = CString::new(arg.as_bytes()).unwrap();
         let strptr = cstr.as_ptr();
         libc::strdup(strptr)
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct StraceLogger;
 
 #[allow(dead_code)]
@@ -142,11 +131,22 @@ pub fn strace_logger() -> StraceLogger {
     StraceLogger
 }
 
+impl StraceLogger {
+    pub fn new() -> StraceLogger {
+        strace_logger()
+    }
+}
+
+const STRACE_LOGGER_HANDLE: Handle = -779;
+
 impl io::Write for StraceLogger {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let invalid_fd: Handle = -1;
         unsafe {
-            libc::write(invalid_fd, buf.as_ptr() as *const c_void, buf.len());
+            libc::write(
+                STRACE_LOGGER_HANDLE,
+                buf.as_ptr() as *const c_void,
+                buf.len(),
+            );
         }
         Ok(buf.len())
     }

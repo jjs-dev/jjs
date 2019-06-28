@@ -151,8 +151,6 @@ fn normalize_path(path: PathBuf, root: PathBuf) -> Option<PathBuf> {
         }
     }
 
-    dbg!(&out);
-
     Some(out)
 }
 

@@ -1,7 +1,27 @@
 #!/bin/bash
 # Of course, it is NOT autotools
-export JJS_CFGR_SOURCE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+JJS_CFGR_SOURCE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export JJS_CFGR_SOURCE_DIR
  # copy-pasted from https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
 
+# check rustc version
+
+RustcVersionDataRaw=$( rustc --version )
+
+if [[ "$?" -ne  "0" ]]; then
+    echo "Error: rustc not found"
+    exit 1
+fi
+
+IFS=" "  read -r -a RustcVersionData <<< "$RustcVersionDataRaw"
+
+RustcVersion=${RustcVersionData[1]}
+
+IFS="-." read -r -a RustcVersionElements <<< "$RustcVersion"
+
+if [[ "37" -gt "${RustcVersionElements[1]}" ]]; then
+    echo "Rustc is too old: 1.37.0 is required"
+    exit 1
+fi
 
 cargo run --bin configure --package deploy -- "$@"

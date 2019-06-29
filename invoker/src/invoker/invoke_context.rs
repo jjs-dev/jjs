@@ -76,7 +76,7 @@ impl<'a> InvokeContext<'a> {
         // TODO adjust integer types
         let dominion_options = minion::DominionOptions {
             max_alive_process_count: limits.process_count as _,
-            memory_limit: (limits.memory * crate::invoker::MEGABYTE) as _,
+            memory_limit: limits.memory as _,
             exposed_paths,
             isolation_root: paths.chroot_dir(),
             time_limit,

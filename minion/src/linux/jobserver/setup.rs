@@ -170,7 +170,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
 }
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
-    if libc::unshare(/* FIXME: libc::CLONE_NEWNET | */ libc::CLONE_NEWUSER) == -1 {
+    if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
         err_exit("unshare")
     }
 }

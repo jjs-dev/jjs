@@ -19,6 +19,7 @@ table! {
         status_kind -> Varchar,
         problem_name -> Varchar,
         score -> Int4,
+        rejudge_id -> Int4,
     }
 }
 

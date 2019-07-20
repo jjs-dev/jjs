@@ -150,7 +150,7 @@ pub trait Frontend {
     fn users_create(params: UsersCreateParams) -> Result<(), UsersCreateError>;
 
     /// Returns information about contests available
-    /// Note that some contests can be missoing due to their security policy
+    /// Note that some contests can be missing due to their security policy
     fn contests_list(params: EmptyParams) -> Result<Vec<ContestInformation>, CommonError>;
 
     fn contests_describe(contest_id: ContestId) -> Result<ContestInformation, CommonError>;

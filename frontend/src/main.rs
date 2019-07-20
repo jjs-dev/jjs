@@ -115,7 +115,7 @@ fn route_submissions_send(
     db: State<DbPool>,
     cfg: State<Config>,
 ) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
-    use db::schema::submissions::dsl::*;
+    use db::schema::{invokation_requests::dsl::*, submissions::dsl::*, NewInvokationRequest};
     let toolchain = cfg.toolchains.get(params.toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
@@ -129,6 +129,7 @@ fn route_submissions_send(
         let res = Err(frontend_api::SubmitError::UnknownContest);
         return Ok(Json(res));
     }
+
     let problem = cfg.contests[0]
         .problems
         .iter()
@@ -142,17 +143,21 @@ fn route_submissions_send(
         }
     };
     let prob_name = problem.name.clone();
+
     let new_sub = NewSubmission {
         toolchain_id: toolchain.name,
         state: SubmissionState::WaitInvoke,
         status_code: "QUEUE_BUILD".to_string(),
         status_kind: "QUEUE".to_string(),
         problem_name: prob_name,
-        score: 0
+        score: 0,
+        rejudge_id: 1,
     };
+
     let subm: Submission = diesel::insert_into(submissions)
         .values(&new_sub)
         .get_result(&conn)?;
+
     // Put submission in sysroot
     let submission_dir = cfg
         .sysroot
@@ -167,6 +172,17 @@ fn route_submissions_send(
         };
     std::fs::write(submission_src_path, &decoded_code)
         .map_err(|e| FrontendError::Internal(Some(Box::new(e))))?;
+
+    // create invokation request
+    let new_inv_req = NewInvokationRequest {
+        invoke_revision: 0,
+        submission_id: subm.id() as i32,
+    };
+
+    diesel::insert_into(invokation_requests)
+        .values(&new_inv_req)
+        .execute(&conn)?;
+
     let res = Ok(subm.id());
     Ok(Json(res))
 }

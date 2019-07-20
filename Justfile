@@ -22,7 +22,8 @@ users:
     cargo run --bin userlist -- add   --auth dev_root  ./example-config/userlist.txt
 
 problems:
-    rm -rf /tmp/jjs/var/problems/*
+    sh -c "rm -r /tmp/jjs/var/problems || true"
+    mkdir /tmp/jjs/var/problems
     mkdir /tmp/jjs/var/problems/a-plus-b
     @cargo run --bin tt -- compile --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
     mkdir /tmp/jjs/var/problems/array-sum

@@ -1,3 +1,5 @@
+#![feature(option_flattening)]
+
 mod compiler;
 mod inter_api;
 mod invoke_context;
@@ -6,7 +8,7 @@ mod judge;
 mod valuer;
 
 use cfg_if::cfg_if;
-use db::schema::{Submission, SubmissionState};
+use db::schema::{InvokationRequest, Submission};
 use diesel::{pg::PgConnection, prelude::*};
 use invoker::{InvokeContext, Invoker};
 use slog::{debug, error, info, o, Drain, Logger};
@@ -62,9 +64,19 @@ pub(crate) mod err {
             inner: Box<dyn std::error::Error + Send + Sync + 'static>,
         },
     }
+
+    impl From<std::io::Error> for Error {
+        fn from(x: std::io::Error) -> Error {
+            Error::Io {
+                source: x,
+                backtrace: Backtrace::new(),
+            }
+        }
+    }
 }
 
 pub(crate) use err::{Error, StringError};
+use std::path::Path;
 
 #[derive(Debug)]
 /// Submission information, sufficient for judging
@@ -83,6 +95,7 @@ pub(crate) struct InvokeRequest {
     pub problem: pom::Problem,
     /// Temporary directory
     pub work_dir: tempfile::TempDir,
+    pub id: u32,
 }
 
 cfg_if! {
@@ -105,6 +118,7 @@ fn submission_set_judge_outcome(
     conn: &PgConnection,
     submission_id: u32,
     outcome: invoker::InvokeOutcome,
+    request: &InvokationRequest,
 ) {
     use db::schema::submissions::dsl::*;
     let target = submissions.filter(id.eq(submission_id as i32));
@@ -113,6 +127,7 @@ fn submission_set_judge_outcome(
         status_code: Some(outcome.status.code.to_string()),
         status_kind: Some(outcome.status.kind.to_string()),
         score: Some(outcome.score as i32),
+        rejudge_id: Some(request.invoke_revision() as i32),
     };
     diesel::update(target)
         .set(subm_patch)
@@ -141,18 +156,32 @@ impl Server {
         self.thread_loop(Arc::clone(&should_run));
     }
 
-    fn try_get_task(&self) -> Option<Submission> {
-        use db::schema::submissions::dsl::*;
-        let waiting_submission = submissions
-            .filter(state.eq(SubmissionState::WaitInvoke))
-            .limit(1)
-            .load::<Submission>(&self.db_conn)
-            .expect("db error");
-        let waiting_submission = waiting_submission.get(0);
-        match waiting_submission {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+    fn try_get_task(&self) -> Option<InvokationRequest> {
+        use db::schema::invokation_requests::dsl::*;
+        let res: Option<InvokationRequest> = self
+            .db_conn
+            .transaction::<_, diesel::result::Error, _>(|| {
+                let waiting_submission = invokation_requests
+                    .limit(1)
+                    .load::<InvokationRequest>(&self.db_conn)
+                    .expect("db error");
+                let waiting_submission = waiting_submission.into_iter().next();
+                match waiting_submission {
+                    Some(s) => {
+                        diesel::delete(invokation_requests)
+                            .filter(id.eq(s.id))
+                            .execute(&self.db_conn)
+                            .expect("db error");
+
+                        Ok(Some(s))
+                    }
+                    None => Ok(None),
+                }
+            })
+            .ok()
+            .flatten();
+
+        res
     }
 
     /// called by every thread
@@ -162,15 +191,15 @@ impl Server {
                 break;
             }
 
-            let submission = match self.try_get_task() {
+            let inv_req = match self.try_get_task() {
                 Some(s) => s,
                 None => {
                     std::thread::sleep(std::time::Duration::from_millis(2000));
                     continue;
                 }
             };
-            let submission_id = submission.id();
-            match self.process_task(submission) {
+            let submission_id = inv_req.submission_id();
+            match self.process_task(inv_req) {
                 Ok(_) => {}
                 Err(err) => {
                     error!(self.logger, "Invokation fault"; "submission" => submission_id, "message" => %err, "message-detailed" => ?err);
@@ -179,15 +208,35 @@ impl Server {
         }
     }
 
-    fn process_task(&self, submission: Submission) -> Result<(), Error> {
-        let req = self.fetch_submission_info(submission)?;
+    fn process_task(&self, inv_req: InvokationRequest) -> Result<(), Error> {
+        let req = self.fetch_submission_info(&inv_req)?;
         let submission_id = req.submission.id;
-        let outcome = self.process_invoke_request(req);
-        submission_set_judge_outcome(&self.db_conn, submission_id, outcome);
+        let outcome = self.process_invoke_request(&req);
+        submission_set_judge_outcome(&self.db_conn, submission_id, outcome, &inv_req);
+        self.copy_invokation_data_dir_to_shared_fs(&req.work_dir.path(), submission_id, req.id)?;
         Ok(())
     }
 
-    fn process_invoke_request(&self, request: InvokeRequest) -> invoker::InvokeOutcome {
+    fn copy_invokation_data_dir_to_shared_fs(
+        &self,
+        temp_path: &Path,
+        run_id: u32,
+        inv_id: u32,
+    ) -> Result<(), Error> {
+        let target_dir = self
+            .config
+            .sysroot
+            .join("var/submissions")
+            .join(format!("s-{}", run_id))
+            .join(format!("i-{}", inv_id));
+        std::fs::create_dir_all(&target_dir)?;
+        let from = vec![temp_path];
+        fs_extra::copy_items(&from, &target_dir, &fs_extra::dir::CopyOptions::new())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        Ok(())
+    }
+
+    fn process_invoke_request(&self, request: &InvokeRequest) -> invoker::InvokeOutcome {
         use snafu::ErrorCompat;
         use std::error::Error;
         let invoke_ctx = InvokeContext {
@@ -198,30 +247,47 @@ impl Server {
         };
         let invoker = Invoker::new(invoke_ctx);
         debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.id, "workdir" => ?request.work_dir.path().display());
-        let status =
-            invoker
-                .invoke()
-                .unwrap_or_else(|err| {
-                    let cause = err.source().map(|e| e.to_string()).unwrap_or_else(|| "<missing>".to_string());
-                    let backtrace = err.backtrace().map(|bt| bt.to_string()).unwrap_or_else(|| "<not captured>".to_string());
-                    error!(self.logger, "Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);
-                    let st = invoker_api::Status {
-                        kind: invoker_api::StatusKind::InternalError,
-                        code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
-                    };
-                    invoker::InvokeOutcome {
-                        status: st,
-                        score: 0,
-                    }
-                });
+        let status = invoker.invoke().unwrap_or_else(|err| {
+            let cause = err
+                .source()
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "<missing>".to_string());
+            let backtrace = err
+                .backtrace()
+                .map(|bt| bt.to_string())
+                .unwrap_or_else(|| "<not captured>".to_string());
+            error!(self.logger, "Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);
+            let st = invoker_api::Status {
+                kind: invoker_api::StatusKind::InternalError,
+                code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
+            };
+            invoker::InvokeOutcome {
+                status: st,
+                score: 0,
+            }
+        });
 
         debug!(self.logger, "Judging finished"; "outcome" => ?status, "submission" => ?request.submission.id);
-        request.work_dir.into_path();
         status
     }
 
     /// This functions queries all related data about submission and returns JudgeRequest
-    fn fetch_submission_info(&self, db_submission: Submission) -> Result<InvokeRequest, Error> {
+    fn fetch_submission_info(
+        &self,
+        db_inv_req: &InvokationRequest,
+    ) -> Result<InvokeRequest, Error> {
+        let db_submission;
+        {
+            use db::schema::submissions::dsl::*;
+            db_submission = submissions
+                .filter(id.eq(db_inv_req.submission_id() as i32))
+                .load::<Submission>(&self.db_conn)
+                .unwrap()
+                .into_iter()
+                .next()
+                .unwrap();
+        }
+
         let submission_root = self.config.sysroot.join("var/submissions");
         let submission_root = submission_root.join(&format!("s-{}", db_submission.id()));
 
@@ -271,6 +337,7 @@ impl Server {
             submission,
             work_dir: tempfile::TempDir::new().context(err::Io {})?,
             problem,
+            id: db_inv_req.id(),
         };
         Ok(req)
     }

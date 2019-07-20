@@ -13,10 +13,7 @@ use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog::{debug, error};
 use snafu::Snafu;
-use std::{
-    collections::HashMap,
-    ffi::OsString,
-};
+use std::{collections::HashMap, ffi::OsString};
 
 #[derive(Debug, Clone, Snafu)]
 pub(crate) enum InterpolateError {
@@ -49,10 +46,10 @@ pub(crate) fn interpolate_string(
         if m.pattern() != next_pat_id {
             return BadSyntax {
                 message:
-                "get pattern start while parsing pattern or pattern end outside of pattern"
-                    .to_string(),
+                    "get pattern start while parsing pattern or pattern end outside of pattern"
+                        .to_string(),
             }
-                .fail();
+            .fail();
         }
 
         let chunk = &string[cur_pos..m.start()];
@@ -152,10 +149,12 @@ impl<'a> Invoker<'a> {
         let compiler_response = compiler.compile(compiler_request);
         let artifact = match compiler_response {
             Err(err) => return Err(err),
-            Ok(BuildOutcome::Error(st)) => return Ok(InvokeOutcome {
-                status: st,
-                score: 0,
-            }),
+            Ok(BuildOutcome::Error(st)) => {
+                return Ok(InvokeOutcome {
+                    status: st,
+                    score: 0,
+                })
+            }
             Ok(BuildOutcome::Success(artifact)) => artifact,
         };
 
@@ -163,7 +162,6 @@ impl<'a> Invoker<'a> {
 
         let mut valuer = Valuer::new(self.ctx.clone());
         let mut resp = valuer.initial_test();
-
 
         let score = loop {
             match resp {
@@ -202,7 +200,6 @@ impl<'a> Invoker<'a> {
 
         dbg!(&test_results);
 
-
         let status = if score == 100 {
             Status {
                 kind: StatusKind::Accepted,
@@ -215,9 +212,6 @@ impl<'a> Invoker<'a> {
             }
         };
         debug!(self.ctx.logger, "Invokation finished"; "status" => ?status);
-        Ok(InvokeOutcome {
-            status,
-            score,
-        })
+        Ok(InvokeOutcome { status, score })
     }
 }

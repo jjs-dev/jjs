@@ -1246,6 +1246,7 @@ dependencies = [
  "diesel 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frontend-api 0.1.0",
+ "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "invoker-api 0.1.0",
  "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",

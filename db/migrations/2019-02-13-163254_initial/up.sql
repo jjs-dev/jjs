@@ -12,7 +12,8 @@ CREATE TABLE submissions
     status_code  VARCHAR(100)                                                      NOT NULL,
     status_kind  VARCHAR(100)                                                      NOT NULL,
     problem_name VARCHAR(100)                                                      NOT NULL,
-    score        INTEGER                                                           NOT NULL
+    score        INTEGER                                                           NOT NULL,
+    rejudge_id   unsigned_integer                                                  NOT NULL
 );
 
 CREATE UNIQUE INDEX submissions_id_unique_index ON submissions (id);

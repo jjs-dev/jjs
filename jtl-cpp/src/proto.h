@@ -1,5 +1,4 @@
-#ifndef JTL_PROTO
-#define JTL_PROTO
+#pragma once
 
 #include <cstdio>
 #include <cstdint>
@@ -17,5 +16,3 @@ struct BinString {
 };
 
 BinString get_env_hex(const char* var_name);
-
-#endif //JTL_PROTO

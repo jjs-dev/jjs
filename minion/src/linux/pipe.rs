@@ -24,8 +24,24 @@ impl LinuxReadPipe {
     }
 }
 
+impl Drop for LinuxReadPipe {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.handle);
+        }
+    }
+}
+
 pub struct LinuxWritePipe {
     handle: Handle,
+}
+
+impl Drop for LinuxWritePipe {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.handle);
+        }
+    }
 }
 
 impl LinuxWritePipe {

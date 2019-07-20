@@ -46,7 +46,7 @@ pub mod status_codes {
     );
 
     // aggregated status codes
-    declare_code!(ACCEPTED, INCORRECT, BUILD_ERROR);
+    declare_code!(ACCEPTED, PARTIAL_SOLUTION, BUILD_ERROR);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

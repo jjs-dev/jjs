@@ -35,6 +35,7 @@ testgen::Generator* testgen::Generator::open_global() {
 void init_global_gen(testgen::Seed seed) {
     if (GLOBAL_RND) {
         fprintf(stderr, "fatal error: Global generator is constructed twice");
+        exit(1);
     }
     GLOBAL_RND = new testgen::Generator(seed);
 }

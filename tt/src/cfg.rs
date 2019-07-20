@@ -13,6 +13,11 @@ pub struct BuiltinCheck {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct CheckOptions {
+    pub cmd: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RawTestsSpec {
     map: String,
     testgen: Option<String>,
@@ -123,7 +128,7 @@ pub struct RawProblem {
     title: String,
     name: String,
     #[serde(rename = "primary-solution")]
-    primary_solution: String,
+    primary_solution: Option<String>,
     #[serde(rename = "check-type")]
     check_type: String,
     #[serde(rename = "custom-check")]
@@ -133,6 +138,8 @@ pub struct RawProblem {
     tests: Vec<RawTestsSpec>,
     #[serde(rename = "random-seed")]
     random_seed: Option<String>,
+    #[serde(rename = "seed")]
+    check_options: Option<CheckOptions>,
 }
 
 impl RawProblem {
@@ -227,6 +234,9 @@ impl RawProblem {
             tests,
             name: self.name,
             random_seed,
+            check_options: self.check_options.unwrap_or_else(|| CheckOptions {
+                cmd: vec![], // do not pass additional argv to checker
+            }),
         };
 
         Ok((out, warnings))
@@ -243,8 +253,9 @@ pub enum Check {
 pub struct Problem {
     pub title: String,
     pub name: String,
-    pub primary_solution: String,
+    pub primary_solution: Option<String>,
     pub check: Check,
     pub tests: Vec<TestSpec>,
     pub random_seed: String,
+    pub check_options: CheckOptions,
 }

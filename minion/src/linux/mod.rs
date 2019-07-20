@@ -121,12 +121,12 @@ impl Drop for LinuxChildProcess {
 fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
     match spec {
         InputSpecification::Pipe => {
-            let mut h_in = 0;
-            let mut h_out = 0;
-            pipe::setup_pipe(&mut h_in, &mut h_out)?;
-            let f = unsafe { libc::dup(h_in) };
-            unsafe { libc::close(h_in) };
-            Ok((Some(h_out), f))
+            let mut h_read = 0;
+            let mut h_write = 0;
+            pipe::setup_pipe(&mut h_read, &mut h_write)?;
+            let f = unsafe { libc::dup(h_read) };
+            unsafe { libc::close(h_read) };
+            Ok((Some(h_write), f))
         }
         InputSpecification::RawHandle(HandleWrapper { h }) => {
             let h = h as Handle;
@@ -146,12 +146,12 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
         OutputSpecification::Null => Ok((None, -1 as Handle)),
         OutputSpecification::RawHandle(HandleWrapper { h }) => Ok((None, h as Handle)),
         OutputSpecification::Pipe => {
-            let mut h_in = 0;
-            let mut h_out = 0;
-            pipe::setup_pipe(&mut h_in, &mut h_out)?;
-            let f = unsafe { libc::dup(h_out) };
-            unsafe { libc::close(h_out) };
-            Ok((Some(h_in), f))
+            let mut h_read = 0;
+            let mut h_write = 0;
+            pipe::setup_pipe(&mut h_read, &mut h_write)?;
+            let f = unsafe { libc::dup(h_write) };
+            unsafe { libc::close(h_write) };
+            Ok((Some(h_read), f))
         }
         OutputSpecification::Ignore => {
             let file = fs::File::open("/dev/null").context(crate::errors::Io)?;

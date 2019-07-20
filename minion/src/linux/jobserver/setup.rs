@@ -88,12 +88,14 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
 
 fn sigterm_handler_inner() -> ! {
     loop {
-        unsafe { libc::raise(libc::SIGKILL); }
+        unsafe {
+            libc::raise(libc::SIGKILL);
+        }
     }
 }
 
 extern "C" fn sigterm_handler(_signal: i32) {
-   sigterm_handler_inner();
+    sigterm_handler_inner();
 }
 
 unsafe fn setup_sighandler() {

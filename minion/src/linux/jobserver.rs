@@ -97,7 +97,8 @@ fn print_diagnostics(path: &OsStr, out: &mut dyn Write) {
         out,
         "following path exists: {:?}, with the following items:",
         &existing_prefix
-    ).ok();
+    )
+    .ok();
     let items = fs::read_dir(existing_prefix);
     let items = match items {
         Ok(it) => it,
@@ -175,7 +176,8 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 "WARNING: couldn't change dir (error {} - {})",
                 code,
                 nix::errno::from_i32(code).desc()
-            ).ok();
+            )
+            .ok();
         }
 
         if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
@@ -205,7 +207,8 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 stderr,
                 "FATAL ERROR: executable ({}) was not found",
                 &arg.path.to_string_lossy()
-            ).ok();
+            )
+            .ok();
 
             print_diagnostics(&arg.path, &mut stderr);
             libc::exit(108)

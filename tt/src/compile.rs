@@ -279,7 +279,11 @@ impl<'a> ProblemBuilder<'a> {
                 crate::cfg::Check::Builtin(_) => true,
             };
             let gen_answers = if gen_answers {
-                Some(solutions.get(&self.cfg.primary_solution).unwrap())
+                let primary_solution_name = self.cfg.primary_solution.as_ref().unwrap_or_else(|| {
+                    eprintln!("primary-solution must be specified in order to generate tests correct answers");
+                    exit(1);
+                });
+                Some(solutions.get(primary_solution_name.as_str()).unwrap())
             } else {
                 None
             };
@@ -287,10 +291,13 @@ impl<'a> ProblemBuilder<'a> {
         };
         self.build_checkers();
 
+        let checker_cmd = self.cfg.check_options.cmd.clone();
+
         let problem = pom::Problem {
             title: self.cfg.title.clone(),
             name: self.cfg.name.clone(),
-            checker: "checker/bin".to_string(),
+            checker_exe: "checker/bin".to_string(),
+            checker_cmd,
             tests,
         };
         let manifest_path = format!("{}/manifest.json", self.out_dir.display());

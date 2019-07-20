@@ -19,8 +19,9 @@ pub fn buffer_to_file(buf: &[u8], comment: &str) -> i64 {
         }
     }
     // now seal memfd
-    // currently this is not important, buf
+    // currently this is not important, but when...
     // TODO: cache all this stuff
+    // ... it is important that file can't be altered by solution
     let seals = libc::F_SEAL_GROW | libc::F_SEAL_SEAL | libc::F_SEAL_WRITE | libc::F_SEAL_SHRINK;
     fcntl::fcntl(
         fd,

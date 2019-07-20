@@ -1,7 +1,7 @@
 toolchain-root= "/opt/jjs-tc/root"
 # TODO disable this option
 env-passing = true
-[global-limits]
+env-blacklist = ["LS_COLORS"]
 
 [global-env]
 PATH = "/usr/bin"

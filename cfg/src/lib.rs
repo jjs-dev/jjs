@@ -3,7 +3,7 @@ extern crate toml;
 #[macro_use]
 extern crate serde_derive;
 
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{collections::HashMap, env, fs, path::PathBuf, process::exit};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Limits {
@@ -29,6 +29,16 @@ impl Limits {
 
     fn default_time() -> u64 {
         1000
+    }
+}
+
+impl Default for Limits {
+    fn default() -> Limits {
+        Limits {
+            memory: Limits::default_memory(),
+            time: Limits::default_time(),
+            process_count: Limits::default_num_procs(),
+        }
     }
 }
 
@@ -67,6 +77,8 @@ pub struct Problem {
     pub code: String,
     #[serde(skip)]
     pub title: String,
+    #[serde(skip)]
+    pub loaded: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -90,16 +102,25 @@ pub struct Contest {
 pub struct Config {
     #[serde(skip)]
     pub toolchains: Vec<Toolchain>,
+
     #[serde(skip)]
     pub sysroot: PathBuf,
+
     #[serde(rename = "toolchain-root")]
     pub toolchain_root: String,
-    #[serde(rename = "global-limits")]
+
+    #[serde(rename = "global-limits", default)]
     pub global_limits: Limits,
-    #[serde(rename = "global-env")]
+
+    #[serde(rename = "global-env", default)]
     pub global_env: HashMap<String, String>,
+
     #[serde(rename = "env-passing")]
     pub env_passing: bool,
+
+    #[serde(rename = "env-blacklist", default)]
+    pub env_blacklist: Vec<String>,
+
     #[serde(skip)]
     pub contests: Vec<Contest>,
 }
@@ -115,6 +136,9 @@ impl Config {
         let mut inherit_env = self.global_env.clone();
         if self.env_passing {
             for (key, value) in std::env::vars() {
+                if self.env_blacklist.contains(&key) {
+                    continue;
+                }
                 inherit_env.entry(key).or_insert(value);
             }
         }
@@ -127,7 +151,7 @@ impl Config {
         }
     }
 
-    pub fn find_toolchain<'a>(&'a self, name: &str) -> Option<&'a Toolchain> {
+    pub fn find_toolchain(&self, name: &str) -> Option<&Toolchain> {
         for t in &self.toolchains {
             if name == t.name {
                 return Some(t);
@@ -183,11 +207,22 @@ pub fn get_config() -> Config {
         for problem in contest.problems.iter_mut() {
             let problem_manifest_path =
                 format!("{}/var/problems/{}/manifest.json", &sysroot, &problem.name);
-            let problem_manifest: pom::Problem = serde_json::from_reader(std::io::BufReader::new(
-                fs::File::open(problem_manifest_path).expect("failed read problem manifest"),
-            ))
-            .unwrap();
+
+            let problem_manifest_file = match fs::File::open(&problem_manifest_path) {
+                Ok(reader) => reader,
+                Err(err) => {
+                    eprintln!(
+                        "Error: couldn't open manifest {} for problem {}: {}",
+                        &problem_manifest_path, &problem.name, err
+                    );
+                    exit(1);
+                }
+            };
+
+            let problem_manifest: pom::Problem =
+                serde_json::from_reader(std::io::BufReader::new(problem_manifest_file)).unwrap();
             problem.title = problem_manifest.title;
+            problem.loaded = true;
         }
         c.contests.push(contest);
     }

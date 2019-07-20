@@ -28,14 +28,14 @@ pub fn parse(data: &str) -> Result<Output, Error> {
     let mut res_outcome = None;
     for (line_id, line) in data.lines().enumerate() {
         let line_id = line_id as u32;
-        let p = match line.find(':') {
+        let p = match line.find('=') {
             Some(i) => i,
             None => {
                 return ParseError {
                     line: line_id,
-                    description: "Line doesn't contain ':'-separated tag and value".to_string(),
+                    description: "Line doesn't contain '='-separated key and value".to_string(),
                 }
-                .fail()
+                .fail();
             }
         };
         let tag = &data[..p];
@@ -76,7 +76,7 @@ pub fn parse(data: &str) -> Result<Output, Error> {
             return TagMissing {
                 tag: "outcome".to_string(),
             }
-            .fail()
+            .fail();
         }
     };
     Ok(Output { outcome })

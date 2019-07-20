@@ -1,4 +1,9 @@
+mod compiler;
+mod inter_api;
+mod invoke_context;
 mod invoker;
+mod judge;
+mod valuer;
 
 use cfg_if::cfg_if;
 use db::schema::{Submission, SubmissionState};
@@ -13,7 +18,7 @@ use std::{
     sync::{self, atomic::AtomicBool, Arc},
 };
 
-mod err {
+pub(crate) mod err {
     use snafu::{Backtrace, Snafu};
     use std::fmt::{self, Debug, Display, Formatter};
 
@@ -59,13 +64,13 @@ mod err {
     }
 }
 
-use err::{Error, StringError};
+pub(crate) use err::{Error, StringError};
 
 #[derive(Debug)]
 /// Submission information, sufficient for judging
-pub struct SubmissionInfo {
+pub(crate) struct SubmissionInfo {
     pub toolchain: cfg::Toolchain,
-    /// directory for storing files related to judging
+    /// Directory for general files (source, build, invlog)
     pub root_dir: PathBuf,
     pub metadata: HashMap<String, String>,
     pub id: u32,
@@ -73,17 +78,18 @@ pub struct SubmissionInfo {
 
 #[derive(Debug)]
 /// All invoker-related data, that will be passed to Invoker
-pub struct InvokeRequest {
+pub(crate) struct InvokeRequest {
     pub submission: SubmissionInfo,
     pub problem: pom::Problem,
-    pub judging_id: u32,
+    /// Temporary directory
+    pub work_dir: tempfile::TempDir,
 }
 
 cfg_if! {
 if #[cfg(target_os="linux")] {
     fn check_system() -> bool {
         if let Some(err) = minion::linux_check_environment() {
-            eprintln!("system configuration issue: {}", err);
+            eprintln!("system configuration problem: {}", err);
             return false;
         }
         true
@@ -98,15 +104,15 @@ if #[cfg(target_os="linux")] {
 fn submission_set_judge_outcome(
     conn: &PgConnection,
     submission_id: u32,
-    status: invoker_api::Status,
+    outcome: invoker::InvokeOutcome,
 ) {
     use db::schema::submissions::dsl::*;
     let target = submissions.filter(id.eq(submission_id as i32));
     let subm_patch = db::schema::SubmissionPatch {
         state: Some(db::schema::SubmissionState::Done),
-        status_code: Some(status.code.to_string()),
-        status_kind: Some(status.kind.to_string()),
-        judge_revision: None,
+        status_code: Some(outcome.status.code.to_string()),
+        status_kind: Some(outcome.status.kind.to_string()),
+        score: Some(outcome.score as i32),
     };
     diesel::update(target)
         .set(subm_patch)
@@ -129,7 +135,7 @@ impl Server {
             ctrlc::set_handler(move || {
                 should_run.store(false, sync::atomic::Ordering::SeqCst);
             })
-            .unwrap();
+                .unwrap();
         }
         //TODO: start multiple threads
         self.thread_loop(Arc::clone(&should_run));
@@ -176,12 +182,12 @@ impl Server {
     fn process_task(&self, submission: Submission) -> Result<(), Error> {
         let req = self.fetch_submission_info(submission)?;
         let submission_id = req.submission.id;
-        let status = self.process_invoke_request(req);
-        submission_set_judge_outcome(&self.db_conn, submission_id, status);
+        let outcome = self.process_invoke_request(req);
+        submission_set_judge_outcome(&self.db_conn, submission_id, outcome);
         Ok(())
     }
 
-    fn process_invoke_request(&self, request: InvokeRequest) -> invoker_api::Status {
+    fn process_invoke_request(&self, request: InvokeRequest) -> invoker::InvokeOutcome {
         use snafu::ErrorCompat;
         use std::error::Error;
         let invoke_ctx = InvokeContext {
@@ -191,22 +197,26 @@ impl Server {
             req: &request,
         };
         let invoker = Invoker::new(invoke_ctx);
-        debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.id);
+        debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.id, "workdir" => ?request.work_dir.path().display());
         let status =
             invoker
                 .invoke()
-                .map(|outcome| outcome.status)
                 .unwrap_or_else(|err| {
-                    let cause = err.source().map(|e| e.to_string()).unwrap_or_else(||"<missing>".to_string());
-                    let backtrace = err.backtrace().map(|bt| bt.to_string()).unwrap_or_else(||"<not captured>".to_string());
-                    error!(self.logger, "Judge fault: {}", err; "backtrace" =>backtrace, "cause" => cause);
-                    invoker_api::Status {
+                    let cause = err.source().map(|e| e.to_string()).unwrap_or_else(|| "<missing>".to_string());
+                    let backtrace = err.backtrace().map(|bt| bt.to_string()).unwrap_or_else(|| "<not captured>".to_string());
+                    error!(self.logger, "Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);
+                    let st = invoker_api::Status {
                         kind: invoker_api::StatusKind::InternalError,
                         code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
+                    };
+                    invoker::InvokeOutcome {
+                        status: st,
+                        score: 0,
                     }
                 });
 
         debug!(self.logger, "Judging finished"; "outcome" => ?status, "submission" => ?request.submission.id);
+        request.work_dir.into_path();
         status
     }
 
@@ -259,7 +269,7 @@ impl Server {
 
         let req = InvokeRequest {
             submission,
-            judging_id: (db_submission.judge_revision + 1) as u32,
+            work_dir: tempfile::TempDir::new().context(err::Io {})?,
             problem,
         };
         Ok(req)

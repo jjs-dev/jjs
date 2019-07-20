@@ -1,4 +1,2 @@
-!
-# note: empty header
-jon_snow NotKing Judges:Starks
-taiwin pay_my_debt Participants:Lannisters
+add jon_snow NotKing groups=Judges:Starks
+add taiwin pay_my_debt groups=Participants:Lannisters

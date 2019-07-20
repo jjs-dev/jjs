@@ -76,7 +76,7 @@ pub struct SubmissionInformation {
     pub toolchain_name: String,
     pub status: JudgeStatus,
     pub state: SubmissionState,
-    pub score: Option<u32>,
+    pub score: Option<i32>,
     pub problem: ProblemCode,
 }
 

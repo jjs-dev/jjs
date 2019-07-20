@@ -1,6 +1,10 @@
+mod list_parse;
+
 use snafu::{ResultExt, Snafu};
 use std::process::exit;
 use structopt::StructOpt;
+
+use list_parse::StatementData;
 
 mod args {
     use structopt::StructOpt;
@@ -44,114 +48,120 @@ enum Error {
     Frontend {
         inner: Box<dyn frontend_api::FrontendError>,
     },
+    Network {
+        source: frontend_api::NetworkError,
+    },
 }
 
-enum ParseLineOutcome {
-    Comment,
-    User(String, String, Vec<String>),
-    Error(String),
+fn decode_base64(s: String) -> String {
+    let buf = base64::decode(&s).unwrap_or_else(fail);
+    String::from_utf8(buf).unwrap_or_else(fail)
 }
 
-fn decode_base64(s: &str) -> Option<String> {
-    let bytes = base64::decode(s).ok()?;
-    let s = String::from_utf8(bytes).ok()?;
-    Some(s)
-}
-
-fn decode_value_list(s: &str, cfg: &Config) -> Option<Vec<String>> {
-    let elems = s.split(':');
-    let mut out = Vec::new();
-    for elem in elems {
-        match decode_value(elem, cfg) {
-            Some(s) => out.push(s),
-            None => return None,
-        };
-    }
-    Some(out)
-}
-
-struct Config {
+#[derive(Clone)]
+struct OptionStorage {
     base64: bool,
+    groups: Vec<String>,
+    ignore_fail: bool,
 }
 
-fn decode_value(s: &str, cfg: &Config) -> Option<String> {
-    if cfg.base64 {
-        decode_base64(s)
-    } else {
-        Some(s.to_string())
+impl OptionStorage {
+    fn new() -> OptionStorage {
+        OptionStorage {
+            base64: false,
+            groups: Vec::new(),
+            ignore_fail: false,
+        }
     }
-}
 
-fn parse_header(line: &str) -> Config {
-    if !line.starts_with('!') {
-        eprintln!("error: header doesn't start from !");
-        exit(1);
+    fn flag(&mut self, flag: &str) {
+        match flag {
+            "base64" => {
+                self.base64 = true;
+            }
+            "ignore-fail" => {
+                self.ignore_fail = true;
+            }
+            _ => {
+                eprintln!("unknown flag: {}", flag);
+                exit(1);
+            }
+        }
     }
-    let items: Vec<_> = line
-        .splitn(2, ' ')
-        .nth(1)
-        .unwrap_or("")
-        .split(',')
-        .collect();
-    let base64 = items.contains(&"BASE64");
-    Config { base64 }
-}
 
-fn parse_line(line: &str, cfg: &Config) -> ParseLineOutcome {
-    if line.starts_with('#') {
-        return ParseLineOutcome::Comment;
+    fn add_groups(&mut self, spec: &str) {
+        let items = spec.split(':');
+        for item in items {
+            self.groups.push(item.to_string());
+        }
     }
-    let parts: Vec<_> = line.split_whitespace().collect();
-    if parts.len() != 3 {
-        return ParseLineOutcome::Error(format!(
-            "Line must contain 3 whitespace-separated items, but got {}",
-            parts.len()
-        ));
+
+    fn setting(&mut self, name: &str, value: &str) {
+        match name {
+            "groups" => {
+                self.add_groups(value);
+            }
+            "set-groups" => {
+                self.groups.clear();
+                self.add_groups(value);
+            }
+            _ => {
+                eprintln!("unknown setting: {}", name);
+                exit(1);
+            }
+        }
     }
-    let username = match decode_value(&parts[0], cfg) {
-        Some(s) => s,
-        None => return ParseLineOutcome::Error("Username has invalid format".to_string()),
-    };
-    let password = match decode_value(&parts[1], cfg) {
-        Some(s) => s,
-        None => return ParseLineOutcome::Error("Password has invalid format".to_string()),
-    };
-    let groups = match decode_value_list(&parts[2], cfg) {
-        Some(s) => s,
-        None => return ParseLineOutcome::Error("Groups has invalid format".to_string()),
-    };
-    ParseLineOutcome::User(username, password, groups)
+
+    fn options(&mut self, opts: &[list_parse::Option]) {
+        for option in opts {
+            match option {
+                list_parse::Option::Flag(flag) => {
+                    self.flag(flag);
+                }
+                list_parse::Option::Setting(name, val) => {
+                    self.setting(name, val);
+                }
+            }
+        }
+    }
 }
 
 fn add_users(arg: args::Add) -> Result<(), Error> {
     let mut data = Vec::new();
+    let ignore_failures;
     {
         let file = std::fs::read(&arg.file).context(ReadFile {
             filename: arg.file.clone(),
         })?;
         let file = String::from_utf8(file).context(Utf8)?;
-        let mut lines = file.lines();
-        let header_line = match lines.next() {
-            Some(s) => s,
-            None => {
-                return Err(Error::Format {
-                    description: "Header entry mising (file is empty)".to_string(),
-                });
-            }
-        };
-        let cfg = parse_header(header_line);
-        for (i, line) in lines.enumerate() {
-            let outcome = parse_line(line, &cfg);
-            let entry = match outcome {
-                ParseLineOutcome::Error(desc) => {
-                    let description = format!("line {}: {}", i, desc);
-                    return Err(Error::Format { description });
+
+        let statements = list_parse::parse(&file);
+        let mut option_storage = OptionStorage::new();
+        for st in statements {
+            match st.data {
+                StatementData::SetOpt { options } => option_storage.options(&options),
+                StatementData::AddUser {
+                    mut username,
+                    mut password,
+                    options,
+                } => {
+                    let mut subst = option_storage.clone();
+                    subst.options(&options);
+                    let mut groups = subst.groups.clone();
+                    if subst.base64 {
+                        username = decode_base64(username);
+                        password = decode_base64(password);
+                        for item in &mut groups {
+                            let dec = decode_base64(std::mem::replace(item, String::new()));
+                            std::mem::replace(item, dec);
+                        }
+                    }
+
+                    data.push((username, password, groups));
                 }
-                ParseLineOutcome::Comment => continue,
-                ParseLineOutcome::User(us, pw, grs) => (us, pw, grs),
-            };
-            data.push(entry);
+            }
         }
+        ignore_failures = option_storage.ignore_fail;
     }
 
     let token = match arg.token {
@@ -175,13 +185,38 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
             password,
             groups,
         };
-        match client.users_create(&req).expect("network error") {
-            Ok(_) => {}
-            Err(e) => return Err(Error::Frontend { inner: Box::new(e) }),
+
+        let user_create_res = client.users_create(&req);
+        let mut err = None;
+        match user_create_res {
+            Ok(Ok(_)) => {}
+            Ok(Err(fr_err)) => {
+                err = Some(Error::Frontend {
+                    inner: Box::new(fr_err),
+                });
+            }
+            Err(network_error) => {
+                err = Some(Error::Network {
+                    source: network_error,
+                });
+            }
+        }
+
+        if let Some(err) = err {
+            if ignore_failures {
+                eprintln!("note: user creation error: {}", err);
+            } else {
+                return Err(err);
+            }
         }
     }
 
     Ok(())
+}
+
+fn fail<E: std::fmt::Display, X>(err: E) -> X {
+    eprintln!("Error:\n{}", err);
+    std::process::exit(1)
 }
 
 fn main() {

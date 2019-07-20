@@ -2,7 +2,7 @@ primary-solution = "full"
 check-type = "builtin"
 name = "a-plus-b"
 title = "P == NP?" # Clickbait :)
-seed = "TheVerySecretSeed"
+random-seed = "f22ab682947f4450433f21e0dfe9ddf60194610e8dc704d809c5d2237e9b0e60"
 
 [builtin-check]
 name = "cmp-tokens"

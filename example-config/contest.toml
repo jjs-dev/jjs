@@ -10,3 +10,7 @@ name = "a-plus-b"
 [[problems]]
 code = "B"
 name = "array-sum"
+
+[[problems]]
+code = "C"
+name = "sqrt"

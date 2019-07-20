@@ -3,7 +3,8 @@ mod os_util;
 
 use crate::{
     err,
-    invoker::{interpolate_command, InvokeContext, JudgeOutcome, JudgeRequest},
+    inter_api::{JudgeOutcome, JudgeRequest},
+    invoker::{interpolate_command, InvokeContext},
     Error,
 };
 use invoker_api::{status_codes, Status, StatusKind};
@@ -72,8 +73,9 @@ impl<'a> Judge<'a> {
                 }
             }
         };
-
-        child.stdin().unwrap().write_all(test_data).ok();
+        let mut stdin = child.stdin().unwrap();
+        stdin.write_all(test_data).ok();
+        std::mem::drop(stdin); // close pipe
 
         let wait_result = child
             .wait_for_exit(Duration::from_millis(limits.time))
@@ -109,9 +111,7 @@ impl<'a> Judge<'a> {
         fs::create_dir(&self.req.paths.share_dir()).context(err::Io {})?;
         fs::create_dir(&self.req.paths.chroot_dir()).context(err::Io {})?;
 
-        let input_file = self
-            .ctx
-            .get_asset_path(&self.req.test.path);
+        let input_file = self.ctx.get_asset_path(&self.req.test.path);
         let test_data = std::fs::read(input_file).expect("couldn't read test");
 
         let sol_file_path = match self.run_solution(&test_data)? {
@@ -121,8 +121,12 @@ impl<'a> Judge<'a> {
         // run checker
         let sol_file = fs::File::open(sol_file_path).unwrap();
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-        let full_checker_path = self.ctx.get_asset_path(&self.ctx.req.problem.checker);
+        let full_checker_path = self.ctx.get_asset_path(&self.ctx.req.problem.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
+
+        for arg in &self.ctx.req.problem.checker_cmd {
+            cmd.arg(arg);
+        }
 
         let test_cfg = self.req.test;
 

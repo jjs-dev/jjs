@@ -1,5 +1,4 @@
-#ifndef JTL_RANDOM
-#define JTL_RANDOM
+#pragma once
 
 #include <cstdint>
 #include <iterator>
@@ -53,5 +52,3 @@ namespace testgen {
     /// Call this first in test generator
     Input init();
 }
-
-#endif

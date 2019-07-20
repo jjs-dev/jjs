@@ -1,6 +1,7 @@
 use crate::{
     err::{self, Error},
-    invoker::{CommandInterp, Paths},
+    inter_api::Paths,
+    invoker::CommandInterp,
     InvokeRequest,
 };
 use cfg::Config;
@@ -16,11 +17,11 @@ use std::{
 };
 
 /// Contains data for invokation
-pub struct InvokeContext<'a> {
-    pub minion_backend: &'a dyn minion::Backend,
-    pub cfg: &'a Config,
-    pub logger: &'a Logger,
-    pub req: &'a InvokeRequest,
+pub(crate) struct InvokeContext<'a> {
+    pub(crate) minion_backend: &'a dyn minion::Backend,
+    pub(crate) cfg: &'a Config,
+    pub(crate) logger: &'a Logger,
+    pub(crate) req: &'a InvokeRequest,
 }
 
 impl<'a> Clone for InvokeContext<'a> {

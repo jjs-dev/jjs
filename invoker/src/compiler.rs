@@ -1,14 +1,16 @@
 use crate::{
     err,
-    invoker::{interpolate_command, Artifact, BuildOutcome, BuildRequest, Error, InvokeContext},
+    inter_api::{Artifact, BuildOutcome, BuildRequest},
+    invoker::{interpolate_command, InvokeContext},
+    Error,
 };
 use invoker_api::{status_codes, Status, StatusKind};
 use snafu::ResultExt;
 use std::{fs, time::Duration};
 
 /// Compiler turns SubmissionInfo into Artifact
-pub struct Compiler<'a> {
-    pub ctx: InvokeContext<'a>,
+pub(crate) struct Compiler<'a> {
+    pub(crate) ctx: InvokeContext<'a>,
 }
 
 impl<'a> Compiler<'a> {

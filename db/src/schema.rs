@@ -6,7 +6,7 @@ pub struct Submission {
     pub status: String,
     pub status_kind: String,
     pub problem_name: String,
-    pub judge_revision: i32,
+    pub score: i32,
 }
 
 impl Submission {
@@ -23,7 +23,7 @@ pub struct NewSubmission {
     pub status_code: String,
     pub status_kind: String,
     pub problem_name: String,
-    pub judge_revision: i32,
+    pub score: i32,
 }
 
 #[derive(AsChangeset, Default)]
@@ -32,7 +32,29 @@ pub struct SubmissionPatch {
     pub state: Option<SubmissionState>,
     pub status_code: Option<String>,
     pub status_kind: Option<String>,
-    pub judge_revision: Option<i32>,
+    #[column_name = "score"]
+    pub score: Option<i32>,
+}
+
+#[derive(Queryable, Debug, Clone, Serialize, Deserialize)]
+pub struct InvokationRequest {
+    id: i32,
+    submission_id: i32,
+    invoke_revision: i32,
+}
+
+impl InvokationRequest {
+    pub fn id(&self) -> u32 {
+        self.id as u32
+    }
+
+    pub fn submission_id(&self) -> u32 {
+        self.submission_id as u32
+    }
+
+    pub fn invoke_revision(&self) -> u32 {
+        self.invoke_revision as u32
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]

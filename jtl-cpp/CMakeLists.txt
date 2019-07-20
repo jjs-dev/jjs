@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7.0)
 project(Jtl VERSION 0.1.0)
-set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp)
-set(HEADER_FILES include/jtl.h include/testgen.h)
+set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp)
+set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/util.h)
 
 set(TEMP_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -26,14 +26,14 @@ add_custom_command(TARGET JtlRs COMMAND ${CMAKE_COMMAND} -E copy ${RUST_TARGET}/
 add_dependencies(JtlRs JtlRsBuild JtlRsHeaders)
 # JTL itself
 add_library(Jtl STATIC ${SRC_FILES})
-target_include_directories(Jtl PUBLIC include ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(Jtl PUBLIC include src ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(Jtl JtlRs)
 set_target_properties(Jtl PROPERTIES PUBLIC_HEADER "${HEADER_FILES}")
 target_link_libraries(Jtl PUBLIC pthread rt dl m)
 
 install(TARGETS Jtl
         ARCHIVE DESTINATION /tmp
-        PUBLIC_HEADER DESTINATION include)
+        PUBLIC_HEADER DESTINATION include/jjs)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtl.a DESTINATION lib RENAME libjtl.a)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtlRsAr.a DESTINATION lib RENAME libjtlrs.a)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JtlConfig.cmake DESTINATION share/cmake )
@@ -49,4 +49,4 @@ function(add_checker checker_name src_file)
     install(TARGETS ${target_name}
             RUNTIME DESTINATION bin)
 endfunction()
-add_checker(cmp-tokens src/cmp-tokens.cpp)
+add_checker(cmp-tokens src/builtin/cmp-tokens.cpp)

@@ -11,5 +11,6 @@ pub struct Problem {
     pub title: String,
     pub name: String,
     pub tests: Vec<Test>,
-    pub checker: String,
+    pub checker_exe: String,
+    pub checker_cmd: Vec<String>,
 }

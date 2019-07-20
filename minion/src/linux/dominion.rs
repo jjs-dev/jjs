@@ -116,7 +116,11 @@ impl LinuxDominion {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
 
         self.jobserver_sock.send(&q).ok();
-        self.jobserver_sock.recv().ok()
+        let res = match self.jobserver_sock.recv::<Option<i32>>() {
+            Ok(x) => x,
+            Err(_) => return None,
+        };
+        res.map(Into::into)
     }
 }
 

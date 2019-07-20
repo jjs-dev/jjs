@@ -148,7 +148,7 @@ fn route_submissions_send(
         status_code: "QUEUE_BUILD".to_string(),
         status_kind: "QUEUE".to_string(),
         problem_name: prob_name,
-        judge_revision: 0,
+        score: 0
     };
     let subm: Submission = diesel::insert_into(submissions)
         .values(&new_sub)
@@ -185,7 +185,7 @@ fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInfor
             SubmissionState::Invoke => frontend_api::SubmissionState::Judge,
             SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue,
         },
-        score: Some(42),
+        score: Some(submission.score),
         problem: submission.problem_name.clone(),
     }
 }

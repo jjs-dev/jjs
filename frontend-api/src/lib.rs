@@ -32,4 +32,7 @@ impl Client {
 }
 
 pub trait FrontendError: std::error::Error + std::fmt::Debug {}
+
+pub type NetworkError = reqwest::Error;
+
 include!(concat!(env!("OUT_DIR"), "/client_gen.rs"));

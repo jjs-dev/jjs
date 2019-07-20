@@ -22,7 +22,7 @@ pub struct Command {
 }
 
 impl Command {
-    fn build(&self) -> Option<ChildProcessOptions> {
+    pub fn build(&self) -> Option<ChildProcessOptions> {
         let create_default_in_channel = || InputSpecification::Empty;
         let create_default_out_channel = || OutputSpecification::Ignore;
         let opts = ChildProcessOptions {

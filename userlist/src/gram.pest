@@ -1,0 +1,29 @@
+userlist = { SOI ~ statement* ~ EOI }
+statement = {(statement_adduser | statement_setopts) ~ "\n"?}
+
+statement_setopts = {
+     ("." | "cfg")
+     ~ options
+}
+
+statement_adduser = {
+    ("+" | "add")
+    ~ string /// username
+    ~ string /// password
+    ~ options?
+}
+
+// few more types
+options = ${option ~ ("," ~ option)*}
+flag = @{string}
+setting = ${string ~ "=" ~ string}
+option = ${setting | flag}
+
+// terminal rules
+string_char_head = @{'a'..'z' | 'A'..'Z' | "+" | "/"}
+string_char_any = @{string_char_head | '0'..'9'}
+string = @{string_char_head ~ string_char_any*}
+num = @{'1'..'9' ~ ('0'..'9')*}
+WHITESPACE = _{" " | "\t"}
+// TODO:
+// COMMENT=...

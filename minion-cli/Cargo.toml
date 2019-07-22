@@ -5,15 +5,15 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [build-dependencies]
-chrono = { version = "0.4.6", features = ["serde"] }
+chrono = { version = "0.4.7", features = ["serde"] }
 
 [dependencies]
 minion = {path = "../minion"}
-structopt = "0.2.16"
-whoami = "0.5.2"
+structopt = "0.2.18"
+whoami = "0.5.3"
 human-panic = { version = "1.0.1", optional = true }
 cfg-if = "0.1.9"
-chrono = { version = "0.4.6", features = ["serde"] }
+chrono = { version = "0.4.7", features = ["serde"] }
 
 [features]
 human_panic = ["human-panic"]

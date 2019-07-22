@@ -1,11 +1,10 @@
 mod checker_proto;
-mod os_util;
 
 use crate::{
     err,
     inter_api::{JudgeOutcome, JudgeRequest},
     invoker::{interpolate_command, InvokeContext},
-    Error,
+    os_util, Error,
 };
 use invoker_api::{status_codes, Status, StatusKind};
 use snafu::ResultExt;

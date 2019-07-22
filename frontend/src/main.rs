@@ -269,6 +269,13 @@ fn route_submissions_set_info(
     Ok(Json(res))
 }
 
+fn submissions_blob(
+    _params: Json<frontend_api::SubmissionsBlobParams>,
+    _db: State<DbPool>,
+) -> Response<Result<frontend_api::Blob, frontend_api::CommonError>> {
+    unimplemented!()
+}
+
 #[post("/toolchains/list")]
 fn route_toolchains_list(
     cfg: State<Config>,

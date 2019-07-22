@@ -5,6 +5,6 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.16"
-libc = "0.2.58"
+structopt = "0.2.18"
+libc = "0.2.60"
 nix = "0.14.1"

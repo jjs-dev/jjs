@@ -5,8 +5,8 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.16"
-snafu = "0.4.1"
+structopt = "0.2.18"
+snafu = "0.4.2"
 frontend-api = {path = "../frontend-api"}
 base64 = "0.10.1"
 pest = "2.1.1"

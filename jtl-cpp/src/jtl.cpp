@@ -6,7 +6,7 @@
 #include <cctype>
 #include <cassert>
 
-bool is_char_whitespace(char c) {
+static bool is_char_whitespace(char c) {
     return c == ' ' || c == '\n' || c == '\t';
 }
 

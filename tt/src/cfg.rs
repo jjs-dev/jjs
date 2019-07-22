@@ -126,20 +126,30 @@ pub struct TestSpec {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RawProblem {
     title: String,
+
     name: String,
+
     #[serde(rename = "primary-solution")]
     primary_solution: Option<String>,
+
     #[serde(rename = "check-type")]
     check_type: String,
+
     #[serde(rename = "custom-check")]
     custom_check: Option<CustomCheck>,
+
     #[serde(rename = "builtin-check")]
     builtin_check: Option<BuiltinCheck>,
+
     tests: Vec<RawTestsSpec>,
+
     #[serde(rename = "random-seed")]
     random_seed: Option<String>,
+
     #[serde(rename = "seed")]
     check_options: Option<CheckOptions>,
+
+    valuer: String,
 }
 
 impl RawProblem {
@@ -237,6 +247,7 @@ impl RawProblem {
             check_options: self.check_options.unwrap_or_else(|| CheckOptions {
                 cmd: vec![], // do not pass additional argv to checker
             }),
+            valuer: self.valuer,
         };
 
         Ok((out, warnings))
@@ -258,4 +269,5 @@ pub struct Problem {
     pub tests: Vec<TestSpec>,
     pub random_seed: String,
     pub check_options: CheckOptions,
+    pub valuer: String,
 }

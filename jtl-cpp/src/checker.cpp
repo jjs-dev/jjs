@@ -52,6 +52,7 @@ void checker::comment(const char* format, ...) {
     va_list args;
     va_start(args, format);
     int num_written = vsnprintf(COMMENT_OUT_BUF, COMMENT_OUT_BUF_LEN, format, args);
+    va_end(args);
     FILE* f = CHECKER.comment_file;
     fprintf(f, "%s", COMMENT_OUT_BUF);
     if (num_written == COMMENT_OUT_BUF_LEN) {

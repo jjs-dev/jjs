@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7.0)
 project(Jtl VERSION 0.1.0)
-set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp)
-set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/util.h)
+set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp src/valuer.cpp src/util.cpp)
+set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/valuer.h)
 
 set(TEMP_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -36,17 +36,18 @@ install(TARGETS Jtl
         PUBLIC_HEADER DESTINATION include/jjs)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtl.a DESTINATION lib RENAME libjtl.a)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtlRsAr.a DESTINATION lib RENAME libjtlrs.a)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JtlConfig.cmake DESTINATION share/cmake )
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JtlConfig.cmake DESTINATION share/cmake)
 
 # Checkers
-function(add_checker checker_name src_file)
-    set(target_name checker-${checker_name})
+function(add_builtin builtin_name src_file)
+    set(target_name builtin-${builtin_name})
     add_executable(${target_name} ${src_file})
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_options(${target_name} PUBLIC -L${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(${target_name} PUBLIC Jtl JtlRsAr )
+    target_link_libraries(${target_name} PUBLIC Jtl JtlRsAr)
     add_dependencies(${target_name} Jtl)
     install(TARGETS ${target_name}
             RUNTIME DESTINATION bin)
 endfunction()
-add_checker(cmp-tokens src/builtin/cmp-tokens.cpp)
+add_builtin(checker-cmp-tokens src/builtin/cmp-tokens.cpp)
+add_builtin(valuer-icpc src/builtin/val-icpc.cpp)

@@ -5,6 +5,7 @@ mod inter_api;
 mod invoke_context;
 mod invoker;
 mod judge;
+mod os_util;
 mod valuer;
 
 use cfg_if::cfg_if;
@@ -21,6 +22,8 @@ use std::{
 };
 
 pub(crate) mod err {
+    pub type ErrorBox = Box<dyn std::error::Error + Send + Sync + 'static>;
+
     use snafu::{Backtrace, Snafu};
     use std::fmt::{self, Debug, Display, Formatter};
 
@@ -61,7 +64,7 @@ pub(crate) mod err {
         #[snafu(display("Error: {}", inner))]
         Other {
             backtrace: Backtrace,
-            inner: Box<dyn std::error::Error + Send + Sync + 'static>,
+            inner: ErrorBox,
         },
     }
 
@@ -70,6 +73,15 @@ pub(crate) mod err {
             Error::Io {
                 source: x,
                 backtrace: Backtrace::new(),
+            }
+        }
+    }
+
+    impl From<ErrorBox> for Error {
+        fn from(x: ErrorBox) -> Error {
+            Error::Other {
+                backtrace: Backtrace::new(),
+                inner: x,
             }
         }
     }
@@ -230,8 +242,10 @@ impl Server {
             .join(format!("s-{}", run_id))
             .join(format!("i-{}", inv_id));
         std::fs::create_dir_all(&target_dir)?;
-        let from = vec![temp_path];
-        fs_extra::copy_items(&from, &target_dir, &fs_extra::dir::CopyOptions::new())
+        let from: Result<Vec<_>, _> = std::fs::read_dir(temp_path)?
+            .map(|x| x.map(|y| y.path()))
+            .collect();
+        fs_extra::copy_items(&from?, &target_dir, &fs_extra::dir::CopyOptions::new())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         Ok(())
     }
@@ -337,7 +351,7 @@ impl Server {
             submission,
             work_dir: tempfile::TempDir::new().context(err::Io {})?,
             problem,
-            id: db_inv_req.id(),
+            id: db_inv_req.invoke_revision as u32,
         };
         Ok(req)
     }
@@ -362,7 +376,7 @@ fn main() {
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
 
-    let root = Logger::root(drain, o!("app"=>"jjs:invoker"));
+    let root = Logger::root(drain.fuse(), o!("app"=>"jjs:invoker"));
 
     info!(root, "starting");
 

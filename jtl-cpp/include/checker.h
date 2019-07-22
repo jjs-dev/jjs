@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdio>
-#include "util.h"
 #include "jtl.h"
 
 namespace checker {

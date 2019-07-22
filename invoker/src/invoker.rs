@@ -153,15 +153,15 @@ impl<'a> Invoker<'a> {
                 return Ok(InvokeOutcome {
                     status: st,
                     score: 0,
-                })
+                });
             }
             Ok(BuildOutcome::Success(artifact)) => artifact,
         };
 
         let mut test_results = vec![];
 
-        let mut valuer = Valuer::new(self.ctx.clone());
-        let mut resp = valuer.initial_test();
+        let mut valuer = Valuer::new(self.ctx.clone())?;
+        let mut resp = valuer.initial_test()?;
 
         let score = loop {
             match resp {
@@ -190,9 +190,9 @@ impl<'a> Invoker<'a> {
                     resp = valuer.notify_test_done(ValuerNotification {
                         test_id: tid,
                         test_status: judge_response.status,
-                    });
+                    })?;
                 }
-                ValuerResponse::Finish { score } => {
+                ValuerResponse::Finish { score, .. } => {
                     break score;
                 }
             }

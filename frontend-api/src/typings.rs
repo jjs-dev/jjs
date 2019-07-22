@@ -11,6 +11,8 @@ pub enum CommonError {
     AuthTokenFault,
     /// Resource specified was not found
     NotFound,
+    /// Resource was deleted
+    Gone,
 }
 
 // some typedefs
@@ -92,6 +94,21 @@ pub struct SubmissionsSetInfoParams {
     pub delete: bool,
 }
 
+pub enum SubmissionsBlobQuery {
+    Source,
+    BuildArtifact,
+}
+
+pub struct SubmissionsBlobParams {
+    pub id: SubmissionId,
+    pub query: SubmissionsBlobQuery,
+}
+
+pub enum Blob {
+    Data(Vec<u8>),
+    Url(String),
+}
+
 // toolchains
 pub struct ToolchainInformation {
     pub name: String,
@@ -130,7 +147,6 @@ pub struct ProblemInformation {
     pub code: String,
 }
 
-
 /// This trait serves for documentation-only purposes
 ///
 /// Argument must be JSON-encoded and sent as a body (not form!)
@@ -144,6 +160,8 @@ pub trait Frontend {
     fn submissions_list(selection_params: SubmissionsListParams) -> Result<Vec<SubmissionInformation>, CommonError>;
 
     fn submissions_modify(info: SubmissionsSetInfoParams) -> Result<(), CommonError>;
+
+    fn submissions_blob(params: SubmissionsBlobParams) -> Result<Vec<u8>, CommonError>;
 
     fn toolchains_list(nope: EmptyParams) -> Result<Vec<ToolchainInformation>, CommonError>;
 

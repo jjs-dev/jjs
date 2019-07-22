@@ -19,7 +19,7 @@ sysroot:
     pwsh ./soft/example-linux.ps1
 
 users:
-    cargo run --bin userlist -- add   --auth dev_root  ./example-config/userlist.txt
+    cargo run --bin userlist -- add --auth dev_root ./example-config/userlist.txt
 
 problems:
     sh -c "rm -r /tmp/jjs/var/problems || true"

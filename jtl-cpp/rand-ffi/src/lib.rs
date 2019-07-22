@@ -25,14 +25,14 @@ pub unsafe extern "C" fn random_clone(rnd: *mut Random) -> *mut Random {
 
 #[no_mangle]
 pub unsafe extern "C" fn random_gen64(rnd: *mut Random) -> u64 {
-    let mut rnd = &mut *rnd;
+    let rnd = &mut *rnd;
     let out = rnd.0.next_u64();
     out
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn random_gen_range(rnd: *mut Random, lo: i64, hi: i64) -> i64 {
-    let mut rnd = &mut *rnd;
+    let rnd = &mut *rnd;
     let out = rnd.0.gen_range(lo, hi);
     out
 }

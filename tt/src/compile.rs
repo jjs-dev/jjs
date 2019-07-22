@@ -1,6 +1,7 @@
 //! This module implements compiling source package into invoker package
 use crate::{command::Command, BeatufilStringExt};
 use indicatif::ProgressBar;
+use pom::{FileRef, FileRefRoot};
 use std::{
     collections::HashMap,
     fs,
@@ -203,7 +204,10 @@ impl<'a> ProblemBuilder<'a> {
                 }
             }
             let mut test_info = pom::Test {
-                path: format!("tests/{}-in.txt", tid),
+                path: FileRef {
+                    path: format!("tests/{}-in.txt", tid),
+                    root: FileRefRoot::Problem,
+                },
                 correct: None,
             };
             if let Some(cmd) = gen_answers {
@@ -226,7 +230,10 @@ impl<'a> ProblemBuilder<'a> {
                 let correct_file_path = format!("{}/{}-out.txt", &tests_path, tid);
                 fs::write(correct_file_path, &out.stdout).unwrap();
                 let short_file_path = format!("tests/{}-out.txt", tid);
-                test_info.correct.replace(short_file_path);
+                test_info.correct.replace(FileRef {
+                    path: short_file_path,
+                    root: FileRefRoot::Problem,
+                });
             }
             out.push(test_info);
             pb.inc(1);
@@ -235,35 +242,31 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
-    fn build_checkers(&self) {
+    fn build_checkers(&self) -> FileRef {
         let checker_path = format!("{}/checkers/main", self.problem_dir.display());
         let pb = ProgressBar::new(1);
         pb.set_style(crate::get_progress_bar_style());
         pb.set_message(&"Build checker".style_with(&crate::style::in_progress()));
         self.take_sleep();
-        self.build_checker(&checker_path);
+        self.build_checker(&checker_path)
     }
 
-    fn build_checker(&self, checker_path: &str) {
+    fn build_checker(&self, checker_path: &str) -> FileRef {
         self.take_sleep();
         let out_path = format!("{}/assets/checker", self.out_dir.display());
 
         match self.cfg.check {
             crate::cfg::Check::Custom(_) => {
                 self.call_magicbuild(&PathBuf::from(checker_path), &PathBuf::from(out_path));
+                FileRef {
+                    path: "checker/bin".to_string(),
+                    root: FileRefRoot::Problem,
+                }
             }
-            crate::cfg::Check::Builtin(ref bc) => {
-                fs::create_dir_all(&out_path).unwrap();
-                let full_path = format!("{}/bin/checker-{}", self.jjs_dir.display(), &bc.name);
-                let out_path = format!("{}/bin", &out_path);
-                fs::copy(&full_path, &out_path).unwrap_or_else(|e| {
-                    eprintln!(
-                        "couldn't copy builtin checker from {} to {}: {}",
-                        &full_path, &out_path, e
-                    );
-                    exit(1);
-                });
-            }
+            crate::cfg::Check::Builtin(ref bc) => FileRef {
+                path: format!("bin/builtin-checker-{}", bc.name),
+                root: FileRefRoot::System,
+            },
         }
     }
 
@@ -289,15 +292,21 @@ impl<'a> ProblemBuilder<'a> {
             };
             self.build_tests(&testgen_lauch_info, gen_answers)
         };
-        self.build_checkers();
+        let checker_ref = self.build_checkers();
 
         let checker_cmd = self.cfg.check_options.cmd.clone();
+
+        let valuer_exe = FileRef {
+            root: FileRefRoot::System,
+            path: format!("bin/builtin-valuer-{}", &self.cfg.valuer),
+        };
 
         let problem = pom::Problem {
             title: self.cfg.title.clone(),
             name: self.cfg.name.clone(),
-            checker_exe: "checker/bin".to_string(),
+            checker_exe: checker_ref,
             checker_cmd,
+            valuer_exe,
             tests,
         };
         let manifest_path = format!("{}/manifest.json", self.out_dir.display());

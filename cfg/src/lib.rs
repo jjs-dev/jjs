@@ -106,6 +106,9 @@ pub struct Config {
     #[serde(skip)]
     pub sysroot: PathBuf,
 
+    #[serde(skip)]
+    pub install_dir: PathBuf,
+
     #[serde(rename = "toolchain-root")]
     pub toolchain_root: String,
 
@@ -180,10 +183,15 @@ pub fn parse_file(path: PathBuf) -> Config {
 }
 
 pub fn get_config() -> Config {
-    let sysroot = env::var("JJS_SYSROOT").expect("Sysroot must be provided in JJS_SYSROOT");
-    let mut c = parse_file(PathBuf::from(format!("{}/etc/jjs.toml", &sysroot)));
+    let sysroot = env::var_os("JJS_SYSROOT").expect("Sysroot must be provided in JJS_SYSROOT");
+    let sysroot = PathBuf::from(sysroot);
+    let jjs_install_dir =
+        env::var_os("JJS_PATH").expect("JJS installation dir must be provided in JJS_PATH");
+    let jjs_install_dir = PathBuf::from(jjs_install_dir);
+
+    let mut c = parse_file(sysroot.join("etc/jjs.toml"));
     // load toolchains
-    for item in fs::read_dir(format!("{}/etc/toolchains", &sysroot))
+    for item in fs::read_dir(sysroot.join("etc/toolchains"))
         .expect("couldn't find toolchains config dir (JJS_SYSROOT/etc/jjs/toolchains")
     {
         let item = item.unwrap().path();
@@ -201,19 +209,23 @@ pub fn get_config() -> Config {
     // load contests
     // TODO: support multiple contests
     {
-        let contest_cfg_path = format!("{}/etc/contest.toml", &sysroot);
+        let contest_cfg_path = sysroot.join("etc/contest.toml");
         let contest_cfg = fs::read_to_string(contest_cfg_path).expect("failed read contest config");
         let mut contest: Contest = toml::from_str(&contest_cfg).expect("failed parse contest");
         for problem in contest.problems.iter_mut() {
-            let problem_manifest_path =
-                format!("{}/var/problems/{}/manifest.json", &sysroot, &problem.name);
+            let problem_manifest_path = sysroot
+                .join("var/problems")
+                .join(&problem.name)
+                .join("manifest.json");
 
             let problem_manifest_file = match fs::File::open(&problem_manifest_path) {
                 Ok(reader) => reader,
                 Err(err) => {
                     eprintln!(
                         "Error: couldn't open manifest {} for problem {}: {}",
-                        &problem_manifest_path, &problem.name, err
+                        problem_manifest_path.display(),
+                        &problem.name,
+                        err
                     );
                     exit(1);
                 }
@@ -226,7 +238,8 @@ pub fn get_config() -> Config {
         }
         c.contests.push(contest);
     }
-    c.sysroot = sysroot.into();
+    c.sysroot = sysroot;
+    c.install_dir = jjs_install_dir;
     c.postprocess();
     c
 }

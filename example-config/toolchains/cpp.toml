@@ -1,11 +1,12 @@
 name="cpp"
 filename="source.cpp"
 [[build]]
+<<<<<<< HEAD
 argv = ["/bin/busybox", "ls", "/"]
 [[build]]
 argv = ["/bin/busybox", "ls", "/jjs"]
 [[build]]
-argv=["/usr/bin/g++", "-g", "$(Submission.SourceFilePath)", "-o", "$(Submission.BinaryFilePath)", "-std=c++17",
-"-Wall", "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
+argv=["/usr/bin/g++", "$(Submission.SourceFilePath)", "-o", "$(Submission.BinaryFilePath)", "-std=c++17", "-Wall"
+, "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
 [run]
 argv=["$(Submission.BinaryFilePath)"]

@@ -5,8 +5,8 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.16"
+structopt = "0.2.18"
 fs_extra = "1.1.0"
 glob = "0.3.0"
-serde_json = "1.0.39"
-serde = "1.0.92"
+serde_json = "1.0.40"
+serde = "1.0.97"

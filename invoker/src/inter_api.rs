@@ -76,5 +76,5 @@ pub(crate) struct ValuerNotification {
 
 pub(crate) enum ValuerResponse {
     Test { test_id: u32 },
-    Finish { score: u32 },
+    Finish { score: u32, treat_as_full: bool },
 }

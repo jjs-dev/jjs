@@ -12,8 +12,14 @@ bitflags! {
         /// Judge mode TODO: split
         const JUDGE = 1 << 1;
 
-        /// View contest
+        /// View contest's problems information
         const VIEW = 1 << 2;
+
+        /// Access source & build for own runs
+        const GET_RUNS_BLOBS = 1 << 3;
+
+        /// Access source and build for all runs, (will work even when config denies downloading specific run blob type)
+        const GET_ALL_RUNS_BLOBS = 1 << 4;
     }
 }
 

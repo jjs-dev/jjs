@@ -1,27 +1,27 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
     pub pass_correct: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct BuiltinCheck {
     #[serde(rename = "name")]
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CheckOptions {
     pub cmd: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RawTestsSpec {
-    map: String,
-    testgen: Option<String>,
-    files: Option<String>,
+    pub map: String,
+    pub testgen: Option<String>,
+    pub files: Option<String>,
 }
 
 impl RawTestsSpec {
@@ -123,33 +123,33 @@ pub struct TestSpec {
     pub gen: TestGenSpec,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RawProblem {
-    title: String,
+    pub title: String,
 
-    name: String,
+    pub name: String,
 
     #[serde(rename = "primary-solution")]
-    primary_solution: Option<String>,
+    pub primary_solution: Option<String>,
 
     #[serde(rename = "check-type")]
-    check_type: String,
+    pub check_type: String,
 
     #[serde(rename = "custom-check")]
-    custom_check: Option<CustomCheck>,
+    pub custom_check: Option<CustomCheck>,
 
     #[serde(rename = "builtin-check")]
-    builtin_check: Option<BuiltinCheck>,
+    pub builtin_check: Option<BuiltinCheck>,
 
-    tests: Vec<RawTestsSpec>,
+    pub tests: Vec<RawTestsSpec>,
 
     #[serde(rename = "random-seed")]
-    random_seed: Option<String>,
+    pub random_seed: Option<String>,
 
     #[serde(rename = "seed")]
-    check_options: Option<CheckOptions>,
+    pub check_options: Option<CheckOptions>,
 
-    valuer: String,
+    pub valuer: String,
 }
 
 impl RawProblem {

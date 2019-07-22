@@ -3,6 +3,7 @@
 #include "checker.h"
 #include <cstdarg>
 #include <cassert>
+#include <cmath>
 
 struct CheckerData {
     checker::CheckerInput inp;
@@ -158,6 +159,11 @@ char* checker::next_token(FILE* f) {
 }
 
 bool checker::compare_epsilon(long double expected, long double actual, long double epsilon) {
+    assert(std::isfinite(expected));
+    if (!std::isfinite(actual)) {
+        return false;
+    }
+
     long double absolute_error = std::abs(expected - actual);
     if (std::abs(expected) < 1.0) {
         return absolute_error <= epsilon;

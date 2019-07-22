@@ -7,7 +7,7 @@ cd ../init-jjs-root
 cargo run -- "$SYSROOT/var/lib/jjs" ../pkg/ar_data/example-config
 
 sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
-cd ../tt
+cd ../ppc
 if [ -d "$ORIG_CWD/problems" ] && ! ls "$ORIG_CWD/problems" | cmp - /dev/null 2>/dev/null
 then for i in "$ORIG_CWD"/problems/*
 do

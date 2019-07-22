@@ -39,7 +39,8 @@ pub fn make_anon_file(comment: &str) -> i64 {
         &CString::new(comment).unwrap(),
         memfd::MemFdCreateFlag::empty(),
     )
-    .unwrap() as i64
+    .unwrap()
+    .into()
 }
 
 pub fn handle_read_all(h: i64) -> Vec<u8> {

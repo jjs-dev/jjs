@@ -7,7 +7,7 @@ use snafu::ResultExt;
 use snafu_derive::Snafu;
 
 use crate::os_util::make_anon_file;
-use std::io::{BufRead, BufReader, Write, BufWriter};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 pub(crate) struct Valuer<'a> {
     ctx: InvokeContext<'a>,
@@ -36,7 +36,7 @@ impl<'a> Valuer<'a> {
         let private_comments = make_anon_file("PrivateValuerComments");
         cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
-        let mut child = cmd.spawn().map_err(|x| Box::new(x))?;
+        let mut child = cmd.spawn().map_err(Box::new)?;
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();
         let val = Valuer {
@@ -97,7 +97,7 @@ impl<'a> Valuer<'a> {
                 }
 
                 ValuerResponse::Finish {
-                    score: score as u32,
+                    score: score.into(),
                     treat_as_full: is_full == 1,
                 }
             }

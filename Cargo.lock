@@ -2011,6 +2011,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ppc"
+version = "0.1.0"
+dependencies = [
+ "console 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "getrandom 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glob 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "indicatif 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.60 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pom 0.1.0",
+ "runtime-fmt 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
+ "snafu 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "structopt 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xml-rs 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3204,24 +3223,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tt"
-version = "0.1.0"
-dependencies = [
- "console 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "getrandom 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "glob 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "indicatif 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.60 (registry+https://github.com/rust-lang/crates.io-index)",
- "pom 0.1.0",
- "runtime-fmt 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "snafu 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "structopt 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "twoway"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3478,6 +3479,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.60 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "yansi"
@@ -3852,5 +3858,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum winreg 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "73f1f3c6c4d3cab118551b96c476a2caab920701e28875b64a458f2ecb96ec9d"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xattr 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "244c3741f4240ef46274860397c7c74e50eb23624996930e484c16679633a54c"
+"checksum xml-rs 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "541b12c998c5b56aa2b4e6f18f03664eef9a4fd0a246a55594efae6cc2d964b5"
 "checksum yansi 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d60c3b48c9cdec42fb06b3b84b5b087405e1fa1c644a1af3930e4dfafe93de48"
 "checksum yansi 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9fc79f4a1e39857fc00c3f662cbf2651c771f00e9c15fe2abc341806bd46bd71"

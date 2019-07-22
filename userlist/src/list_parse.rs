@@ -64,7 +64,7 @@ pub(crate) fn parse(data: &str) -> Vec<Statement> {
                 let mut iter = item.into_inner();
                 let username = iter.next().unwrap().as_str().to_string();
                 let password = iter.next().unwrap().as_str().to_string();
-                let options = iter.next().map(parse_options).unwrap_or_else(|| Vec::new());
+                let options = iter.next().map(parse_options).unwrap_or_else(Vec::new);
                 StatementData::AddUser {
                     username,
                     password,

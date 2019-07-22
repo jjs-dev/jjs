@@ -162,7 +162,7 @@ impl Server {
             ctrlc::set_handler(move || {
                 should_run.store(false, sync::atomic::Ordering::SeqCst);
             })
-                .unwrap();
+            .unwrap();
         }
         //TODO: start multiple threads
         self.thread_loop(Arc::clone(&should_run));

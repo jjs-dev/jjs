@@ -25,11 +25,11 @@ problems:
     sh -c "rm -r /tmp/jjs/var/problems || true"
     mkdir /tmp/jjs/var/problems
     mkdir /tmp/jjs/var/problems/a-plus-b
-    @cargo run --bin tt -- compile --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
+    @cargo run --bin ppc -- compile --pkg ./example-problems/a-plus-b --out /tmp/jjs/var/problems/a-plus-b
     mkdir /tmp/jjs/var/problems/array-sum
-    @cargo run --bin tt -- compile --pkg ./example-problems/array-sum --out /tmp/jjs/var/problems/array-sum
+    @cargo run --bin ppc -- compile --pkg ./example-problems/array-sum --out /tmp/jjs/var/problems/array-sum
     mkdir /tmp/jjs/var/problems/sqrt
-    @cargo run --bin tt -- compile --pkg ./example-problems/sqrt --out /tmp/jjs/var/problems/sqrt
+    @cargo run --bin ppc -- compile --pkg ./example-problems/sqrt --out /tmp/jjs/var/problems/sqrt
 
 install_tools:
     #! /bin/bash

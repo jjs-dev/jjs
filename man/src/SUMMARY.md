@@ -9,7 +9,7 @@
 - [Authentication](authentication.md)
 - [Problem Preparation](problems/README.md)
     - [Package Types](problems/packages.md)
-    - [TT](problems/tt.md)
+    - [PPC](problems/ppc.md)
     - [Writing Test Generators](problems/testgen.md)
     - [Writing Checkers](problems/checker.md)
 - [Authorization and Access Control](authorization.md)

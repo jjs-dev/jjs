@@ -13,4 +13,4 @@ files = "{:0>1}.txt"
 
 [[tests]]
 map = "3..20"
-testgen = "main"
+testgen = ["main"]

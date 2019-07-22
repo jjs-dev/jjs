@@ -16,34 +16,41 @@ use std::{
     time::Duration,
 };
 
-/// Contains data for invokation
+/// Contains data and utilities for invokation
+#[derive(Clone)]
 pub(crate) struct InvokeContext<'a> {
     pub(crate) minion_backend: &'a dyn minion::Backend,
     pub(crate) cfg: &'a Config,
+    pub(crate) toolchain_cfg: &'a cfg::Toolchain,
+    pub(crate) problem_cfg: &'a cfg::Problem,
+    pub(crate) problem_data: &'a pom::Problem,
     pub(crate) logger: &'a Logger,
-    pub(crate) req: &'a InvokeRequest,
+    pub(crate) submission_props: &'a crate::SubmissionProps,
 }
-
+/*
 impl<'a> Clone for InvokeContext<'a> {
     fn clone<'b>(&'b self) -> InvokeContext<'a> {
         InvokeContext {
             minion_backend: self.minion_backend,
             cfg: self.cfg,
             logger: self.logger,
-            req: self.req,
+            problem_cfg: self.problem_cfg,
+            toolchain_cfg: self.toolchain_cfg,
         }
     }
-}
+}*/
 
 impl<'a> InvokeContext<'a> {
+    pub(crate) fn get_problem_root(&self) -> PathBuf {
+        self.cfg
+            .sysroot
+            .join("var/problems")
+            .join(&self.problem_cfg.name)
+    }
+
     pub(crate) fn get_asset_path(&self, short_path: &pom::FileRef) -> PathBuf {
         let root = match short_path.root {
-            pom::FileRefRoot::Problem => self
-                .cfg
-                .sysroot
-                .join("var/problems")
-                .join(&self.req.problem.name)
-                .join("assets"),
+            pom::FileRefRoot::Problem => self.get_problem_root().join("assets"),
             pom::FileRefRoot::System => self.cfg.install_dir.clone(),
             pom::FileRefRoot::Root => PathBuf::from("/"),
         };
@@ -95,26 +102,26 @@ impl<'a> InvokeContext<'a> {
     }
 
     pub(crate) fn get_common_interpolation_dict(&self) -> HashMap<String, OsString> {
-        let submission = &self.req.submission;
+        let props = self.submission_props;
         let mut dict = HashMap::new();
         dict.insert("System.Name".to_string(), OsString::from("JJS"));
         dict.insert("Invoker.Id".to_string(), OsString::from("inv"));
         dict.insert(
             "Submission.SourceFilePath".to_string(),
             PathBuf::from("/jjs")
-                .join(&submission.toolchain.filename)
+                .join(&self.toolchain_cfg.filename)
                 .into_os_string(),
         );
         dict.insert("Submission.BinaryFilePath".to_string(), "/jjs/build".into());
         dict.insert(
             "Submission.ToolchainName".to_string(),
-            submission.toolchain.name.clone().into(),
+            self.toolchain_cfg.name.clone().into(),
         );
         dict.insert(
             "Submission.Id".to_string(),
-            submission.id.to_string().into(),
+            props.id.to_string().into(),
         );
-        for (k, v) in submission.metadata.iter() {
+        for (k, v) in props.metadata.iter() {
             dict.insert(format!("Submission.Metadata.{}", k), v.clone().into());
         }
         dict

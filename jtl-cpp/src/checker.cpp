@@ -7,17 +7,23 @@
 
 struct CheckerData {
     checker::CheckerInput inp;
-    FILE* out_file;
-    FILE* comment_file;
+    FILE* out_file = nullptr;
+    FILE* comment_file = nullptr;
 };
 
 CheckerData CHECKER;
 
-checker::CheckerInput checker::init() {
+checker::CheckerInput checker::init(bool open_files) {
     checker::CheckerInput inp;
-    inp.corr_answer = get_env_file("JJS_CORR", "r");
-    inp.sol_answer = get_env_file("JJS_SOL", "r");
-    inp.test = get_env_file("JJS_TEST", "r");
+    if (open_files) {
+        inp.corr_answer = get_env_file("JJS_CORR", "r");
+        inp.sol_answer = get_env_file("JJS_SOL", "r");
+        inp.test = get_env_file("JJS_TEST", "r");
+    } else {
+        inp.fd_corr = get_env_int("JJS_CORR");
+        inp.fd_sol = get_env_int("JJS_SOL");
+        inp.fd_test = get_env_int("JJS_TEST");
+    }
     CHECKER.out_file = get_env_file("JJS_CHECKER_OUT", "w");
     CHECKER.comment_file = get_env_file("JJS_CHECKER_COMMENT", "w");
     CHECKER.inp = inp;

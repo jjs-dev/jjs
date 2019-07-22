@@ -125,7 +125,7 @@ fn build_jjs_components(params: &Params) {
         .build("cleanup", "jjs-cleanup", params.cfg.tools)
         .build("envck", "jjs-env-check", params.cfg.tools)
         .build("init-jjs-root", "jjs-mkroot", params.cfg.tools)
-        .build("tt", "jjs-tt", params.cfg.tools)
+        .build("ppc", "jjs-ppc", params.cfg.tools)
         .build("userlist", "jjs-userlist", params.cfg.tools)
         .build("invoker", "jjs-invoker", params.cfg.core)
         .build("frontend", "jjs-frontend", params.cfg.core)

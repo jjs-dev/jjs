@@ -90,21 +90,28 @@ pub(crate) mod err {
 pub(crate) use err::{Error, StringError};
 use std::path::Path;
 
+/// Secondary information, used for various interpolations
 #[derive(Debug)]
-/// Submission information, sufficient for judging
-pub(crate) struct SubmissionInfo {
-    pub toolchain: cfg::Toolchain,
-    /// Directory for general files (source, build, invlog)
-    pub root_dir: PathBuf,
+pub(crate) struct SubmissionProps {
     pub metadata: HashMap<String, String>,
     pub id: u32,
+}
+
+/// Submission information, sufficient for judging
+#[derive(Debug)]
+pub(crate) struct SubmissionInfo {
+    pub toolchain_cfg: cfg::Toolchain,
+    pub problem_cfg: cfg::Problem,
+    pub problem_data: pom::Problem,
+    /// Directory for general files (source, build, invlog)
+    pub root_dir: PathBuf,
+    pub props: SubmissionProps,
 }
 
 #[derive(Debug)]
 /// All invoker-related data, that will be passed to Invoker
 pub(crate) struct InvokeRequest {
     pub submission: SubmissionInfo,
-    pub problem: pom::Problem,
     /// Temporary directory
     pub work_dir: tempfile::TempDir,
     pub id: u32,
@@ -162,7 +169,7 @@ impl Server {
             ctrlc::set_handler(move || {
                 should_run.store(false, sync::atomic::Ordering::SeqCst);
             })
-            .unwrap();
+                .unwrap();
         }
         //TODO: start multiple threads
         self.thread_loop(Arc::clone(&should_run));
@@ -222,7 +229,7 @@ impl Server {
 
     fn process_task(&self, inv_req: InvokationRequest) -> Result<(), Error> {
         let req = self.fetch_submission_info(&inv_req)?;
-        let submission_id = req.submission.id;
+        let submission_id = req.submission.props.id;
         let outcome = self.process_invoke_request(&req);
         submission_set_judge_outcome(&self.db_conn, submission_id, outcome, &inv_req);
         self.copy_invokation_data_dir_to_shared_fs(&req.work_dir.path(), submission_id, req.id)?;
@@ -257,10 +264,13 @@ impl Server {
             minion_backend: &*self.backend,
             cfg: &self.config,
             logger: &self.logger,
-            req: &request,
+            problem_cfg: &request.submission.problem_cfg,
+            toolchain_cfg: &request.submission.toolchain_cfg,
+            problem_data: &request.submission.problem_data,
+            submission_props: &request.submission.props,
         };
-        let invoker = Invoker::new(invoke_ctx);
-        debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.id, "workdir" => ?request.work_dir.path().display());
+        let invoker = Invoker::new(invoke_ctx, request);
+        debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.props.id, "workdir" => ?request.work_dir.path().display());
         let status = invoker.invoke().unwrap_or_else(|err| {
             let cause = err
                 .source()
@@ -281,7 +291,7 @@ impl Server {
             }
         });
 
-        debug!(self.logger, "Judging finished"; "outcome" => ?status, "submission" => ?request.submission.id);
+        debug!(self.logger, "Judging finished"; "outcome" => ?status, "submission" => ?request.submission.props.id);
         status
     }
 
@@ -324,12 +334,12 @@ impl Server {
         let reader =
             std::io::BufReader::new(fs::File::open(problem_manifest_path).context(err::Io)?);
 
-        let problem: pom::Problem = serde_json::from_reader(reader).map_err(|e| Error::Other {
+        let problem_data: pom::Problem = serde_json::from_reader(reader).map_err(|e| Error::Other {
             backtrace: Default::default(),
             inner: Box::new(e),
         })?;
 
-        let toolchain =
+        let toolchain_cfg =
             self.config
                 .find_toolchain(&db_submission.toolchain)
                 .ok_or(Error::BadConfig {
@@ -340,17 +350,32 @@ impl Server {
                     ))),
                 })?;
 
+        let problem_cfg = self.config
+            .find_problem(&db_submission.problem_name)
+            .ok_or(Error::BadConfig {
+                backtrace: Default::default(),
+                inner: Box::new(StringError(format!(
+                    "problem {} not found",
+                    &db_submission.problem_name
+                ))),
+            })?;
+
+        let submission_props = SubmissionProps {
+            metadata: submission_metadata,
+            id: db_submission.id(),
+        };
+
         let submission = SubmissionInfo {
             root_dir: submission_root,
-            metadata: submission_metadata,
-            toolchain: toolchain.clone(),
-            id: db_submission.id(),
+            props: submission_props,
+            toolchain_cfg: toolchain_cfg.clone(),
+            problem_data,
+            problem_cfg: problem_cfg.clone(),
         };
 
         let req = InvokeRequest {
             submission,
             work_dir: tempfile::TempDir::new().context(err::Io {})?,
-            problem,
             id: db_inv_req.invoke_revision as u32,
         };
         Ok(req)

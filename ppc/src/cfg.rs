@@ -1,27 +1,27 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
     pub pass_correct: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct BuiltinCheck {
     #[serde(rename = "name")]
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CheckOptions {
-    pub cmd: Vec<String>,
+    pub args: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct RawTestsSpec {
-    map: String,
-    testgen: Option<String>,
-    files: Option<String>,
+    pub map: String,
+    pub testgen: Option<Vec<String>>,
+    pub files: Option<String>,
 }
 
 impl RawTestsSpec {
@@ -76,8 +76,17 @@ impl RawTestsSpec {
     }
 
     fn postprocess(&self) -> Result<Vec<(u32, TestSpec)>, String> {
-        if self.files.as_ref().xor(self.testgen.as_ref()).is_none() {
-            return Err("exactly one of 'files' and 'testgen' must be specified".to_string());
+        {
+            let mut cnt = 0;
+            if self.files.is_some() {
+                cnt += 1;
+            }
+            if self.testgen.is_some() {
+                cnt += 1;
+            }
+            if cnt == 2 {
+                return Err("exactly one of 'files' and 'testgen' must be specified".to_string());
+            }
         }
         let idxs = self.parse_mapping()?;
         let mut out = Vec::new();
@@ -94,9 +103,10 @@ impl RawTestsSpec {
                 }
             }
         }
-        if let Some(testgen_name) = &self.testgen {
+        if let Some(testgen_cmd) = &self.testgen {
             let spec = TestGenSpec::Generate {
-                testgen: testgen_name.clone(),
+                testgen: testgen_cmd[0].clone(),
+                args: testgen_cmd[1..].to_vec(),
             };
 
             for &id in &idxs {
@@ -114,7 +124,7 @@ impl RawTestsSpec {
 
 #[derive(Clone, Debug)]
 pub enum TestGenSpec {
-    Generate { testgen: String },
+    Generate { testgen: String, args: Vec<String> },
     File { path: String },
 }
 
@@ -123,33 +133,33 @@ pub struct TestSpec {
     pub gen: TestGenSpec,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct RawProblem {
-    title: String,
+    pub title: String,
 
-    name: String,
-
-    #[serde(rename = "primary-solution")]
-    primary_solution: Option<String>,
-
-    #[serde(rename = "check-type")]
-    check_type: String,
-
-    #[serde(rename = "custom-check")]
-    custom_check: Option<CustomCheck>,
-
-    #[serde(rename = "builtin-check")]
-    builtin_check: Option<BuiltinCheck>,
-
-    tests: Vec<RawTestsSpec>,
+    pub name: String,
 
     #[serde(rename = "random-seed")]
-    random_seed: Option<String>,
+    pub random_seed: Option<String>,
 
-    #[serde(rename = "seed")]
-    check_options: Option<CheckOptions>,
+    #[serde(rename = "primary-solution")]
+    pub primary_solution: Option<String>,
 
-    valuer: String,
+    #[serde(rename = "check-type")]
+    pub check_type: String,
+
+    pub valuer: String,
+
+    #[serde(rename = "custom-check")]
+    pub custom_check: Option<CustomCheck>,
+
+    #[serde(rename = "builtin-check")]
+    pub builtin_check: Option<BuiltinCheck>,
+
+    pub tests: Vec<RawTestsSpec>,
+
+    #[serde(rename = "check-options")]
+    pub check_options: Option<CheckOptions>,
 }
 
 impl RawProblem {
@@ -245,7 +255,7 @@ impl RawProblem {
             name: self.name,
             random_seed,
             check_options: self.check_options.unwrap_or_else(|| CheckOptions {
-                cmd: vec![], // do not pass additional argv to checker
+                args: vec![], // do not pass additional argv to checker
             }),
             valuer: self.valuer,
         };

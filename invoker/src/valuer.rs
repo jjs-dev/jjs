@@ -27,7 +27,7 @@ enum ParseError {
 
 impl<'a> Valuer<'a> {
     pub(crate) fn new(ctx: InvokeContext<'a>) -> Result<Valuer, ErrorBox> {
-        let valuer_exe = ctx.get_asset_path(&ctx.req.problem.valuer_exe);
+        let valuer_exe = ctx.get_asset_path(&ctx.problem_data.valuer_exe);
         let mut cmd = std::process::Command::new(valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
@@ -50,7 +50,7 @@ impl<'a> Valuer<'a> {
     }
 
     fn write_problem_data(&mut self) -> Result<(), ErrorBox> {
-        let problem_info = &self.ctx.req.problem;
+        let problem_info = &self.ctx.problem_data;
         writeln!(self.stdin, "{} ", problem_info.tests.len())?;
         self.stdin.flush()?;
         Ok(())

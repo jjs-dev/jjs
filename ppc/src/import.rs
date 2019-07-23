@@ -1,6 +1,8 @@
+mod template;
+
 use std::{
     collections::HashMap,
-    io::{BufReader, BufWriter},
+    io::BufReader,
     path::{Path, PathBuf},
 };
 use xml::reader::XmlEvent;
@@ -9,6 +11,30 @@ struct Importer<'a> {
     src: &'a Path,
     dest: &'a Path,
     problem_cfg: crate::cfg::RawProblem,
+}
+
+enum FileCategory {
+    Validator,
+    Checker,
+    Generator,
+}
+
+impl FileCategory {
+    fn derive(name: &str) -> Option<FileCategory> {
+        if name == "check" || name == "checker" {
+            return Some(FileCategory::Checker);
+        }
+
+        if name == "validator" {
+            return Some(FileCategory::Validator);
+        }
+
+        if name.starts_with("gen") {
+            return Some(FileCategory::Generator);
+        }
+
+        None
+    }
 }
 
 impl<'a> Importer<'a> {
@@ -58,7 +84,7 @@ impl<'a> Importer<'a> {
 
     // <problem><judging> is most important section for us: it contains information
     // about tests
-    fn process_judging_section(&self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_judging_section(&mut self, manifest: &mut impl Iterator<Item=XmlEvent>) {
         let testset_start = manifest.next().unwrap();
         match testset_start {
             XmlEvent::StartElement { name, .. } => {
@@ -111,6 +137,9 @@ impl<'a> Importer<'a> {
                         println!("test count: {}", cnt);
                         test_count.replace(cnt);
                     }
+                    "tests" => {
+                        self.process_tests(manifest);
+                    }
                     _ => {
                         eprintln!(
                             "warning: unexpected tag in <problem><judging><testset>: {}",
@@ -119,8 +148,145 @@ impl<'a> Importer<'a> {
                         self.skip_section(manifest);
                     }
                 },
-                XmlEvent::EndElement { .. } => break,
+                XmlEvent::EndElement { name } => {
+                    if name.local_name == "judging" {
+                        break;
+                    }
+                }
                 _ => continue,
+            }
+        }
+    }
+
+    fn import_file(&mut self, src_path: &Path, dest_path: &Path) {
+        let full_src_path = self.src.join(src_path);
+        let full_dest_path = self.dest.join(dest_path);
+        match std::fs::copy(&full_src_path, &full_dest_path) {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!(
+                    "copy {} to {}: {}",
+                    full_src_path.display(),
+                    full_dest_path.display(),
+                    err
+                );
+            }
+        }
+    }
+
+
+    fn process_file(&mut self, file_path: &str, file_type: &str) {
+        println!("processing {} of type {}", file_path, file_type);
+        if !file_path.starts_with("files/") {
+            eprintln!("file doesn't start from 'files/'.");
+            return;
+        }
+        let file_name = file_path.trim_start_matches("files/");
+        let period_pos = match file_name.find('.') {
+            Some(p) => p,
+            None => {
+                eprintln!("file path does not contain extension");
+                return;
+            }
+        };
+        let ext = &file_name[period_pos + 1..];
+        let file_name = &file_name[..period_pos];
+        let category = match FileCategory::derive(file_name) {
+            Some(cat) => cat,
+            None => {
+                eprintln!(
+                    "couldn't derive file category (stripped name: {}).",
+                    file_name
+                );
+                return;
+            }
+        };
+        match category {
+            FileCategory::Validator => {
+                eprintln!("validators are not supported yet");
+            }
+            FileCategory::Checker => {
+                self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
+                let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
+                let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
+                std::fs::write(cmakefile, cmakedata).expect("write checker's CMakeLists.txt");
+            }
+            FileCategory::Generator => {
+                let module_dir = self.dest.join("modules").join(format!("gen-{}", file_name));
+                std::fs::create_dir(&module_dir).expect("create module dir");
+                let dest_path = module_dir.join("main.cpp");
+                let src_path = self.src.join(file_path);
+                std::fs::copy(&src_path, &dest_path).unwrap_or_else(|err| {
+                    panic!("copy generator src from {} to {}: {}", src_path.display(), dest_path.display(), err);
+                });
+
+                let cmakefile = module_dir.join("CMakeLists.txt");
+                // currently, CMakeLists are same with generator
+                let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
+                std::fs::write(cmakefile, cmakedata).expect("write generator's CMakeLists.txt");
+            }
+        }
+    }
+
+    fn produce_generator_shim(&mut self) {
+        {
+            static SHIM: &str = include_str!("./import/gen-compat-shim.cpp");
+            let dest_path = self.dest.join("testgens/shim/main.cpp");
+            std::fs::write(dest_path, SHIM).expect("put generator-shim file");
+        }
+        {
+            static SHIM_CMAKE: &str = include_str!("./import/shim.cmake");
+            let dest_path = self.dest.join("testgens/shim/CMakeLists.txt");
+            std::fs::write(dest_path, SHIM_CMAKE).expect("put generator-shim CMakeLists.txt");
+        }
+    }
+
+    fn process_executables(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("processing <executables>");
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::StartElement {
+                    name, attributes, ..
+                } => {
+                    if name.local_name != "source" {
+                        continue;
+                    }
+                    let attrs = self.parse_attrs(attributes);
+                    self.process_file(attrs.get("path").unwrap(), attrs.get("type").unwrap());
+                }
+                XmlEvent::EndElement { name } => {
+                    if name.local_name == "executables" {
+                        break;
+                    }
+                }
+                other => {
+                    panic!("unexpected event: {:?}", other);
+                }
+            }
+        }
+    }
+
+    fn process_files(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("processing <files>");
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
+                    "resources" | "attachments" => {
+                        self.skip_section(iter);
+                    }
+                    "executables" => {
+                        self.process_executables(iter);
+                    }
+                    other => {
+                        eprintln!("processing <files>: unexpected tag {}", other);
+                    }
+                },
+                XmlEvent::EndElement { .. } => {
+                    break;
+                }
+                other => {
+                    panic!("processing <files>: unexpected event {:?}", other);
+                }
             }
         }
     }
@@ -133,6 +299,8 @@ impl<'a> Importer<'a> {
                         self.process_judging_section(manifest);
                     } else if name.local_name == "names" {
                         self.process_names(manifest);
+                    } else if name.local_name == "files" {
+                        self.process_files(manifest);
                     } else {
                         self.skip_section(manifest);
                     }
@@ -141,6 +309,39 @@ impl<'a> Importer<'a> {
                     break;
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn process_tests(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        let mut cnt = 0;
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::EndElement { name, .. } => {
+                    if name.local_name == "tests" {
+                        break;
+                    }
+                }
+                XmlEvent::StartElement { attributes, .. } => {
+                    cnt += 1;
+                    let attrs = self.parse_attrs(attributes);
+                    let mut ts = crate::cfg::RawTestsSpec {
+                        map: cnt.to_string(),
+                        testgen: None,
+                        files: None,
+                    };
+                    let is_generated = attrs["method"] == "generated";
+                    if is_generated {
+                        let cmd_iter = attrs["cmd"].as_str().split_whitespace();
+                        ts.testgen = Some(cmd_iter.map(ToOwned::to_owned).collect());
+                    } else {
+                        ts.files = Some("{:0>2}.txt".to_string());
+                    }
+                    self.problem_cfg.tests.push(ts);
+                }
+                event => {
+                    panic!("unexpected event: {:?}", event);
+                }
             }
         }
     }
@@ -167,7 +368,28 @@ impl<'a> Importer<'a> {
     fn fill_manifest(&mut self) {
         let m = &mut self.problem_cfg;
         m.valuer = "icpc".to_string();
-        m.check_type = "custom".to_string()
+        m.check_type = "builtin".to_string();
+        m.builtin_check = Some(crate::cfg::BuiltinCheck {
+            name: "polygon-compat".to_string(),
+        });
+    }
+
+    fn init_dirs(&mut self) {
+        for suf in &[
+            "solutions",
+            "testgens",
+            "testgens/shim",
+            "tests",
+            "modules",
+            "modules/checker",
+        ] {
+            let path = self.dest.join(suf);
+            std::fs::create_dir(&path)
+                .unwrap_or_else(|err| panic!("create {}: {}", path.display(), err));
+        }
+
+        // import testlib
+        self.import_file(Path::new("files/testlib.h"), Path::new("testlib.h"));
     }
 
     fn run(&mut self) {
@@ -188,23 +410,23 @@ impl<'a> Importer<'a> {
                     _ => true,
                 },
             );
+        self.init_dirs();
         self.fill_manifest();
+        self.produce_generator_shim();
         loop {
             let event = event_iter.next().unwrap();
-            match event {
-                XmlEvent::StartElement {
-                    name, attributes, ..
-                } => {
-                    assert_eq!(name.local_name, "problem");
-                    let attrs = self.parse_attrs(attributes);
-                    self.problem_cfg.name = attrs
-                        .get("short-name")
-                        .map(|x| x.to_string())
-                        .expect("missing short-name in <problem>");
-                    self.process_problem(&mut event_iter);
-                    return;
-                }
-                _ => {}
+            if let XmlEvent::StartElement {
+                name, attributes, ..
+            } = event
+            {
+                assert_eq!(name.local_name, "problem");
+                let attrs = self.parse_attrs(attributes);
+                self.problem_cfg.name = attrs
+                    .get("short-name")
+                    .map(|x| x.to_string())
+                    .expect("missing short-name in <problem>");
+                self.process_problem(&mut event_iter);
+                return;
             }
         }
     }
@@ -230,7 +452,13 @@ pub fn exec(args: crate::args::ImportArgs) {
     importer.run();
 
     let manifest_path = dest.join("problem.toml");
-    let manifest_data =
-        toml::ser::to_string_pretty(&importer.problem_cfg).expect("serialize ppc config");
+    let manifest_toml =
+        toml::Value::try_from(importer.problem_cfg.clone()).expect("serialize ppc config");
+    let manifest_data = toml::ser::to_string_pretty(&manifest_toml).unwrap_or_else(|err| {
+        panic!(
+            "stringify ppc config: {}\n\nraw config: {:#?}",
+            err, &importer.problem_cfg
+        )
+    });
     std::fs::write(manifest_path, manifest_data).expect("write ppc manifest");
 }

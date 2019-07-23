@@ -10,7 +10,7 @@ name = "cmp-tokens"
 
 [[tests]]
 map = "1..3"
-testgen = "main"
+testgen = ["main"]
 
 [[tests]]
 map = "4..5"
@@ -18,4 +18,4 @@ files = "{:0>1}.txt"
 
 [[tests]]
 map = "6..20"
-testgen = "random"
+testgen = ["random"]

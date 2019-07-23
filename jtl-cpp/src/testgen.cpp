@@ -19,20 +19,20 @@ testgen::Word testgen::Generator::next_range(testgen::Word lo, testgen::Word hi)
 
 testgen::Generator testgen::Generator::clone() {
     auto new_impl = random_clone((Random*) impl);
-    return {new_impl};
+    return Generator(new_impl);
 }
 
-testgen::Generator* GLOBAL_RND;
+static testgen::Generator* GLOBAL_RND;
 
 testgen::Generator* testgen::Generator::open_global() {
     if (!GLOBAL_RND) {
-        fprintf(stderr, "fatal error: Generator is requested, but is is not initialized yet.\n");
+        fprintf(stderr, "fatal error: Generator is requested, but is is not initialized yet. Was testgen::init() called?\n");
         exit(1);
     }
     return GLOBAL_RND;
 }
 
-void init_global_gen(testgen::Seed seed) {
+static void init_global_gen(testgen::Seed seed) {
     if (GLOBAL_RND) {
         fprintf(stderr, "fatal error: Global generator is constructed twice");
         exit(1);
@@ -40,10 +40,14 @@ void init_global_gen(testgen::Seed seed) {
     GLOBAL_RND = new testgen::Generator(seed);
 }
 
-testgen::Input testgen::init() {
+testgen::Input testgen::init(bool open_files) {
     testgen::Input ti;
     ti.test_id = get_env_int("JJS_TEST_ID");
-    ti.out_file = get_env_file("JJS_TEST", "w");
+    if (open_files) {
+        ti.out_file = get_env_file("JJS_TEST", "w");
+    } else {
+        ti.fd_out_file = get_env_int("JJS_TEST");
+    }
     auto rand_seed = get_env_hex("JJS_RANDOM_SEED");
     if (rand_seed.len != 32) {
         fprintf(stderr, "rand_seed has incorrect length (%zu instead of 32)\n", rand_seed.len);

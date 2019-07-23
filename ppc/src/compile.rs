@@ -40,6 +40,7 @@ fn get_entropy_hex(s: &mut [u8]) {
     }
 }
 
+// TODO: remove duplicated code
 impl<'a> ProblemBuilder<'a> {
     /// this function is useful to check TUI (progress bars, text style, etc)
     fn take_sleep(&self) {
@@ -174,7 +175,7 @@ impl<'a> ProblemBuilder<'a> {
             let tid = i + 1;
             let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
             match &test_spec.gen {
-                crate::cfg::TestGenSpec::Generate { testgen } => {
+                crate::cfg::TestGenSpec::Generate { testgen, args } => {
                     let testgen_cmd = testgens.get(testgen).unwrap_or_else(|| {
                         eprintln!("error: unknown testgen {}", testgen);
                         exit(1);
@@ -185,6 +186,9 @@ impl<'a> ProblemBuilder<'a> {
                     let entropy = String::from_utf8(entropy_buf.to_vec()).unwrap(); // only ASCII can be here
 
                     let mut cmd = testgen_cmd.clone();
+                    for a in args {
+                        cmd.arg(a);
+                    }
                     cmd.env("JJS_TEST_ID", &tid.to_string());
                     let out_file_handle = crate::open_as_handle(&out_file_path)
                         .expect("couldn't create test output file");
@@ -270,7 +274,33 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
+    fn build_modules(&self) {
+        let testgens_glob = format!("{}/modules/*", self.problem_dir.display());
+        let globs: Vec<_> = glob::glob(&testgens_glob)
+            .expect("couldn't glob for modules")
+            .collect();
+        let pb = ProgressBar::new(globs.len() as u64);
+        pb.set_style(crate::get_progress_bar_style());
+        pb.set_message(&"Build modules".style_with(&crate::style::in_progress()));
+        self.take_sleep();
+        for module in globs {
+            let module = module.expect("io error");
+            let module_name = module.file_name().unwrap().to_str().expect("utf8 error");
+            let pb_msg = format!("Build module {}", module_name);
+            pb.set_message(&pb_msg.style_with(&crate::style::in_progress()));
+            let output_path = self
+                .out_dir
+                .join("assets")
+                .join(format!("module-{}", module_name));
+            self.take_sleep();
+            self.call_magicbuild(&module, &PathBuf::from(&output_path));
+            pb.inc(1);
+        }
+        pb.finish_with_message(&"Build modules".style_with(&crate::style::ready()));
+    }
+
     pub fn build(&self) {
+        self.build_modules();
         let solutions = self.build_solutions();
         self.take_sleep();
         let testgen_lauch_info = self.build_testgens();
@@ -294,7 +324,7 @@ impl<'a> ProblemBuilder<'a> {
         };
         let checker_ref = self.build_checkers();
 
-        let checker_cmd = self.cfg.check_options.cmd.clone();
+        let checker_cmd = self.cfg.check_options.args.clone();
 
         let valuer_exe = FileRef {
             root: FileRefRoot::System,

@@ -36,14 +36,16 @@ impl<'a> Clone for InvokeContext<'a> {
 }
 
 impl<'a> InvokeContext<'a> {
+    pub(crate) fn get_problem_root(&self) -> PathBuf {
+        self.cfg
+            .sysroot
+            .join("var/problems")
+            .join(&self.req.problem.name)
+    }
+
     pub(crate) fn get_asset_path(&self, short_path: &pom::FileRef) -> PathBuf {
         let root = match short_path.root {
-            pom::FileRefRoot::Problem => self
-                .cfg
-                .sysroot
-                .join("var/problems")
-                .join(&self.req.problem.name)
-                .join("assets"),
+            pom::FileRefRoot::Problem => self.get_problem_root().join("assets"),
             pom::FileRefRoot::System => self.cfg.install_dir.clone(),
             pom::FileRefRoot::Root => PathBuf::from("/"),
         };

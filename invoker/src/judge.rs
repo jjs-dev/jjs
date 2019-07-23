@@ -123,6 +123,8 @@ impl<'a> Judge<'a> {
         let full_checker_path = self.ctx.get_asset_path(&self.ctx.req.problem.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
 
+        cmd.current_dir(self.ctx.get_problem_root());
+
         for arg in &self.ctx.req.problem.checker_cmd {
             cmd.arg(arg);
         }

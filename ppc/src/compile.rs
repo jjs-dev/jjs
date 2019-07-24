@@ -230,6 +230,7 @@ impl<'a> ProblemBuilder<'a> {
 
                 let mut cmd = cmd.clone();
                 self.configure_command(&mut cmd);
+                let cmd_line = cmd.to_string_pretty();
                 let mut cmd = cmd.to_std_command();
                 unsafe {
                     use std::os::unix::{io::IntoRawFd, process::CommandExt};
@@ -248,11 +249,13 @@ impl<'a> ProblemBuilder<'a> {
                         Ok(())
                     });
                 }
+                let pb_msg = format!("Run: {}", &cmd_line);
+                pb.set_message(&pb_msg.style_with(&crate::style::in_progress()));
                 let status = cmd
                     .stdin(crate::Stdio::piped())
                     .stdout(crate::Stdio::piped())
                     .status()
-                    .unwrap();
+                    .unwrap_or_else(|err| panic!("launching gen_answers cmd failed: {}", err));
                 if !status.success() {
                     eprintln!(
                         "Error when generating correct answer for test {}: primary solution failed",

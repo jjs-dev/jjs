@@ -205,10 +205,7 @@ impl<'a> Importer<'a> {
                 // TODO
             }
             FileCategory::Checker => {
-                self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
-                let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
-                let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
-                std::fs::write(cmakefile, cmakedata).expect("write checker's CMakeLists.txt");
+                // do nothing here, processed separately
             }
             FileCategory::Generator => {
                 let module_dir = self.dest.join("modules").join(format!("gen-{}", file_name));
@@ -230,6 +227,32 @@ impl<'a> Importer<'a> {
                 std::fs::write(cmakefile, cmakedata).expect("write generator's CMakeLists.txt");
             }
         }
+    }
+
+    fn process_checker(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<checker>");
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::StartElement { name, attributes, .. } => {
+                    if name.local_name == "source" {
+                        let attrs = self.parse_attrs(attributes);
+                        let file_path = &attrs["path"];
+                        self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
+                        let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
+                        let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
+                        std::fs::write(cmakefile, cmakedata).expect("write checker's CMakeLists.txt");
+                    }
+                    self.skip_section(iter);
+                }
+                XmlEvent::EndElement { name } => {
+                    if name.local_name == "checker" {
+                        break;
+                    }
+                }
+                other => panic!("unexpected event: {:?}", other)
+            }
+        }
+        println!("</checker>");
     }
 
     fn produce_generator_shim(&mut self) {
@@ -433,6 +456,9 @@ impl<'a> Importer<'a> {
                 XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
                     "solutions" => {
                         self.process_solutions(iter);
+                    }
+                    "checker" => {
+                        self.process_checker(iter);
                     }
                     _ => {
                         self.skip_section(iter);

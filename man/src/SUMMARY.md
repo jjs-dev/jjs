@@ -12,4 +12,5 @@
     - [PPC](problems/ppc.md)
     - [Writing Test Generators](problems/testgen.md)
     - [Writing Checkers](problems/checker.md)
+    - [Importing from Polygon](problems/polygon.md)
 - [Authorization and Access Control](authorization.md)

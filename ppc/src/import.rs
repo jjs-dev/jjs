@@ -1,7 +1,7 @@
 mod template;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::BufReader,
     path::{Path, PathBuf},
 };
@@ -11,6 +11,7 @@ struct Importer<'a> {
     src: &'a Path,
     dest: &'a Path,
     problem_cfg: crate::cfg::RawProblem,
+    known_generators: HashSet<String>,
 }
 
 enum FileCategory {
@@ -193,11 +194,15 @@ impl<'a> Importer<'a> {
         let category = match FileCategory::derive(file_name) {
             Some(cat) => cat,
             None => {
-                eprintln!(
-                    "couldn't derive file category (stripped name: {}).",
-                    file_name
-                );
-                return;
+                if self.known_generators.contains(file_name) {
+                    FileCategory::Generator
+                } else {
+                    eprintln!(
+                        "couldn't derive file category (stripped name: {}).",
+                        file_name
+                    );
+                    return;
+                }
             }
         };
         match category {
@@ -368,6 +373,8 @@ impl<'a> Importer<'a> {
                     if is_generated {
                         let cmd_iter = attrs["cmd"].as_str().split_whitespace();
                         let mut testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
+                        let gen_name = testgen_cmd[0].clone();
+                        self.known_generators.insert(gen_name);
                         testgen_cmd.insert(0, "shim".to_string());
                         ts.testgen = Some(testgen_cmd);
                     } else {
@@ -581,6 +588,7 @@ pub fn exec(args: crate::args::ImportArgs) {
         src: &src,
         dest: &dest,
         problem_cfg: Default::default(),
+        known_generators: HashSet::new(),
     };
 
     importer.run();

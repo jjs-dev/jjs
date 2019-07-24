@@ -3,13 +3,11 @@
 #[macro_use]
 extern crate rocket;
 
-#[macro_use]
-extern crate serde_derive;
-
 mod config;
 mod password;
 mod root_auth;
 mod security;
+mod gql_server;
 
 use cfg::Config;
 use db::schema::{NewSubmission, Submission, SubmissionState};
@@ -184,43 +182,6 @@ fn route_submissions_send(
         .execute(&conn)?;
 
     let res = Ok(subm.id());
-    Ok(Json(res))
-}
-
-fn describe_submission(submission: &Submission) -> frontend_api::SubmissionInformation {
-    frontend_api::SubmissionInformation {
-        id: submission.id(),
-        toolchain_name: submission.toolchain.clone(),
-        status: frontend_api::JudgeStatus {
-            kind: submission.status_kind.clone(),
-            code: submission.status.clone(),
-        },
-        state: match submission.state {
-            SubmissionState::Done => frontend_api::SubmissionState::Finish,
-            SubmissionState::Error => frontend_api::SubmissionState::Error,
-            SubmissionState::Invoke => frontend_api::SubmissionState::Judge,
-            SubmissionState::WaitInvoke => frontend_api::SubmissionState::Queue,
-        },
-        score: Some(submission.score),
-        problem: submission.problem_name.clone(),
-    }
-}
-
-#[post("/submissions/list", data = "<params>")]
-fn route_submissions_list(
-    params: Json<frontend_api::SubmissionsListParams>,
-    db: State<DbPool>,
-) -> Response<Result<Vec<frontend_api::SubmissionInformation>, frontend_api::CommonError>> {
-    use db::schema::submissions::dsl::*;
-    let conn = db.get().expect("Couldn't connect to DB");
-    let user_submissions = submissions
-        .limit(i64::from(params.limit))
-        .load::<Submission>(&conn)?;
-    let user_submissions = user_submissions
-        .iter()
-        .map(|s| describe_submission(s))
-        .collect();
-    let res = Ok(user_submissions);
     Ok(Json(res))
 }
 

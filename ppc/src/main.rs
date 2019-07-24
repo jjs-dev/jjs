@@ -149,10 +149,13 @@ fn compile_problem(args: args::CompileArgs) {
 
     let jjs_dir = env::var("JJS_PATH").expect("JJS_PATH not set");
 
+    let out_dir = args.out_path.canonicalize().expect("resolve out dir");
+    let problem_dir = args.pkg_path.canonicalize().expect("resolve problem dir");
+
     let builder = compile::ProblemBuilder {
         cfg: &problem_cfg,
-        problem_dir: &args.pkg_path,
-        out_dir: &args.out_path,
+        problem_dir: &problem_dir,
+        out_dir: &out_dir,
         jjs_dir: &PathBuf::from(&jjs_dir),
         args: &args,
     };

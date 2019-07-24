@@ -163,8 +163,8 @@ impl<'a> ProblemBuilder<'a> {
 
     fn configure_command(&self, cmd: &mut Command) {
         cmd.current_dir(self.problem_dir);
-        cmd.env("JJS_PROBLEM_SRC", self.problem_dir.canonicalize().unwrap());
-        cmd.env("JJS_PROBLEM_DEST", self.out_dir.canonicalize().unwrap());
+        cmd.env("JJS_PROBLEM_SRC", &self.problem_dir);
+        cmd.env("JJS_PROBLEM_DEST", &self.out_dir);
     }
 
     fn build_tests(

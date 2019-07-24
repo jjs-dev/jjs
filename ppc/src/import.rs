@@ -85,6 +85,7 @@ impl<'a> Importer<'a> {
     // <problem><judging> is most important section for us: it contains information
     // about tests
     fn process_judging_section(&mut self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<judging>");
         let testset_start = manifest.next().unwrap();
         match testset_start {
             XmlEvent::StartElement { name, .. } => {
@@ -94,7 +95,6 @@ impl<'a> Importer<'a> {
                 panic!("unexpected event: {:?}", testset_start);
             }
         }
-        println!("parsing tests info");
         let mut memory_limit = None;
         let mut time_limit = None;
         let mut test_pattern = None;
@@ -156,9 +156,10 @@ impl<'a> Importer<'a> {
                 _ => continue,
             }
         }
+        println!("</judging>");
     }
 
-    fn import_file(&mut self, src_path: &Path, dest_path: &Path) {
+    fn import_file(&mut self, src_path: impl AsRef<Path>, dest_path: impl AsRef<Path>) {
         let full_src_path = self.src.join(src_path);
         let full_dest_path = self.dest.join(dest_path);
         match std::fs::copy(&full_src_path, &full_dest_path) {
@@ -174,7 +175,6 @@ impl<'a> Importer<'a> {
         }
     }
 
-
     fn process_file(&mut self, file_path: &str, file_type: &str) {
         println!("processing {} of type {}", file_path, file_type);
         if !file_path.starts_with("files/") {
@@ -189,7 +189,6 @@ impl<'a> Importer<'a> {
                 return;
             }
         };
-        let ext = &file_name[period_pos + 1..];
         let file_name = &file_name[..period_pos];
         let category = match FileCategory::derive(file_name) {
             Some(cat) => cat,
@@ -203,7 +202,7 @@ impl<'a> Importer<'a> {
         };
         match category {
             FileCategory::Validator => {
-                eprintln!("validators are not supported yet");
+                // TODO
             }
             FileCategory::Checker => {
                 self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
@@ -217,7 +216,12 @@ impl<'a> Importer<'a> {
                 let dest_path = module_dir.join("main.cpp");
                 let src_path = self.src.join(file_path);
                 std::fs::copy(&src_path, &dest_path).unwrap_or_else(|err| {
-                    panic!("copy generator src from {} to {}: {}", src_path.display(), dest_path.display(), err);
+                    panic!(
+                        "copy generator src from {} to {}: {}",
+                        src_path.display(),
+                        dest_path.display(),
+                        err
+                    );
                 });
 
                 let cmakefile = module_dir.join("CMakeLists.txt");
@@ -242,7 +246,7 @@ impl<'a> Importer<'a> {
     }
 
     fn process_executables(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
-        println!("processing <executables>");
+        println!("<executables>");
         loop {
             match iter.next().unwrap() {
                 XmlEvent::StartElement {
@@ -264,10 +268,11 @@ impl<'a> Importer<'a> {
                 }
             }
         }
+        println!("</executables>");
     }
 
     fn process_files(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
-        println!("processing <files>");
+        println!("<files>");
         loop {
             match iter.next().unwrap() {
                 XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
@@ -289,9 +294,11 @@ impl<'a> Importer<'a> {
                 }
             }
         }
+        println!("</files>");
     }
 
     fn process_problem(&mut self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<problem>");
         loop {
             match manifest.next().unwrap() {
                 XmlEvent::StartElement { name, .. } => {
@@ -301,6 +308,8 @@ impl<'a> Importer<'a> {
                         self.process_names(manifest);
                     } else if name.local_name == "files" {
                         self.process_files(manifest);
+                    } else if name.local_name == "assets" {
+                        self.process_assets(manifest);
                     } else {
                         self.skip_section(manifest);
                     }
@@ -311,9 +320,11 @@ impl<'a> Importer<'a> {
                 _ => {}
             }
         }
+        println!("</problem>");
     }
 
     fn process_tests(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<tests>");
         let mut cnt = 0;
         loop {
             match iter.next().unwrap() {
@@ -333,9 +344,14 @@ impl<'a> Importer<'a> {
                     let is_generated = attrs["method"] == "generated";
                     if is_generated {
                         let cmd_iter = attrs["cmd"].as_str().split_whitespace();
-                        ts.testgen = Some(cmd_iter.map(ToOwned::to_owned).collect());
+                        let mut testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
+                        testgen_cmd.insert(0, "shim".to_string());
+                        ts.testgen = Some(testgen_cmd);
                     } else {
                         ts.files = Some("{:0>2}.txt".to_string());
+                        let src_path = format!("tests/{:0>2}", cnt);
+                        let dest_path = format!("tests/{:0>2}.txt", cnt);
+                        self.import_file(&src_path, &dest_path);
                     }
                     self.problem_cfg.tests.push(ts);
                 }
@@ -344,9 +360,92 @@ impl<'a> Importer<'a> {
                 }
             }
         }
+        println!("{} tests imported", cnt);
+        println!("</tests>");
+    }
+
+    fn process_solutions(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<solutions>");
+        let mut last_tag = "".to_string();
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::StartElement {
+                    name, attributes, ..
+                } => {
+                    let attrs = self.parse_attrs(attributes);
+                    match name.local_name.as_str() {
+                        "solution" => {
+                            last_tag = attrs["tag"].clone();
+                        }
+                        "source" => {
+                            if last_tag == "main" {
+                                println!("importing main solution");
+                                self.problem_cfg.primary_solution = Some("main".to_string());
+                                let dir = self.dest.join("solutions/main");
+                                {
+                                    std::fs::create_dir_all(&dir)
+                                        .expect("create main solution dir");
+                                    let src_path = attrs["path"].clone();
+                                    self.import_file(
+                                        Path::new(&src_path),
+                                        Path::new("solutions/main/main.cpp"),
+                                    );
+                                }
+                                {
+                                    let cmake_path = dir.join("CMakeLists.txt");
+                                    let data = include_str!("./import/solution.cmake");
+                                    std::fs::write(&cmake_path, data)
+                                        .expect("write CMakeLists.txt for solution");
+                                }
+                            } else {
+                                println!("skipping solution with tag {}: not main", &last_tag);
+                            }
+
+                            self.skip_section(iter);
+                            self.skip_section(iter);
+                        }
+                        _ => {
+                            panic!(
+                                "unexpected tag {} when parsing <solutions>",
+                                name.local_name
+                            );
+                        }
+                    }
+                }
+                XmlEvent::EndElement { .. } => {
+                    break;
+                }
+                other => panic!("unexpected event {:?}", other),
+            }
+        }
+        println!("</solutions>")
+    }
+
+    fn process_assets(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<assets>");
+        loop {
+            match iter.next().unwrap() {
+                XmlEvent::EndElement { name } => {
+                    if name.local_name == "assets" {
+                        break;
+                    }
+                }
+                XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
+                    "solutions" => {
+                        self.process_solutions(iter);
+                    }
+                    _ => {
+                        self.skip_section(iter);
+                    }
+                },
+                other => panic!("unexpected event: {:?}", other),
+            }
+        }
+        println!("</assets>");
     }
 
     fn process_names(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+        println!("<names>");
         let ev = iter.next().unwrap();
         match ev {
             XmlEvent::StartElement {
@@ -354,8 +453,9 @@ impl<'a> Importer<'a> {
             } => {
                 assert_eq!(name.local_name, "name");
                 let attrs = self.parse_attrs(attributes);
-                let title = attrs["value"].to_string();
-                self.problem_cfg.title = title;
+                let title = attrs["value"].clone();
+                self.problem_cfg.title = title.clone();
+                println!("problem title: {}", &title);
                 self.skip_section(iter);
             }
             _ => {
@@ -363,6 +463,7 @@ impl<'a> Importer<'a> {
             }
         }
         self.skip_section(iter);
+        println!("</names>");
     }
 
     fn fill_manifest(&mut self) {
@@ -372,6 +473,13 @@ impl<'a> Importer<'a> {
         m.builtin_check = Some(crate::cfg::BuiltinCheck {
             name: "polygon-compat".to_string(),
         });
+        m.check_options = Some(crate::cfg::CheckOptions {
+            args: vec!["assets/module-checker/bin".to_string()]
+        });
+        let mut random_seed = [0; 32];
+        getrandom::getrandom(&mut random_seed).unwrap();
+        let rand_seed_hex = hex::encode(&random_seed);
+        m.random_seed = Some(rand_seed_hex);
     }
 
     fn init_dirs(&mut self) {

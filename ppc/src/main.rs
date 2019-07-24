@@ -128,8 +128,8 @@ fn open_as_handle(path: &str) -> std::io::Result<i64> {
 
 fn compile_problem(args: args::CompileArgs) {
     if args.force {
-        std::fs::remove_dir_all(&args.out_path).expect("couldn't remove");
-        std::fs::create_dir(&args.out_path).expect("couldn't recreate")
+        //std::fs::remove_dir_all(&args.out_path).expect("couldn't remove");
+        std::fs::create_dir_all(&args.out_path).ok();
     } else {
         check_dir(&args.out_path, false /* TODO */);
     }

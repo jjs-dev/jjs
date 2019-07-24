@@ -6,12 +6,25 @@
 using namespace testgen;
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s path_to_polygon_compatible_test_gen", argv[0]);
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s path_to_polygon_compatible_test_gen gen_args...", argv[0]);
+        return 1;
     }
 
-    Input input = init();
+    Input input = init(false);
 
-    dup2(1, input.fd_out_file);
-    execl(argv[1], argv[1], nullptr);
+    char real_testgen[1024];
+    char* dest_dir_path = getenv("JJS_PROBLEM_DEST");
+    if (dest_dir_path == nullptr) {
+        fprintf(stderr, "error: JJS_PROBLEM_DEST env var is not set");
+        return 1;
+    }
+    sprintf(real_testgen, "%s/assets/module-gen-%s/bin", dest_dir_path, argv[1]);
+    argv[1] = real_testgen;
+
+    dup2(input.fd_out_file, 1);
+
+    execv(argv[1], argv + 1);
+    fprintf(stderr, "error: execv (path: %s) failed: %m", argv[1]);
+    return 1;
 }

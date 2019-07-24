@@ -106,7 +106,7 @@ impl RawTestsSpec {
         if let Some(testgen_cmd) = &self.testgen {
             let spec = TestGenSpec::Generate {
                 testgen: testgen_cmd[0].clone(),
-                args: testgen_cmd[1..].iter().cloned().collect(),
+                args: testgen_cmd[1..].to_vec(),
             };
 
             for &id in &idxs {
@@ -158,7 +158,7 @@ pub struct RawProblem {
 
     pub tests: Vec<RawTestsSpec>,
 
-    #[serde(rename = "seed")]
+    #[serde(rename = "check-options")]
     pub check_options: Option<CheckOptions>,
 }
 

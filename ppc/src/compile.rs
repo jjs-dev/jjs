@@ -5,7 +5,6 @@ use pom::{FileRef, FileRefRoot};
 use std::{
     collections::HashMap,
     fs,
-    io::Write,
     path::{Path, PathBuf},
     process::exit,
 };
@@ -51,42 +50,45 @@ impl<'a> ProblemBuilder<'a> {
 
     // TODO support not only cmake
     fn call_magicbuild(&self, src: &Path, out: &Path) -> Command {
-        fs::create_dir_all(out).expect("coudln't create dir");
+        let skip_build = std::env::var("PPC_DEV_SKIP_BUILD").map(|s| !s.is_empty()) == Ok(true);
+        if !skip_build {
+            fs::create_dir_all(out).expect("coudln't create dir");
 
-        let build_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_micros()
-            .to_string();
-        let build_dir = format!("/tmp/tt-build-{}", &build_id);
-        fs::create_dir(&build_dir).expect("couldn't create build dir");
+            let build_id = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string();
+            let build_dir = format!("/tmp/tt-build-{}", &build_id);
+            fs::create_dir(&build_dir).expect("couldn't create build dir");
 
-        let pb = ProgressBar::new(1);
-        pb.set_style(crate::get_progress_bar_style());
-        {
-            pb.set_message(&"CMake: Configure".style_with(&crate::style::in_progress()));
-            let mut cmd = Command::new("cmake");
-            cmd.current_dir(&build_dir)
-                .arg(src.canonicalize().unwrap().to_str().unwrap());
-            if self.args.verbose {
-                cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
+            let pb = ProgressBar::new(1);
+            pb.set_style(crate::get_progress_bar_style());
+            {
+                pb.set_message(&"CMake: Configure".style_with(&crate::style::in_progress()));
+                let mut cmd = Command::new("cmake");
+                cmd.current_dir(&build_dir)
+                    .arg(src.canonicalize().unwrap().to_str().unwrap());
+                if self.args.verbose {
+                    cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
+                }
+                cmd.run_quiet();
             }
-            cmd.run_quiet();
+            {
+                pb.set_message(&"CMake: Build".style_with(&crate::style::in_progress()));
+                let mut cmd = Command::new("cmake");
+                cmd.current_dir(&build_dir).arg("--build").arg(".");
+                cmd.run_quiet();
+            }
+            {
+                pb.set_message(&"Copy artifacts".style_with(&crate::style::in_progress()));
+                let bin_src = format!("{}/Out", &build_dir);
+                let bin_dst = format!("{}/bin", out.display());
+                fs::copy(&bin_src, &bin_dst)
+                    .expect("Couldn't copy CMake-compiled artifact to assets dir (hint: does CMakeLists.txt define Out binary target?)");
+            }
+            pb.finish_and_clear();
         }
-        {
-            pb.set_message(&"CMake: Build".style_with(&crate::style::in_progress()));
-            let mut cmd = Command::new("cmake");
-            cmd.current_dir(&build_dir).arg("--build").arg(".");
-            cmd.run_quiet();
-        }
-        {
-            pb.set_message(&"Copy artifacts".style_with(&crate::style::in_progress()));
-            let bin_src = format!("{}/Out", &build_dir);
-            let bin_dst = format!("{}/bin", out.display());
-            fs::copy(&bin_src, &bin_dst)
-                .expect("Couldn't copy CMake-compiled artifact to assets dir (hint: does CMakeLists.txt define Out binary target?)");
-        }
-        pb.finish_and_clear();
         Command::new(&format!("{}/bin", out.display()))
     }
 
@@ -159,6 +161,12 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
+    fn configure_command(&self, cmd: &mut Command) {
+        cmd.current_dir(self.problem_dir);
+        cmd.env("JJS_PROBLEM_SRC", self.problem_dir.canonicalize().unwrap());
+        cmd.env("JJS_PROBLEM_DEST", self.out_dir.canonicalize().unwrap());
+    }
+
     fn build_tests(
         &self,
         testgens: &HashMap<String, Command>,
@@ -194,6 +202,7 @@ impl<'a> ProblemBuilder<'a> {
                         .expect("couldn't create test output file");
                     cmd.env("JJS_TEST", &out_file_handle.to_string());
                     cmd.env("JJS_RANDOM_SEED", &entropy);
+                    self.configure_command(&mut cmd);
                     let pb_msg = format!("Run: {:?}", &cmd);
                     pb.set_message(&pb_msg.style_with(&crate::style::in_progress()));
                     cmd.run_quiet();
@@ -202,9 +211,7 @@ impl<'a> ProblemBuilder<'a> {
                     let path = format!("{}/tests/{}", self.problem_dir.display(), path);
                     let pb_msg = format!("Copy: {}", &path);
                     pb.set_message(&pb_msg.style_with(&crate::style::in_progress()));
-                    let test_data = std::fs::read(&path).expect("Couldn't read test data file");
-                    std::fs::write(&out_file_path, test_data)
-                        .expect("Couldn't write test data to target file");
+                    std::fs::copy(&path, &out_file_path).expect("Couldn't copy test data");
                 }
             }
             let mut test_info = pom::Test {
@@ -215,24 +222,44 @@ impl<'a> ProblemBuilder<'a> {
                 correct: None,
             };
             if let Some(cmd) = gen_answers {
-                let test_data = fs::read(&out_file_path).unwrap();
-                let mut sol = cmd
-                    .to_std_command()
+                let test_data = fs::File::open(&out_file_path).unwrap();
+
+                let correct_file_path = format!("{}/{}-out.txt", &tests_path, tid);
+
+                let answer_data = fs::File::create(&correct_file_path).unwrap();
+
+                let mut cmd = cmd.clone();
+                self.configure_command(&mut cmd);
+                let mut cmd = cmd.to_std_command();
+                unsafe {
+                    use std::os::unix::{io::IntoRawFd, process::CommandExt};
+                    let test_data_fd = test_data.into_raw_fd();
+                    let test_data_fd = libc::dup(test_data_fd);
+
+                    let ans_data_fd = answer_data.into_raw_fd();
+                    let ans_data_fd = libc::dup(ans_data_fd);
+                    cmd.pre_exec(move || {
+                        if libc::dup2(test_data_fd, 0) == -1 {
+                            return Err(std::io::Error::last_os_error());
+                        }
+                        if libc::dup2(ans_data_fd, 1) == -1 {
+                            return Err(std::io::Error::last_os_error());
+                        }
+                        Ok(())
+                    });
+                }
+                let status = cmd
                     .stdin(crate::Stdio::piped())
                     .stdout(crate::Stdio::piped())
-                    .spawn()
+                    .status()
                     .unwrap();
-                sol.stdin.take().unwrap().write_all(&test_data).ok();
-                let out = sol.wait_with_output().unwrap();
-                if !out.status.success() {
+                if !status.success() {
                     eprintln!(
                         "Error when generating correct answer for test {}: primary solution failed",
                         tid
                     );
                     exit(1);
                 }
-                let correct_file_path = format!("{}/{}-out.txt", &tests_path, tid);
-                fs::write(correct_file_path, &out.stdout).unwrap();
                 let short_file_path = format!("tests/{}-out.txt", tid);
                 test_info.correct.replace(FileRef {
                     path: short_file_path,
@@ -306,6 +333,16 @@ impl<'a> ProblemBuilder<'a> {
         let testgen_lauch_info = self.build_testgens();
         self.take_sleep();
 
+        let checker_ref = self.build_checkers();
+
+        let checker_cmd = self.cfg.check_options.args.clone();
+
+        if let Ok(s) = std::env::var("PPC_DEV_SKIP_TESTS") {
+            if !s.is_empty() {
+                return;
+            }
+        }
+
         let tests = {
             let gen_answers = match &self.cfg.check {
                 crate::cfg::Check::Custom(cs) => cs.pass_correct,
@@ -322,9 +359,6 @@ impl<'a> ProblemBuilder<'a> {
             };
             self.build_tests(&testgen_lauch_info, gen_answers)
         };
-        let checker_ref = self.build_checkers();
-
-        let checker_cmd = self.cfg.check_options.args.clone();
 
         let valuer_exe = FileRef {
             root: FileRefRoot::System,

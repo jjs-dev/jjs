@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+
+firstof ()
+{
+    echo -n "$1"
+}
+
 sudo mkdir -p "$SYSROOT/usr/bin"
 sudo tee "$SYSROOT/usr/bin/postgres" >/dev/null << EOF
 #!/bin/sh
@@ -14,12 +20,12 @@ sudo chmod +x "$SYSROOT"/usr/bin/{postgres,psql}
 
 sudo rm -rf "$SYSROOT"/var/lib/postgresql/*/main/*
 sudo chown "$(whoami):$(whoami)" "$SYSROOT"/var/lib/postgresql/*/main
-/usr/lib/postgresql/11/bin/initdb -U postgres "$SYSROOT"/var/lib/postgresql/*/main
+"$(firstof /usr/lib/postgresql/*/bin/initdb)" -U postgres "$SYSROOT"/var/lib/postgresql/*/main
 sudo sed -i 's/.*timezone.*//g' "$SYSROOT"/var/lib/postgresql/*/main/postgresql.conf
 
 sudo rm -rf tmp
 mkdir tmp
-/usr/lib/postgresql/11/bin/postgres -D "$SYSROOT"/var/lib/postgresql/*/main -k "$(pwd)/tmp" &
+"$(firstof /usr/lib/postgresql/*/bin/postgres)" -D "$SYSROOT"/var/lib/postgresql/*/main -k "$(pwd)/tmp" &
 sleep 5
 psql -h "$(pwd)/tmp" -U postgres -c "create role jjs with password 'internal';"
 psql -h "$(pwd)/tmp" -U postgres -c "alter role jjs with login;"

@@ -4,6 +4,7 @@ use super::{
 };
 use crate::security::AccessControlData;
 use rocket::request::{FromRequest, Outcome, Request};
+use serde::{Deserialize, Serialize};
 use slog::{debug, Logger};
 
 #[derive(Serialize, Deserialize, Debug)]

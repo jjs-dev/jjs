@@ -4,13 +4,12 @@
 extern crate rocket;
 
 mod config;
+mod gql_server;
 mod password;
 mod root_auth;
 mod security;
-mod gql_server;
 
 use cfg::Config;
-use db::schema::{NewSubmission, Submission, SubmissionState};
 use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
@@ -107,84 +106,6 @@ fn route_auth_simple(
     Ok(Json(res))
 }
 
-#[post("/submissions/send", data = "<params>")]
-fn route_submissions_send(
-    params: Json<frontend_api::SubmissionSendParams>,
-    db: State<DbPool>,
-    cfg: State<Config>,
-) -> Response<Result<frontend_api::SubmissionId, frontend_api::SubmitError>> {
-    use db::schema::{invokation_requests::dsl::*, submissions::dsl::*, NewInvokationRequest};
-    let toolchain = cfg.toolchains.get(params.toolchain as usize);
-    let toolchain = match toolchain {
-        Some(tc) => tc.clone(),
-        None => {
-            let res = Err(frontend_api::SubmitError::UnknownToolchain);
-            return Ok(Json(res));
-        }
-    };
-    let conn = db.get().expect("couldn't connect to DB");
-    if params.contest != "TODO" {
-        let res = Err(frontend_api::SubmitError::UnknownContest);
-        return Ok(Json(res));
-    }
-
-    let problem = cfg.contests[0]
-        .problems
-        .iter()
-        .find(|pr| pr.code == params.problem)
-        .cloned();
-    let problem = match problem {
-        Some(p) => p,
-        None => {
-            let res = Err(frontend_api::SubmitError::UnknownProblem);
-            return Ok(Json(res));
-        }
-    };
-    let prob_name = problem.name.clone();
-
-    let new_sub = NewSubmission {
-        toolchain_id: toolchain.name,
-        state: SubmissionState::WaitInvoke,
-        status_code: "QUEUE_BUILD".to_string(),
-        status_kind: "QUEUE".to_string(),
-        problem_name: prob_name,
-        score: 0,
-        rejudge_id: 1,
-    };
-
-    let subm: Submission = diesel::insert_into(submissions)
-        .values(&new_sub)
-        .get_result(&conn)?;
-
-    // Put submission in sysroot
-    let submission_dir = cfg
-        .sysroot
-        .join("var/submissions")
-        .join(&format!("s-{}", subm.id()));
-    std::fs::create_dir(&submission_dir).expect("Couldn't create submission directory");
-    let submission_src_path = submission_dir.join("source");
-    let decoded_code =
-        match base64::decode(&params.code).map_err(|_e| frontend_api::SubmitError::Base64) {
-            Ok(bytes) => bytes,
-            Err(e) => return Ok(Json(Err(e))),
-        };
-    std::fs::write(submission_src_path, &decoded_code)
-        .map_err(|e| FrontendError::Internal(Some(Box::new(e))))?;
-
-    // create invokation request
-    let new_inv_req = NewInvokationRequest {
-        invoke_revision: 0,
-        submission_id: subm.id() as i32,
-    };
-
-    diesel::insert_into(invokation_requests)
-        .values(&new_inv_req)
-        .execute(&conn)?;
-
-    let res = Ok(subm.id());
-    Ok(Json(res))
-}
-
 #[post("/submissions/modify", data = "<params>")]
 fn route_submissions_set_info(
     params: Json<frontend_api::SubmissionsSetInfoParams>,
@@ -203,23 +124,10 @@ fn route_submissions_set_info(
             .filter(id.eq(params.id as i32))
             .execute(&conn)?;
     } else {
-        let mut changes = db::schema::SubmissionPatch {
-            ..Default::default()
-        };
+        let mut changes: db::schema::SubmissionPatch = Default::default();
         if let Some(new_status) = &params.status {
             changes.status_code = Some(new_status.code.to_string());
             changes.status_kind = Some(new_status.kind.to_string());
-        }
-        if let Some(new_state) = &params.state {
-            changes.state = Some(match new_state {
-                frontend_api::SubmissionState::Judge => SubmissionState::Invoke,
-                frontend_api::SubmissionState::Queue => SubmissionState::WaitInvoke,
-                frontend_api::SubmissionState::Error => SubmissionState::Error,
-                frontend_api::SubmissionState::Finish => SubmissionState::Done,
-            });
-        }
-        if params.rejudge {
-            changes.state = Some(SubmissionState::WaitInvoke);
         }
         diesel::update(submissions)
             .filter(id.eq(params.id as i32))
@@ -354,11 +262,39 @@ fn route_contests_describe(
 }
 
 #[get("/")]
-fn route_api_info() -> String {
-    serde_json::to_string(&serde_json::json!({
-        "version": "0",
-    }))
-    .unwrap()
+fn route_ping() -> &'static str {
+    "JJS frontend: pong"
+}
+
+#[get("/graphiql")]
+fn route_graphiql() -> rocket::response::content::Html<String> {
+    juniper_rocket::graphiql_source("/graphql")
+}
+
+#[rocket::get("/graphql?<request>")]
+fn route_get_graphql(
+    context: State<gql_server::Context>,
+    request: juniper_rocket::GraphQLRequest,
+    schema: State<gql_server::Schema>,
+) -> juniper_rocket::GraphQLResponse {
+    request.execute(&schema, &context)
+}
+
+#[rocket::post("/graphql", data = "<request>")]
+fn route_post_graphql(
+    context: State<gql_server::Context>,
+    request: juniper_rocket::GraphQLRequest,
+    schema: State<gql_server::Schema>,
+) -> juniper_rocket::GraphQLResponse {
+    request.execute(&schema, &context)
+}
+
+#[derive(Clone)]
+struct GqlApiSchema(String);
+
+#[rocket::get("/graphql/schema")]
+fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
+    schema.clone().0
 }
 
 fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Config) {
@@ -393,11 +329,28 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         .set_secret_key(base64::encode(&frcfg.secret))
         .unwrap();
 
+    let graphql_context = gql_server::Context { pool: pool.clone(), cfg: config.clone() };
+
+    let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
+
+    let (intro_data, intro_errs) = juniper::introspect(
+        &graphql_schema,
+        &graphql_context,
+        juniper::IntrospectionFormat::default(),
+    )
+        .unwrap();
+    assert!(intro_errs.is_empty());
+
+    let introspection_json = serde_json::to_string(&intro_data).unwrap();
+
     rocket::custom(rocket_config)
         .manage(pool)
+        .manage(graphql_context)
+        .manage(graphql_schema)
         .manage(config.clone())
         .manage(logger.clone())
         .manage(security_data)
+        .manage(GqlApiSchema(introspection_json))
         .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
             Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
         }))
@@ -407,16 +360,11 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         .mount(
             "/",
             routes![
-                route_auth_anonymous,
-                route_auth_simple,
-                route_submissions_send,
-                route_submissions_list,
-                route_submissions_set_info,
-                route_toolchains_list,
-                route_users_create,
-                route_contests_describe,
-                route_contests_list,
-                route_api_info,
+                route_get_graphql_schema,
+                route_graphiql,
+                route_get_graphql,
+                route_post_graphql,
+                route_ping,
             ],
         )
         .register(catchers![catch_bad_request])

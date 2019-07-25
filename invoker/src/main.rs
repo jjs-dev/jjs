@@ -114,7 +114,7 @@ pub(crate) struct InvokeRequest {
     pub submission: SubmissionInfo,
     /// Temporary directory
     pub work_dir: tempfile::TempDir,
-    pub id: u32,
+    pub id: i32,
 }
 
 cfg_if! {
@@ -135,18 +135,17 @@ if #[cfg(target_os="linux")] {
 
 fn submission_set_judge_outcome(
     conn: &PgConnection,
-    submission_id: u32,
+    submission_id: i32,
     outcome: invoker::InvokeOutcome,
     request: &InvokationRequest,
 ) {
     use db::schema::submissions::dsl::*;
-    let target = submissions.filter(id.eq(submission_id as i32));
+    let target = submissions.filter(id.eq(submission_id));
     let subm_patch = db::schema::SubmissionPatch {
-        state: Some(db::schema::SubmissionState::Done),
         status_code: Some(outcome.status.code.to_string()),
         status_kind: Some(outcome.status.kind.to_string()),
         score: Some(outcome.score as i32),
-        rejudge_id: Some(request.invoke_revision() as i32),
+        rejudge_id: Some(request.invoke_revision as i32),
     };
     diesel::update(target)
         .set(subm_patch)
@@ -217,7 +216,7 @@ impl Server {
                     continue;
                 }
             };
-            let submission_id = inv_req.submission_id();
+            let submission_id = inv_req.submission_id;
             match self.process_task(inv_req) {
                 Ok(_) => {}
                 Err(err) => {
@@ -239,8 +238,8 @@ impl Server {
     fn copy_invokation_data_dir_to_shared_fs(
         &self,
         temp_path: &Path,
-        run_id: u32,
-        inv_id: u32,
+        run_id: i32,
+        inv_id: i32,
     ) -> Result<(), Error> {
         let target_dir = self
             .config
@@ -304,7 +303,7 @@ impl Server {
         {
             use db::schema::submissions::dsl::*;
             db_submission = submissions
-                .filter(id.eq(db_inv_req.submission_id() as i32))
+                .filter(id.eq(db_inv_req.submission_id as i32))
                 .load::<Submission>(&self.db_conn)
                 .unwrap()
                 .into_iter()
@@ -313,7 +312,7 @@ impl Server {
         }
 
         let submission_root = self.config.sysroot.join("var/submissions");
-        let submission_root = submission_root.join(&format!("s-{}", db_submission.id()));
+        let submission_root = submission_root.join(&format!("s-{}", db_submission.id));
 
         let mut submission_metadata = HashMap::new();
         let judge_time = {
@@ -362,7 +361,12 @@ impl Server {
 
         let submission_props = SubmissionProps {
             metadata: submission_metadata,
+<<<<<<< HEAD
             id: db_submission.id(),
+=======
+            toolchain: toolchain.clone(),
+            id: db_submission.id,
+>>>>>>> More updates on migrating to GraphQL
         };
 
         let submission = SubmissionInfo {
@@ -376,7 +380,12 @@ impl Server {
         let req = InvokeRequest {
             submission,
             work_dir: tempfile::TempDir::new().context(err::Io {})?,
+<<<<<<< HEAD
             id: db_inv_req.invoke_revision as u32,
+=======
+            problem,
+            id: db_inv_req.invoke_revision,
+>>>>>>> More updates on migrating to GraphQL
         };
         Ok(req)
     }

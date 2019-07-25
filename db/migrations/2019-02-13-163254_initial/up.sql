@@ -1,4 +1,3 @@
-CREATE TYPE submission_state AS ENUM ('wait_invoke', 'invoke', 'done', 'error');
 CREATE DOMAIN unsigned_integer AS INTEGER
     CHECK (VALUE >= 0);
 
@@ -8,7 +7,6 @@ CREATE TABLE submissions
 (
     id           unsigned_integer DEFAULT nextval('submission_id_seq') PRIMARY KEY NOT NULL,
     toolchain_id VARCHAR(100)                                                      NOT NULL,
-    state        submission_state                                                  NOT NULL,
     status_code  VARCHAR(100)                                                      NOT NULL,
     status_kind  VARCHAR(100)                                                      NOT NULL,
     problem_name VARCHAR(100)                                                      NOT NULL,

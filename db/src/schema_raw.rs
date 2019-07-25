@@ -14,7 +14,6 @@ table! {
     submissions (id) {
         id -> Int4,
         toolchain_id -> Varchar,
-        state -> Submission_state,
         status_code -> Varchar,
         status_kind -> Varchar,
         problem_name -> Varchar,

@@ -9,5 +9,4 @@ DROP SEQUENCE user_id_seq;
 DROP SEQUENCE submission_id_seq;
 DROP SEQUENCE inv_req_id_seq;
 -- types
-DROP TYPE submission_state;
 DROP DOMAIN unsigned_integer;

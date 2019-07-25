@@ -33,6 +33,7 @@ acl = {git = "https://github.com/mikailbag/acl", rev = "051c87c"}
 bitflags = "1.1.0"
 juniper = "0.13.0"
 juniper_rocket = "0.4.0"
+juniper-eager-loading = "0.2.0"
 
 
 [dependencies.rocket_contrib]

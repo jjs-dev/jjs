@@ -11,7 +11,7 @@ pub struct Opt {
     filename: String,
 }
 
-fn resolve_toolchain(client: &Client, name: &str) -> u32 {
+fn resolve_toolchain(client: &Client, name: &str) -> i32 {
     let res: Result<Vec<ToolchainInformation>, CommonError> =
         client.toolchains_list(&()).expect("network error");
     let res = res.expect("Couldn't get toolchain information");

@@ -16,8 +16,8 @@ pub enum CommonError {
 }
 
 // some typedefs
-pub type ToolchainId = u32;
-pub type SubmissionId = u32;
+pub type ToolchainId = i32;
+pub type SubmissionId = i32;
 pub type ProblemCode = String;
 pub type ContestId = String;
 pub type EmptyParams = ();

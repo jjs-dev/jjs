@@ -1,5 +1,8 @@
 [profile.release]
-lto=true
+lto = true
+
+[profile.dev]
+debug = 1
 
 [workspace]
 members=["db", "invoker", "minion", "cfg", "init-jjs-root", "frontend", "frontend-api", "minion-cli", "cleanup",

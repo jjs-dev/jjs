@@ -1,6 +1,7 @@
 use super::access_control::{ContestRights, GlobalRights};
 use acl::{AccessToken, Prefix};
 use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserInfo {

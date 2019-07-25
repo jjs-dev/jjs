@@ -8,7 +8,10 @@ mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devpts /dev/pts
 mkdir -p /dev/shm
-chmod 777 /dev/shm
+chmod 1777 /dev/shm
+
+mount -t tmpfs tmpfs /tmp
+chmod 1777 /tmp
 
 mount -t tmpfs tmpfs /sys/fs/cgroup
 for i in cpuacct pids memory
@@ -29,6 +32,7 @@ echo "We are: \$(id)"
 
 su jjs -c '
 export JJS_SYSROOT=/var/lib/jjs
+export JJS_PATH=/usr
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1
 export JJS_HOST=0.0.0.0
@@ -36,6 +40,7 @@ jjs-frontend &
 '
 
 export JJS_SYSROOT=/var/lib/jjs
+export JJS_PATH=/usr
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1
 jjs-invoker &

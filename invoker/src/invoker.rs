@@ -1,14 +1,7 @@
 pub(crate) use crate::invoke_context::InvokeContext;
-use crate::{
-    compiler::Compiler,
-    err,
-    inter_api::{
-        BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification, ValuerResponse,
-    },
-    judge::Judge,
-    valuer::Valuer,
-    Error,
-};
+use crate::{compiler::Compiler, err, inter_api::{
+    BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification, ValuerResponse,
+}, judge::Judge, valuer::Valuer, Error, InvokeRequest};
 use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog::{debug, error};
@@ -46,10 +39,10 @@ pub(crate) fn interpolate_string(
         if m.pattern() != next_pat_id {
             return BadSyntax {
                 message:
-                    "get pattern start while parsing pattern or pattern end outside of pattern"
-                        .to_string(),
+                "get pattern start while parsing pattern or pattern end outside of pattern"
+                    .to_string(),
             }
-            .fail();
+                .fail();
         }
 
         let chunk = &string[cur_pos..m.start()];
@@ -100,6 +93,7 @@ pub(crate) fn interpolate_command(
 
 pub struct Invoker<'a> {
     ctx: InvokeContext<'a>,
+    req: &'a InvokeRequest,
 }
 
 #[derive(Debug, Clone)]
@@ -109,8 +103,8 @@ pub struct InvokeOutcome {
 }
 
 impl<'a> Invoker<'a> {
-    pub(crate) fn new(ctx: InvokeContext) -> Invoker {
-        Invoker { ctx }
+    pub(crate) fn new(ctx: InvokeContext<'a>, req: &'a InvokeRequest) -> Invoker<'a> {
+        Invoker { ctx, req }
     }
 
     pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
@@ -119,23 +113,23 @@ impl<'a> Invoker<'a> {
             .cfg
             .sysroot
             .join("var/problems")
-            .join(&self.ctx.req.problem.name);
+            .join(&self.ctx.problem_cfg.name);
 
-        let manifest = &self.ctx.req.problem;
+        let manifest = self.ctx.problem_data;
 
         let compiler = Compiler {
             ctx: self.ctx.clone(),
         };
 
         let build_paths = Paths::new(
-            &self.ctx.req.submission.root_dir,
-            self.ctx.req.work_dir.path(),
+            &self.req.submission.root_dir,
+            self.req.work_dir.path(),
             0,
             &problem_path,
         );
 
-        if !self.ctx.req.submission.root_dir.exists() {
-            error!(self.ctx.logger, "Submission root dir not exists"; "submission" => self.ctx.req.submission.id);
+        if !self.req.submission.root_dir.exists() {
+            error!(self.ctx.logger, "Submission root dir not exists"; "submission" => self.req.submission.props.id);
             return Err(Error::BadConfig {
                 backtrace: Default::default(),
                 inner: Box::new(err::StringError(
@@ -163,13 +157,13 @@ impl<'a> Invoker<'a> {
         let mut valuer = Valuer::new(self.ctx.clone())?;
         let mut resp = valuer.initial_test()?;
 
-        let score = loop {
+        let (score, treat_as_full) = loop {
             match resp {
                 ValuerResponse::Test { test_id: tid } => {
                     let test = &manifest.tests[(tid - 1) as usize];
                     let run_paths = Paths::new(
-                        &self.ctx.req.submission.root_dir,
-                        self.ctx.req.work_dir.path(),
+                        &self.req.submission.root_dir,
+                        self.req.work_dir.path(),
                         tid,
                         &problem_path,
                     );
@@ -192,15 +186,13 @@ impl<'a> Invoker<'a> {
                         test_status: judge_response.status,
                     })?;
                 }
-                ValuerResponse::Finish { score, .. } => {
-                    break score;
+                ValuerResponse::Finish { score, treat_as_full } => {
+                    break (score, treat_as_full);
                 }
             }
         };
 
-        dbg!(&test_results);
-
-        let status = if score == 100 {
+        let status = if treat_as_full {
             Status {
                 kind: StatusKind::Accepted,
                 code: status_codes::ACCEPTED.to_string(),

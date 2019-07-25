@@ -23,7 +23,7 @@ enum RunOutcome {
 
 impl<'a> Judge<'a> {
     fn run_solution(&self, test_data: &[u8]) -> Result<RunOutcome, Error> {
-        let limits = &self.ctx.cfg.global_limits;
+        let limits = &self.ctx.problem_cfg.limits;
 
         let sandbox = self.ctx.create_sandbox(limits, self.req.paths)?;
 
@@ -120,10 +120,12 @@ impl<'a> Judge<'a> {
         // run checker
         let sol_file = fs::File::open(sol_file_path).unwrap();
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-        let full_checker_path = self.ctx.get_asset_path(&self.ctx.req.problem.checker_exe);
+        let full_checker_path = self.ctx.get_asset_path(&self.ctx.problem_data.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
 
-        for arg in &self.ctx.req.problem.checker_cmd {
+        cmd.current_dir(self.ctx.get_problem_root());
+
+        for arg in &self.ctx.problem_data.checker_cmd {
             cmd.arg(arg);
         }
 

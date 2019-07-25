@@ -28,7 +28,7 @@ impl Limits {
     }
 
     fn default_time() -> u64 {
-        1000
+        3000
     }
 }
 
@@ -64,19 +64,31 @@ impl Command {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Toolchain {
     pub name: String,
+
     pub filename: String,
+
     #[serde(rename = "build")]
     pub build_commands: Vec<Command>,
+
     #[serde(rename = "run")]
     pub run_command: Command,
+
+    #[serde(rename = "build-limits", default)]
+    pub limits: Limits,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Problem {
     pub name: String,
+
     pub code: String,
+
+    #[serde(default)]
+    pub limits: Limits,
+
     #[serde(skip)]
     pub title: String,
+
     #[serde(skip)]
     pub loaded: bool,
 }
@@ -84,15 +96,19 @@ pub struct Problem {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Contest {
     pub title: String,
+
     /// Information about problems, not related to judging
     /// process (which is controlled by problem itself)
     pub problems: Vec<Problem>,
+
     /// Which group members are considered registered for contest
     // TODO support several groups
     pub group: String,
+
     /// Whether contest is visible for users that are not included in contestants
     #[serde(rename = "vis-unreg")]
     pub unregistered_visible: bool,
+
     /// Whether contest is visible for anonymous users
     #[serde(rename = "vis-anon")]
     pub anon_visible: bool,
@@ -112,9 +128,6 @@ pub struct Config {
     #[serde(rename = "toolchain-root")]
     pub toolchain_root: String,
 
-    #[serde(rename = "global-limits", default)]
-    pub global_limits: Limits,
-
     #[serde(rename = "global-env", default)]
     pub global_env: HashMap<String, String>,
 
@@ -126,6 +139,9 @@ pub struct Config {
 
     #[serde(skip)]
     pub contests: Vec<Contest>,
+
+    #[serde(skip)]
+    pub problems: HashMap<String, Problem>,
 }
 
 impl Config {
@@ -162,6 +178,10 @@ impl Config {
         }
         None
     }
+
+    pub fn find_problem(&self, name: &str) -> Option<&Problem> {
+        self.problems.get(name)
+    }
 }
 
 pub fn parse_file(path: PathBuf) -> Config {
@@ -193,19 +213,19 @@ pub fn get_config() -> Config {
     // load toolchains
     for item in fs::read_dir(sysroot.join("etc/toolchains"))
         .expect("couldn't find toolchains config dir (JJS_SYSROOT/etc/jjs/toolchains")
-    {
-        let item = item.unwrap().path();
-        let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
-        let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
-        let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
-            Ok(x) => x,
-            Err(e) => panic!(
-                "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
-                e, raw_toolchain_spec_data
-            ),
-        };
-        c.toolchains.push(toolchain_spec);
-    }
+        {
+            let item = item.unwrap().path();
+            let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
+            let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
+            let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
+                Ok(x) => x,
+                Err(e) => panic!(
+                    "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
+                    e, raw_toolchain_spec_data
+                ),
+            };
+            c.toolchains.push(toolchain_spec);
+        }
     // load contests
     // TODO: support multiple contests
     {
@@ -235,6 +255,7 @@ pub fn get_config() -> Config {
                 serde_json::from_reader(std::io::BufReader::new(problem_manifest_file)).unwrap();
             problem.title = problem_manifest.title;
             problem.loaded = true;
+            c.problems.insert(problem.name.clone(), problem.clone());
         }
         c.contests.push(contest);
     }

@@ -19,9 +19,9 @@ impl<'a> Compiler<'a> {
         fs::create_dir(req.paths.chroot_dir()).context(err::Io {})?;
         fs::create_dir(req.paths.share_dir()).context(err::Io {})?;
 
-        let limits = &self.ctx.cfg.global_limits;
+        let limits = &self.ctx.toolchain_cfg.limits;
 
-        let toolchain = &self.ctx.req.submission.toolchain;
+        let toolchain = &self.ctx.toolchain_cfg;
 
         let sandbox = self.ctx.create_sandbox(limits, req.paths)?;
 

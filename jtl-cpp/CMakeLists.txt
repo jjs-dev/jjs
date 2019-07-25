@@ -38,7 +38,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtl.a DESTINATION lib RENAME libjtl
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libJtlRsAr.a DESTINATION lib RENAME libjtlrs.a)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JtlConfig.cmake DESTINATION share/cmake)
 
-# Checkers
+# Checkers, valuers, testgens, etc
 function(add_builtin builtin_name src_file)
     set(target_name builtin-${builtin_name})
     add_executable(${target_name} ${src_file})
@@ -49,5 +49,6 @@ function(add_builtin builtin_name src_file)
     install(TARGETS ${target_name}
             RUNTIME DESTINATION bin)
 endfunction()
-add_builtin(checker-cmp-tokens src/builtin/cmp-tokens.cpp)
+add_builtin(checker-cmp-tokens src/builtin/checker-cmp-tokens.cpp)
 add_builtin(valuer-icpc src/builtin/val-icpc.cpp)
+add_builtin(checker-polygon-compat src/builtin/checker-polygon-compat.cpp)

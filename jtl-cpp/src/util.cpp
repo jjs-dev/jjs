@@ -1,4 +1,6 @@
 #include <cstdint>
+#include "util.h"
+
 
 static const uintptr_t SIGN_EXTENSION = 0xffff'0000'0000'0000;
 

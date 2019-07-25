@@ -1,7 +1,12 @@
 name="cpp"
 filename="source.cpp"
+
+[build-limits]
+time = 6000
+
 [[build]]
 argv=["/usr/bin/g++", "$(Submission.SourceFilePath)", "-o", "$(Submission.BinaryFilePath)", "-std=c++17", "-Wall"
 , "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
+
 [run]
 argv=["$(Submission.BinaryFilePath)"]

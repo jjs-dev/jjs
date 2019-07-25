@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{
+    ffi::{OsStr, OsString},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Command {
-    argv: Vec<String>,
-    exe: String,
-    cwd: Option<String>,
-    env: HashMap<String, String>,
+    argv: Vec<OsString>,
+    exe: OsString,
+    cwd: Option<OsString>,
+    env: Vec<(OsString, OsString)>,
 }
 
 impl Command {
@@ -16,7 +18,7 @@ impl Command {
         if let Some(cwd) = &self.cwd {
             cmd.current_dir(cwd);
         }
-        cmd.envs(self.env.iter());
+        cmd.envs(self.env.iter().cloned());
         cmd
     }
 
@@ -24,14 +26,14 @@ impl Command {
         use std::fmt::Write;
         let mut out = String::new();
         if let Some(cwd) = &self.cwd {
-            write!(out, "cd {} && ", cwd).unwrap();
+            write!(out, "cd {} && ", cwd.to_string_lossy()).unwrap();
         }
         for (k, v) in &self.env {
-            write!(out, "{}={} ", k, v).unwrap();
+            write!(out, "{}={} ", k.to_string_lossy(), v.to_string_lossy()).unwrap();
         }
-        write!(out, "{}", &self.exe).unwrap();
+        write!(out, "{}", self.exe.to_string_lossy()).unwrap();
         for arg in &self.argv {
-            write!(out, " {}", arg).unwrap();
+            write!(out, " {}", arg.to_string_lossy()).unwrap();
         }
         out
     }
@@ -70,28 +72,29 @@ impl std::fmt::Display for Command {
 }
 
 impl Command {
-    pub fn new(s: &str) -> Command {
-        let s = s.to_string();
+    pub fn new(s: impl AsRef<OsStr>) -> Command {
         Command {
-            exe: s,
-            argv: vec![],
+            exe: s.as_ref().to_os_string(),
+            argv: Vec::new(),
             cwd: None,
-            env: HashMap::new(),
+            env: Vec::new(),
         }
     }
 
-    pub fn arg(&mut self, a: &str) -> &mut Self {
-        self.argv.push(a.to_string());
+    pub fn arg(&mut self, a: impl AsRef<OsStr>) -> &mut Self {
+        self.argv.push(a.as_ref().to_os_string());
         self
     }
 
-    pub fn env(&mut self, key: &str, value: &str) -> &mut Self {
-        self.env.insert(key.to_string(), value.to_string());
+    pub fn env(&mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> &mut Self {
+        let key = key.as_ref().to_os_string();
+        let value = value.as_ref().to_os_string();
+        self.env.push((key, value));
         self
     }
 
-    pub fn current_dir(&mut self, cwd: &str) -> &mut Self {
-        self.cwd.replace(cwd.to_string());
+    pub fn current_dir(&mut self, cwd: impl AsRef<OsStr>) -> &mut Self {
+        self.cwd.replace(cwd.as_ref().to_os_string());
         self
     }
 }

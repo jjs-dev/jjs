@@ -94,7 +94,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub(crate) struct SubmissionProps {
     pub metadata: HashMap<String, String>,
-    pub id: u32,
+    pub id: i32,
 }
 
 /// Submission information, sufficient for judging
@@ -361,12 +361,7 @@ impl Server {
 
         let submission_props = SubmissionProps {
             metadata: submission_metadata,
-<<<<<<< HEAD
-            id: db_submission.id(),
-=======
-            toolchain: toolchain.clone(),
             id: db_submission.id,
->>>>>>> More updates on migrating to GraphQL
         };
 
         let submission = SubmissionInfo {
@@ -380,12 +375,7 @@ impl Server {
         let req = InvokeRequest {
             submission,
             work_dir: tempfile::TempDir::new().context(err::Io {})?,
-<<<<<<< HEAD
-            id: db_inv_req.invoke_revision as u32,
-=======
-            problem,
             id: db_inv_req.invoke_revision,
->>>>>>> More updates on migrating to GraphQL
         };
         Ok(req)
     }

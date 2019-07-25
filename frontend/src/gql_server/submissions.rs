@@ -68,7 +68,7 @@ pub(super) fn submit_simple(ctx: &Context, toolchain: schema::ToolchainId, code:
 
     let new_sub = db::schema::NewSubmission {
         toolchain_id: toolchain.name,
-        status_code: "QUEUE_BUILD".to_string(),
+        status_code: "QUEUE_JUDGE".to_string(),
         status_kind: "QUEUE".to_string(),
         problem_name: prob_name,
         score: 0,

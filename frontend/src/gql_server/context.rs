@@ -1,4 +1,4 @@
-use crate::security::{TokenFromRequestError, AccessCheckService};
+use crate::security::TokenFromRequestError;
 use std::sync::Arc;
 
 pub(crate) type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>;
@@ -7,7 +7,7 @@ pub(crate) type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::
 pub(crate) struct Context {
     pub(crate) pool: DbPool,
     pub(crate) cfg: cfg::Config,
-    pub(crate) access_control: crate::security::AccessCheckService<'static>,
+    //pub(crate) access_control: crate::security::AccessCheckService<'static>,
 }
 
 impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
@@ -16,12 +16,14 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
     fn from_request(
         request: &'a rocket::request::Request<'r>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-        let factory: rocket::State<ContextFactory> = request.guard::<rocket::State<ContextFactory>>().expect("State<ContextFactory> missing");
+        let factory: rocket::State<ContextFactory> = request
+            .guard::<rocket::State<ContextFactory>>()
+            .expect("State<ContextFactory> missing");
 
         rocket::Outcome::Success(Context {
             pool: factory.pool.clone(),
             cfg: (*factory.cfg).clone(),
-            access_control: AccessCheckService::from_request(request)?.upgrade_static(),
+            //access_control: AccessCheckService::from_request(request)?.upgrade_static(),
         })
     }
 }

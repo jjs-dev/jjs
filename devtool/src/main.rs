@@ -1,23 +1,17 @@
 mod util;
 
-use std::fs;
+use std::{fs, process::Command};
 use structopt::StructOpt;
 use util::get_project_dir;
-
-#[derive(StructOpt)]
-struct TouchArgs {
-    #[structopt(short = "v", long = "verbose")]
-    verbose: bool,
-}
 
 #[derive(StructOpt)]
 enum CliArgs {
     /// Helper command to setup VM with jjs
     #[structopt(name = "vm")]
     Vm,
-    /// Touch all crates in workspace, so cargo-check or clippy will lint them
-    #[structopt(name = "touch")]
-    Touch(TouchArgs),
+    /// Lint project
+    #[structopt(name = "build")]
+    Build,
 }
 
 fn task_vm() {
@@ -49,39 +43,39 @@ fn task_vm() {
     });
 }
 
-fn task_touch(arg: TouchArgs) {
-    let workspace_root = get_project_dir();
-    let items = fs::read_dir(workspace_root).expect("couldn't list dir");
-    //let mut roots = Vec::new();
-    for item in items {
-        let info = item.expect("couldn't describe item");
-        let item_type = info.file_type().expect("couldn't get item type");
-        if !item_type.is_dir() {
-            continue;
-        }
-        let path = info
-            .file_name()
-            .to_str()
-            .expect("couldn't decode item path")
-            .to_owned();
-        // TODO: touch bin/*
-        for root in &["src/main.rs", "src/lib.rs", "build.rs"] {
-            let p = format!("{}/{}", &path, root);
-            if std::fs::metadata(&p).is_ok() {
-                if arg.verbose {
-                    println!("touching {}", &p);
-                }
-                let time = filetime::FileTime::from_system_time(std::time::SystemTime::now());
-                filetime::set_file_times(&p, time, time).expect("couldn't touch");
-            }
-        }
+trait CommandExt {
+    fn run_check_status(&mut self);
+}
+
+impl CommandExt for Command {
+    fn run_check_status(&mut self) {
+        let st = self.status().unwrap();
+        assert!(st.success());
     }
+}
+
+fn task_build() {
+    Command::new("cargo")
+        .args(&["fmt", "--verbose", "--all", "--", "--check"])
+        .run_check_status();
+
+    Command::new("cargo")
+        .args(&[
+            "clippy",
+            "--all",
+            "--",
+            "-D",
+            "clippy::all",
+            "-D",
+            "warnings",
+        ])
+        .run_check_status();
 }
 
 fn main() {
     let args = CliArgs::from_args();
     match args {
         CliArgs::Vm => task_vm(),
-        CliArgs::Touch(arg) => task_touch(arg),
+        CliArgs::Build => task_build(),
     }
 }

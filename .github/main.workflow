@@ -5,7 +5,7 @@ workflow "OnPush" {
 
 action "Check" {
   uses = "docker://mikailbag/jjs-dev:latest"
-  runs = "just lint"
+  runs = "cargo build-jjs"
   env = {
     RUST_BACKTRACE = "1"
   }

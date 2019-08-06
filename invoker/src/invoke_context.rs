@@ -26,18 +26,6 @@ pub(crate) struct InvokeContext<'a> {
     pub(crate) logger: &'a Logger,
     pub(crate) submission_props: &'a crate::SubmissionProps,
 }
-/*
-impl<'a> Clone for InvokeContext<'a> {
-    fn clone<'b>(&'b self) -> InvokeContext<'a> {
-        InvokeContext {
-            minion_backend: self.minion_backend,
-            cfg: self.cfg,
-            logger: self.logger,
-            problem_cfg: self.problem_cfg,
-            toolchain_cfg: self.toolchain_cfg,
-        }
-    }
-}*/
 
 impl<'a> InvokeContext<'a> {
     pub(crate) fn get_problem_root(&self) -> PathBuf {

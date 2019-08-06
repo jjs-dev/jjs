@@ -70,11 +70,11 @@ pub struct AccessCheckService<'a> {
 impl<'a> AccessCheckService<'a> {
     // FIXME: dirty hack, juniper Context<'a> should be used
     // MUST be fixed for 1.0.0: performance problem + memory leak per request
-    pub fn upgrade_static(&'a self) -> AccessCheckService<'static>{
+    pub fn upgrade_static(&'a self) -> AccessCheckService<'static> {
         AccessCheckService {
             token: self.token.clone(),
             access_control_data: Box::leak(Box::new(self.access_control_data.clone())),
-            logger: self.logger.clone()
+            logger: self.logger.clone(),
         }
     }
 

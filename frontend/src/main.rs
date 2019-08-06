@@ -15,8 +15,7 @@ use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
 use security::{AccessCheckService, SecretKey, Token};
 use slog::Logger;
-use std::fmt::Debug;
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 #[derive(Debug)]
 enum FrontendError {

@@ -3,7 +3,7 @@ use acl::{AccessToken, Prefix};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub name: String,
     pub groups: Vec<String>,

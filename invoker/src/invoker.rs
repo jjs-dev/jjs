@@ -1,7 +1,14 @@
 pub(crate) use crate::invoke_context::InvokeContext;
-use crate::{compiler::Compiler, err, inter_api::{
-    BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification, ValuerResponse,
-}, judge::Judge, valuer::Valuer, Error, InvokeRequest};
+use crate::{
+    compiler::Compiler,
+    err,
+    inter_api::{
+        BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification, ValuerResponse,
+    },
+    judge::Judge,
+    valuer::Valuer,
+    Error, InvokeRequest,
+};
 use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog::{debug, error};
@@ -39,10 +46,10 @@ pub(crate) fn interpolate_string(
         if m.pattern() != next_pat_id {
             return BadSyntax {
                 message:
-                "get pattern start while parsing pattern or pattern end outside of pattern"
-                    .to_string(),
+                    "get pattern start while parsing pattern or pattern end outside of pattern"
+                        .to_string(),
             }
-                .fail();
+            .fail();
         }
 
         let chunk = &string[cur_pos..m.start()];
@@ -186,7 +193,10 @@ impl<'a> Invoker<'a> {
                         test_status: judge_response.status,
                     })?;
                 }
-                ValuerResponse::Finish { score, treat_as_full } => {
+                ValuerResponse::Finish {
+                    score,
+                    treat_as_full,
+                } => {
                     break (score, treat_as_full);
                 }
             }

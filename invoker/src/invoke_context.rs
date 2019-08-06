@@ -2,7 +2,6 @@ use crate::{
     err::{self, Error},
     inter_api::Paths,
     invoker::CommandInterp,
-    InvokeRequest,
 };
 use cfg::Config;
 use minion::HandleWrapper;
@@ -117,10 +116,7 @@ impl<'a> InvokeContext<'a> {
             "Submission.ToolchainName".to_string(),
             self.toolchain_cfg.name.clone().into(),
         );
-        dict.insert(
-            "Submission.Id".to_string(),
-            props.id.to_string().into(),
-        );
+        dict.insert("Submission.Id".to_string(), props.id.to_string().into());
         for (k, v) in props.metadata.iter() {
             dict.insert(format!("Submission.Metadata.{}", k), v.clone().into());
         }

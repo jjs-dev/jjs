@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    ffi::{OsStr, OsString},
-};
+use std::ffi::{OsStr, OsString};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Command {

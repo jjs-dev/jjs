@@ -1,8 +1,10 @@
+mod context;
 mod schema;
 mod submissions;
-mod context;
+mod users;
 
 use juniper::FieldResult;
+use std::marker::PhantomData;
 
 struct InternalError(Box<dyn std::error::Error>);
 
@@ -18,18 +20,17 @@ impl std::fmt::Display for InternalError {
     }
 }
 
-pub(crate) use context::Context;
+pub(crate) use context::{Context, ContextFactory};
 
-pub(crate) struct Query;
-
+pub(crate) struct Query<'a>(pub PhantomData<&'a ()>);
 
 #[juniper::object(Context = Context)]
-impl Query {
+impl<'a> Query<'a> {
     /// Get current API version
     ///
-    /// Version returned in format "MAJOR.MINOR"
-    /// MAJOR component is incremented, when backwards-incompatible changes were made
-    /// MINOR component is incremented, when backwards-compatible changes were made
+    /// Version returned in format "MAJOR.MINOR".
+    /// MAJOR component is incremented, when backwards-incompatible changes were made.
+    /// MINOR component is incremented, when backwards-compatible changes were made.
     ///
     /// It means, that if you developed application with apiVersion X.Y, your application
     /// should assert that MAJOR = X and MINOR >= Y
@@ -47,19 +48,41 @@ impl Query {
     }
 }
 
-pub(crate) struct Mutation;
+pub(crate) struct Mutation<'a>(pub PhantomData<&'a ()>);
 
 #[juniper::object(Context = Context)]
-impl Mutation {
+impl<'a> Mutation<'a> {
     /// Submit run
-    ///
-    /// toolchain: toolchain ID
-    /// run_code: run code, base64-encoded
-    /// problem: problem ID
-    /// contest: contest ID (currently only contest="TODO" is supported)
-    fn submit_simple(ctx: &Context, toolchain: schema::ToolchainId, run_code: String, problem: schema::ProblemId, contest: schema::ContestId) -> FieldResult<schema::Run> {
+    #[graphql(arguments(
+        toolchain(description = "toolchain ID"),
+        run_code(description = "run code, base64-encoded"),
+        problem(description = "problem ID"),
+        contest(description = "contest ID (currently only contest=\"TODO\" is supported)")
+    ))]
+    fn submit_simple(
+        ctx: &Context,
+        toolchain: schema::ToolchainId,
+        run_code: String,
+        problem: schema::ProblemId,
+        contest: schema::ContestId,
+    ) -> FieldResult<schema::Run> {
         submissions::submit_simple(ctx, toolchain, run_code, problem, contest)
+    }
+
+    /// Creates new user
+    #[graphql(arguments(
+        login(description = "login"),
+        password(description = "Password (no strength validation is performed)"),
+        groups(description = "List of groups new user should belong to")
+    ))]
+    fn create_user(
+        ctx: &Context,
+        login: String,
+        password: String,
+        groups: Vec<String>,
+    ) -> FieldResult<schema::User> {
+        users::create(ctx, login, password, groups)
     }
 }
 
-pub(crate) type Schema = juniper::RootNode<'static, Query, Mutation>;
+pub(crate) type Schema = juniper::RootNode<'static, Query<'static>, Mutation<'static>>;

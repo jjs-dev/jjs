@@ -48,7 +48,7 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn read_tag_content_as_string(&self, iter: &mut impl Iterator<Item=XmlEvent>) -> String {
+    fn read_tag_content_as_string(&self, iter: &mut impl Iterator<Item = XmlEvent>) -> String {
         let event = iter.next().unwrap();
         let data = self.event_as_string(event);
         let close_event = iter.next().unwrap();
@@ -58,7 +58,7 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn skip_section(&self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+    fn skip_section(&self, manifest: &mut impl Iterator<Item = XmlEvent>) {
         let mut depth = 1;
         while depth > 0 {
             match manifest.next().unwrap() {
@@ -85,7 +85,7 @@ impl<'a> Importer<'a> {
 
     // <problem><judging> is most important section for us: it contains information
     // about tests
-    fn process_judging_section(&mut self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_judging_section(&mut self, manifest: &mut impl Iterator<Item = XmlEvent>) {
         println!("<judging>");
         let testset_start = manifest.next().unwrap();
         match testset_start {
@@ -234,18 +234,25 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn process_checker(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_checker(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<checker>");
         loop {
             match iter.next().unwrap() {
-                XmlEvent::StartElement { name, attributes, .. } => {
+                XmlEvent::StartElement {
+                    name, attributes, ..
+                } => {
                     if name.local_name == "source" {
                         let attrs = self.parse_attrs(attributes);
                         let file_path = &attrs["path"];
-                        self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
+                        self.import_file(
+                            Path::new(file_path),
+                            Path::new("modules/checker/main.cpp"),
+                        );
                         let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
-                        let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
-                        std::fs::write(cmakefile, cmakedata).expect("write checker's CMakeLists.txt");
+                        let cmakedata =
+                            template::get_checker_cmakefile(template::CheckerOptions {});
+                        std::fs::write(cmakefile, cmakedata)
+                            .expect("write checker's CMakeLists.txt");
                     }
                     self.skip_section(iter);
                 }
@@ -254,7 +261,7 @@ impl<'a> Importer<'a> {
                         break;
                     }
                 }
-                other => panic!("unexpected event: {:?}", other)
+                other => panic!("unexpected event: {:?}", other),
             }
         }
         println!("</checker>");
@@ -273,7 +280,7 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn process_executables(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_executables(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<executables>");
         loop {
             match iter.next().unwrap() {
@@ -299,7 +306,7 @@ impl<'a> Importer<'a> {
         println!("</executables>");
     }
 
-    fn process_files(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_files(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<files>");
         loop {
             match iter.next().unwrap() {
@@ -325,7 +332,7 @@ impl<'a> Importer<'a> {
         println!("</files>");
     }
 
-    fn process_problem(&mut self, manifest: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_problem(&mut self, manifest: &mut impl Iterator<Item = XmlEvent>) {
         println!("<problem>");
         loop {
             match manifest.next().unwrap() {
@@ -351,7 +358,7 @@ impl<'a> Importer<'a> {
         println!("</problem>");
     }
 
-    fn process_tests(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_tests(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<tests>");
         let mut cnt = 0;
         loop {
@@ -394,7 +401,7 @@ impl<'a> Importer<'a> {
         println!("</tests>");
     }
 
-    fn process_solutions(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_solutions(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<solutions>");
         let mut last_tag = "".to_string();
         loop {
@@ -451,7 +458,7 @@ impl<'a> Importer<'a> {
         println!("</solutions>")
     }
 
-    fn process_assets(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_assets(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<assets>");
         loop {
             match iter.next().unwrap() {
@@ -477,7 +484,7 @@ impl<'a> Importer<'a> {
         println!("</assets>");
     }
 
-    fn process_names(&mut self, iter: &mut impl Iterator<Item=XmlEvent>) {
+    fn process_names(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
         println!("<names>");
         let ev = iter.next().unwrap();
         match ev {
@@ -507,7 +514,7 @@ impl<'a> Importer<'a> {
             name: "polygon-compat".to_string(),
         });
         m.check_options = Some(crate::cfg::CheckOptions {
-            args: vec!["assets/module-checker/bin".to_string()]
+            args: vec!["assets/module-checker/bin".to_string()],
         });
         let mut random_seed = [0; 32];
         getrandom::getrandom(&mut random_seed).unwrap();

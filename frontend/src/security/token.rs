@@ -7,7 +7,7 @@ use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
 use slog::{debug, Logger};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
     user_info: UserInfo,
 }
@@ -49,7 +49,7 @@ impl Token {
         let mut rand_gen = rand::thread_rng();
         let mut nonce = [0 as u8; 24];
         rand_gen.fill(&mut nonce);
-        branca::encode(&ser, key, &nonce, 0).expect("Token encoding error")
+        branca::encode(&ser, key, 0).expect("Token encoding error")
     }
 }
 
@@ -68,6 +68,16 @@ pub struct AccessCheckService<'a> {
 }
 
 impl<'a> AccessCheckService<'a> {
+    // FIXME: dirty hack, juniper Context<'a> should be used
+    // MUST be fixed for 1.0.0: performance problem + memory leak per request
+    pub fn upgrade_static(&'a self) -> AccessCheckService<'static>{
+        AccessCheckService {
+            token: self.token.clone(),
+            access_control_data: Box::leak(Box::new(self.access_control_data.clone())),
+            logger: self.logger.clone()
+        }
+    }
+
     pub fn to_access_checker(&'a self) -> AccessChecker<'a> {
         AccessChecker {
             root: &self.access_control_data.root,

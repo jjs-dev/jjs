@@ -1,9 +1,9 @@
 use super::{schema, Context, InternalError};
-use juniper::{FieldResult, FieldError};
 use diesel::prelude::*;
+use juniper::FieldResult;
 
 fn describe_submission(submission: &db::schema::Submission) -> schema::Run {
-    use schema::{Run};
+    use schema::Run;
     Run {
         id: submission.id,
         toolchain_name: submission.toolchain.clone(),
@@ -31,7 +31,8 @@ pub(super) fn list(
 
     let user_submissions = query
         .limit(limit.map(i64::from).unwrap_or(i64::max_value()))
-        .load::<db::schema::Submission>(&conn).map_err(InternalError::from)?;
+        .load::<db::schema::Submission>(&conn)
+        .map_err(InternalError::from)?;
     let user_submissions = user_submissions
         .iter()
         .map(|s| describe_submission(s))
@@ -39,14 +40,18 @@ pub(super) fn list(
     Ok(user_submissions)
 }
 
-pub(super) fn submit_simple(ctx: &Context, toolchain: schema::ToolchainId, code: String, problem: schema::ProblemId, contest: schema::ContestId) -> FieldResult<schema::Run> {
+pub(super) fn submit_simple(
+    ctx: &Context,
+    toolchain: schema::ToolchainId,
+    code: String,
+    problem: schema::ProblemId,
+    contest: schema::ContestId,
+) -> FieldResult<schema::Run> {
     use db::schema::{invokation_requests::dsl::*, submissions::dsl::*, NewInvokationRequest};
     let toolchain = ctx.cfg.toolchains.get(toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
-        None => {
-            Err("unknown toolchain")?
-        }
+        None => Err("unknown toolchain")?,
     };
     let conn = ctx.pool.get()?;
     if contest != "TODO" {
@@ -60,9 +65,7 @@ pub(super) fn submit_simple(ctx: &Context, toolchain: schema::ToolchainId, code:
         .cloned();
     let problem = match problem {
         Some(p) => p,
-        None => {
-            Err("unknown problem")?
-        }
+        None => Err("unknown problem")?,
     };
     let prob_name = problem.name.clone();
 
@@ -77,10 +80,12 @@ pub(super) fn submit_simple(ctx: &Context, toolchain: schema::ToolchainId, code:
 
     let subm: db::schema::Submission = diesel::insert_into(submissions)
         .values(&new_sub)
-        .get_result(&conn).map_err(InternalError::from)?;
+        .get_result(&conn)
+        .map_err(InternalError::from)?;
 
     // Put submission in sysroot
-    let submission_dir = ctx.cfg
+    let submission_dir = ctx
+        .cfg
         .sysroot
         .join("var/submissions")
         .join(&format!("s-{}", subm.id));

@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro, type_alias_enum_variants)]
+#![feature(proc_macro_hygiene, decl_macro, type_alias_enum_variants, param_attrs)]
 
 #[macro_use]
 extern crate rocket;
@@ -16,6 +16,7 @@ use rocket_contrib::json::Json;
 use security::{AccessCheckService, SecretKey, Token};
 use slog::Logger;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 enum FrontendError {
@@ -163,38 +164,6 @@ fn route_toolchains_list(
     Ok(Json(res))
 }
 
-#[post("/users/create", data = "<params>")]
-fn route_users_create(
-    params: Json<frontend_api::UsersCreateParams>,
-    db: State<DbPool>,
-    access: AccessCheckService,
-) -> Response<Result<(), frontend_api::UsersCreateError>> {
-    use db::schema::users::dsl::*;
-    if !access.to_access_checker().can_create_users() {
-        let res = Err(frontend_api::UsersCreateError::Common(
-            frontend_api::CommonError::AccessDenied,
-        ));
-        return Ok(Json(res));
-    }
-
-    let provided_password_hash = password::get_password_hash(params.0.password.as_str());
-
-    let new_user = db::schema::NewUser {
-        username: params.login.clone(),
-        password_hash: provided_password_hash,
-        groups: params.groups.clone(),
-    };
-
-    let conn = db.get()?;
-
-    let _user: db::schema::User = diesel::insert_into(users)
-        .values(&new_user)
-        .get_result(&conn)?;
-
-    let res = Ok(());
-    Ok(Json(res))
-}
-
 fn describe_problem(problem: &cfg::Problem) -> frontend_api::ProblemInformation {
     frontend_api::ProblemInformation {
         code: problem.code.clone(),
@@ -273,20 +242,20 @@ fn route_graphiql() -> rocket::response::content::Html<String> {
 
 #[rocket::get("/graphql?<request>")]
 fn route_get_graphql(
-    context: State<gql_server::Context>,
+    ctx: gql_server::Context,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &context)
+    request.execute(&schema, &ctx)
 }
 
 #[rocket::post("/graphql", data = "<request>")]
 fn route_post_graphql(
-    context: State<gql_server::Context>,
+    ctx: gql_server::Context,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &context)
+    request.execute(&schema, &ctx)
 }
 
 #[derive(Clone)]
@@ -329,23 +298,29 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         .set_secret_key(base64::encode(&frcfg.secret))
         .unwrap();
 
-    let graphql_context = gql_server::Context { pool: pool.clone(), cfg: config.clone() };
+    let graphql_context_factory = gql_server::ContextFactory {
+        pool: pool.clone(),
+        cfg: std::sync::Arc::new(config.clone()),
+    };
 
-    let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
+    let graphql_schema = gql_server::Schema::new(
+        gql_server::Query(PhantomData),
+        gql_server::Mutation(PhantomData),
+    );
 
     let (intro_data, intro_errs) = juniper::introspect(
         &graphql_schema,
-        &graphql_context,
+        &graphql_context_factory.create_context_unrestricted(),
         juniper::IntrospectionFormat::default(),
     )
-        .unwrap();
+    .unwrap();
     assert!(intro_errs.is_empty());
 
     let introspection_json = serde_json::to_string(&intro_data).unwrap();
 
     rocket::custom(rocket_config)
         .manage(pool)
-        .manage(graphql_context)
+        .manage(graphql_context_factory)
         .manage(graphql_schema)
         .manage(config.clone())
         .manage(logger.clone())

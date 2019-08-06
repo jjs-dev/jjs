@@ -47,7 +47,7 @@ pub struct NewInvokationRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
 pub struct User {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub username: String,
     pub password_hash: String,
     pub groups: Vec<String>,

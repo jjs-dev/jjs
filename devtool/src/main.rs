@@ -1,6 +1,6 @@
 mod util;
 
-use std::{env, fs};
+use std::fs;
 use structopt::StructOpt;
 use util::get_project_dir;
 
@@ -18,42 +18,6 @@ enum CliArgs {
     /// Touch all crates in workspace, so cargo-check or clippy will lint them
     #[structopt(name = "touch")]
     Touch(TouchArgs),
-}
-
-fn task_publish() {
-    let client = reqwest::Client::new();
-    let access_token =
-        env::var("JJS_DEVTOOL_YANDEXDRIVE_ACCESS_TOKEN").expect("access token not provided");
-    let access_header = format!("OAuth {}", access_token);
-    let upload_url = {
-        let upload_path = "/jjs-dist/jjs.tgz";
-        let upload_path = percent_encoding::percent_encode(
-            upload_path.as_bytes(),
-            percent_encoding::DEFAULT_ENCODE_SET,
-        )
-        .to_string();
-        let req_url = format!(
-            "https://cloud-api.yandex.net/v1/disk/resources/upload?path={}&overwrite=true",
-            upload_path
-        );
-        let response: serde_json::Value = client
-            .get(&req_url)
-            .header("Authorization", access_header.as_str())
-            .send()
-            .unwrap()
-            .json()
-            .unwrap();
-        response["href"].as_str().unwrap().to_string()
-    };
-    let tgz_pkg_path = format!("{}/pkg/jjs.tgz", get_project_dir());
-    client
-        .put(&upload_url)
-        .header("Authorization", access_header.as_str())
-        .body(fs::File::open(tgz_pkg_path).unwrap())
-        .send()
-        .unwrap()
-        .text()
-        .unwrap();
 }
 
 fn task_vm() {

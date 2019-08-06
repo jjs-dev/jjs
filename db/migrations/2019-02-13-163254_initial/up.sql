@@ -20,7 +20,7 @@ CREATE SEQUENCE user_id_seq START WITH 0 MINVALUE 0;
 
 CREATE TABLE users
 (
-    id            unsigned_integer DEFAULT nextval('user_id_seq') UNIQUE PRIMARY KEY NOT NULL,
+    id            UUID UNIQUE PRIMARY KEY NOT NULL,
     username      VARCHAR(100) UNIQUE                                                NOT NULL,
     password_hash CHAR(128)                                                          NOT NULL, -- SHA3-512, in hex encoding
     groups        TEXT[]                                                             NOT NULL

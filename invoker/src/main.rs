@@ -168,7 +168,7 @@ impl Server {
             ctrlc::set_handler(move || {
                 should_run.store(false, sync::atomic::Ordering::SeqCst);
             })
-                .unwrap();
+            .unwrap();
         }
         //TODO: start multiple threads
         self.thread_loop(Arc::clone(&should_run));
@@ -333,10 +333,11 @@ impl Server {
         let reader =
             std::io::BufReader::new(fs::File::open(problem_manifest_path).context(err::Io)?);
 
-        let problem_data: pom::Problem = serde_json::from_reader(reader).map_err(|e| Error::Other {
-            backtrace: Default::default(),
-            inner: Box::new(e),
-        })?;
+        let problem_data: pom::Problem =
+            serde_json::from_reader(reader).map_err(|e| Error::Other {
+                backtrace: Default::default(),
+                inner: Box::new(e),
+            })?;
 
         let toolchain_cfg =
             self.config
@@ -349,7 +350,8 @@ impl Server {
                     ))),
                 })?;
 
-        let problem_cfg = self.config
+        let problem_cfg = self
+            .config
             .find_problem(&db_submission.problem_name)
             .ok_or(Error::BadConfig {
                 backtrace: Default::default(),

@@ -129,7 +129,6 @@ fn main() {
         core: !opt.no_core,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
-    println!("Configuration: {}", &build_config);
     println!("Emitting JJS build config: {}", &manifest_path);
     let out_file = std::fs::File::create(&manifest_path).unwrap();
     let mut ser = serde_json::Serializer::pretty(out_file);

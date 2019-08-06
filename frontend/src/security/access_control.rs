@@ -32,7 +32,7 @@ bitflags! {
 
 const LOGGED_IN_GROUP: &str = "$JJS.LoggedIn";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AccessControlData {
     pub root: Prefix,
 }

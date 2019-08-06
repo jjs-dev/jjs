@@ -26,7 +26,7 @@ table! {
     use super::*;
 
     users (id) {
-        id -> Int4,
+        id -> Uuid,
         username -> Varchar,
         password_hash -> Bpchar,
         groups -> Array<Text>,

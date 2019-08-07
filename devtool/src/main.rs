@@ -12,6 +12,9 @@ enum CliArgs {
     /// Lint project
     #[structopt(name = "build")]
     Build,
+    /// Run all tests
+    #[structopt(name = "test")]
+    Test,
 }
 
 fn task_vm() {
@@ -72,10 +75,17 @@ fn task_build() {
         .run_check_status();
 }
 
+fn task_test() {
+    Command::new("cargo")
+        .args(&["test"])
+        .run_check_status();
+}
+
 fn main() {
     let args = CliArgs::from_args();
     match args {
         CliArgs::Vm => task_vm(),
         CliArgs::Build => task_build(),
+        CliArgs::Test => task_test(),
     }
 }

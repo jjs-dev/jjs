@@ -9,7 +9,7 @@ mod os_util;
 mod valuer;
 
 use cfg_if::cfg_if;
-use db::schema::{InvokationRequest, Submission};
+use db::schema::{InvocationRequest, Run};
 use diesel::{pg::PgConnection, prelude::*};
 use invoker::{InvokeContext, Invoker};
 use slog::{debug, error, info, o, Drain, Logger};
@@ -137,11 +137,11 @@ fn submission_set_judge_outcome(
     conn: &PgConnection,
     submission_id: i32,
     outcome: invoker::InvokeOutcome,
-    request: &InvokationRequest,
+    request: &InvocationRequest,
 ) {
-    use db::schema::submissions::dsl::*;
-    let target = submissions.filter(id.eq(submission_id));
-    let subm_patch = db::schema::SubmissionPatch {
+    use db::schema::runs::dsl::*;
+    let target = runs.filter(id.eq(submission_id));
+    let subm_patch = db::schema::RunPatch {
         status_code: Some(outcome.status.code.to_string()),
         status_kind: Some(outcome.status.kind.to_string()),
         score: Some(outcome.score as i32),
@@ -174,19 +174,19 @@ impl Server {
         self.thread_loop(Arc::clone(&should_run));
     }
 
-    fn try_get_task(&self) -> Option<InvokationRequest> {
-        use db::schema::invokation_requests::dsl::*;
-        let res: Option<InvokationRequest> = self
+    fn try_get_task(&self) -> Option<InvocationRequest> {
+        use db::schema::invocation_requests::dsl::*;
+        let res: Option<InvocationRequest> = self
             .db_conn
             .transaction::<_, diesel::result::Error, _>(|| {
-                let waiting_submission = invokation_requests
+                let waiting_submission = invocation_requests
                     .limit(1)
-                    .load::<InvokationRequest>(&self.db_conn)
+                    .load::<InvocationRequest>(&self.db_conn)
                     .expect("db error");
                 let waiting_submission = waiting_submission.into_iter().next();
                 match waiting_submission {
                     Some(s) => {
-                        diesel::delete(invokation_requests)
+                        diesel::delete(invocation_requests)
                             .filter(id.eq(s.id))
                             .execute(&self.db_conn)
                             .expect("db error");
@@ -216,17 +216,17 @@ impl Server {
                     continue;
                 }
             };
-            let submission_id = inv_req.submission_id;
+            let run_id = inv_req.run_id;
             match self.process_task(inv_req) {
                 Ok(_) => {}
                 Err(err) => {
-                    error!(self.logger, "Invokation fault"; "submission" => submission_id, "message" => %err, "message-detailed" => ?err);
+                    error!(self.logger, "Invokation fault"; "submission" => run_id, "message" => %err, "message-detailed" => ?err);
                 }
             }
         }
     }
 
-    fn process_task(&self, inv_req: InvokationRequest) -> Result<(), Error> {
+    fn process_task(&self, inv_req: InvocationRequest) -> Result<(), Error> {
         let req = self.fetch_submission_info(&inv_req)?;
         let submission_id = req.submission.props.id;
         let outcome = self.process_invoke_request(&req);
@@ -297,14 +297,14 @@ impl Server {
     /// This functions queries all related data about submission and returns JudgeRequest
     fn fetch_submission_info(
         &self,
-        db_inv_req: &InvokationRequest,
+        db_inv_req: &InvocationRequest,
     ) -> Result<InvokeRequest, Error> {
         let db_submission;
         {
-            use db::schema::submissions::dsl::*;
-            db_submission = submissions
-                .filter(id.eq(db_inv_req.submission_id as i32))
-                .load::<Submission>(&self.db_conn)
+            use db::schema::runs::dsl::*;
+            db_submission = runs
+                .filter(id.eq(db_inv_req.run_id as i32))
+                .load::<Run>(&self.db_conn)
                 .unwrap()
                 .into_iter()
                 .next()
@@ -321,7 +321,7 @@ impl Server {
         };
         submission_metadata.insert("JudgeTimeUtc".to_string(), judge_time);
 
-        let prob_name = &db_submission.problem_name;
+        let prob_name = &db_submission.problem_id;
 
         let problem_manifest_path = self
             .config
@@ -341,23 +341,23 @@ impl Server {
 
         let toolchain_cfg =
             self.config
-                .find_toolchain(&db_submission.toolchain)
+                .find_toolchain(&db_submission.toolchain_id)
                 .ok_or(Error::BadConfig {
                     backtrace: Default::default(),
                     inner: Box::new(StringError(format!(
                         "toolchain {} not found",
-                        &db_submission.toolchain
+                        &db_submission.toolchain_id
                     ))),
                 })?;
 
         let problem_cfg = self
             .config
-            .find_problem(&db_submission.problem_name)
+            .find_problem(&db_submission.problem_id)
             .ok_or(Error::BadConfig {
                 backtrace: Default::default(),
                 inner: Box::new(StringError(format!(
                     "problem {} not found",
-                    &db_submission.problem_name
+                    &db_submission.problem_id
                 ))),
             })?;
 

@@ -1,12 +1,12 @@
 -- indicies
-DROP INDEX submissions_id_unique_index;
+DROP INDEX runs_id_unique_index;
 -- tables
-DROP TABLE invokation_requests;
-DROP TABLE submissions;
+DROP TABLE invocation_requests;
+DROP TABLE runs;
 DROP TABLE users;
 -- sequences
 DROP SEQUENCE user_id_seq;
-DROP SEQUENCE submission_id_seq;
+DROP SEQUENCE run_id_seq;
 DROP SEQUENCE inv_req_id_seq;
 -- types
 DROP DOMAIN unsigned_integer;

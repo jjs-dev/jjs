@@ -1,6 +1,6 @@
 workflow "OnPush" {
   on = "push"
-  resolves = ["Publish", "Docs"]
+  resolves = ["Publish", "Docs", "Test"]
 }
 
 action "Check" {
@@ -8,6 +8,15 @@ action "Check" {
   runs = "cargo build-jjs"
   env = {
     RUST_BACKTRACE = "1"
+  }
+}
+
+action "Test" {
+  uses = "docker://mikailbag/jjs-dev:latest"
+  runs = "cargo test-jjs"
+  needs = ["Check"]
+  env = {
+      RUST_BACKTRACE = "1"
   }
 }
 

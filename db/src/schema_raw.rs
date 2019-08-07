@@ -1,9 +1,9 @@
 table! {
     use super::*;
 
-    invokation_requests (id) {
+    invocation_requests (id) {
         id -> Int4,
-        submission_id -> Int4,
+        run_id -> Int4,
         invoke_revision -> Int4,
     }
 }
@@ -11,12 +11,12 @@ table! {
 table! {
     use super::*;
 
-    submissions (id) {
+    runs (id) {
         id -> Int4,
         toolchain_id -> Varchar,
         status_code -> Varchar,
         status_kind -> Varchar,
-        problem_name -> Varchar,
+        problem_id -> Varchar,
         score -> Int4,
         rejudge_id -> Int4,
     }
@@ -33,10 +33,10 @@ table! {
     }
 }
 
-joinable!(invokation_requests -> submissions (submission_id));
+joinable!(invocation_requests -> runs (run_id));
 
 allow_tables_to_appear_in_same_query!(
-    invokation_requests,
-    submissions,
+    invocation_requests,
+    runs,
     users,
 );

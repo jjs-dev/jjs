@@ -1,28 +1,35 @@
-#[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
-pub struct Submission {
-    pub id: i32,
-    pub toolchain: String,
-    pub status: String,
+use serde::{Serialize, Deserialize};
+
+pub type RunId = i32;
+pub type InvocationRequestId = i32;
+pub type UserId = uuid::Uuid;
+pub type ProblemId = String;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Queryable, PartialEq, Eq)]
+pub struct Run {
+    pub id: RunId,
+    pub toolchain_id: String,
+    pub status_code: String,
     pub status_kind: String,
-    pub problem_name: String,
+    pub problem_id: ProblemId,
     pub score: i32,
     pub rejudge_id: i32,
 }
 
 #[derive(Insertable)]
-#[table_name = "submissions"]
-pub struct NewSubmission {
+#[table_name = "runs"]
+pub struct NewRun {
     pub toolchain_id: String,
     pub status_code: String,
     pub status_kind: String,
-    pub problem_name: String,
+    pub problem_id: ProblemId,
     pub score: i32,
     pub rejudge_id: i32,
 }
 
 #[derive(AsChangeset, Default)]
-#[table_name = "submissions"]
-pub struct SubmissionPatch {
+#[table_name = "runs"]
+pub struct RunPatch {
     pub status_code: Option<String>,
     pub status_kind: Option<String>,
     #[column_name = "score"]
@@ -32,22 +39,22 @@ pub struct SubmissionPatch {
 }
 
 #[derive(Queryable, Debug, Clone, Serialize, Deserialize)]
-pub struct InvokationRequest {
-    pub id: i32,
-    pub submission_id: i32,
+pub struct InvocationRequest {
+    pub id: InvocationRequestId,
+    pub run_id: i32,
     pub invoke_revision: i32,
 }
 
 #[derive(Insertable)]
-#[table_name = "invokation_requests"]
-pub struct NewInvokationRequest {
-    pub submission_id: i32,
+#[table_name = "invocation_requests"]
+pub struct NewInvocationRequest {
+    pub run_id: RunId,
     pub invoke_revision: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
 pub struct User {
-    pub id: uuid::Uuid,
+    pub id: UserId,
     pub username: String,
     pub password_hash: String,
     pub groups: Vec<String>,

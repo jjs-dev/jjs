@@ -112,7 +112,7 @@ fn route_submissions_set_info(
     db: State<DbPool>,
     access: AccessCheckService,
 ) -> Response<Result<(), frontend_api::CommonError>> {
-    use db::schema::submissions::dsl::*;
+    use db::schema::runs::dsl::*;
     if !access.to_access_checker().can_manage_submissions() {
         let res = Err(frontend_api::CommonError::AccessDenied);
         return Ok(Json(res));
@@ -120,16 +120,16 @@ fn route_submissions_set_info(
     let conn = db.get()?;
     let should_delete = params.delete;
     if should_delete {
-        diesel::delete(submissions)
+        diesel::delete(runs)
             .filter(id.eq(params.id as i32))
             .execute(&conn)?;
     } else {
-        let mut changes: db::schema::SubmissionPatch = Default::default();
+        let mut changes: db::schema::RunPatch = Default::default();
         if let Some(new_status) = &params.status {
             changes.status_code = Some(new_status.code.to_string());
             changes.status_kind = Some(new_status.kind.to_string());
         }
-        diesel::update(submissions)
+        diesel::update(runs)
             .filter(id.eq(params.id as i32))
             .set(changes)
             .execute(&conn)?;

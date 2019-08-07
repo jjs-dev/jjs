@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 libc = "0.2.60"
+semver = "0.9.0"

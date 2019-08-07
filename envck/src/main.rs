@@ -1,4 +1,8 @@
-use std::{fs, io::ErrorKind, process::exit};
+use std::{
+    fs,
+    io::ErrorKind,
+    process::{exit, Command},
+};
 
 fn main() {
     println!("checking user");
@@ -32,6 +36,44 @@ fn main() {
                 eprintln!("ERROR: subsystem {} not found", subsys);
                 exit(1);
             }
+        }
+    }
+    println!("Checking kernel version");
+    {
+        let out = Command::new("uname")
+            .arg("-r")
+            .output()
+            .expect("failed run 'uname -r'");
+        if !out.status.success() {
+            let code = out
+                .status
+                .code()
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "<unknown>".to_string());
+            eprintln!(
+                "error:\nexit-code={}\n---output---\n{}\n---stderr---\n{}",
+                code,
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+        }
+        let version = String::from_utf8(out.stdout).expect("failed decode uname output");
+        let version = version.trim();
+        let version = semver::Version::parse(&version).unwrap_or_else(|err| {
+            eprintln!("failed parse '{}': {}", version, err);
+            exit(1);
+        });
+        // TODO: relax
+        let min_version = semver::Version {
+            major: 5,
+            minor: 0,
+            patch: 0,
+            pre: vec![],
+            build: vec![],
+        };
+        if version < min_version {
+            eprintln!("error: Linux Kernel version {} is unsupported. Minimal supported version is currently {}", version, min_version);
         }
     }
     println!("OK");

@@ -1,5 +1,7 @@
 mod memory;
 
+pub use memory::MemoryRepo;
+
 use crate::{schema::*, Error};
 
 pub trait RunsRepo {

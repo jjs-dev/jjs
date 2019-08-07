@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate diesel;
 
-pub mod schema;
+mod connect;
 pub mod repo;
+pub mod schema;
 
+pub use connect::connect_memory;
 use snafu_derive::Snafu;
-use std::fmt::{self, Formatter, Display, Debug};
+use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -13,7 +15,7 @@ pub enum Error {
         source: diesel::result::Error,
     },
     Other {
-        source: Box<dyn std::error::Error + 'static>
+        source: Box<dyn std::error::Error + 'static>,
     },
 }
 
@@ -36,7 +38,7 @@ impl std::error::Error for StringError {}
 impl Error {
     fn string(s: &'static str) -> Self {
         Error::Other {
-            source: Box::new(StringError(s))
+            source: Box::new(StringError(s)),
         }
     }
 }

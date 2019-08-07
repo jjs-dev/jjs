@@ -339,27 +339,27 @@ impl Server {
                 inner: Box::new(e),
             })?;
 
-        let toolchain_cfg =
-            self.config
-                .find_toolchain(&db_submission.toolchain_id)
-                .ok_or(Error::BadConfig {
-                    backtrace: Default::default(),
-                    inner: Box::new(StringError(format!(
-                        "toolchain {} not found",
-                        &db_submission.toolchain_id
-                    ))),
-                })?;
-
-        let problem_cfg = self
+        let toolchain_cfg = self
             .config
-            .find_problem(&db_submission.problem_id)
+            .find_toolchain(&db_submission.toolchain_id)
             .ok_or(Error::BadConfig {
                 backtrace: Default::default(),
                 inner: Box::new(StringError(format!(
-                    "problem {} not found",
-                    &db_submission.problem_id
+                    "toolchain {} not found",
+                    &db_submission.toolchain_id
                 ))),
             })?;
+
+        let problem_cfg =
+            self.config
+                .find_problem(&db_submission.problem_id)
+                .ok_or(Error::BadConfig {
+                    backtrace: Default::default(),
+                    inner: Box::new(StringError(format!(
+                        "problem {} not found",
+                        &db_submission.problem_id
+                    ))),
+                })?;
 
         let submission_props = SubmissionProps {
             metadata: submission_metadata,

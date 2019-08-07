@@ -76,9 +76,7 @@ fn task_build() {
 }
 
 fn task_test() {
-    Command::new("cargo")
-        .args(&["test"])
-        .run_check_status();
+    Command::new("cargo").args(&["test"]).run_check_status();
 }
 
 fn main() {

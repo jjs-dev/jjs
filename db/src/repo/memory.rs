@@ -1,29 +1,21 @@
-use std::sync::Mutex;
+use super::{InvocationRequestsRepo, Repo, RunsRepo};
 use crate::{schema::*, Error};
-use super::{RunsRepo, UsersRepo, InvocationRequestsRepo, Repo};
+use std::sync::Mutex;
 
 #[derive(Default)]
 struct Data {
-    users: Vec<User>,
     runs: Vec<Run>,
     inv_reqs: Vec<InvocationRequest>,
 }
 
-impl Data {
-    fn new() -> Self {
-        Default::default()
-    }
-}
-
+#[derive(Default)]
 pub struct MemoryRepo {
-    conn: Mutex<Data>
+    conn: Mutex<Data>,
 }
 
 impl MemoryRepo {
     pub fn new() -> Self {
-        MemoryRepo {
-            conn: Mutex::new(Data::new())
-        }
+        Default::default()
     }
 }
 
@@ -47,7 +39,10 @@ impl RunsRepo for MemoryRepo {
     fn run_load(&self, run_id: i32) -> Result<Run, Error> {
         let data = self.conn.lock().unwrap();
         let idx = run_id as usize;
-        data.runs.get(idx).cloned().ok_or_else(|| Error::string("run_load: unknown run id"))
+        data.runs
+            .get(idx)
+            .cloned()
+            .ok_or_else(|| Error::string("run_load: unknown run id"))
     }
 
     fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<(), Error> {
@@ -55,7 +50,7 @@ impl RunsRepo for MemoryRepo {
         let idx = run_id as usize;
         let cur = match data.runs.get_mut(idx) {
             Some(x) => x,
-            None => return Err(Error::string("run_update: unknown run id"))
+            None => return Err(Error::string("run_update: unknown run id")),
         };
         if let Some(new_status_code) = patch.status_code {
             cur.status_code = new_status_code;

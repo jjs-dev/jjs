@@ -38,7 +38,7 @@ fn main() {
             }
         }
     }
-    println!("Checking kernel version");
+    println!("checking kernel version");
     {
         let out = Command::new("uname")
             .arg("-r")
@@ -66,8 +66,8 @@ fn main() {
         });
         // TODO: relax
         let min_version = semver::Version {
-            major: 5,
-            minor: 0,
+            major: 4,
+            minor: 18,
             patch: 0,
             pre: vec![],
             build: vec![],

@@ -1,3 +1,4 @@
 [alias]
 build-jjs = "run --package devtool -- build"
 test-jjs = "run --package devtool -- test"
+docs-jjs = "run -p devtool -- man"

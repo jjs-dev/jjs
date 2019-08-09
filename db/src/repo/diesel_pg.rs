@@ -15,8 +15,6 @@ impl DieselRepo {
     pub(crate) fn new(conn_url: &str) -> Result<DieselRepo, Error> {
         let conn_manager = ConnectionManager::new(conn_url);
         let pool = Pool::new(conn_manager)?;
-        Ok(DieselRepo {
-            pool
-        })
+        Ok(DieselRepo { pool })
     }
 }

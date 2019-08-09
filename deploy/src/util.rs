@@ -39,10 +39,10 @@ pub fn create_or_empty(path: &str) -> Result<(), std::io::Error> {
     let path = std::path::PathBuf::from(path);
     if path.exists() {
         if !path.is_dir() {
-            Err(MessageError("path is not directory".to_string()))?;
+            return Err(MessageError("path is not directory".to_string()).into());
         }
         if path.read_dir()?.next().is_some() {
-            Err(MessageError("path is not empty".to_string()))?
+            return Err(MessageError("path is not empty".to_string()).into());
         }
         Ok(())
     } else {

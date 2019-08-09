@@ -1,4 +1,4 @@
-use super::{InvocationRequestsRepo, Repo, RunsRepo};
+use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
 use crate::{schema::*, Error};
 use std::sync::Mutex;
 
@@ -6,6 +6,7 @@ use std::sync::Mutex;
 struct Data {
     runs: Vec<Run>,
     inv_reqs: Vec<InvocationRequest>,
+    users: Vec<User>,
 }
 
 #[derive(Default)]
@@ -85,6 +86,22 @@ impl InvocationRequestsRepo for MemoryRepo {
     fn inv_req_pop(&self) -> Result<Option<InvocationRequest>, Error> {
         let mut data = self.conn.lock().unwrap();
         Ok(data.inv_reqs.pop())
+    }
+}
+
+impl UsersRepo for MemoryRepo {
+    fn user_new(&self, user_data: NewUser) -> Result<User, Error> {
+        let mut data = self.conn.lock().unwrap();
+        let user_id = data.users.len();
+        let user_id = uuid::Uuid::from_fields(user_id as u32, 0, 0, &[0; 8]).unwrap();
+        let user = User {
+            id: user_id,
+            username: user_data.username,
+            password_hash: user_data.password_hash,
+            groups: user_data.groups,
+        };
+        data.users.push(user.clone());
+        Ok(user)
     }
 }
 

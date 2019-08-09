@@ -36,7 +36,7 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: &'static [u8]) -> crate::
         Ok(x) => x,
         Err(e) => {
             write!(logger, "receive error: {:?}", e).unwrap();
-            Err(crate::Error::Sandbox)?
+            return Err(crate::Error::Sandbox);
         }
     };
     if recv_buf != expected_class {
@@ -47,7 +47,7 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: &'static [u8]) -> crate::
             String::from_utf8_lossy(&recv_buf)
         )
         .unwrap();
-        Err(crate::Error::Sandbox)?
+        return Err(crate::Error::Sandbox);
     };
     Ok(())
 }
@@ -55,7 +55,7 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: &'static [u8]) -> crate::
 unsafe fn sock_wake(sock: &mut Socket, wake_class: &'static [u8]) -> crate::Result<()> {
     match sock.send_slice(&wake_class, None) {
         Ok(_) => Ok(()),
-        Err(_) => Err(crate::Error::Sandbox)?,
+        Err(_) => Err(crate::Error::Sandbox),
     }
 }
 

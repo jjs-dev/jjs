@@ -6,9 +6,10 @@ edition = "2018"
 
 [dependencies]
 postgres = "0.15.2"
-diesel = { version = "1.4.2", features = ["postgres", "uuidv07"] }
+diesel = { version = "1.4.2", features = ["postgres", "uuidv07", "r2d2"] }
 serde = { version = "1.0.98", features = ["derive"] }
 uuid = { version = "0.7.4", features = ["serde"] }
 snafu = "0.4.3"
 derive = "1.0.0"
 snafu-derive = "0.4.3"
+r2d2 = "0.8.5"

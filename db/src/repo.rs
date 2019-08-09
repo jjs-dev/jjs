@@ -1,5 +1,7 @@
+mod diesel_pg;
 mod memory;
 
+pub use diesel_pg::DieselRepo;
 pub use memory::MemoryRepo;
 
 use crate::{schema::*, Error};
@@ -19,4 +21,4 @@ pub trait UsersRepo {
     fn user_new(&self, user_data: NewUser) -> Result<User, Error>;
 }
 
-pub trait Repo: RunsRepo + InvocationRequestsRepo {}
+pub trait Repo: RunsRepo + InvocationRequestsRepo + UsersRepo {}

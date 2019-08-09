@@ -51,11 +51,11 @@ pub(super) fn submit_simple(
     let toolchain = ctx.cfg.toolchains.get(toolchain as usize);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
-        None => Err("unknown toolchain")?,
+        None => return Err("unknown toolchain".into()),
     };
     let conn = ctx.pool.get()?;
     if contest != "TODO" {
-        Err("unknown contest")?;
+        return Err("unknown contest".into());
     }
 
     let problem = ctx.cfg.contests[0]
@@ -65,7 +65,7 @@ pub(super) fn submit_simple(
         .cloned();
     let problem = match problem {
         Some(p) => p,
-        None => Err("unknown problem")?,
+        None => return Err("unknown problem".into()),
     };
     let prob_name = problem.name.clone();
 

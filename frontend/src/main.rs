@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro, type_alias_enum_variants, param_attrs)]
+#![feature(proc_macro_hygiene, decl_macro, param_attrs)]
 
 #[macro_use]
 extern crate rocket;
@@ -266,11 +266,11 @@ fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
 }
 
 fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Config) {
-    let postgress_url =
+    let postgres_url =
         std::env::var("DATABASE_URL").expect("'DATABASE_URL' environment variable is not set");
     let pg_conn_manager =
-        diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgress_url);
-    let pool = r2d2::Pool::new(pg_conn_manager).expect("coudln't initialize DB connection pool");
+        diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgres_url);
+    let pool = r2d2::Pool::new(pg_conn_manager).expect("couldn't initialize DB connection pool");
 
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();

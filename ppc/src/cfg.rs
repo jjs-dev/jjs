@@ -92,13 +92,17 @@ impl RawTestsSpec {
         let mut out = Vec::new();
         if let Some(file_tpl) = &self.files {
             for &id in idxs.iter() {
-                let res = rt_format!(file_tpl, id).map_err(|err| err.to_string());
+                let res =
+                    formatf::format(file_tpl.as_bytes(), &[formatf::Value::Int(i128::from(id))]);
                 match res {
                     Ok(file) => {
+                        let file =
+                            String::from_utf8(file).expect("interpolation provided non-utf8 data");
                         out.push((id, TestGenSpec::File { path: file }));
                     }
                     Err(err) => {
-                        return Err(format!("formatting error: {}", err));
+                        return Err(format!("formatting error: {:?}", err));
+                        // TODO: implement Display for formatf FormatError
                     }
                 }
             }

@@ -1,6 +1,4 @@
 #![feature(is_sorted)]
-#[macro_use]
-extern crate runtime_fmt;
 
 use std::{env, path::PathBuf};
 

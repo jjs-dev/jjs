@@ -122,7 +122,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessCheckService<'a> {
             if env.is_dev() {
                 if token_data.starts_with("dev_user:") {
                     let uid = &token_data[9..];
-                    return Ok(Token::issue_for_virtual_user(uid.to_string(), vec![])); //TODO groups
+                    return Ok(Token::issue_for_virtual_user(uid.to_string(), vec![]));
+                    //TODO groups
                 }
                 if token_data.starts_with("dev_root") {
                     return Ok(Token::new_root());

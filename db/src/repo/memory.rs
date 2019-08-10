@@ -4,7 +4,8 @@ use std::sync::Mutex;
 
 #[derive(Default)]
 struct Data {
-    runs: Vec<Run>,
+    // None if run was deleted
+    runs: Vec<Option<Run>>,
     inv_reqs: Vec<InvocationRequest>,
     users: Vec<User>,
 }
@@ -33,7 +34,7 @@ impl RunsRepo for MemoryRepo {
             score: run_data.score,
             rejudge_id: run_data.rejudge_id,
         };
-        data.runs.push(run.clone());
+        data.runs.push(Some(run.clone()));
         Ok(run)
     }
 
@@ -43,15 +44,17 @@ impl RunsRepo for MemoryRepo {
         data.runs
             .get(idx)
             .cloned()
-            .ok_or_else(|| Error::string("run_load: unknown run id"))
+            .unwrap_or(None)
+            .ok_or(())
+            .map_err(|_| Error::string("run_load@memory: unknown run id"))
     }
 
     fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<(), Error> {
         let mut data = self.conn.lock().unwrap();
         let idx = run_id as usize;
         let cur = match data.runs.get_mut(idx) {
-            Some(x) => x,
-            None => return Err(Error::string("run_update: unknown run id")),
+            Some(Some(x)) => x,
+            None | Some(None) => return Err(Error::string("run_update@memory: unknown run id")),
         };
         if let Some(new_status_code) = patch.status_code {
             cur.status_code = new_status_code;
@@ -67,6 +70,19 @@ impl RunsRepo for MemoryRepo {
         }
 
         Ok(())
+    }
+
+    fn run_delete(&self, run_id: i32) -> Result<(), Error> {
+        let mut data = self.conn.lock().unwrap();
+        let cur = match data.runs.get_mut(run_id as usize) {
+            Some(x) => x,
+            None => return Err(Error::string("run_delete@memory: unknown run id")),
+        };
+        if cur.take().is_some() {
+            Ok(())
+        } else {
+            Err(Error::string("run_delete@memory: run already deleted"))
+        }
     }
 }
 

@@ -10,6 +10,7 @@ pub trait RunsRepo {
     fn run_new(&self, run_data: NewRun) -> Result<Run, Error>;
     fn run_load(&self, run_id: RunId) -> Result<Run, Error>;
     fn run_update(&self, run_id: RunId, patch: RunPatch) -> Result<(), Error>;
+    fn run_delete(&self, run_id: RunId) -> Result<(), Error>;
 }
 
 pub trait InvocationRequestsRepo {

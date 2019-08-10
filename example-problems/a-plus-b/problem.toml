@@ -14,7 +14,7 @@ testgen = ["main"]
 
 [[tests]]
 map = "4..5"
-files = "{:0>1}.txt"
+files = "%d.txt"
 
 [[tests]]
 map = "6..20"

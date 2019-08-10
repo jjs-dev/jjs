@@ -6,11 +6,17 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
+      - name: Fetch sources
+        uses: actions/checkout@master
       - name: Prepare environment
-        run: rustup default nightly-2019-08-01
+        run: |
+          rustup default nightly-2019-08-01
+          rustup component add clippy rustfmt
       - name: Check formatting and lint with clippy
         run: cargo build-jjs
       - name: Run tests
         run: cargo test-jjs
       - name: Generate documentation
-        run: cargo docs-jjs
+        run: |
+          cargo install mdbook
+          cargo docs-jjs

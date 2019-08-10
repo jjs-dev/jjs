@@ -6,22 +6,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Check formatting and lint with clippy 
-      uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
-      runs: cargo build-jjs
-      
+      # a bit of debugging
+      - name: Debug why build is failing
+        uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
+        with:
+          entrypoint: bash
+          args: -c ls 2>&1 && exit 1
+      - name: Check formatting and lint with clippy
+        uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
+        with:
+          entrypoint: cargo
+          args: build-jjs
+
   test:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-    - name: Run tests
-      uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
-      runs: cargo test-jjs
-      
+      - name: Run tests
+        uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
+        with:
+          entrypoint: cargo
+          args: test-jjs
+
   docs:
-      runs-on: ubuntu-latest
-      needs: [build]
-      steps:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
       - name: Generate documentation
         uses: docker://mikailbag/jjs-dev:gh-70feb585b6ab9b738c3abe984e83cb81588e89f5
-        runs: cargo docs-jjs
+        with:
+          entrypoint: cargo
+          args: docs-jjs

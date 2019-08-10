@@ -12,6 +12,8 @@ jobs:
         run: |
           rustup default nightly-2019-08-01
           rustup component add clippy rustfmt
+          sudo apt update
+          sudo apt install -y libpq-dev
       - name: Check formatting and lint with clippy
         run: cargo build-jjs
       - name: Run tests

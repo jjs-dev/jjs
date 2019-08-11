@@ -1,3 +1,3 @@
 PHONY: all
 all:
-    bash ___SCRIPT_PATH___
+    +bash ___SCRIPT_PATH___

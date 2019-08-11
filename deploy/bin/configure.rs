@@ -42,6 +42,9 @@ struct Opt {
     /// Prefix
     #[structopt(long = "prefix", short = "P")]
     install_prefix: Option<String>,
+    /// Build deb packages
+    #[structopt(long = "enable-deb")]
+    deb: bool,
 }
 
 static MAKE_SCRIPT_TPL: &str = include_str!("../make-tpl.sh");
@@ -92,7 +95,6 @@ fn main() {
         .unwrap()
         .to_string();
     check_build_dir(&jjs_path, &build_dir_path);
-    //.unwrap();
     let opt: Opt = Opt::from_args();
     let tool_info = cfg::ToolInfo {
         cargo: opt
@@ -113,25 +115,33 @@ fn main() {
         (true, true) => cfg::BuildProfile::RelWithDebInfo,
         _ => cfg::BuildProfile::Debug,
     };
-    let build_config = cfg::Config {
-        prefix: opt.install_prefix.clone(),
+    let build_config = cfg::BuildConfig {
         target: match &opt.target {
             Some(t) => t.clone(),
             None => deploy::util::get_current_target(),
         },
         profile,
+        tool_info,
+    };
+    let comps_config = cfg::ComponentsConfig {
         man: !opt.no_man,
         testlib: !opt.no_testlib,
         tools: !opt.no_tools,
-        tool_info,
         archive: opt.archive,
-        verbose: opt.verbose,
         core: !opt.no_core,
+
+    };
+    let config = cfg::Config {
+        prefix: opt.install_prefix.clone(),
+        verbose: opt.verbose,
+        deb: opt.deb,
+        build: build_config,
+        components: comps_config,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Emitting JJS build config: {}", &manifest_path);
     let out_file = std::fs::File::create(&manifest_path).unwrap();
     let mut ser = serde_json::Serializer::pretty(out_file);
-    build_config.serialize(&mut ser).unwrap();
+    config.serialize(&mut ser).unwrap();
     generate_make_script(&jjs_path, &build_dir_path);
 }

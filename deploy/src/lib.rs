@@ -1,9 +1,18 @@
 pub mod cfg;
+mod pkg;
 pub mod util;
+mod build_mgr;
+mod inst_mgr;
 
-use cfg::BuildProfile;
+use crate::{
+    pkg::PackageComponentKind,
+    cfg::BuildProfile,
+};
 use std::{fs, process::Command};
 use util::print_section;
+use crate::pkg::PackageKind;
+use crate::cfg::{ComponentsConfig, BuildConfig};
+
 
 pub struct Params {
     // build config
@@ -24,7 +33,7 @@ struct BinaryArtifactAdder<'a> {
 
 impl<'a> BinaryArtifactAdder<'a> {
     fn add(&self, build_name: &str, inst_name: &str) -> &Self {
-        let comp = match self.params.cfg.profile {
+        let comp = match self.params.cfg.build.profile {
             BuildProfile::Debug => "debug",
             BuildProfile::Release | BuildProfile::RelWithDebInfo => "release",
         };
@@ -36,68 +45,48 @@ impl<'a> BinaryArtifactAdder<'a> {
             format!("{}/{}", &binary_dir, build_name),
             format!("{}/bin/{}", &self.pkg_dir, inst_name),
         )
-        .unwrap();
+            .unwrap();
 
         self
     }
 }
 
-#[derive(Copy, Clone)]
-struct PackageBuilder<'a> {
-    params: &'a Params,
-}
+#[derive(Debug)]
+struct MinionFfiPackage;
 
-impl<'a> PackageBuilder<'a> {
-    fn build(&self, pkg_name: &str, features: &[&str]) -> &Self {
-        print_section(&format!("Building {}", pkg_name));
-        let mut cmd = Command::new(&self.params.cfg.tool_info.cargo);
+impl pkg::Package for MinionFfiPackage {
+    fn kind(&self) -> PackageKind {
+        PackageKind::Dylib
+    }
 
-        cmd.args(&["-Z", "config-profile"]);
-        cmd.current_dir(&self.params.src).args(&[
-            "build",
-            "--package",
-            pkg_name,
-            "--target",
-            &self.params.cfg.target,
-        ]);
-        cmd.arg("--no-default-features");
-        if !features.is_empty() {
-            cmd.arg("--features");
-            let feat = features.join(",");
-            cmd.arg(&feat);
-        }
-        let profile = self.params.cfg.profile;
-        if let BuildProfile::Release | BuildProfile::RelWithDebInfo = profile {
-            cmd.arg("--release");
-        }
-        if let BuildProfile::RelWithDebInfo = profile {
-            cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "true");
-        }
-        cmd.env("CARGO_PROFILE_RELEASE_INCREMENTAL", "false");
-        let st = cmd.status().unwrap().success();
+    fn install_name(&self) -> String {
+        "jjs_minion_ffi".to_string()
+    }
+
+    fn selected(&self, comps_cfg: &ComponentsConfig) -> bool {
+        comps_cfg.tools
+    }
+
+    fn build(&self, build_cfg: &BuildConfig, props: &pkg::BuildProps) {
+        let st = Command::new(&build_cfg.tool_info.cargo)
+            .current_dir(&props.project_dir)
+            .args(&[
+                "build",
+                "--package",
+                "minion-ffi",
+                "--release",
+                "--target",
+                &build_cfg.target,
+            ])
+            .status()
+            .unwrap()
+            .success();
         assert_eq!(st, true);
-        self
-    }
-}
-
-struct SimpleBuilder<'a> {
-    _params: &'a Params,
-    pkg_builder: PackageBuilder<'a>,
-    art_adder: BinaryArtifactAdder<'a>,
-}
-
-impl<'a> SimpleBuilder<'a> {
-    fn build(&self, pkg_name: &str, inst_name: &str, cond: bool) -> &Self {
-        if cond {
-            self.pkg_builder.build(pkg_name, &[]);
-            self.art_adder.add(pkg_name, inst_name);
-        }
-        self
     }
 }
 
 fn build_jjs_components(params: &Params) {
-    let target = &params.cfg.target;
+    let target = &params.cfg.build.target;
     let enabled_dll = !target.contains("musl");
     let proj_root = &params.src;
 
@@ -113,42 +102,30 @@ fn build_jjs_components(params: &Params) {
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share/cmake", &pkg_dir)).ok();
 
-    let package_builder = PackageBuilder { params };
-    let artifact_adder = BinaryArtifactAdder {
-        pkg_dir: &pkg_dir,
-        params,
-    };
-    let simple = SimpleBuilder {
-        _params: params,
-        pkg_builder: package_builder,
-        art_adder: artifact_adder,
-    };
-    simple
-        .build("cleanup", "jjs-cleanup", params.cfg.tools)
-        .build("envck", "jjs-env-check", params.cfg.tools)
-        .build("init-jjs-root", "jjs-mkroot", params.cfg.tools)
-        .build("ppc", "jjs-ppc", params.cfg.tools)
-        .build("userlist", "jjs-userlist", params.cfg.tools)
-        .build("invoker", "jjs-invoker", params.cfg.core)
-        .build("frontend", "jjs-frontend", params.cfg.core)
-        .build("cli", "jjs-cli", params.cfg.tools);
-    package_builder.build("minion-cli", &["dist"]);
+    let mut bmgr = build_mgr::BuildManager::new();
 
-    print_section("Building minion-ffi");
-    let st = Command::new(&params.cfg.tool_info.cargo)
-        .current_dir(&proj_root)
-        .args(&[
-            "build",
-            "--package",
-            "minion-ffi",
-            "--release",
-            "--target",
-            &target,
-        ])
-        .status()
-        .unwrap()
-        .success();
-    assert_eq!(st, true);
+    bmgr
+        .add_bin("cleanup", "jjs-cleanup", PackageComponentKind::Tools)
+        .add_bin("envck", "jjs-env-check", PackageComponentKind::Tools)
+        .add_bin("init-jjs-root", "jjs-mkroot", PackageComponentKind::Tools)
+        .add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools)
+        .add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools)
+        .add_bin("invoker", "jjs-invoker", PackageComponentKind::Core)
+        .add_bin("frontend", "jjs-frontend", PackageComponentKind::Core)
+        .add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
+
+    {
+        let minion_cli = pkg::BinPackage {
+            package_name: "minion-cli".to_string(),
+            install_name: "jjs-minion-cli".to_string(),
+            component_kind: PackageComponentKind::Tools,
+            features: vec!["dist".to_string()],
+        };
+
+        bmgr.add(Box::new(minion_cli));
+    }
+
+    bmgr.add(Box::new(MinionFfiPackage));
 
     print_section("Generating migration script");
     {
@@ -167,27 +144,27 @@ fn build_jjs_components(params: &Params) {
         let src_path = format!("{}/share/db-setup.sql", &pkg_dir);
         fs::write(src_path, &migration_script).unwrap();
     }
+    print_section("Copying files");
 
     if enabled_dll {
         fs::copy(
             format!("{}/libminion_ffi.so", &dylib_dir),
             format!("{}/lib/libminion_ffi.so", &pkg_dir),
         )
-        .unwrap();
+            .unwrap();
     }
 
     fs::copy(
         format!("{}/libminion_ffi.a", &binary_dir),
         format!("{}/lib/libminion_ffi.a", &pkg_dir),
     )
-    .unwrap();
+        .unwrap();
 
-    artifact_adder.add("minion-cli", "jjs-minion-cli");
     fs::copy(
         format!("{}/target/minion-ffi.h", &proj_root),
         format!("{}/include/minion-ffi.h", &pkg_dir),
     )
-    .unwrap();
+        .unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -200,18 +177,18 @@ fn build_jjs_components(params: &Params) {
         format!("{}/example-config", &pkg_dir),
         &opts,
     )
-    .unwrap();
+        .unwrap();
 }
 
 pub fn package(params: &Params) {
     build_jjs_components(params);
-    if params.cfg.testlib {
+    if params.cfg.components.testlib {
         build_testlib(params);
     }
-    if params.cfg.man {
+    if params.cfg.components.man {
         generate_man(params);
     }
-    if params.cfg.archive {
+    if params.cfg.components.archive {
         generate_archive(params);
     }
 
@@ -240,12 +217,12 @@ fn build_testlib(params: &Params) {
     let cmake_build_dir = format!("{}/jtl-cpp/cmake-build-debug", &proj_dir);
     let sysroot_dir = params.sysroot.clone();
     util::ensure_exists(&cmake_build_dir).unwrap();
-    let cmake_build_type = match params.cfg.profile {
+    let cmake_build_type = match params.cfg.build.profile {
         BuildProfile::Debug => "Debug",
         BuildProfile::Release => "Release",
         BuildProfile::RelWithDebInfo => "RelWithDebInfo",
     };
-    let mut cmd = Command::new(&params.cfg.tool_info.cmake);
+    let mut cmd = Command::new(&params.cfg.build.tool_info.cmake);
     cmd.current_dir(&cmake_build_dir)
         .arg(&jtl_path)
         .arg(format!("-DCMAKE_INSTALL_PREFIX={}", &sysroot_dir))
@@ -259,7 +236,7 @@ fn build_testlib(params: &Params) {
 
     assert!(st.success());
 
-    let st = Command::new(&params.cfg.tool_info.cmake)
+    let st = Command::new(&params.cfg.build.tool_info.cmake)
         .arg("--build")
         .arg(&cmake_build_dir)
         .args(&["--target", "install"])
@@ -312,13 +289,13 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))
     )
-    .unwrap();
+        .unwrap();
     writeln!(
         out,
         "{}",
         env_add("PATH", &format!("{}/bin", &params.sysroot))
     )
-    .unwrap();
+        .unwrap();
     writeln!(
         out,
         "{}",
@@ -327,7 +304,7 @@ fn generate_envscript(params: &Params) {
             &format!("{}/include", &params.sysroot),
         )
     )
-    .unwrap();
+        .unwrap();
     writeln!(
         out,
         "{}",
@@ -336,7 +313,7 @@ fn generate_envscript(params: &Params) {
             &format!("{}/share/cmake", &params.sysroot),
         )
     )
-    .unwrap();
+        .unwrap();
     let out_file_path = format!("{}/share/env.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

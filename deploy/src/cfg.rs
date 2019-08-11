@@ -30,6 +30,7 @@ pub struct ComponentsConfig {
     pub archive: bool,
     pub tools: bool,
     pub core: bool,
+    pub extras: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

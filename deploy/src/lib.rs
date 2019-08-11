@@ -1,18 +1,18 @@
+mod build_ctx;
 pub mod cfg;
+mod inst_ctx;
+mod packages;
 mod pkg;
+mod registry;
+mod sel_ctx;
 pub mod util;
-mod build_mgr;
-mod inst_mgr;
 
 use crate::{
-    pkg::PackageComponentKind,
-    cfg::BuildProfile,
+    build_ctx::BuildCtx, cfg::BuildProfile, inst_ctx::InstallCtx, packages::BinPackage,
+    pkg::PackageComponentKind, registry::Registry, sel_ctx::SelCtx,
 };
 use std::{fs, process::Command};
 use util::print_section;
-use crate::pkg::PackageKind;
-use crate::cfg::{ComponentsConfig, BuildConfig};
-
 
 pub struct Params {
     // build config
@@ -21,78 +21,46 @@ pub struct Params {
     pub src: String,
     // jjs build dir
     pub build: String,
-    // Intermediate sysroot dir (for gzipping / copying), containing only build artifacts
+    // Intermediate sysroot dir (for compressing / copying), containing only build artifacts
     pub sysroot: String,
 }
 
-#[derive(Copy, Clone)]
-struct BinaryArtifactAdder<'a> {
-    pkg_dir: &'a str,
-    params: &'a Params,
-}
+fn create_registry() -> Registry {
+    let mut reg = Registry::new();
 
-impl<'a> BinaryArtifactAdder<'a> {
-    fn add(&self, build_name: &str, inst_name: &str) -> &Self {
-        let comp = match self.params.cfg.build.profile {
-            BuildProfile::Debug => "debug",
-            BuildProfile::Release | BuildProfile::RelWithDebInfo => "release",
-        };
-        let binary_dir = format!(
-            "{}/target/x86_64-unknown-linux-gnu/{}",
-            &self.params.src, comp,
-        );
-        fs::copy(
-            format!("{}/{}", &binary_dir, build_name),
-            format!("{}/bin/{}", &self.pkg_dir, inst_name),
-        )
-            .unwrap();
+    let mut add_bin = |pkg_name, inst_name, comp| {
+        let pkg = BinPackage::new(pkg_name, inst_name, comp);
+        reg.add(pkg);
+    };
 
-        self
+    add_bin("cleanup", "jjs-cleanup", PackageComponentKind::Tools);
+    add_bin("envck", "jjs-env-check", PackageComponentKind::Tools);
+    add_bin("init-jjs-root", "jjs-mkroot", PackageComponentKind::Tools);
+    add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools);
+    add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
+    add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
+    add_bin("frontend", "jjs-frontend", PackageComponentKind::Core);
+    add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
+
+    {
+        let mut minion_cli =
+            packages::BinPackage::new("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
+        minion_cli.feature("dist");
+
+        reg.add(minion_cli);
     }
-}
-
-#[derive(Debug)]
-struct MinionFfiPackage;
-
-impl pkg::Package for MinionFfiPackage {
-    fn kind(&self) -> PackageKind {
-        PackageKind::Dylib
+    {
+        let minion_ffi = packages::MinionFfiPackage::new();
+        reg.add(minion_ffi);
     }
 
-    fn install_name(&self) -> String {
-        "jjs_minion_ffi".to_string()
-    }
-
-    fn selected(&self, comps_cfg: &ComponentsConfig) -> bool {
-        comps_cfg.tools
-    }
-
-    fn build(&self, build_cfg: &BuildConfig, props: &pkg::BuildProps) {
-        let st = Command::new(&build_cfg.tool_info.cargo)
-            .current_dir(&props.project_dir)
-            .args(&[
-                "build",
-                "--package",
-                "minion-ffi",
-                "--release",
-                "--target",
-                &build_cfg.target,
-            ])
-            .status()
-            .unwrap()
-            .success();
-        assert_eq!(st, true);
-    }
+    reg
 }
 
 fn build_jjs_components(params: &Params) {
-    let target = &params.cfg.build.target;
-    let enabled_dll = !target.contains("musl");
     let proj_root = &params.src;
 
     print_section("Creating directories");
-    let binary_dir = format!("{}/target/{}/release", proj_root, &target);
-    let dylib_dir = format!("{}/target/{}/release", proj_root, &target);
     let pkg_dir = params.sysroot.clone();
 
     util::make_empty(&pkg_dir).unwrap();
@@ -102,30 +70,15 @@ fn build_jjs_components(params: &Params) {
     fs::create_dir(format!("{}/share", &pkg_dir)).ok();
     fs::create_dir(format!("{}/share/cmake", &pkg_dir)).ok();
 
-    let mut bmgr = build_mgr::BuildManager::new();
+    let mut reg = create_registry();
 
-    bmgr
-        .add_bin("cleanup", "jjs-cleanup", PackageComponentKind::Tools)
-        .add_bin("envck", "jjs-env-check", PackageComponentKind::Tools)
-        .add_bin("init-jjs-root", "jjs-mkroot", PackageComponentKind::Tools)
-        .add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools)
-        .add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools)
-        .add_bin("invoker", "jjs-invoker", PackageComponentKind::Core)
-        .add_bin("frontend", "jjs-frontend", PackageComponentKind::Core)
-        .add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
-
-    {
-        let minion_cli = pkg::BinPackage {
-            package_name: "minion-cli".to_string(),
-            install_name: "jjs-minion-cli".to_string(),
-            component_kind: PackageComponentKind::Tools,
-            features: vec!["dist".to_string()],
-        };
-
-        bmgr.add(Box::new(minion_cli));
-    }
-
-    bmgr.add(Box::new(MinionFfiPackage));
+    let sctx = SelCtx::new(params);
+    let bctx = BuildCtx::new(params);
+    let ictx = InstallCtx::new(params);
+    reg.run_selection(&sctx);
+    reg.build(&bctx);
+    print_section("Installing");
+    reg.install(&ictx);
 
     print_section("Generating migration script");
     {
@@ -145,26 +98,6 @@ fn build_jjs_components(params: &Params) {
         fs::write(src_path, &migration_script).unwrap();
     }
     print_section("Copying files");
-
-    if enabled_dll {
-        fs::copy(
-            format!("{}/libminion_ffi.so", &dylib_dir),
-            format!("{}/lib/libminion_ffi.so", &pkg_dir),
-        )
-            .unwrap();
-    }
-
-    fs::copy(
-        format!("{}/libminion_ffi.a", &binary_dir),
-        format!("{}/lib/libminion_ffi.a", &pkg_dir),
-    )
-        .unwrap();
-
-    fs::copy(
-        format!("{}/target/minion-ffi.h", &proj_root),
-        format!("{}/include/minion-ffi.h", &pkg_dir),
-    )
-        .unwrap();
     let opts = fs_extra::dir::CopyOptions {
         overwrite: true,
         skip_exist: false,
@@ -177,7 +110,7 @@ fn build_jjs_components(params: &Params) {
         format!("{}/example-config", &pkg_dir),
         &opts,
     )
-        .unwrap();
+    .unwrap();
 }
 
 pub fn package(params: &Params) {
@@ -289,13 +222,13 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))
     )
-        .unwrap();
+    .unwrap();
     writeln!(
         out,
         "{}",
         env_add("PATH", &format!("{}/bin", &params.sysroot))
     )
-        .unwrap();
+    .unwrap();
     writeln!(
         out,
         "{}",
@@ -304,7 +237,7 @@ fn generate_envscript(params: &Params) {
             &format!("{}/include", &params.sysroot),
         )
     )
-        .unwrap();
+    .unwrap();
     writeln!(
         out,
         "{}",
@@ -313,7 +246,7 @@ fn generate_envscript(params: &Params) {
             &format!("{}/share/cmake", &params.sysroot),
         )
     )
-        .unwrap();
+    .unwrap();
     let out_file_path = format!("{}/share/env.sh", &params.sysroot);
     std::fs::write(&out_file_path, out).unwrap();
 }

@@ -18,6 +18,9 @@ struct Opt {
     /// Do not build and install JJS core components
     #[structopt(long = "disable-core")]
     no_core: bool,
+    /// Build and install extras (components, not directly related to JJS)
+    #[structopt(long = "enable-extras")]
+    extras: bool,
     /// Generate tarball
     #[structopt(long = "enable-archive")]
     archive: bool,
@@ -129,7 +132,7 @@ fn main() {
         tools: !opt.no_tools,
         archive: opt.archive,
         core: !opt.no_core,
-
+        extras: opt.extras,
     };
     let config = cfg::Config {
         prefix: opt.install_prefix.clone(),

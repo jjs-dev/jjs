@@ -1,7 +1,7 @@
 use crate::security::TokenFromRequestError;
 use std::sync::Arc;
 
-pub(crate) type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>;
+pub(crate) type DbPool = Box<dyn db::repo::Repo>;
 
 //FIXME: Do not clone Context on every request
 pub(crate) struct Context {
@@ -37,7 +37,7 @@ impl ContextFactory {
     pub(crate) fn create_context_unrestricted(&self) -> Context {
         Context {
             pool: self.pool.clone(),
-            cfg: self.cfg.clone()
+            cfg: self.cfg.clone(),
         }
     }
 }

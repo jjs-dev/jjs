@@ -1,11 +1,11 @@
 #[macro_use]
 extern crate diesel;
 
-mod connect;
+pub mod connect;
 pub mod repo;
 pub mod schema;
 
-pub use connect::{connect, ConnectOptions};
+pub use connect::connect_env;
 use snafu_derive::Snafu;
 use std::fmt::{self, Debug, Display, Formatter};
 

@@ -272,6 +272,13 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgres_url);
     let pool = r2d2::Pool::new(pg_conn_manager).expect("couldn't initialize DB connection pool");
 
+    let pool = match db::connect_env() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("failed connect to DB: {}", e);
+        }
+    };
+
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();
 

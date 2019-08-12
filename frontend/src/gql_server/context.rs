@@ -6,7 +6,7 @@ pub(crate) type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::
 //FIXME: Do not clone Context on every request
 pub(crate) struct Context {
     pub(crate) pool: DbPool,
-    pub(crate) cfg: cfg::Config,
+    pub(crate) cfg: Arc<cfg::Config>,
     //pub(crate) access_control: crate::security::AccessCheckService<'static>,
 }
 
@@ -22,7 +22,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
 
         rocket::Outcome::Success(Context {
             pool: factory.pool.clone(),
-            cfg: (*factory.cfg).clone(),
+            cfg: factory.cfg.clone(),
             //access_control: AccessCheckService::from_request(request)?.upgrade_static(),
         })
     }
@@ -35,7 +35,10 @@ pub(crate) struct ContextFactory {
 
 impl ContextFactory {
     pub(crate) fn create_context_unrestricted(&self) -> Context {
-        unimplemented!()
+        Context {
+            pool: self.pool.clone(),
+            cfg: self.cfg.clone()
+        }
     }
 }
 

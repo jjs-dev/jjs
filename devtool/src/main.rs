@@ -75,7 +75,9 @@ fn task_build() {
     let scripts = find_scripts().collect::<Vec<_>>();
     for script_chunk in scripts.chunks(10) {
         let mut cmd = Command::new("shellcheck");
-        cmd.arg("--color=always").arg("--check-sourced");
+        cmd.arg("--color=always");
+        // FIXME: cmd.arg("--check-sourced");
+        // requires using fresh shellcheck on CI
         for scr in script_chunk {
             debug!("checking script {}", scr.display());
             cmd.arg(scr);

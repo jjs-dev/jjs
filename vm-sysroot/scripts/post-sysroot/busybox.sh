@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 sudo mkdir -p "$SYSROOT/bin"
 sudo cp /bin/busybox "$SYSROOT/bin"
-busybox --list-full | while read applet
+busybox --list-full | while read -r applet
 do
     if [ ! -e "$SYSROOT/$applet" ]
     then

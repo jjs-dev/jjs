@@ -42,7 +42,7 @@ sudo mkdir "$SYSROOT" || exit 1
 
 for i in scripts/sysroot/*
 do bash "$i"
-done | sort | uniq | tee /dev/stderr | while read path
+done | sort | uniq | tee /dev/stderr | while read -r path
 do
     sudo mkdir -p "$SYSROOT/$path"
     if ! sudo test -d "$path"

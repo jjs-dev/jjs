@@ -3,11 +3,12 @@ ORIG_CWD="$(pwd)"
 
 sudo mkdir -p "$SYSROOT/var/lib/jjs"
 sudo chown "$(whoami):$(whoami)" "$SYSROOT/var/lib/jjs"
-cd ../init-jjs-root
+cd ../init-jjs-root || exit 1
 cargo run -- "$SYSROOT/var/lib/jjs" ../pkg/ar_data/example-config
 
 sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
-cd ../ppc
+cd ../ppc || exit 1
+# shellcheck disable=SC2012
 if [ -d "$ORIG_CWD/problems" ] && ! ls "$ORIG_CWD/problems" | cmp - /dev/null 2>/dev/null
 then for i in "$ORIG_CWD"/problems/*
 do

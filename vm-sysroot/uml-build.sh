@@ -14,7 +14,6 @@ exit 1
 fi
 
 SELF="$0"
-THE_PATH="$(base64 <<< "$PATH" | tr '\n' ' ' | sed 's/\s//g')"
 
 if [ "${SELF:0:1}" != / ]
 then SELF="$(pwd)/$SELF"

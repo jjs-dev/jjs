@@ -28,11 +28,12 @@ cd "$(dirname "$0")"
 
 dd if=/dev/null of=hdd.img bs=1048576 seek=1024
 mke2fs hdd.img
-insmod /usr/lib/uml/modules/$(uname -r)/kernel/drivers/block/loop.ko
+insmod "/usr/lib/uml/modules/$(uname -r)/kernel/drivers/block/loop.ko"
 mount -t proc proc /proc
 cat /proc/modules
 losetup /dev/loop0 hdd.img
 mount -t ext4 /dev/loop0 /mnt
+# shellcheck disable=SC2155
 export ORIG_CWD="$(pwd)"
 cd /mnt
 ln -s /proc/self/fd /dev/fd

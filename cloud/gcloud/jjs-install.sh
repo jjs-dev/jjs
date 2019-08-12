@@ -4,7 +4,7 @@ export PATH=$PATH:/snap/bin
 
 env
 
-gsutil cp gs://${JJS_BUCKET}/jjs.tgz /tmp/jjs.tar
+gsutil cp gs://"${JJS_BUCKET}"/jjs.tgz /tmp/jjs.tar
 
 sudo mkdir /opt/jjs
 

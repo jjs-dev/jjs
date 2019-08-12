@@ -63,7 +63,7 @@ fn generate_make_script(src: &str, build: &str) {
         let line = format!("export JJS_{}=\"{}\"\n", k, &v_esc);
         subst_text.push_str(&line);
     }
-    let script = MAKE_SCRIPT_TPL.replace("$SUBST$", &subst_text);
+    let script = MAKE_SCRIPT_TPL.replace("__SUBST__", &subst_text);
     let script_path = format!("{}/make", &build);
     std::fs::write(&script_path, script).unwrap();
     let full_script_path = std::fs::canonicalize(&script_path)

@@ -1,0 +1,11 @@
+Package: $(Package)
+Version: $(Version)
+Maintainer: Mikail Bagishov <bagishov.mikail@yandex.ru>
+Description: $(Description)
+Section: misc
+Priority: optional
+Architecture: amd64
+Homepage: TODO
+Built-Using: TODO
+Depends: libpq-dev
+Suggests: postgresql-11

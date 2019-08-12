@@ -1,5 +1,6 @@
 mod build_ctx;
 pub mod cfg;
+mod deb;
 mod inst_ctx;
 mod packages;
 mod pkg;
@@ -11,18 +12,18 @@ use crate::{
     build_ctx::BuildCtx, cfg::BuildProfile, inst_ctx::InstallCtx, packages::BinPackage,
     pkg::PackageComponentKind, registry::Registry, sel_ctx::SelCtx,
 };
-use std::{fs, process::Command};
+use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
 use util::print_section;
 
 pub struct Params {
     // build config
     pub cfg: cfg::Config,
     // jjs src dir
-    pub src: String,
+    pub src: PathBuf,
     // jjs build dir
-    pub build: String,
+    pub build: PathBuf,
     // Intermediate sysroot dir (for compressing / copying), containing only build artifacts
-    pub sysroot: String,
+    pub sysroot: PathBuf,
 }
 
 fn create_registry() -> Registry {
@@ -64,11 +65,11 @@ fn build_jjs_components(params: &Params) {
     let pkg_dir = params.sysroot.clone();
 
     util::make_empty(&pkg_dir).unwrap();
-    fs::create_dir(format!("{}/lib", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/bin", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/include", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/share", &pkg_dir)).ok();
-    fs::create_dir(format!("{}/share/cmake", &pkg_dir)).ok();
+    fs::create_dir(pkg_dir.join("lib")).ok();
+    fs::create_dir(pkg_dir.join("bin")).ok();
+    fs::create_dir(pkg_dir.join("include")).ok();
+    fs::create_dir(pkg_dir.join("share")).ok();
+    fs::create_dir(pkg_dir.join("share/cmake")).ok();
 
     let mut reg = create_registry();
 
@@ -82,7 +83,7 @@ fn build_jjs_components(params: &Params) {
 
     print_section("Generating migration script");
     {
-        let mut migration_script: Vec<_> = fs::read_dir(format!("{}/db/migrations", &proj_root))
+        let mut migration_script: Vec<_> = fs::read_dir(proj_root.join("db/migrations"))
             .unwrap()
             .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
             .filter(|x| !x.contains(".gitkeep"))
@@ -94,7 +95,7 @@ fn build_jjs_components(params: &Params) {
             .map(|path| fs::read(path).unwrap())
             .map(|bytes| String::from_utf8(bytes).unwrap());
         let migration_script = migration_script.collect::<Vec<_>>().join("\n\n\n");
-        let src_path = format!("{}/share/db-setup.sql", &pkg_dir);
+        let src_path = pkg_dir.join("share/db-setup.sql");
         fs::write(src_path, &migration_script).unwrap();
     }
     print_section("Copying files");
@@ -106,8 +107,8 @@ fn build_jjs_components(params: &Params) {
         depth: 0,
     };
     fs_extra::dir::copy(
-        format!("{}/example-config", &proj_root),
-        format!("{}/example-config", &pkg_dir),
+        proj_root.join("example-config"),
+        pkg_dir.join("example-config"),
         &opts,
     )
     .unwrap();
@@ -124,16 +125,24 @@ pub fn package(params: &Params) {
     if params.cfg.components.archive {
         generate_archive(params);
     }
+    if params.cfg.deb {
+        print_section("Generating Debian package");
+        deb::create(params);
+    }
 
     generate_envscript(params);
 }
 
 fn generate_archive(params: &Params) {
     print_section("Packaging[TGZ]");
-    let out_file_path = format!("{}/jjs.tgz", &params.build);
+    let out_file_path = params.build.join("jjs.tgz");
     let out_file =
         std::fs::File::create(&out_file_path).expect("couldn't open archive for writing");
-    println!("packaging {} into {}", &params.sysroot, &out_file_path);
+    println!(
+        "packaging {} into {}",
+        params.sysroot.display(),
+        &out_file_path.display()
+    );
     let mut builder = tar::Builder::new(out_file);
     builder
         .append_dir_all("jjs", &params.sysroot)
@@ -146,9 +155,9 @@ fn generate_archive(params: &Params) {
 fn build_testlib(params: &Params) {
     let proj_dir = &params.src;
     print_section("Build testlib[C++]");
-    let jtl_path = format!("{}/jtl-cpp", &proj_dir);
-    let cmake_build_dir = format!("{}/jtl-cpp/cmake-build-debug", &proj_dir);
-    let sysroot_dir = params.sysroot.clone();
+    let jtl_path = proj_dir.join("jtl-cpp");
+    let cmake_build_dir = params.build.join("jtl-cpp");
+    let sysroot_dir = &params.sysroot;
     util::ensure_exists(&cmake_build_dir).unwrap();
     let cmake_build_type = match params.cfg.build.profile {
         BuildProfile::Debug => "Debug",
@@ -156,10 +165,16 @@ fn build_testlib(params: &Params) {
         BuildProfile::RelWithDebInfo => "RelWithDebInfo",
     };
     let mut cmd = Command::new(&params.cfg.build.tool_info.cmake);
+
+    let mut cmake_arg_install_prefix = OsStr::new("-DCMAKE_INSTALL_PREFIX=").to_os_string();
+    cmake_arg_install_prefix.push(sysroot_dir);
+    let mut cmake_arg_build_type = OsStr::new("-DCMAKE_BUILD_TYPE=").to_os_string();
+    cmake_arg_build_type.push(cmake_build_type);
+
     cmd.current_dir(&cmake_build_dir)
         .arg(&jtl_path)
-        .arg(format!("-DCMAKE_INSTALL_PREFIX={}", &sysroot_dir))
-        .arg(format!("-DCMAKE_BUILD_TYPE={}", cmake_build_type));
+        .arg(cmake_arg_install_prefix)
+        .arg(cmake_arg_build_type);
 
     if params.cfg.verbose {
         cmd.arg("-DCMAKE_VERBOSE_MAKEFILE=On");
@@ -180,7 +195,7 @@ fn build_testlib(params: &Params) {
 
 fn generate_man(params: &Params) {
     print_section("building docs");
-    let book_dir = format!("{}/man", &params.src);
+    let book_dir = params.src.join("man");
     let st = Command::new("mdbook")
         .current_dir(&book_dir)
         .arg("build")
@@ -196,12 +211,12 @@ fn generate_man(params: &Params) {
         copy_inside: true,
         depth: 0,
     };
-    let src = format!("{}/man/book", &params.src);
+    let src = book_dir.join("book");
     let src = fs::read_dir(src)
         .unwrap()
         .map(|e| e.unwrap().path())
         .collect();
-    let dst = format!("/{}/share/docs", &params.sysroot);
+    let dst = params.sysroot.join("share/docs");
     fs::create_dir_all(&dst).unwrap();
     fs_extra::copy_items(&src, &dst, &opts).unwrap();
 
@@ -216,17 +231,20 @@ fn generate_envscript(params: &Params) {
     print_section("Generate environ activate script");
     use std::fmt::Write;
     let mut out = String::new();
-    writeln!(out, "export JJS_PATH={}", &params.sysroot).unwrap();
+    writeln!(out, "export JJS_PATH={}", &params.sysroot.display()).unwrap();
     writeln!(
         out,
         "{}",
-        env_add("LIBRARY_PATH", &format!("{}/lib", &params.sysroot))
+        env_add(
+            "LIBRARY_PATH",
+            &format!("{}/lib", &params.sysroot.display())
+        )
     )
     .unwrap();
     writeln!(
         out,
         "{}",
-        env_add("PATH", &format!("{}/bin", &params.sysroot))
+        env_add("PATH", &format!("{}/bin", &params.sysroot.display()))
     )
     .unwrap();
     writeln!(
@@ -234,7 +252,7 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add(
             "CPLUS_INCLUDE_PATH",
-            &format!("{}/include", &params.sysroot),
+            &format!("{}/include", &params.sysroot.display()),
         )
     )
     .unwrap();
@@ -243,10 +261,10 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add(
             "CMAKE_PREFIX_PATH",
-            &format!("{}/share/cmake", &params.sysroot),
+            &format!("{}/share/cmake", &params.sysroot.display()),
         )
     )
     .unwrap();
-    let out_file_path = format!("{}/share/env.sh", &params.sysroot);
+    let out_file_path = params.sysroot.join("share/env.sh");
     std::fs::write(&out_file_path, out).unwrap();
 }

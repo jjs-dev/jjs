@@ -24,3 +24,5 @@ filetime = "0.2.6"
 tar = "0.4.26"
 serde = { version = "1.0.98", features = ["derive"] }
 shell-escape = "0.1.4"
+cargo-deb = "1.21.0"
+ar = "0.7.0"

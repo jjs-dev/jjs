@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum BuildProfile {
@@ -35,7 +36,7 @@ pub struct ComponentsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub prefix: Option<String>,
+    pub prefix: Option<PathBuf>,
     pub verbose: bool,
     pub deb: bool,
     pub build: BuildConfig,

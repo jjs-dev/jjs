@@ -1,7 +1,7 @@
 use deploy::cfg;
 
 use serde::ser::Serialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -44,7 +44,7 @@ struct Opt {
     verbose: bool,
     /// Prefix
     #[structopt(long = "prefix", short = "P")]
-    install_prefix: Option<String>,
+    install_prefix: Option<PathBuf>,
     /// Build deb packages
     #[structopt(long = "enable-deb")]
     deb: bool,

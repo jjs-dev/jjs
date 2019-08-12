@@ -1,26 +1,23 @@
 //! Abstracts installing to directory, deb, etc
-use crate::Params;
+use crate::{cfg::BuildProfile, Params};
 use std::path::{Path, PathBuf};
-use crate::cfg::BuildProfile;
 
 pub struct InstallCtx<'ictx> {
     /// Sysroot-like dir
-    params: &'ictx Params
+    params: &'ictx Params,
 }
 
 impl<'ictx> InstallCtx<'ictx> {
     pub(crate) fn new(params: &'ictx Params) -> Self {
-        Self {
-            params
-        }
+        Self { params }
     }
 
     fn artifacts(&self) -> &Path {
-        Path::new(self.params.sysroot.as_str())
+        &self.params.sysroot
     }
 
     fn non_arch_out_dir(&self) -> PathBuf {
-        self.params.build.clone().into()
+        self.params.build.clone()
     }
 
     /// Returns {TARGET_DIR}/{TARGET_ARCH}/{BUILD_PROFILE}
@@ -31,8 +28,7 @@ impl<'ictx> InstallCtx<'ictx> {
             BuildProfile::Debug => {
                 p.push("debug");
             }
-            BuildProfile::Release |
-            BuildProfile::RelWithDebInfo => {
+            BuildProfile::Release | BuildProfile::RelWithDebInfo => {
                 p.push("release");
             }
         };

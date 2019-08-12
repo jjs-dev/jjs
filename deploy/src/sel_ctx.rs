@@ -11,8 +11,6 @@ impl<'sctx> SelCtx<'sctx> {
     }
 
     pub(crate) fn new(params: &'sctx Params) -> Self {
-        Self{
-            params
-        }
+        Self { params }
     }
 }

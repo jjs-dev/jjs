@@ -35,6 +35,11 @@ impl Query {
     fn toolchains(ctx: &Context) -> ApiResult<Vec<schema::Toolchain>> {
         misc::toolchains_list(ctx)
     }
+
+    /// List contests
+    fn contests(ctx: &Context) -> ApiResult<Vec<schema::Contest>> {
+        misc::get_contests(ctx)
+    }
 }
 
 #[juniper::object(Context = Context)]

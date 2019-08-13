@@ -45,7 +45,7 @@ fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
     conn.write_all(message.as_bytes()).ok();
 }
 
-fn server_loop(logger: Logger,sock: UnixListener, fcfg: FrontendConfig) {
+fn server_loop(logger: Logger, sock: UnixListener, fcfg: FrontendConfig) {
     info!(logger, "starting unix local root login service");
     for conn in sock.incoming() {
         if let Ok(conn) = conn {

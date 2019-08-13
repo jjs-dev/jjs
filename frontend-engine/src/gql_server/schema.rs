@@ -3,6 +3,8 @@ mod contest;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use uuid::Uuid;
 
+pub(crate) use contest::Contest;
+
 pub type ToolchainId = i32;
 pub type RunId = i32;
 pub type ProblemId = String;

@@ -1,16 +1,12 @@
-use super::{schema, Context, InternalError};
+use super::prelude::*;
 use crate::password;
-use diesel::prelude::*;
-use juniper::FieldResult;
 
-pub(crate) fn create(
+pub(super) fn create(
     ctx: &Context,
     login: String,
     password: String,
     groups: Vec<String>,
-) -> FieldResult<schema::User> {
-    use db::schema::users::dsl;
-
+) -> ApiResult<schema::User> {
     let provided_password_hash = password::get_password_hash(&password);
 
     let new_user = db::schema::NewUser {
@@ -19,12 +15,7 @@ pub(crate) fn create(
         groups: groups.clone(),
     };
 
-    let conn = ctx.pool.get().map_err(InternalError::from)?;
-
-    let user: db::schema::User = diesel::insert_into(dsl::users)
-        .values(&new_user)
-        .get_result(&conn)
-        .map_err(InternalError::from)?;
+    let user = ctx.db.user_new(new_user)?;
 
     Ok((&user).into())
 }

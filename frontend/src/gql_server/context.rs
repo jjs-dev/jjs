@@ -1,13 +1,14 @@
 use crate::security::TokenFromRequestError;
 use std::sync::Arc;
 
-pub(crate) type DbPool = Box<dyn db::repo::Repo>;
+pub(crate) type DbPool = Arc<dyn db::DbConn>;
 
 //FIXME: Do not clone Context on every request
 pub(crate) struct Context {
-    pub(crate) pool: DbPool,
+    pub(crate) db: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
-    //pub(crate) access_control: crate::security::AccessCheckService<'static>,
+    pub(crate) secret_key: Arc<[u8]>,
+    pub(crate) env: crate::config::Env,
 }
 
 impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
@@ -20,10 +21,19 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
             .guard::<rocket::State<ContextFactory>>()
             .expect("State<ContextFactory> missing");
 
+        let env = request
+            .guard::<rocket::State<crate::config::Env>>()
+            .expect("State<Env> missing");
+
+        let secret_key = request
+            .guard::<rocket::State<crate::security::SecretKey>>()
+            .expect("State<SecretKey> missing");
+
         rocket::Outcome::Success(Context {
-            pool: factory.pool.clone(),
+            db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
-            //access_control: AccessCheckService::from_request(request)?.upgrade_static(),
+            env: *env,
+            secret_key: Arc::clone(&(*secret_key).0),
         })
     }
 }
@@ -34,10 +44,13 @@ pub(crate) struct ContextFactory {
 }
 
 impl ContextFactory {
+    /// Creates context, not bound to particular request
     pub(crate) fn create_context_unrestricted(&self) -> Context {
         Context {
-            pool: self.pool.clone(),
+            db: self.pool.clone(),
             cfg: self.cfg.clone(),
+            secret_key: Arc::new([]),
+            env: crate::config::Env::Dev,
         }
     }
 }

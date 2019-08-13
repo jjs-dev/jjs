@@ -6,6 +6,7 @@ pub mod repo;
 pub mod schema;
 
 pub use connect::connect_env;
+pub use repo::Repo as DbConn;
 use snafu_derive::Snafu;
 use std::fmt::{self, Debug, Display, Formatter};
 

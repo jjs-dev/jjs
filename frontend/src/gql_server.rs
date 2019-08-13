@@ -1,88 +1,141 @@
+mod auth;
 mod context;
+mod queries;
+mod runs;
 mod schema;
-mod submissions;
 mod users;
 
-use juniper::FieldResult;
-use std::marker::PhantomData;
+type ErrorExtension = juniper::Value<juniper::DefaultScalarValue>;
 
-struct InternalError(Box<dyn std::error::Error>);
+struct ApiError {
+    visible: bool,
+    extension: Option<ErrorExtension>,
+    source: Option<Box<dyn std::error::Error>>,
+}
 
-impl<E: std::error::Error + 'static> From<E> for InternalError {
-    fn from(e: E) -> InternalError {
-        InternalError(Box::new(e))
+impl<E: std::error::Error + 'static> From<E> for ApiError {
+    fn from(e: E) -> Self {
+        Self {
+            visible: false,
+            extension: None,
+            source: Some(Box::new(e)),
+        }
     }
 }
 
-impl std::fmt::Display for InternalError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
+mod impl_display {
+    use super::*;
+    use std::fmt::{self, Display, Formatter};
+
+    impl Display for ApiError {
+        fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+            write!(f, "Frontend error")?;
+            if self.visible {
+                write!(f, "(pub) ")?;
+            } else {
+                write!(f, "(priv) ")?;
+            }
+            if let Some(ext) = &self.extension {
+                write!(f, "[{:?}]", ext)?;
+            }
+            if let Some(src) = &self.source {
+                write!(f, ": {}", src)?;
+            }
+            Ok(())
+        }
     }
+}
+
+struct EmptyError;
+
+impl std::fmt::Display for EmptyError {
+    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for EmptyError {
+    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl std::error::Error for EmptyError {}
+
+impl juniper::IntoFieldError for ApiError {
+    fn into_field_error(self) -> juniper::FieldError {
+        let data: &dyn std::error::Error = match &self.source {
+            Some(err) if self.visible => &**err,
+            _ => &EmptyError,
+        };
+        juniper::FieldError::new(data, self.extension.unwrap_or_else(juniper::Value::null))
+    }
+}
+
+type ApiResult<T> = Result<T, ApiError>;
+
+trait ResultToApiUtil<T, E> {
+    /// Show error to user, if any
+    fn report(self) -> Result<T, ApiError>;
+
+    /// like `report`, but also return extension
+    fn report_ext(self, ext: ErrorExtension) -> Result<T, ApiError>;
+
+    /// like 'report_ext', but produce extension from error with supplied callback
+    fn report_with(self, make_ext: impl FnOnce(&E) -> ErrorExtension) -> Result<T, ApiError>;
+}
+
+impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
+    fn report(self) -> Result<T, ApiError> {
+        self.map_err(|err| ApiError {
+            visible: true,
+            extension: None,
+            source: Some(Box::new(err)),
+        })
+    }
+
+    fn report_ext(self, ext: ErrorExtension) -> Result<T, ApiError> {
+        self.map_err(|err| ApiError {
+            visible: true,
+            extension: Some(ext),
+            source: Some(Box::new(err)),
+        })
+    }
+
+    fn report_with(self, make_ext: impl FnOnce(&E) -> ErrorExtension) -> Result<T, ApiError> {
+        self.map_err(|err| ApiError {
+            visible: true,
+            extension: Some(make_ext(&err)),
+            source: Some(Box::new(err)),
+        })
+    }
+}
+
+trait StrErrorMsgUtil {
+    fn report<T>(&self) -> Result<T, ApiError>;
+}
+
+impl StrErrorMsgUtil for str {
+    fn report<T>(&self) -> Result<T, ApiError> {
+        Err(ApiError {
+            visible: true,
+            extension: Some(self.into()),
+            source: None,
+        })
+    }
+}
+
+mod prelude {
+    pub(super) use super::{
+        schema, ApiError, ApiResult, Context, ErrorExtension, ResultToApiUtil as _,
+        StrErrorMsgUtil as _,
+    };
 }
 
 pub(crate) use context::{Context, ContextFactory};
 
-pub(crate) struct Query<'a>(pub PhantomData<&'a ()>);
+pub(crate) struct Query;
 
-#[juniper::object(Context = Context)]
-impl<'a> Query<'a> {
-    /// Get current API version
-    ///
-    /// Version returned in format "MAJOR.MINOR".
-    /// MAJOR component is incremented, when backwards-incompatible changes were made.
-    /// MINOR component is incremented, when backwards-compatible changes were made.
-    ///
-    /// It means, that if you developed application with apiVersion X.Y, your application
-    /// should assert that MAJOR = X and MINOR >= Y
-    fn api_version() -> &str {
-        "0.0"
-    }
+pub(crate) struct Mutation;
 
-    /// List submissions
-    fn submissions(
-        ctx: &Context,
-        id: Option<i32>,
-        limit: Option<i32>,
-    ) -> FieldResult<Vec<schema::Run>> {
-        submissions::list(ctx, id, limit)
-    }
-}
-
-pub(crate) struct Mutation<'a>(pub PhantomData<&'a ()>);
-
-#[juniper::object(Context = Context)]
-impl<'a> Mutation<'a> {
-    /// Submit run
-    #[graphql(arguments(
-        toolchain(description = "toolchain ID"),
-        run_code(description = "run code, base64-encoded"),
-        problem(description = "problem ID"),
-        contest(description = "contest ID (currently only contest=\"TODO\" is supported)")
-    ))]
-    fn submit_simple(
-        ctx: &Context,
-        toolchain: schema::ToolchainId,
-        run_code: String,
-        problem: schema::ProblemId,
-        contest: schema::ContestId,
-    ) -> FieldResult<schema::Run> {
-        submissions::submit_simple(ctx, toolchain, run_code, problem, contest)
-    }
-
-    /// Creates new user
-    #[graphql(arguments(
-        login(description = "login"),
-        password(description = "Password (no strength validation is performed)"),
-        groups(description = "List of groups new user should belong to")
-    ))]
-    fn create_user(
-        ctx: &Context,
-        login: String,
-        password: String,
-        groups: Vec<String>,
-    ) -> FieldResult<schema::User> {
-        users::create(ctx, login, password, groups)
-    }
-}
-
-pub(crate) type Schema = juniper::RootNode<'static, Query<'static>, Mutation<'static>>;
+pub(crate) type Schema = juniper::RootNode<'static, Query, Mutation>;

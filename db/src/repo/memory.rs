@@ -1,6 +1,6 @@
 use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
 use crate::{schema::*, Error};
-use std::sync::Mutex;
+use std::{convert::TryFrom, sync::Mutex};
 
 #[derive(Default)]
 struct Data {
@@ -84,6 +84,27 @@ impl RunsRepo for MemoryRepo {
             Err(Error::string("run_delete@memory: run already deleted"))
         }
     }
+
+    fn run_select(
+        &self,
+        with_run_id: Option<RunId>,
+        limit: Option<u32>,
+    ) -> Result<Vec<Run>, Error> {
+        let lim = limit
+            .map(|x| usize::try_from(x).unwrap())
+            .unwrap_or(usize::max_value());
+        if lim == 0 {
+            return Ok(Vec::new());
+        }
+        match with_run_id {
+            Some(r) => self.run_load(r).map(|x| vec![x]),
+            None => {
+                let data = self.conn.lock().unwrap();
+                let cnt = std::cmp::min(lim, data.runs.len());
+                Ok(data.runs[..cnt].iter().filter_map(|x| x.clone()).collect())
+            }
+        }
+    }
 }
 
 impl InvocationRequestsRepo for MemoryRepo {
@@ -118,6 +139,16 @@ impl UsersRepo for MemoryRepo {
         };
         data.users.push(user.clone());
         Ok(user)
+    }
+
+    fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {
+        let data = self.conn.lock().unwrap();
+        let res = data
+            .users
+            .iter()
+            .find(|user| user.username == login)
+            .cloned();
+        Ok(res)
     }
 }
 

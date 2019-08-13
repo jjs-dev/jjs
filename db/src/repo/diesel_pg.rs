@@ -30,6 +30,14 @@ mod impl_users {
                 .get_result(&self.conn()?)
                 .map_err(Into::into)
         }
+
+        fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {
+            Ok(users
+                .filter(username.eq(&login))
+                .load(&self.conn()?)?
+                .into_iter()
+                .next())
+        }
     }
 }
 
@@ -110,6 +118,20 @@ mod impl_runs {
                 .execute(&self.conn()?)
                 .map(|_| ())
                 .map_err(Into::into)
+        }
+
+        fn run_select(
+            &self,
+            with_run_id: Option<RunId>,
+            limit: Option<u32>,
+        ) -> Result<Vec<Run>, Error> {
+            let mut query = runs.into_boxed();
+
+            if let Some(rid) = with_run_id {
+                query = query.filter(id.eq(rid));
+            }
+            let limit = limit.map(i64::from).unwrap_or(i64::max_value());
+            Ok(query.limit(limit).load(&self.conn()?)?)
         }
     }
 }

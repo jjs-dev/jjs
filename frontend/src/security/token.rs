@@ -13,9 +13,9 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn issue_for_user(user_name: &str, conn: &diesel::PgConnection) -> Token {
+    pub fn issue_for_user(user_name: &str) -> Token {
         Token {
-            user_info: UserInfo::retrieve(user_name, conn),
+            user_info: UserInfo::retrieve(user_name),
         }
     }
 

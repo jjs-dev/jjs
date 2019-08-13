@@ -11,13 +11,11 @@ pub struct ConnectOptions {
 
 impl ConnectOptions {
     fn warn(&self) {
-        if cfg!(not(test)) {
-            if self.pg.is_none() {
-                eprintln!(
-                    "warning: pg url not provided in DATABASE_URL. \
-                     JJS is unusable in such configuration."
-                );
-            }
+        if cfg!(not(test)) && self.pg.is_none() {
+            eprintln!(
+                "warning: pg url not provided in DATABASE_URL. \
+                 JJS is unusable in such configuration."
+            );
         }
     }
 }

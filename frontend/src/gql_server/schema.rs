@@ -1,4 +1,4 @@
-use juniper::GraphQLObject;
+use juniper::{GraphQLInputObject, GraphQLObject};
 use uuid::Uuid;
 
 pub type ToolchainId = i32;
@@ -7,7 +7,7 @@ pub type ProblemId = String;
 pub type ContestId = String;
 pub type UserId = Uuid;
 
-#[derive(GraphQLObject)]
+#[derive(GraphQLInputObject)]
 pub struct InvokeStatus {
     pub kind: String,
     pub code: String,
@@ -40,7 +40,7 @@ impl<'a> From<&'a db::schema::User> for User {
 #[derive(GraphQLObject)]
 /// Type that represents session
 /// You shouldn't do any assumptions about this type representation
-pub(crate) struct Session {
+pub(crate) struct SessionToken {
     /// Opaque string that represents session data
     /// On all subsequent requests, that this string as value of header `X-Jjs-Auth`
     pub data: String,

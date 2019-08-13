@@ -10,47 +10,37 @@ mod root_auth;
 mod security;
 
 use cfg::Config;
-use diesel::prelude::*;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
 use security::{AccessCheckService, SecretKey, Token};
 use slog::Logger;
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, process::exit, sync::Arc};
 
 #[derive(Debug)]
 enum FrontendError {
     Internal(Option<Box<dyn Debug>>),
-    Db(diesel::result::Error),
-    DbConn(r2d2::Error),
+    Db(db::Error),
 }
 
 impl<'r> rocket::response::Responder<'r> for FrontendError {
     fn respond_to(self, _request: &rocket::Request) -> rocket::response::Result<'r> {
         eprintln!("FrontendError: {:?}", &self);
         let res = match self {
-            FrontendError::Internal(_) | FrontendError::Db(_) | FrontendError::DbConn(_) => {
-                Status::InternalServerError
-            }
+            FrontendError::Internal(_) | FrontendError::Db(_) => Status::InternalServerError,
         };
         Err(res)
     }
 }
 
-impl From<diesel::result::Error> for FrontendError {
-    fn from(e: diesel::result::Error) -> Self {
+impl From<db::Error> for FrontendError {
+    fn from(e: db::Error) -> Self {
         FrontendError::Db(e)
-    }
-}
-
-impl From<r2d2::Error> for FrontendError {
-    fn from(e: r2d2::Error) -> Self {
-        FrontendError::DbConn(e)
     }
 }
 
 type Response<R> = Result<Json<R>, FrontendError>;
 
-type DbPool = r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>;
+type DbPool = Arc<dyn db::DbConn>;
 
 #[catch(400)]
 fn catch_bad_request() -> &'static str {
@@ -72,77 +62,6 @@ fn route_auth_anonymous(
     let res = Ok(frontend_api::AuthToken { buf });
 
     Ok(Json(res))
-}
-
-#[post("/auth/simple", data = "<data>")]
-fn route_auth_simple(
-    data: Json<frontend_api::AuthSimpleParams>,
-    secret_key: State<SecretKey>,
-    db_pool: State<DbPool>,
-) -> Response<Result<frontend_api::AuthToken, frontend_api::AuthSimpleError>> {
-    let conn = db_pool.get()?;
-    let succ = {
-        use db::schema::users::dsl::*;
-
-        let user = users
-            .filter(username.eq(&data.0.login))
-            .load::<db::schema::User>(&conn)?;
-        if !user.is_empty() {
-            let us = &user[0];
-            password::check_password_hash(data.0.password.as_str(), us.password_hash.as_str())
-        } else {
-            false
-        }
-    };
-    let res = if succ {
-        let tok = Token::issue_for_user(&data.login, &conn);
-        Ok(frontend_api::AuthToken {
-            buf: tok.serialize(&secret_key.0),
-        })
-    } else {
-        Err(frontend_api::AuthSimpleError::IncorrectPassword)
-    };
-
-    Ok(Json(res))
-}
-
-#[post("/submissions/modify", data = "<params>")]
-fn route_submissions_set_info(
-    params: Json<frontend_api::SubmissionsSetInfoParams>,
-    db: State<DbPool>,
-    access: AccessCheckService,
-) -> Response<Result<(), frontend_api::CommonError>> {
-    use db::schema::runs::dsl::*;
-    if !access.to_access_checker().can_manage_submissions() {
-        let res = Err(frontend_api::CommonError::AccessDenied);
-        return Ok(Json(res));
-    }
-    let conn = db.get()?;
-    let should_delete = params.delete;
-    if should_delete {
-        diesel::delete(runs)
-            .filter(id.eq(params.id as i32))
-            .execute(&conn)?;
-    } else {
-        let mut changes: db::schema::RunPatch = Default::default();
-        if let Some(new_status) = &params.status {
-            changes.status_code = Some(new_status.code.to_string());
-            changes.status_kind = Some(new_status.kind.to_string());
-        }
-        diesel::update(runs)
-            .filter(id.eq(params.id as i32))
-            .set(changes)
-            .execute(&conn)?;
-    }
-    let res = Ok(());
-    Ok(Json(res))
-}
-
-fn submissions_blob(
-    _params: Json<frontend_api::SubmissionsBlobParams>,
-    _db: State<DbPool>,
-) -> Response<Result<frontend_api::Blob, frontend_api::CommonError>> {
-    unimplemented!()
 }
 
 #[post("/toolchains/list")]
@@ -266,18 +185,14 @@ fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
 }
 
 fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Config) {
-    let postgres_url =
-        std::env::var("DATABASE_URL").expect("'DATABASE_URL' environment variable is not set");
-    let pg_conn_manager =
-        diesel::r2d2::ConnectionManager::<diesel::pg::PgConnection>::new(postgres_url);
-    let pool = r2d2::Pool::new(pg_conn_manager).expect("couldn't initialize DB connection pool");
-
     let pool = match db::connect_env() {
         Ok(p) => p,
         Err(e) => {
             eprintln!("failed connect to DB: {}", e);
+            exit(1);
         }
     };
+    let pool = <Arc<_>>::from(pool);
 
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();
@@ -305,14 +220,11 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         .unwrap();
 
     let graphql_context_factory = gql_server::ContextFactory {
-        pool: pool.clone(),
+        pool: Arc::clone(&pool),
         cfg: std::sync::Arc::new(config.clone()),
     };
 
-    let graphql_schema = gql_server::Schema::new(
-        gql_server::Query(PhantomData),
-        gql_server::Mutation(PhantomData),
-    );
+    let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
 
     let (intro_data, intro_errs) = juniper::introspect(
         &graphql_schema,
@@ -333,7 +245,7 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
         .manage(security_data)
         .manage(GqlApiSchema(introspection_json))
         .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
-            Ok(rocket.manage(SecretKey(cfg1.secret.clone())))
+            Ok(rocket.manage(SecretKey(cfg1.secret.clone().into())))
         }))
         .attach(AdHoc::on_attach("RegisterEnvironmentKind", move |rocket| {
             Ok(rocket.manage(cfg2.env))
@@ -353,7 +265,6 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
 }
 
 fn launch_root_login_server(logger: &slog::Logger, cfg: &config::FrontendConfig) {
-    use std::sync::Arc;
     let key = cfg.secret.clone();
     let cfg = root_auth::Config {
         socket_path: String::from("/tmp/jjs-auth-sock"), // FIXME dehardcode

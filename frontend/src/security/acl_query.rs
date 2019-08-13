@@ -1,6 +1,5 @@
 use super::access_control::{ContestRights, GlobalRights};
 use acl::{AccessToken, Prefix};
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -10,19 +9,11 @@ pub struct UserInfo {
 }
 
 impl UserInfo {
-    pub(crate) fn retrieve(name: &str, conn: &PgConnection) -> UserInfo {
-        use db::schema::{users::dsl::*, User};
-        let user_data: User = users
-            .filter(username.eq(name))
-            .load(conn)
-            .expect("db error")
-            .into_iter()
-            .nth(0)
-            .unwrap();
-
+    pub(crate) fn retrieve(name: &str) -> UserInfo {
+        // FIXME
         UserInfo {
-            name: user_data.username,
-            groups: user_data.groups,
+            name: name.to_string(),
+            groups: vec![],
         }
     }
 

@@ -14,7 +14,6 @@ failure = "0.1.5"
 failure_derive = "0.1.5"
 rand = "0.7.0"
 db = {path = "../db"}
-diesel = { version = "1.4.2", features = ["postgres", "extras", "uuid", "uuidv07"] }
 rocket = "0.4.2"
 r2d2 = "0.8.5"
 dotenv = "0.14.1"

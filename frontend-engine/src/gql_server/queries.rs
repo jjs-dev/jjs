@@ -91,7 +91,7 @@ impl Mutation {
     fn modify_run(
         ctx: &Context,
         id: schema::RunId,
-        status: Option<schema::InvokeStatus>,
+        status: Option<schema::InvokeStatusIn>,
         rejudge: Option<bool>,
         delete: Option<bool>,
     ) -> ApiResult<i32> {

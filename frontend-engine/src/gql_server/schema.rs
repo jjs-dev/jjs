@@ -10,7 +10,13 @@ pub type ContestId = String;
 pub type UserId = Uuid;
 
 #[derive(GraphQLInputObject)]
-pub(crate) struct InvokeStatus {
+pub(crate) struct InvokeStatusIn {
+    pub kind: String,
+    pub code: String,
+}
+
+#[derive(GraphQLObject)]
+pub(crate) struct InvokeStatusOut {
     pub kind: String,
     pub code: String,
 }
@@ -19,7 +25,7 @@ pub(crate) struct InvokeStatus {
 pub(crate) struct Run {
     pub id: RunId,
     pub toolchain_name: String,
-    pub status: InvokeStatus,
+    pub status: InvokeStatusOut,
     pub score: Option<i32>,
     pub problem: ProblemId,
 }

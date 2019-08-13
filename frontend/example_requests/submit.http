@@ -1,9 +1,0 @@
-POST http://localhost:1779/submissions/send HTTP/1.1
-Content-Type: application/json
-
-{
-    "toolchain": 0,
-    "code": "YmFkIGNvZGUK"
-}
-
-###

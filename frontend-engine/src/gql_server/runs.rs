@@ -7,7 +7,7 @@ fn describe_submission(submission: &db::schema::Run) -> Run {
     Run {
         id: submission.id,
         toolchain_name: submission.toolchain_id.clone(),
-        status: schema::InvokeStatus {
+        status: schema::InvokeStatusOut {
             kind: submission.status_kind.clone(),
             code: submission.status_code.clone(),
         },
@@ -89,7 +89,7 @@ pub(super) fn submit_simple(
 pub(super) fn modify(
     ctx: &Context,
     id: RunId,
-    status: Option<schema::InvokeStatus>,
+    status: Option<schema::InvokeStatusIn>,
     rejudge: Option<bool>,
     delete: Option<bool>,
 ) -> ApiResult<()> {

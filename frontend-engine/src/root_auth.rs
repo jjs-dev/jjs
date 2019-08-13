@@ -1,5 +1,6 @@
 // this module is responsible for root user authentification strategies
 // it provides tcp service, which provides some platform-specific authentification options
+use crate::FrontendConfig;
 use slog::{error, info, Logger};
 use std::{
     mem,
@@ -7,16 +8,15 @@ use std::{
         io::AsRawFd,
         net::{UnixListener, UnixStream},
     },
-    sync::Arc,
 };
 
 #[derive(Clone)]
 pub struct Config {
     pub socket_path: String,
-    pub token_provider: Arc<dyn Fn() -> String + Send + Sync>,
+    //pub token_provider: Arc<dyn Fn() -> String + Send + Sync>,
 }
 
-fn handle_conn(logger: &Logger, cfg: &Config, mut conn: UnixStream) {
+fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
     use std::{ffi::c_void, io::Write};
     let conn_handle = conn.as_raw_fd();
     let mut peer_cred: libc::ucred = unsafe { mem::zeroed() };
@@ -40,21 +40,21 @@ fn handle_conn(logger: &Logger, cfg: &Config, mut conn: UnixStream) {
         return;
     }
     info!(logger, "issuing root credentials");
-    let token = (cfg.token_provider)();
+    let token = crate::security::Token::new_root().serialize(&fcfg.secret);
     let message = format!("==={}===\n", token);
     conn.write_all(message.as_bytes()).ok();
 }
 
-fn server_loop(logger: Logger, cfg: Config, sock: UnixListener) {
+fn server_loop(logger: Logger,sock: UnixListener, fcfg: FrontendConfig) {
     info!(logger, "starting unix local root login service");
     for conn in sock.incoming() {
         if let Ok(conn) = conn {
-            handle_conn(&logger, &cfg, conn)
+            handle_conn(&logger, &fcfg, conn)
         }
     }
 }
 
-pub fn start(logger: Logger, cfg: Config) {
+fn do_start(logger: Logger, cfg: Config, fcfg: &FrontendConfig) {
     info!(logger, "binding login server at {}", &cfg.socket_path);
     let listener = match UnixListener::bind(&cfg.socket_path) {
         Ok(l) => l,
@@ -63,7 +63,17 @@ pub fn start(logger: Logger, cfg: Config) {
             return;
         }
     };
+    let fcfg = fcfg.clone();
     std::thread::spawn(move || {
-        server_loop(logger, cfg, listener);
+        server_loop(logger, listener, fcfg);
     });
+}
+
+pub struct LocalAuthServer {}
+
+impl LocalAuthServer {
+    pub fn start(logger: Logger, cfg: Config, fcfg: &FrontendConfig) -> Self {
+        do_start(logger, cfg, fcfg);
+        LocalAuthServer {}
+    }
 }

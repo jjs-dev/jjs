@@ -1,4 +1,4 @@
-use super::{auth, prelude::*, runs, schema, users, Context, Mutation, Query};
+use super::{auth, misc, prelude::*, runs, schema, users, Context, Mutation, Query};
 
 #[juniper::object(Context = Context)]
 impl Query {
@@ -25,10 +25,15 @@ impl Query {
     /// List submissions
     fn submissions(
         ctx: &Context,
-        id: Option<i32>,
+        id: Option<schema::RunId>,
         limit: Option<i32>,
     ) -> ApiResult<Vec<schema::Run>> {
         runs::list(ctx, id, limit)
+    }
+
+    /// List toolchains
+    fn toolchains(ctx: &Context) -> ApiResult<Vec<schema::Toolchain>> {
+        misc::toolchains_list(ctx)
     }
 }
 

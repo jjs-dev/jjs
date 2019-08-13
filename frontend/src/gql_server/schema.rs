@@ -1,3 +1,5 @@
+mod contest;
+
 use juniper::{GraphQLInputObject, GraphQLObject};
 use uuid::Uuid;
 
@@ -8,7 +10,7 @@ pub type ContestId = String;
 pub type UserId = Uuid;
 
 #[derive(GraphQLInputObject)]
-pub struct InvokeStatus {
+pub(crate) struct InvokeStatus {
     pub kind: String,
     pub code: String,
 }
@@ -35,6 +37,12 @@ impl<'a> From<&'a db::schema::User> for User {
             login: user.username.clone(),
         }
     }
+}
+
+#[derive(GraphQLObject)]
+pub(crate) struct Toolchain {
+    pub name: String,
+    pub id: ToolchainId,
 }
 
 #[derive(GraphQLObject)]

@@ -9,10 +9,9 @@ mod password;
 mod root_auth;
 mod security;
 
-use cfg::Config;
 use rocket::{fairing::AdHoc, http::Status, State};
 use rocket_contrib::json::Json;
-use security::{AccessCheckService, SecretKey, Token};
+use security::SecretKey;
 use slog::Logger;
 use std::{fmt::Debug, process::exit, sync::Arc};
 
@@ -48,104 +47,8 @@ fn catch_bad_request() -> &'static str {
 Your request is incorrect.
 Possible reasons:
 - Query body is missing or is not valid JSON
-- X-Jjs-Auth header is missing or is not valid access token
+- X-Jjs-Auth header is not valid access token
     "#
-}
-
-#[post("/auth/anonymous")]
-fn route_auth_anonymous(
-    secret_key: State<SecretKey>,
-) -> Response<Result<frontend_api::AuthToken, frontend_api::CommonError>> {
-    let tok = Token::new_guest();
-
-    let buf = tok.serialize(&secret_key.0);
-    let res = Ok(frontend_api::AuthToken { buf });
-
-    Ok(Json(res))
-}
-
-#[post("/toolchains/list")]
-fn route_toolchains_list(
-    cfg: State<Config>,
-) -> Response<Result<Vec<frontend_api::ToolchainInformation>, frontend_api::CommonError>> {
-    let res = cfg
-        .toolchains
-        .iter()
-        .enumerate()
-        .map(|(i, tc)| frontend_api::ToolchainInformation {
-            name: tc.name.clone(),
-            id: i as frontend_api::ToolchainId,
-        })
-        .collect();
-    let res = Ok(res);
-
-    Ok(Json(res))
-}
-
-fn describe_problem(problem: &cfg::Problem) -> frontend_api::ProblemInformation {
-    frontend_api::ProblemInformation {
-        code: problem.code.clone(),
-        title: "TBD".to_string(),
-    }
-}
-
-fn describe_contest(contest: &cfg::Contest, long_form: bool) -> frontend_api::ContestInformation {
-    frontend_api::ContestInformation {
-        title: contest.title.clone(),
-        name: "TODO".to_string(),
-        problems: if long_form {
-            Some(
-                contest
-                    .problems
-                    .iter()
-                    .map(|p| describe_problem(p))
-                    .collect(),
-            )
-        } else {
-            None
-        },
-    }
-}
-
-// FIXME: check VIEW right
-#[post("/contests/list", data = "<_params>")]
-fn route_contests_list(
-    _params: Json<frontend_api::EmptyParams>,
-    cfg: State<Config>,
-) -> Response<Result<Vec<frontend_api::ContestInformation>, frontend_api::CommonError>> {
-    let data = cfg
-        .contests
-        .iter()
-        .map(|c| frontend_api::ContestInformation {
-            title: c.title.clone(),
-            name: "TODO".to_string(),
-            problems: None, // it is short form
-        })
-        .collect();
-    let res = Ok(data);
-
-    Ok(Json(res))
-}
-
-#[post("/contests/describe", data = "<params>")]
-fn route_contests_describe(
-    access: AccessCheckService,
-    params: Json<frontend_api::ContestId>,
-    cfg: State<Config>,
-) -> Response<Result<frontend_api::ContestInformation, frontend_api::CommonError>> {
-    if params.into_inner().as_str() != "TODO" {
-        let res = Err(frontend_api::CommonError::NotFound);
-        return Ok(Json(res));
-    }
-
-    if !access.to_access_checker().can_view_contest() {
-        let res = Err(frontend_api::CommonError::NotFound);
-        return Ok(Json(res));
-    }
-
-    let data = describe_contest(&cfg.contests[0], true);
-    let res = Ok(data);
-    Ok(Json(res))
 }
 
 #[get("/")]
@@ -192,7 +95,7 @@ fn launch_api(frcfg: &config::FrontendConfig, logger: &Logger, config: &cfg::Con
             exit(1);
         }
     };
-    let pool = <Arc<_>>::from(pool);
+    let pool = Arc::from(pool);
 
     let cfg1 = frcfg.clone();
     let cfg2 = frcfg.clone();

@@ -10,8 +10,8 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 enum CliArgs {
     /// Lint project
-    #[structopt(name = "build")]
-    Build,
+    #[structopt(name = "check")]
+    Check,
     /// Run all tests
     #[structopt(name = "test")]
     Test,
@@ -53,7 +53,7 @@ fn find_scripts() -> impl Iterator<Item = PathBuf> {
         .map(|x| x.path().to_path_buf())
 }
 
-fn task_build() {
+fn task_check() {
     info!("running cargo fmt --check");
     Command::new("cargo")
         .args(&["fmt", "--verbose", "--all", "--", "--check"])
@@ -95,7 +95,7 @@ fn main() {
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).unwrap();
     let args = CliArgs::from_args();
     match args {
-        CliArgs::Build => task_build(),
+        CliArgs::Check => task_check(),
         CliArgs::Test => task_test(),
     }
     if HAD_ERRORS.load(Ordering::SeqCst) {

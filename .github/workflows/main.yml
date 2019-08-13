@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 jobs:
-  ci:
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Fetch sources
@@ -15,6 +15,6 @@ jobs:
           sudo apt update
           sudo apt install -y libpq-dev
       - name: Check formatting and lint with clippy
-        run: cargo build-jjs
+        run: cargo jjs-check
       - name: Run tests
-        run: cargo test-jjs
+        run: cargo jjs-test

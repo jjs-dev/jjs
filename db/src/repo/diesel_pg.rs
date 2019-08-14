@@ -29,7 +29,7 @@ mod impl_users {
                 id: uuid::Uuid::new_v4(),
                 username: user_data.username,
                 password_hash: user_data.password_hash,
-                groups: user_data.groups
+                groups: user_data.groups,
             };
             diesel::insert_into(users)
                 .values(&user)

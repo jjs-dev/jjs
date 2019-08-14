@@ -12,7 +12,7 @@ use crate::{
         util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    RawHandle, InputSpecification, OutputSpecification, WaitOutcome,
+    InputSpecification, OutputSpecification, WaitOutcome,
 };
 use nix::sys::memfd;
 use snafu::ResultExt;
@@ -172,7 +172,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
                     crate::errors::System {
                         code: get_last_error(),
                     }
-                        .fail()?
+                    .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -239,7 +239,6 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
         process(out_r, &mut stdout);
         process(err_r, &mut stderr);
 
-
         Ok(LinuxChildProcess {
             exit_code: AtomicI64::new(EXIT_CODE_STILL_RUNNING),
             stdin,
@@ -276,7 +275,8 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {}
+) {
+}
 
 fn fix_sigchild() {
     unsafe {

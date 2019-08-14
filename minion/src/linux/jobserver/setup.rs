@@ -251,7 +251,6 @@ fn setup_panic_hook() {
         }
         write!(logger, "PANIC: {}", info).ok();
         write!(logger, "{:?}", &bt).ok();
-
     }));
 }
 

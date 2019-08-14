@@ -114,7 +114,7 @@ impl DominionRef {
 }
 
 #[derive(Debug, Clone)]
-pub struct RawHandle (u64);
+pub struct RawHandle(u64);
 
 impl RawHandle {
     /// Takes ownership of handle

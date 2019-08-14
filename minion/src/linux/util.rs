@@ -138,20 +138,15 @@ impl StraceLogger {
         strace_logger()
     }
 
-    pub fn set_fd(&mut self, f: i32) {
+    pub unsafe fn set_fd(&mut self, f: i32) {
         self.0 = f;
     }
 }
 
-
 impl io::Write for StraceLogger {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         unsafe {
-            libc::write(
-                self.0,
-                buf.as_ptr() as *const c_void,
-                buf.len(),
-            );
+            libc::write(self.0, buf.as_ptr() as *const c_void, buf.len());
         }
         Ok(buf.len())
     }

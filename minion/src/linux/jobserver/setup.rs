@@ -244,7 +244,14 @@ fn setup_panic_hook() {
         let mut logger = StraceLogger::new();
         write!(logger, "PANIC: {}", info).ok();
         let bt = backtrace::Backtrace::new();
-        write!(logger, "{:?}", bt).ok();
+        write!(logger, "{:?}", &bt).ok();
+        // Now write same to stdout
+        unsafe {
+            logger.set_fd(0);
+        }
+        write!(logger, "PANIC: {}", info).ok();
+        write!(logger, "{:?}", &bt).ok();
+
     }));
 }
 

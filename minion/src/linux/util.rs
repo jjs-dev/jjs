@@ -123,27 +123,32 @@ pub fn duplicate_string(arg: &OsStr) -> *mut c_char {
     }
 }
 
+const STRACE_LOGGER_HANDLE: Handle = -779;
+
 #[derive(Copy, Clone, Default)]
-pub struct StraceLogger;
+pub struct StraceLogger(i32);
 
 #[allow(dead_code)]
 pub fn strace_logger() -> StraceLogger {
-    StraceLogger
+    StraceLogger(STRACE_LOGGER_HANDLE)
 }
 
 impl StraceLogger {
     pub fn new() -> StraceLogger {
         strace_logger()
     }
+
+    pub fn set_fd(&mut self, f: i32) {
+        self.0 = f;
+    }
 }
 
-const STRACE_LOGGER_HANDLE: Handle = -779;
 
 impl io::Write for StraceLogger {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         unsafe {
             libc::write(
-                STRACE_LOGGER_HANDLE,
+                self.0,
                 buf.as_ptr() as *const c_void,
                 buf.len(),
             );

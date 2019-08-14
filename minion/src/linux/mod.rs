@@ -12,7 +12,7 @@ use crate::{
         util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    HandleWrapper, InputSpecification, OutputSpecification, WaitOutcome,
+    RawHandle, InputSpecification, OutputSpecification, WaitOutcome,
 };
 use nix::sys::memfd;
 use snafu::ResultExt;
@@ -128,8 +128,8 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
             unsafe { libc::close(h_read) };
             Ok((Some(h_write), f))
         }
-        InputSpecification::RawHandle(HandleWrapper { h }) => {
-            let h = h as Handle;
+        InputSpecification::RawHandle(rh) => {
+            let h = rh.get() as Handle;
             Ok((None, h))
         }
         InputSpecification::Empty => {
@@ -144,7 +144,7 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
 fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
     match spec {
         OutputSpecification::Null => Ok((None, -1 as Handle)),
-        OutputSpecification::RawHandle(HandleWrapper { h }) => Ok((None, h as Handle)),
+        OutputSpecification::RawHandle(rh) => Ok((None, rh.get() as Handle)),
         OutputSpecification::Pipe => {
             let mut h_read = 0;
             let mut h_write = 0;
@@ -172,7 +172,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
                     crate::errors::System {
                         code: get_last_error(),
                     }
-                    .fail()?
+                        .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -208,7 +208,14 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
         let mut d = options.dominion.d.lock().unwrap();
         let d = d.b.downcast_mut::<LinuxDominion>().unwrap();
 
-        let ret = match d.spawn_job(q) {
+        let spawn_result = d.spawn_job(q);
+
+        // cleanup child stdio now
+        libc::close(in_r);
+        libc::close(out_w);
+        libc::close(err_w);
+
+        let ret = match spawn_result {
             Some(x) => x,
             None => return Err(crate::Error::Sandbox),
         };
@@ -218,16 +225,21 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             let box_in: Box<dyn Write + Send + Sync> = Box::new(LinuxWritePipe::new(h));
             stdin.replace(box_in);
         }
+
+        let process = |maybe_handle, out: &mut Option<Box<dyn Read + Send + Sync>>| {
+            if let Some(h) = maybe_handle {
+                let b: Box<dyn Read + Send + Sync> = Box::new(LinuxReadPipe::new(h));
+                out.replace(b);
+            }
+        };
+
         let mut stdout = None;
-        if let Some(h) = out_r {
-            let b: Box<dyn Read + Send + Sync> = Box::new(LinuxReadPipe::new(h));
-            stdout.replace(b);
-        }
         let mut stderr = None;
-        if let Some(h) = err_r {
-            let b: Box<dyn Read + Send + Sync> = Box::new(LinuxReadPipe::new(h));
-            stderr.replace(b);
-        }
+
+        process(out_r, &mut stdout);
+        process(err_r, &mut stderr);
+
+
         Ok(LinuxChildProcess {
             exit_code: AtomicI64::new(EXIT_CODE_STILL_RUNNING),
             stdin,
@@ -264,8 +276,7 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {
-}
+) {}
 
 fn fix_sigchild() {
     unsafe {

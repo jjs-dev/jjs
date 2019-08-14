@@ -114,18 +114,21 @@ impl DominionRef {
 }
 
 #[derive(Debug, Clone)]
-pub struct HandleWrapper {
-    h: u64,
-}
+pub struct RawHandle (u64);
 
-impl HandleWrapper {
+impl RawHandle {
+    /// Takes ownership of handle
     pub unsafe fn new(handle: u64) -> Self {
-        Self { h: handle }
+        Self(handle)
     }
 
     #[cfg(unix)]
     pub unsafe fn from<T: std::os::unix::io::IntoRawFd>(obj: T) -> Self {
         Self::new(obj.into_raw_fd() as u64)
+    }
+
+    pub(crate) fn get(&self) -> u64 {
+        self.0
     }
 }
 
@@ -135,7 +138,7 @@ pub enum InputSpecification {
     Null,
     Empty,
     Pipe,
-    RawHandle(HandleWrapper),
+    RawHandle(RawHandle),
 }
 
 /// Configures stdout and stderr for child
@@ -145,7 +148,7 @@ pub enum OutputSpecification {
     Ignore,
     Pipe,
     Buffer(Option<usize>),
-    RawHandle(HandleWrapper),
+    RawHandle(RawHandle),
 }
 
 /// Specifies how to provide child stdio

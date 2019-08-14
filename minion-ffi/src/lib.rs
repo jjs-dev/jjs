@@ -232,13 +232,13 @@ pub unsafe extern "C" fn minion_cp_spawn(
         }
     }
     let stdio = minion::StdioSpecification {
-        stdin: minion::InputSpecification::RawHandle(minion::HandleWrapper::new(
+        stdin: minion::InputSpecification::RawHandle(minion::RawHandle::new(
             options.stdio.stdin,
         )),
-        stdout: minion::OutputSpecification::RawHandle(minion::HandleWrapper::new(
+        stdout: minion::OutputSpecification::RawHandle(minion::RawHandle::new(
             options.stdio.stdout,
         )),
-        stderr: minion::OutputSpecification::RawHandle(minion::HandleWrapper::new(
+        stderr: minion::OutputSpecification::RawHandle(minion::RawHandle::new(
             options.stdio.stderr,
         )),
     };

@@ -4,7 +4,7 @@ use crate::{
     invoker::CommandInterp,
 };
 use cfg::Config;
-use minion::HandleWrapper;
+use minion::RawHandle;
 use slog::{debug, Logger};
 use snafu::ResultExt;
 use std::{
@@ -135,11 +135,11 @@ impl<'a> InvokeContext<'a> {
 
         let stderr_file = fs::File::create(stderr_path).expect("io error");
         cmd.stdout(minion::OutputSpecification::RawHandle(unsafe {
-            HandleWrapper::from(stdout_file)
+            RawHandle::from(stdout_file)
         }));
 
         cmd.stderr(minion::OutputSpecification::RawHandle(unsafe {
-            HandleWrapper::from(stderr_file)
+            RawHandle::from(stderr_file)
         }));
     }
 

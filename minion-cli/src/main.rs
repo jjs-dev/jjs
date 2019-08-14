@@ -139,17 +139,17 @@ fn main() {
         stdio: minion::StdioSpecification {
             stdin: unsafe {
                 minion::InputSpecification::RawHandle(
-                    minion::HandleWrapper::new(0), /* our stdin handle */
+                    minion::RawHandle::new(0), /* our stdin handle */
                 )
             },
             stdout: unsafe {
                 minion::OutputSpecification::RawHandle(
-                    minion::HandleWrapper::new(1), /* our stdout handle */
+                    minion::RawHandle::new(1), /* our stdout handle */
                 )
             },
             stderr: unsafe {
                 minion::OutputSpecification::RawHandle(
-                    minion::HandleWrapper::new(2), /* our stderr handle */
+                    minion::RawHandle::new(2), /* our stderr handle */
                 )
             },
         },

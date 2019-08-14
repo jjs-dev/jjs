@@ -35,3 +35,10 @@ pub fn connect_env() -> Result<Box<dyn Repo>, Error> {
     opts.warn();
     connect(opts)
 }
+
+pub fn connect_memory() -> Result<Box<dyn Repo>, Error> {
+    let opts = ConnectOptions {
+        pg: None,
+    };
+    connect(opts)
+}

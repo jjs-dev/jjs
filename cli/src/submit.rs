@@ -1,4 +1,3 @@
-use frontend_api::{Client, CommonError, SubmissionSendParams, ToolchainInformation};
 use serde_json::{json, Value};
 use std::process::exit;
 use structopt::StructOpt;

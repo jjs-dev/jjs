@@ -12,8 +12,8 @@ pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
 
 use rocket::{fairing::AdHoc, http::Status, State};
-use slog::{error, Logger};
-use std::{fmt::Debug, process::exit, sync::Arc};
+use slog::{Logger};
+use std::{fmt::Debug,  sync::Arc};
 #[derive(Debug)]
 enum FrontendError {
     Internal(Option<Box<dyn Debug>>),
@@ -87,12 +87,47 @@ fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
 pub struct ApiServer {}
 
 impl ApiServer {
-    pub fn serve_forever(
+    pub fn get_schema() -> String {
+        let db_conn = db::connect::connect_memory().unwrap();
+
+        let config = cfg::Config {
+            toolchains: vec![],
+            sysroot: Default::default(),
+            install_dir: Default::default(),
+            toolchain_root: "".to_string(),
+            global_env: Default::default(),
+            env_passing: false,
+            env_blacklist: vec![],
+            contests: vec![],
+            problems: Default::default()
+        };
+
+        let graphql_context_factory = gql_server::ContextFactory {
+            pool: db_conn.into(),
+            cfg: Arc::new(config.clone()),
+        };
+
+        let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
+
+        let (intro_data, intro_errs) = juniper::introspect(
+            &graphql_schema,
+            &graphql_context_factory.create_context_unrestricted(),
+            juniper::IntrospectionFormat::default(),
+        )
+            .unwrap();
+        assert!(intro_errs.is_empty());
+
+        serde_json::to_string(&intro_data).unwrap()
+
+
+    }
+
+    pub fn create(
         frontend_config: config::FrontendConfig,
         logger: Logger,
         config: &cfg::Config,
         pool: DbPool,
-    ) -> ! {
+    ) -> rocket::Rocket {
         let rocket_cfg_env = match frontend_config.env {
             config::Env::Prod => rocket::config::Environment::Production,
             config::Env::Dev => rocket::config::Environment::Development,
@@ -131,9 +166,10 @@ impl ApiServer {
         let cfg1 = frontend_config.clone();
         let cfg2 = frontend_config.clone();
 
-        let launch_err = rocket::custom(rocket_config)
+        rocket::custom(rocket_config)
             .manage(graphql_context_factory)
             .manage(graphql_schema)
+            .manage(logger.clone())
             .manage(GqlApiSchema(introspection_json))
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(security::SecretKey(cfg1.secret.clone().into())))
@@ -152,8 +188,5 @@ impl ApiServer {
                 ],
             )
             .register(catchers![catch_bad_request])
-            .launch();
-        error!(logger, "launch error: {}", launch_err);
-        exit(1)
     }
 }

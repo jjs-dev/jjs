@@ -5,14 +5,6 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0.98"
-serde_derive = "1.0.98"
-ordered-float = "1.0.2"
-try_from = "0.3.2"
-serde_json = "1.0.40"
-reqwest = "0.9.19"
-snafu = "0.4.3"
-slog = "2.5.2"
 
 [build-dependencies]
 frontend-engine = {path = "../frontend-engine"}

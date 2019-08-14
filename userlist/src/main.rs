@@ -1,8 +1,10 @@
 mod list_parse;
+mod client;
 
 use snafu::{ResultExt, Snafu};
 use std::process::exit;
 use structopt::StructOpt;
+use graphql_client::GraphQLQuery;
 
 use list_parse::StatementData;
 
@@ -40,17 +42,24 @@ enum Error {
     Utf8 {
         source: std::string::FromUtf8Error,
     },
-    #[snafu(display("userlist is malformed: {}", & description))]
+    #[snafu(display("userlist is malformed: {}", description))]
     Format {
         description: String,
     },
-    #[snafu(display("frontend returned error: {:?}", & inner))]
+    #[snafu(display("api error: {:?}", inner))]
     Frontend {
-        inner: Box<dyn frontend_api::FrontendError>,
+        inner: Vec<graphql_client::Error>,
     },
+    #[snafu(display("network error: {}", source))]
     Network {
-        source: frontend_api::NetworkError,
+        source: reqwest::Error,
     },
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(source: reqwest::Error) -> Self {
+        Self::Network { source }
+    }
 }
 
 fn decode_base64(s: String) -> String {
@@ -164,7 +173,7 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         ignore_failures = option_storage.ignore_fail;
     }
 
-    let token = match arg.token {
+    let _token = match arg.token {
         Some(tok) => tok.clone(),
         None => std::env::var("JJS_AUTH").unwrap_or_else(|_e| {
             eprintln!("neither --auth nor JJS_AUTH are not set");
@@ -172,41 +181,33 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         }),
     };
 
-    let endpoint = format!("{}:{}", &arg.host, &arg.port);
+    let endpoint = format!("{}:{}/graphql", &arg.host, &arg.port);
 
-    let client = frontend_api::Client {
-        endpoint,
-        token,
-        logger: None,
-    };
+
     for (login, password, groups) in data {
-        let req = frontend_api::UsersCreateParams {
+        let vars = client::create_user::Variables {
             login,
             password,
             groups,
         };
 
-        let user_create_res = client.users_create(&req);
-        let mut err = None;
-        match user_create_res {
-            Ok(Ok(_)) => {}
-            Ok(Err(fr_err)) => {
-                err = Some(Error::Frontend {
-                    inner: Box::new(fr_err),
-                });
-            }
-            Err(network_error) => {
-                err = Some(Error::Network {
-                    source: network_error,
-                });
-            }
-        }
+        let client = reqwest::Client::new();
+        let req_body = client::CreateUser::build_query(vars);
+        let mut resp = client.post(&endpoint).json(&req_body).send()?;
+        let mut response_body: graphql_client::Response<client::create_user::ResponseData> = resp.json()?;
 
-        if let Some(err) = err {
+        let errs = response_body.errors.take().filter(|x| !x.is_empty());
+
+        if let Some(errs) = errs {
             if ignore_failures {
-                eprintln!("note: user creation error: {}", err);
+                eprintln!("note: user creation failed");
+                for err in errs {
+                    eprintln!("\t{}", err);
+                }
             } else {
-                return Err(err);
+                return Err(Error::Frontend {
+                    inner: errs
+                });
             }
         }
     }

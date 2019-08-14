@@ -52,7 +52,7 @@ pub struct NewInvocationRequest {
     pub invoke_revision: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
+#[derive(Serialize, Deserialize, Debug, Clone, Queryable, Insertable)]
 pub struct User {
     pub id: UserId,
     pub username: String,
@@ -60,8 +60,6 @@ pub struct User {
     pub groups: Vec<String>,
 }
 
-#[derive(Insertable)]
-#[table_name = "users"]
 pub struct NewUser {
     pub username: String,
     pub password_hash: String,

@@ -25,10 +25,17 @@ mod impl_users {
 
     impl UsersRepo for DieselRepo {
         fn user_new(&self, user_data: NewUser) -> Result<User, Error> {
+            let user = User {
+                id: uuid::Uuid::new_v4(),
+                username: user_data.username,
+                password_hash: user_data.password_hash,
+                groups: user_data.groups
+            };
             diesel::insert_into(users)
-                .values(&user_data)
-                .get_result(&self.conn()?)
-                .map_err(Into::into)
+                .values(&user)
+                .execute(&self.conn()?)?;
+
+            Ok(user)
         }
 
         fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {

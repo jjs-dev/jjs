@@ -20,7 +20,7 @@ setting = ${string ~ "=" ~ string}
 option = ${setting | flag}
 
 // terminal rules
-string_char_head = @{'a'..'z' | 'A'..'Z' | "+" | "/"}
+string_char_head = @{'a'..'z' | 'A'..'Z' | "+" | "/" | "_" | ":"}
 string_char_any = @{string_char_head | '0'..'9'}
 string = @{string_char_head ~ string_char_any*}
 num = @{'1'..'9' ~ ('0'..'9')*}

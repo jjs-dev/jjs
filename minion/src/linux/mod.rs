@@ -172,7 +172,7 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
                     crate::errors::System {
                         code: get_last_error(),
                     }
-                    .fail()?
+                        .fail()?
                 }
             }
             let child_fd = unsafe { libc::dup(mfd) };
@@ -275,8 +275,7 @@ fn empty_signal_handler(
     _signal_code: libc::c_int,
     _signal_info: *mut libc::siginfo_t,
     _ptr: *mut libc::c_void,
-) {
-}
+) {}
 
 fn fix_sigchild() {
     unsafe {

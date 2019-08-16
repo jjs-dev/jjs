@@ -12,7 +12,7 @@ fn describe_submission(submission: &db::schema::Run) -> Run {
             code: submission.status_code.clone(),
         },
         score: Some(submission.score),
-        problem: submission.problem_id.clone(),
+        problem_name: submission.problem_id.clone(),
     }
 }
 
@@ -33,7 +33,7 @@ pub(super) fn submit_simple(
     contest: schema::ContestId,
 ) -> ApiResult<Run> {
     use db::schema::NewInvocationRequest;
-    let toolchain = ctx.cfg.toolchains.get(toolchain as usize);
+    let toolchain = ctx.cfg.toolchains.iter().find(|t| t.name == toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
         None => return "unknown toolchain".report(),

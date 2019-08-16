@@ -12,7 +12,7 @@ pub struct Opt {
     filename: String,
 }
 
-fn resolve_toolchain(client: &Client, name: &str) -> i64 {
+fn resolve_toolchain(client: &Client, name: &str) -> String {
     let vars = crate::queries::list_toolchains::Variables {};
 
     let res = client

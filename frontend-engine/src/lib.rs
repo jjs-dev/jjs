@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-use rocket::{catch, catchers, get, post, routes};
+use rocket::{catch, catchers, get, post, routes, Rocket};
 
 pub mod config;
 mod gql_server;
@@ -87,7 +87,7 @@ fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
 pub struct ApiServer {}
 
 impl ApiServer {
-    pub fn get_schema() -> String {
+    pub fn create_embedded() -> Rocket {
         let db_conn = db::connect::connect_memory().unwrap();
 
         let config = cfg::Config {
@@ -101,23 +101,21 @@ impl ApiServer {
             contests: vec![],
             problems: Default::default(),
         };
-
-        let graphql_context_factory = gql_server::ContextFactory {
-            pool: db_conn.into(),
-            cfg: Arc::new(config.clone()),
+        let logger = slog::Logger::root(slog::Discard, slog::o!());
+        let frontend_config = config::FrontendConfig {
+            port: 0,
+            host: "127.0.0.1".to_string(),
+            secret: config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE"),
+            unix_socket_path: "".to_string(),
+            env: config::Env::Dev, // TODO
         };
 
-        let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
+        Self::create(frontend_config, logger, &config, db_conn.into())
+    }
 
-        let (intro_data, intro_errs) = juniper::introspect(
-            &graphql_schema,
-            &graphql_context_factory.create_context_unrestricted(),
-            juniper::IntrospectionFormat::default(),
-        )
-        .unwrap();
-        assert!(intro_errs.is_empty());
-
-        serde_json::to_string(&intro_data).unwrap()
+    pub fn get_schema() -> String {
+        let rock = Self::create_embedded();
+        rock.state::<GqlApiSchema>().unwrap().0.clone()
     }
 
     pub fn create(
@@ -125,7 +123,7 @@ impl ApiServer {
         logger: Logger,
         config: &cfg::Config,
         pool: DbPool,
-    ) -> rocket::Rocket {
+    ) -> Rocket {
         let rocket_cfg_env = match frontend_config.env {
             config::Env::Prod => rocket::config::Environment::Production,
             config::Env::Dev => rocket::config::Environment::Development,

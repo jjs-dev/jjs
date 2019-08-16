@@ -1,4 +1,4 @@
-mutation Submit($code: String!, $problem: String!, $toolchain: Int!) {
+mutation Submit($code: String!, $problem: String!, $toolchain: String!) {
     submitSimple(problem: $problem, contest: "TODO", runCode: $code, toolchain: $toolchain) {
         id
     }

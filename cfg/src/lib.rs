@@ -63,6 +63,11 @@ impl Command {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Toolchain {
+    /// Human-readable
+    pub title: String,
+
+    /// Machine-readable
+    #[serde(skip, default)]
     pub name: String,
 
     pub filename: String,
@@ -215,15 +220,22 @@ pub fn get_config() -> Config {
         .expect("couldn't find toolchains config dir (JJS_SYSROOT/etc/jjs/toolchains")
     {
         let item = item.unwrap().path();
-        let tc_cfg = fs::read_to_string(item).expect("Coudln't read toolchain config file");
+        let tc_cfg = fs::read_to_string(&item).expect("Couldn't read toolchain config file");
         let raw_toolchain_spec_data: toml::Value = tc_cfg.parse().unwrap();
-        let toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
+        let mut toolchain_spec: Toolchain = match toml::from_str(&tc_cfg) {
             Ok(x) => x,
             Err(e) => panic!(
                 "Following error when parsing toolchain config: {:?}.\nRaw config:\n{:#?}",
                 e, raw_toolchain_spec_data
             ),
         };
+        let toolchain_name = item
+            .file_name()
+            .unwrap()
+            .to_str()
+            .expect("Toolchain name is not string")
+            .to_string();
+        toolchain_spec.name = toolchain_name;
         c.toolchains.push(toolchain_spec);
     }
     // load contests

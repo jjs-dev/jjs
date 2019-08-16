@@ -33,7 +33,6 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
             let mut result = vec![];
             for sbm in &submissions {
                 let id = sbm.id;
-                //println!("deleting submission {}", id);
                 result.push(id);
                 let vars = crate::queries::remove_run::Variables { run_id: id };
                 params

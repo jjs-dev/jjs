@@ -10,6 +10,15 @@ pub(crate) struct Problem {
     pub id: ProblemId,
 }
 
+impl<'a> From<&'a cfg::Problem> for Problem {
+    fn from(p: &'a cfg::Problem) -> Self {
+        Self {
+            title: p.title.clone(),
+            id: p.code.clone(),
+        }
+    }
+}
+
 pub(crate) struct Contest {
     pub title: String,
     pub id: ContestId,

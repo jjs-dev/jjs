@@ -5,10 +5,9 @@ pub(super) fn toolchains_list(ctx: &Context) -> ApiResult<Vec<schema::Toolchain>
         .cfg
         .toolchains
         .iter()
-        .enumerate()
-        .map(|(i, tc)| schema::Toolchain {
-            name: tc.name.clone(),
-            id: i as schema::ToolchainId,
+        .map(|tc| schema::Toolchain {
+            name: tc.title.clone(),
+            id: tc.name.clone(),
         })
         .collect();
     Ok(res)

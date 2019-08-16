@@ -7,6 +7,8 @@ query ListRuns($detailed: Boolean!) {
             kind,
             code
         },
-        toolchainName @include(if: $detailed)
+        toolchain @include(if: $detailed) {
+            name
+        }
     }
 }

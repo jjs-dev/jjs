@@ -1,0 +1,10 @@
+description: |
+  Smoke test
+steps:
+    -
+      query: |
+        query GetApiVersion {
+            apiVersion
+        }
+      res:
+        apiVersion: "0.0"

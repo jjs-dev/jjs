@@ -64,6 +64,7 @@ fn task_check() {
         .args(&[
             "clippy",
             "--all",
+            "--tests",
             "--",
             "-D",
             "clippy::all",

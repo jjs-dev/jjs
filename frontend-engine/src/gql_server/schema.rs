@@ -3,9 +3,10 @@ mod contest;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use uuid::Uuid;
 
-pub(crate) use contest::Contest;
+use super::Context;
+pub(crate) use contest::{Contest, Problem};
 
-pub type ToolchainId = i32;
+pub type ToolchainId = String;
 pub type RunId = i32;
 pub type ProblemId = String;
 pub type ContestId = String;
@@ -23,13 +24,41 @@ pub(crate) struct InvokeStatusOut {
     pub code: String,
 }
 
-#[derive(GraphQLObject)]
 pub(crate) struct Run {
     pub id: RunId,
     pub toolchain_name: String,
     pub status: InvokeStatusOut,
     pub score: Option<i32>,
-    pub problem: ProblemId,
+    pub problem_name: String,
+}
+
+#[juniper::object(Context = Context)]
+impl Run {
+    fn id(&self) -> RunId {
+        self.id
+    }
+
+    fn toolchain(&self, ctx: &Context) -> Toolchain {
+        ctx.cfg
+            .find_toolchain(&self.toolchain_name)
+            .expect("toolchain not found")
+            .into()
+    }
+
+    fn status(&self) -> &InvokeStatusOut {
+        &self.status
+    }
+
+    fn score(&self) -> Option<i32> {
+        self.score
+    }
+
+    fn problem(&self, ctx: &Context) -> Problem {
+        ctx.cfg
+            .find_problem(&self.problem_name)
+            .expect("problem not found")
+            .into()
+    }
 }
 
 #[derive(GraphQLObject)]
@@ -49,8 +78,19 @@ impl<'a> From<&'a db::schema::User> for User {
 
 #[derive(GraphQLObject)]
 pub(crate) struct Toolchain {
+    /// Human readable name, e.g. "GCC C++ v9.1 with sanitizers enables"
     pub name: String,
+    /// Internal name, e.g. "cpp.san.9.1"
     pub id: ToolchainId,
+}
+
+impl<'a> From<&'a cfg::Toolchain> for Toolchain {
+    fn from(tc: &'a cfg::Toolchain) -> Self {
+        Self {
+            name: tc.title.clone(),
+            id: tc.name.clone(),
+        }
+    }
 }
 
 #[derive(GraphQLObject)]

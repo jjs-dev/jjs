@@ -16,7 +16,7 @@ impl Env {
     }
 }
 
-fn derive_key_512(secret: &str) -> Vec<u8> {
+pub fn derive_key_512(secret: &str) -> Vec<u8> {
     use digest::Digest;
     use rand::{Rng, SeedableRng};
     let secret_hash = {

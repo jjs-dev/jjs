@@ -7,4 +7,4 @@ debug = 1
 [workspace]
 members=["db", "invoker", "minion", "cfg", "init-jjs-root", "frontend", "frontend-api", "minion-cli", "cleanup",
 "minion-ffi", "devtool", "soft", "envck", "userlist", "invoker-api", "ppc", "pom", "devtool",  "deploy", "cli",
-"frontend-engine"]
+"frontend-engine", "frontend-api-derive"]

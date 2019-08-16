@@ -37,8 +37,6 @@ pub fn connect_env() -> Result<Box<dyn Repo>, Error> {
 }
 
 pub fn connect_memory() -> Result<Box<dyn Repo>, Error> {
-    let opts = ConnectOptions {
-        pg: None,
-    };
+    let opts = ConnectOptions { pg: None };
     connect(opts)
 }

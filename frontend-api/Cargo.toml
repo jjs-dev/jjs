@@ -5,6 +5,12 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
+reqwest = "0.9.19"
+serde = "1.0.98"
+graphql_client = "0.8.0"
+frontend-api-derive = {path = "../frontend-api-derive"}
+serde_json = "1.0.40"
+snafu = "0.4.4"
 
 [build-dependencies]
 frontend-engine = {path = "../frontend-engine"}

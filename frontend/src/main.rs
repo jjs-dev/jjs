@@ -2,9 +2,7 @@
 
 extern crate rocket;
 
-use slog::{
-    error, Logger
-};
+use slog::{error, Logger};
 use std::process::exit;
 
 use frontend_engine::FrontendConfig;
@@ -18,8 +16,8 @@ fn launch_api(frcfg: FrontendConfig, logger: Logger, config: cfg::Config) {
         }
     };
 
-    let launch_err = frontend_engine::ApiServer::create(frcfg, logger.clone(), &config, pool.into()).launch();
-
+    let launch_err =
+        frontend_engine::ApiServer::create(frcfg, logger.clone(), &config, pool.into()).launch();
 
     error!(logger, "launch error: {}", launch_err);
     exit(1)

@@ -12,8 +12,8 @@ pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
 
 use rocket::{fairing::AdHoc, http::Status, State};
-use slog::{Logger};
-use std::{fmt::Debug,  sync::Arc};
+use slog::Logger;
+use std::{fmt::Debug, sync::Arc};
 #[derive(Debug)]
 enum FrontendError {
     Internal(Option<Box<dyn Debug>>),
@@ -99,7 +99,7 @@ impl ApiServer {
             env_passing: false,
             env_blacklist: vec![],
             contests: vec![],
-            problems: Default::default()
+            problems: Default::default(),
         };
 
         let graphql_context_factory = gql_server::ContextFactory {
@@ -114,12 +114,10 @@ impl ApiServer {
             &graphql_context_factory.create_context_unrestricted(),
             juniper::IntrospectionFormat::default(),
         )
-            .unwrap();
+        .unwrap();
         assert!(intro_errs.is_empty());
 
         serde_json::to_string(&intro_data).unwrap()
-
-
     }
 
     pub fn create(

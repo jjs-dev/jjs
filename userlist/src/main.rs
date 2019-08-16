@@ -1,10 +1,10 @@
-mod list_parse;
 mod client;
+mod list_parse;
 
+use graphql_client::GraphQLQuery;
 use snafu::{ResultExt, Snafu};
 use std::process::exit;
 use structopt::StructOpt;
-use graphql_client::GraphQLQuery;
 
 use list_parse::StatementData;
 
@@ -50,15 +50,15 @@ enum Error {
     Frontend {
         inner: Vec<graphql_client::Error>,
     },
-    #[snafu(display("network error: {}", source))]
-    Network {
-        source: reqwest::Error,
+    #[snafu(display("transport error: {}", source))]
+    Transport {
+        source: frontend_api::TransportError,
     },
 }
 
-impl From<reqwest::Error> for Error {
-    fn from(source: reqwest::Error) -> Self {
-        Self::Network { source }
+impl From<frontend_api::TransportError> for Error {
+    fn from(source: frontend_api::TransportError) -> Self {
+        Self::Transport { source }
     }
 }
 
@@ -173,16 +173,7 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         ignore_failures = option_storage.ignore_fail;
     }
 
-    let _token = match arg.token {
-        Some(tok) => tok.clone(),
-        None => std::env::var("JJS_AUTH").unwrap_or_else(|_e| {
-            eprintln!("neither --auth nor JJS_AUTH are not set");
-            std::process::exit(1);
-        }),
-    };
-
-    let endpoint = format!("{}:{}/graphql", &arg.host, &arg.port);
-
+    let client = frontend_api::Client::from_env();
 
     for (login, password, groups) in data {
         let vars = client::create_user::Variables {
@@ -191,23 +182,19 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
             groups,
         };
 
-        let client = reqwest::Client::new();
         let req_body = client::CreateUser::build_query(vars);
-        let mut resp = client.post(&endpoint).json(&req_body).send()?;
-        let mut response_body: graphql_client::Response<client::create_user::ResponseData> = resp.json()?;
+        let resp = client.query::<_, client::create_user::ResponseData>(&req_body)?;
 
-        let errs = response_body.errors.take().filter(|x| !x.is_empty());
+        let res = resp.into_result();
 
-        if let Some(errs) = errs {
+        if let Err(errs) = res {
             if ignore_failures {
-                eprintln!("note: user creation failed");
+                eprintln!("warning: user creation failed");
                 for err in errs {
                     eprintln!("\t{}", err);
                 }
             } else {
-                return Err(Error::Frontend {
-                    inner: errs
-                });
+                return Err(Error::Frontend { inner: errs });
             }
         }
     }

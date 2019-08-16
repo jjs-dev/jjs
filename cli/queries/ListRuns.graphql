@@ -1,0 +1,12 @@
+query ListRuns($detailed: Boolean!) {
+    submissions {
+        id,
+        problem @include(if: $detailed),
+        score @include(if: $detailed),
+        status @include(if: $detailed) {
+            kind,
+            code
+        },
+        toolchainName @include(if: $detailed)
+    }
+}

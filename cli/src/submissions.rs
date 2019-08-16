@@ -1,4 +1,6 @@
+use graphql_client::GraphQLQuery;
 use serde_json::Value;
+use slog::error;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -6,20 +8,25 @@ use structopt::StructOpt;
 pub struct Opt {
     /// Action: view, remove or rejudge
     action: String,
+    #[structopt(long = "filter", short = "f", default_value = "true")]
     _filter: String,
 }
 
 pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     // at first, load submissions from DB
     // TODO optimizations
-    let subm_list_query = SubmissionsListParams {
-        limit: u32::max_value(),
-    };
+    let vars = crate::queries::list_runs::Variables { detailed: true };
+    // FIXME:                                                   ^
+    //                                       should be false here
+    //                                see https://github.com/graphql-rust/graphql-client/issues/250
+    let query = crate::queries::ListRuns::build_query(vars);
     let submissions = params
         .client
-        .submissions_list(&subm_list_query)
-        .unwrap()
-        .expect("request rejected");
+        .query::<_, crate::queries::list_runs::ResponseData>(&query)
+        .expect("transport error")
+        .into_result()
+        .expect("api error")
+        .submissions;
     match opt.action.as_str() {
         "view" => serde_json::to_value(&submissions).unwrap(),
         "remove" => {
@@ -28,18 +35,21 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
                 let id = sbm.id;
                 //println!("deleting submission {}", id);
                 result.push(id);
-                let query = frontend_api::SubmissionsSetInfoParams {
-                    delete: true,
-                    rejudge: false,
-                    status: None,
-                    state: None,
-                    id,
-                };
+                let vars = crate::queries::remove_run::Variables { run_id: id };
                 params
                     .client
-                    .submissions_modify(&query)
+                    .query::<_, crate::queries::remove_run::ResponseData>(
+                        &crate::queries::RemoveRun::build_query(vars),
+                    )
                     .unwrap()
-                    .unwrap_or_else(|_| panic!("request rejected when deleting submission {}", id));
+                    .into_result()
+                    .map(std::mem::drop)
+                    .unwrap_or_else(|err| {
+                        error!(
+                            params.logger,
+                            "api error when deleting submission {}: {}", id, err[0]
+                        )
+                    });
             }
             serde_json::to_value(result).unwrap()
         }
@@ -48,23 +58,19 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
             for sbm in &submissions {
                 let id = sbm.id;
                 result.push(id);
-                let query = SubmissionsSetInfoParams {
-                    delete: false,
-                    rejudge: false,
-                    id,
-                    status: None,
-                    state: Some(SubmissionState::Queue),
-                };
-                params
+                let vars = crate::queries::rejudge_run::Variables { run_id: id };
+                let query = crate::queries::RejudgeRun::build_query(vars);
+                let res = params
                     .client
-                    .submissions_modify(&query)
+                    .query::<_, crate::queries::rejudge_run::ResponseData>(&query)
                     .unwrap()
-                    .unwrap_or_else(|_| {
-                        panic!(
-                            "request rejected when marking submission {} for rejudge",
-                            id
-                        )
-                    });
+                    .into_result();
+                if let Err(e) = res {
+                    error!(
+                        params.logger,
+                        "When rejudging run {}: api error: {}", id, e[0]
+                    );
+                }
             }
             serde_json::to_value(result).unwrap()
         }

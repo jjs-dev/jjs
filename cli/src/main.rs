@@ -1,17 +1,17 @@
 mod contests;
+mod queries;
 mod submissions;
 mod submit;
 
 use frontend_api::*;
+use slog::{o, Drain, Logger};
 use std::process::exit;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
-    #[structopt(long = "token", short = "t", default_value = "dev_root")]
-    token: String,
-    #[structopt(long = "verbose", short = "v")]
-    verbose: bool,
+    #[structopt(long = "dump-completion")]
+    dump_completion: bool,
     #[structopt(subcommand)]
     sub: SubOpt,
 }
@@ -28,6 +28,7 @@ enum SubOpt {
 
 pub struct CommonParams {
     client: Client,
+    logger: Logger,
 }
 
 fn gen_completion() {
@@ -40,8 +41,6 @@ fn gen_completion() {
 }
 
 fn main() {
-    use sloggers::Build;
-
     if std::env::var("COMPLETION").is_ok() {
         gen_completion();
         exit(0);
@@ -49,22 +48,24 @@ fn main() {
 
     let opt: Opt = Opt::from_args();
 
-    let mut builder = sloggers::terminal::TerminalLoggerBuilder::new();
-    if opt.verbose {
-        builder.level(sloggers::types::Severity::Debug);
+    // TODO works pretty bad
+    if opt.dump_completion {
+        gen_completion();
+        exit(0);
     }
 
-    let logger = builder.build().expect("couldn't setup logger");
+    let drain =
+        slog_term::CompactFormat::new(slog_term::TermDecorator::new().stderr().build()).build();
 
-    let token = opt.token.clone();
+    let logger = slog_envlogger::new(drain);
+    let logger = std::sync::Mutex::new(logger);
+    let logger = Logger::root(logger.fuse(), o!()).into_erased();
+    let _guard = slog_scope::set_global_logger(logger.clone());
+    slog_stdlog::init().unwrap();
 
-    let client = Client {
-        endpoint: "http://localhost:1779".to_string(),
-        logger: Some(logger),
-        token,
-    };
+    let client = Client::from_env();
 
-    let common = CommonParams { client };
+    let common = CommonParams { client, logger };
 
     let data = match opt.sub {
         SubOpt::Submit(sopt) => submit::exec(sopt, &common),

@@ -1,27 +1,28 @@
+use graphql_client::GraphQLQuery;
 use serde_json::Value;
 use structopt::StructOpt;
+
 #[derive(StructOpt)]
 pub struct Opt {
-    contest: Option<String>,
+    detailed: bool,
 }
 
 pub fn exec(opt: Opt, common: &super::CommonParams) -> Value {
-    match opt.contest {
-        Some(name) => {
-            let info = common
-                .client
-                .contests_describe(&name)
-                .expect("network error")
-                .expect("error");
-            serde_json::to_value(info).unwrap()
-        }
-        None => {
-            let information = common
-                .client
-                .contests_list(&())
-                .expect("network error")
-                .expect("error");
-            serde_json::to_value(information).unwrap()
+    let vars = crate::queries::list_contests::Variables {
+        detailed: opt.detailed,
+    };
+    let res = common
+        .client
+        .query::<_, crate::queries::list_contests::ResponseData>(
+            &crate::queries::ListContests::build_query(vars),
+        )
+        .expect("network error")
+        .into_result();
+    match res {
+        Ok(data) => serde_json::to_value(data).unwrap(),
+        Err(e) => {
+            eprintln!("error: {}", e[0]);
+            Value::Null
         }
     }
 }

@@ -1,0 +1,13 @@
+[package]
+name = "frontend-api-derive"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.0"
+syn = "1.0.1"
+proc-macro2 = "1.0.0"

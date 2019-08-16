@@ -1,3 +1,5 @@
+use frontend_api::Client;
+use graphql_client::GraphQLQuery;
 use serde_json::{json, Value};
 use std::process::exit;
 use structopt::StructOpt;
@@ -10,11 +12,17 @@ pub struct Opt {
     filename: String,
 }
 
-fn resolve_toolchain(client: &Client, name: &str) -> i32 {
-    let res: Result<Vec<ToolchainInformation>, CommonError> =
-        client.toolchains_list(&()).expect("network error");
+fn resolve_toolchain(client: &Client, name: &str) -> i64 {
+    let vars = crate::queries::list_toolchains::Variables {};
+
+    let res = client
+        .query::<_, crate::queries::list_toolchains::ResponseData>(
+            &crate::queries::ListToolchains::build_query(vars),
+        )
+        .expect("network error")
+        .into_result();
     let res = res.expect("Couldn't get toolchain information");
-    for tc in res {
+    for tc in res.toolchains {
         if tc.name == name {
             return tc.id;
         }
@@ -22,34 +30,31 @@ fn resolve_toolchain(client: &Client, name: &str) -> i32 {
     panic!("Couldn't find toolchain {}", name);
 }
 
-fn resolve_problem(
-    client: &Client,
-    contest_name: &str,
-    problem_code: &str,
-) -> (frontend_api::ContestId, frontend_api::ProblemCode) {
-    let contests = client
-        .contests_list(&())
+fn resolve_problem(client: &Client, contest_name: &str, problem_code: &str) -> (String, String) {
+    let data = client
+        .query::<_, crate::queries::list_contests::ResponseData>(
+            &crate::queries::ListContests::build_query(crate::queries::list_contests::Variables {
+                detailed: true,
+            }),
+        )
         .expect("network error")
+        .into_result()
         .expect("request rejected");
-    let mut contest_id = None;
-    for contest in contests {
-        if contest.name == contest_name {
-            contest_id = Some(contest.name);
+    let mut target_contest = None;
+    for contest in data.contests {
+        if contest.id == contest_name {
+            target_contest = Some(contest);
             break;
         }
     }
-    let contest_id = contest_id.unwrap_or_else(|| {
+    let contest = target_contest.unwrap_or_else(|| {
         eprintln!("contest {} not found", contest_name);
         exit(1);
     });
 
-    let contest_info = client
-        .contests_describe(&contest_id)
-        .expect("network error")
-        .expect("request rejected");
-    for problem in contest_info.problems.unwrap() {
-        if problem.code == problem_code {
-            return (contest_id, problem.code);
+    for problem in contest.problems {
+        if problem.id == problem_code {
+            return (contest.id, problem.id);
         }
     }
     eprintln!("problem {} not found", problem_code);
@@ -61,17 +66,21 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     let data = base64::encode(&data);
 
     let tc_id = resolve_toolchain(&params.client, &opt.toolchain);
-    let (contest, problem) = resolve_problem(&params.client, "TODO", &opt.problem);
-    let query = SubmissionSendParams {
+    let (_contest, problem) = resolve_problem(&params.client, "TODO", &opt.problem);
+
+    let vars = crate::queries::submit::Variables {
         toolchain: tc_id,
         code: data,
         problem,
-        contest,
     };
+
     let resp = params
         .client
-        .submissions_send(&query)
-        .expect("network error");
+        .query::<_, crate::queries::submit::ResponseData>(&crate::queries::Submit::build_query(
+            vars,
+        ))
+        .expect("network error")
+        .into_result();
     let resp = resp.expect("submit failed");
     json!({ "id": resp })
 }

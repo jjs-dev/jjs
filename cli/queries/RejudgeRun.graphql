@@ -1,0 +1,3 @@
+mutation RejudgeRun($runId: Int!) {
+    modifyRun(id:$runId,  rejudge: true)
+}

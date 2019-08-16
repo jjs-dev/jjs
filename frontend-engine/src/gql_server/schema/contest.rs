@@ -3,16 +3,16 @@ use juniper::GraphQLObject;
 
 #[derive(GraphQLObject)]
 pub(crate) struct Problem {
-    /// Problem title as contestants see, e.g. "Find max flow"
+    /// Problem title as contestants see, e.g. "Find max flow".
     pub title: String,
-    /// Problem id as specified in problem properties, e.g. "max-flow" or "task-a"
+    /// Problem external id (aka problem code) as contestants see. This is usually one letter or
+    /// something similar, e.g. 'A' or '3F'.
     pub id: ProblemId,
 }
 
 pub(crate) struct Contest {
     pub title: String,
     pub id: ContestId,
-    //pub problems: Option<Vec<ProblemInformation>>,
 }
 
 #[juniper::object(Context = Context)]

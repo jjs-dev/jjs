@@ -1,0 +1,9 @@
+query ListContests($detailed: Boolean!) {
+    contests {
+        id,
+        title,
+        problems @include(if: $detailed) {
+            id
+        }
+    }
+}

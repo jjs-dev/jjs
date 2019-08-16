@@ -48,7 +48,11 @@ pub fn handle_read_all(h: i64) -> Vec<u8> {
     let h = h as i32;
     let mut file = unsafe { std::fs::File::from_raw_fd(h) };
     let mut out = Vec::new();
-    file.read_to_end(&mut out).unwrap();
+    let res = file.read_to_end(&mut out);
+    unsafe {
+        libc::close(h);
+    }
+    res.unwrap();
     out
 }
 

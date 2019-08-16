@@ -151,6 +151,8 @@ impl<'a> Judge<'a> {
         let st = cmd.status().map(|st| st.success());
         os_util::close(out_checker_side);
         os_util::close(comments_checker_side);
+        os_util::close(corr_handle);
+        os_util::close(test_handle);
 
         let return_value_for_judge_fault = Ok(JudgeOutcome {
             status: Status {

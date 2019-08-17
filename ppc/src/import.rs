@@ -246,7 +246,7 @@ impl<'a> Importer<'a> {
                 ts.testgen = Some(testgen_cmd);
             } else {
                 // TODO: use formatf here instead of hardcoded format strings
-                ts.files = Some("{:0>2}.txt".to_string());
+                ts.files = Some("%02d.txt".to_string());
                 let src_path = format!("tests/{:0>2}", cnt);
                 let dest_path = format!("tests/{:0>2}.txt", cnt);
                 self.import_file(&src_path, &dest_path);

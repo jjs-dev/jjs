@@ -208,10 +208,17 @@ impl<'a> ProblemBuilder<'a> {
                     cmd.run_quiet();
                 }
                 crate::cfg::TestGenSpec::File { path } => {
-                    let path = format!("{}/tests/{}", self.problem_dir.display(), path);
-                    let pb_msg = format!("Copy: {}", &path);
+                    let src_path = self.problem_dir.join("tests").join(path);
+                    let pb_msg = format!("Copy: {}", src_path.display());
                     pb.set_message(&pb_msg.style_with(&crate::style::in_progress()));
-                    std::fs::copy(&path, &out_file_path).expect("Couldn't copy test data");
+                    if let Err(e) = std::fs::copy(&src_path, &out_file_path) {
+                        eprintln!(
+                            "Couldn't copy test data from {} to {}: {}",
+                            src_path.display(),
+                            out_file_path,
+                            e,
+                        );
+                    }
                 }
             }
             let mut test_info = pom::Test {

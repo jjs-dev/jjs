@@ -12,6 +12,7 @@ struct Importer<'a> {
     dest: &'a Path,
     problem_cfg: crate::cfg::RawProblem,
     known_generators: HashSet<String>,
+    doc: roxmltree::Node<'a, 'a>,
 }
 
 enum FileCategory {
@@ -85,79 +86,69 @@ impl<'a> Importer<'a> {
 
     // <problem><judging> is most important section for us: it contains information
     // about tests
-    fn process_judging_section(&mut self, manifest: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<judging>");
-        let testset_start = manifest.next().unwrap();
-        match testset_start {
-            XmlEvent::StartElement { name, .. } => {
-                assert_eq!(name.local_name, "testset");
-            }
-            _ => {
-                panic!("unexpected event: {:?}", testset_start);
-            }
-        }
+    fn process_judging_section(&mut self, node_judging: roxmltree::Node) {
+        println!("Processing <judging> section");
+        let node_testset = node_judging.first_element_child().unwrap();
+        assert_eq!(node_testset.tag_name().name(), "testset");
+
         let mut memory_limit = None;
         let mut time_limit = None;
         let mut test_pattern = None;
         let mut ans_pattern = None;
         let mut test_count = None;
-        loop {
-            match manifest.next().unwrap() {
-                XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
-                    "time-limit" => {
-                        let tl = self
-                            .read_tag_content_as_string(manifest)
-                            .parse::<u32>()
-                            .expect("parsing <time-limit>:");
-                        println!("time limit: {} ms", tl);
-                        time_limit.replace(tl);
-                    }
-                    "memory-limit" => {
-                        let ml = self
-                            .read_tag_content_as_string(manifest)
-                            .parse::<u32>()
-                            .expect("parsing <memory-limit>:");
-                        println!("memory limit: {} bytes ({} MiBs)", ml, ml / (1 << 20));
-                        memory_limit.replace(ml);
-                    }
-                    "input-path-pattern" => {
-                        let pat = self.read_tag_content_as_string(manifest);
-                        println!("test input file path pattern: {}", &pat);
-                        test_pattern.replace(pat);
-                    }
-                    "answer-path-pattern" => {
-                        let pat = self.read_tag_content_as_string(manifest);
-                        println!("test output file path pattern: {}", &pat);
-                        ans_pattern.replace(pat);
-                    }
-                    "test-count" => {
-                        let cnt = self
-                            .read_tag_content_as_string(manifest)
-                            .parse::<u32>()
-                            .expect("parsing <test-count>:");
-                        println!("test count: {}", cnt);
-                        test_count.replace(cnt);
-                    }
-                    "tests" => {
-                        self.process_tests(manifest);
-                    }
-                    _ => {
-                        eprintln!(
-                            "warning: unexpected tag in <problem><judging><testset>: {}",
-                            name.local_name
-                        );
-                        self.skip_section(manifest);
-                    }
-                },
-                XmlEvent::EndElement { name } => {
-                    if name.local_name == "judging" {
-                        break;
-                    }
+        for child in node_testset.children() {
+            if !child.is_element() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "time-limit" => {
+                    let tl = child
+                        .text()
+                        .unwrap()
+                        .parse::<u32>()
+                        .expect("parsing <time-limit>:");
+                    println!("time limit: {} ms", tl);
+                    time_limit.replace(tl);
                 }
-                _ => continue,
+                "memory-limit" => {
+                    let ml = child
+                        .text()
+                        .unwrap()
+                        .parse::<u32>()
+                        .expect("parsing <memory-limit>:");
+                    println!("memory limit: {} bytes ({} MiBs)", ml, ml / (1 << 20));
+                    memory_limit.replace(ml);
+                }
+                "input-path-pattern" => {
+                    let pat = child.text().unwrap().to_string();
+                    println!("test input file path pattern: {}", &pat);
+                    test_pattern.replace(pat);
+                }
+                "answer-path-pattern" => {
+                    let pat = child.text().unwrap().to_string();
+                    println!("test output file path pattern: {}", &pat);
+                    ans_pattern.replace(pat);
+                }
+                "test-count" => {
+                    let cnt = child
+                        .text()
+                        .unwrap()
+                        .parse::<u32>()
+                        .expect("parsing <test-count>:");
+                    println!("test count: {}", cnt);
+                    test_count.replace(cnt);
+                }
+                "tests" => {
+                    self.process_tests(child);
+                }
+                _ => {
+                    eprintln!(
+                        "warning: unexpected tag in <problem><judging><testset>: {}",
+                        child.tag_name().name()
+                    );
+                }
             }
         }
-        println!("</judging>");
     }
 
     fn import_file(&mut self, src_path: impl AsRef<Path>, dest_path: impl AsRef<Path>) {
@@ -306,204 +297,88 @@ impl<'a> Importer<'a> {
         println!("</executables>");
     }
 
-    fn process_files(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<files>");
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
-                    "resources" | "attachments" => {
-                        self.skip_section(iter);
-                    }
-                    "executables" => {
-                        self.process_executables(iter);
-                    }
-                    other => {
-                        eprintln!("processing <files>: unexpected tag {}", other);
-                    }
-                },
-                XmlEvent::EndElement { .. } => {
-                    break;
-                }
-                other => {
-                    panic!("processing <files>: unexpected event {:?}", other);
-                }
-            }
-        }
-        println!("</files>");
-    }
-
-    fn process_problem(&mut self, manifest: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<problem>");
-        loop {
-            match manifest.next().unwrap() {
-                XmlEvent::StartElement { name, .. } => {
-                    if name.local_name == "judging" {
-                        self.process_judging_section(manifest);
-                    } else if name.local_name == "names" {
-                        self.process_names(manifest);
-                    } else if name.local_name == "files" {
-                        self.process_files(manifest);
-                    } else if name.local_name == "assets" {
-                        self.process_assets(manifest);
-                    } else {
-                        self.skip_section(manifest);
-                    }
-                }
-                XmlEvent::EndElement { .. } => {
-                    break;
-                }
-                _ => {}
-            }
-        }
-        println!("</problem>");
-    }
-
-    fn process_tests(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<tests>");
+    fn process_tests(&mut self, tests_node: roxmltree::Node) {
+        println!("Importing tests");
+        assert_eq!(tests_node.tag_name().name(), "tests");
         let mut cnt = 0;
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::EndElement { name, .. } => {
-                    if name.local_name == "tests" {
-                        break;
-                    }
-                }
-                XmlEvent::StartElement { attributes, .. } => {
-                    cnt += 1;
-                    let attrs = self.parse_attrs(attributes);
-                    let mut ts = crate::cfg::RawTestsSpec {
-                        map: cnt.to_string(),
-                        testgen: None,
-                        files: None,
-                    };
-                    let is_generated = attrs["method"] == "generated";
-                    if is_generated {
-                        let cmd_iter = attrs["cmd"].as_str().split_whitespace();
-                        let mut testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
-                        let gen_name = testgen_cmd[0].clone();
-                        self.known_generators.insert(gen_name);
-                        testgen_cmd.insert(0, "shim".to_string());
-                        ts.testgen = Some(testgen_cmd);
-                    } else {
-                        ts.files = Some("{:0>2}.txt".to_string());
-                        let src_path = format!("tests/{:0>2}", cnt);
-                        let dest_path = format!("tests/{:0>2}.txt", cnt);
-                        self.import_file(&src_path, &dest_path);
-                    }
-                    self.problem_cfg.tests.push(ts);
-                }
-                event => {
-                    panic!("unexpected event: {:?}", event);
-                }
+        for test_node in tests_node.children() {
+            if !test_node.is_element() {
+                continue;
             }
+            assert_eq!(test_node.tag_name().name(), "test");
+            cnt += 1;
+            let mut ts = crate::cfg::RawTestsSpec {
+                map: cnt.to_string(),
+                testgen: None,
+                files: None,
+            };
+            let is_generated = test_node.attribute("method").unwrap() == "generated";
+            if is_generated {
+                let cmd_iter = test_node.attribute("cmd").unwrap().split_whitespace();
+                let mut testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
+                let gen_name = testgen_cmd[0].clone();
+                self.known_generators.insert(gen_name);
+                testgen_cmd.insert(0, "shim".to_string());
+                ts.testgen = Some(testgen_cmd);
+            } else {
+                // TODO: use formatf here instead of hardcoded format strings
+                ts.files = Some("{:0>2}.txt".to_string());
+                let src_path = format!("tests/{:0>2}", cnt);
+                let dest_path = format!("tests/{:0>2}.txt", cnt);
+                self.import_file(&src_path, &dest_path);
+            }
+            self.problem_cfg.tests.push(ts);
         }
         println!("{} tests imported", cnt);
-        println!("</tests>");
     }
 
-    fn process_solutions(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<solutions>");
-        let mut last_tag = "".to_string();
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::StartElement {
-                    name, attributes, ..
-                } => {
-                    let attrs = self.parse_attrs(attributes);
-                    match name.local_name.as_str() {
-                        "solution" => {
-                            last_tag = attrs["tag"].clone();
-                        }
-                        "source" => {
-                            if last_tag == "main" {
-                                println!("importing main solution");
-                                self.problem_cfg.primary_solution = Some("main".to_string());
-                                let dir = self.dest.join("solutions/main");
-                                {
-                                    std::fs::create_dir_all(&dir)
-                                        .expect("create main solution dir");
-                                    let src_path = attrs["path"].clone();
-                                    self.import_file(
-                                        Path::new(&src_path),
-                                        Path::new("solutions/main/main.cpp"),
-                                    );
-                                }
-                                {
-                                    let cmake_path = dir.join("CMakeLists.txt");
-                                    let data = include_str!("./import/solution.cmake");
-                                    std::fs::write(&cmake_path, data)
-                                        .expect("write CMakeLists.txt for solution");
-                                }
-                            } else {
-                                println!("skipping solution with tag {}: not main", &last_tag);
-                            }
-
-                            self.skip_section(iter);
-                            self.skip_section(iter);
-                        }
-                        _ => {
-                            panic!(
-                                "unexpected tag {} when parsing <solutions>",
-                                name.local_name
-                            );
-                        }
+    fn process_solutions(&mut self, node: roxmltree::Node) {
+        println!("Importing solution");
+        for solution_node in node.children() {
+            if !solution_node.is_element() {
+                continue;
+            }
+            let tag = solution_node.attribute("tag").unwrap();
+            if tag == "main" {
+                println!("importing main solution");
+                self.problem_cfg.primary_solution = Some("main".to_string());
+                let dir = self.dest.join("solutions/main");
+                let mut src_path = None;
+                for child in solution_node.children() {
+                    if !child.is_element() {
+                        continue;
+                    }
+                    if child.tag_name().name() == "source" {
+                        src_path = Some(child.attribute("path").unwrap());
                     }
                 }
-                XmlEvent::EndElement { .. } => {
-                    break;
+                let src_path = src_path.unwrap();
+                std::fs::create_dir_all(&dir).expect("create main solution dir");
+                self.import_file(Path::new(&src_path), Path::new("solutions/main/main.cpp"));
+                {
+                    let cmake_path = dir.join("CMakeLists.txt");
+                    let data = include_str!("./import/solution.cmake");
+                    std::fs::write(&cmake_path, data).expect("write CMakeLists.txt for solution");
                 }
-                other => panic!("unexpected event {:?}", other),
+            } else {
+                println!("skipping solution with tag {}: not main", &tag);
             }
         }
-        println!("</solutions>")
     }
 
-    fn process_assets(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<assets>");
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::EndElement { name } => {
-                    if name.local_name == "assets" {
-                        break;
-                    }
-                }
-                XmlEvent::StartElement { name, .. } => match name.local_name.as_str() {
-                    "solutions" => {
-                        self.process_solutions(iter);
-                    }
-                    "checker" => {
-                        self.process_checker(iter);
-                    }
-                    _ => {
-                        self.skip_section(iter);
-                    }
-                },
-                other => panic!("unexpected event: {:?}", other),
+    fn process_names(&mut self, node_names: roxmltree::Node) {
+        println!("Importing name");
+        assert!(node_names.is_element());
+        for child in node_names.children() {
+            if !child.is_element() {
+                continue;
             }
-        }
-        println!("</assets>");
-    }
+            let title = child.attribute("value").unwrap();
 
-    fn process_names(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<names>");
-        let ev = iter.next().unwrap();
-        match ev {
-            XmlEvent::StartElement {
-                name, attributes, ..
-            } => {
-                assert_eq!(name.local_name, "name");
-                let attrs = self.parse_attrs(attributes);
-                let title = attrs["value"].clone();
-                self.problem_cfg.title = title.clone();
-                println!("problem title: {}", &title);
-                self.skip_section(iter);
-            }
-            _ => {
-                panic!("parsing <names>: unexpected event {:?}", ev);
-            }
+            self.problem_cfg.title = title.to_string();
+            println!("problem title: {}", &title);
+            return;
         }
-        self.skip_section(iter);
-        println!("</names>");
     }
 
     fn fill_manifest(&mut self) {
@@ -540,43 +415,24 @@ impl<'a> Importer<'a> {
         self.import_file(Path::new("files/testlib.h"), Path::new("testlib.h"));
     }
 
+    fn feed(&mut self, node: roxmltree::Node) {
+        match node.tag_name().name() {
+            "names" => self.process_names(node),
+            "solutions" => self.process_solutions(node),
+            "judging" => self.process_judging_section(node),
+            _ => {
+                for ch in node.children() {
+                    self.feed(ch);
+                }
+            }
+        }
+    }
+
     fn run(&mut self) {
-        let manifest_path = self.src.join("problem.xml");
-        let manifest = std::fs::File::open(&manifest_path).unwrap_or_else(|err| {
-            panic!(
-                "error: open manifest at {}: {}",
-                manifest_path.display(),
-                err
-            );
-        });
-        let manifest = BufReader::new(manifest);
-        let mut parser = xml::EventReader::new(manifest);
-        let mut event_iter =
-            std::iter::from_fn(move || Some(parser.next().expect("reading manifest"))).filter(
-                |ev| match ev {
-                    XmlEvent::Whitespace(_) => false,
-                    _ => true,
-                },
-            );
         self.init_dirs();
         self.fill_manifest();
         self.produce_generator_shim();
-        loop {
-            let event = event_iter.next().unwrap();
-            if let XmlEvent::StartElement {
-                name, attributes, ..
-            } = event
-            {
-                assert_eq!(name.local_name, "problem");
-                let attrs = self.parse_attrs(attributes);
-                self.problem_cfg.name = attrs
-                    .get("short-name")
-                    .map(|x| x.to_string())
-                    .expect("missing short-name in <problem>");
-                self.process_problem(&mut event_iter);
-                return;
-            }
-        }
+        self.feed(self.doc);
     }
 }
 
@@ -591,11 +447,16 @@ pub fn exec(args: crate::args::ImportArgs) {
     let src = PathBuf::from(&args.external_package);
     let dest = PathBuf::from(&args.out_path);
 
+    let manifest_path = src.join("problem.xml");
+    let manifest = std::fs::read_to_string(manifest_path).expect("failed read problem.xml");
+    let doc = roxmltree::Document::parse(&manifest).expect("parse error");
+
     let mut importer = Importer {
         src: &src,
         dest: &dest,
         problem_cfg: Default::default(),
         known_generators: HashSet::new(),
+        doc: doc.root_element(),
     };
 
     importer.run();

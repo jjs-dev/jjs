@@ -1,11 +1,9 @@
 mod template;
 
 use std::{
-    collections::{HashMap, HashSet},
-    io::BufReader,
+    collections::{ HashSet},
     path::{Path, PathBuf},
 };
-use xml::reader::XmlEvent;
 
 struct Importer<'a> {
     src: &'a Path,
@@ -40,50 +38,6 @@ impl FileCategory {
 }
 
 impl<'a> Importer<'a> {
-    fn event_as_string(&self, ev: XmlEvent) -> String {
-        match ev {
-            XmlEvent::Characters(str) => str,
-            _ => {
-                panic!("expected characters, got {:?}", ev);
-            }
-        }
-    }
-
-    fn read_tag_content_as_string(&self, iter: &mut impl Iterator<Item = XmlEvent>) -> String {
-        let event = iter.next().unwrap();
-        let data = self.event_as_string(event);
-        let close_event = iter.next().unwrap();
-        match &close_event {
-            XmlEvent::EndElement { .. } => data,
-            _ => panic!("expected end of tag, got {:?}", close_event),
-        }
-    }
-
-    fn skip_section(&self, manifest: &mut impl Iterator<Item = XmlEvent>) {
-        let mut depth = 1;
-        while depth > 0 {
-            match manifest.next().unwrap() {
-                XmlEvent::StartElement { .. } => {
-                    depth += 1;
-                }
-                XmlEvent::EndElement { .. } => {
-                    depth -= 1;
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn parse_attrs(
-        &self,
-        attributes: Vec<xml::attribute::OwnedAttribute>,
-    ) -> HashMap<String, String> {
-        attributes
-            .into_iter()
-            .map(|x| (x.name.local_name, x.value))
-            .collect::<HashMap<_, _>>()
-    }
-
     // <problem><judging> is most important section for us: it contains information
     // about tests
     fn process_judging_section(&mut self, node_judging: roxmltree::Node) {
@@ -225,37 +179,27 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn process_checker(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<checker>");
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::StartElement {
-                    name, attributes, ..
-                } => {
-                    if name.local_name == "source" {
-                        let attrs = self.parse_attrs(attributes);
-                        let file_path = &attrs["path"];
-                        self.import_file(
-                            Path::new(file_path),
-                            Path::new("modules/checker/main.cpp"),
-                        );
-                        let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
-                        let cmakedata =
-                            template::get_checker_cmakefile(template::CheckerOptions {});
-                        std::fs::write(cmakefile, cmakedata)
-                            .expect("write checker's CMakeLists.txt");
-                    }
-                    self.skip_section(iter);
-                }
-                XmlEvent::EndElement { name } => {
-                    if name.local_name == "checker" {
-                        break;
-                    }
-                }
-                other => panic!("unexpected event: {:?}", other),
+    fn process_checker(&mut self, node_checker: roxmltree::Node) {
+        println!("Importing checker");
+        assert_eq!(node_checker.attribute("type"), Some("testlib"));
+        for child in node_checker.children() {
+            if !child.is_element() {
+                continue;
             }
+            if child.tag_name().name() != "source" {
+                continue;
+            }
+            let file_path = child.attribute("path").unwrap();
+            self.import_file(
+                Path::new(file_path),
+                Path::new("modules/checker/main.cpp"),
+            );
+            let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
+            let cmakedata =
+                template::get_checker_cmakefile(template::CheckerOptions {});
+            std::fs::write(cmakefile, cmakedata)
+                .expect("write checker's CMakeLists.txt");
         }
-        println!("</checker>");
     }
 
     fn produce_generator_shim(&mut self) {
@@ -271,30 +215,15 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn process_executables(&mut self, iter: &mut impl Iterator<Item = XmlEvent>) {
-        println!("<executables>");
-        loop {
-            match iter.next().unwrap() {
-                XmlEvent::StartElement {
-                    name, attributes, ..
-                } => {
-                    if name.local_name != "source" {
-                        continue;
-                    }
-                    let attrs = self.parse_attrs(attributes);
-                    self.process_file(attrs.get("path").unwrap(), attrs.get("type").unwrap());
-                }
-                XmlEvent::EndElement { name } => {
-                    if name.local_name == "executables" {
-                        break;
-                    }
-                }
-                other => {
-                    panic!("unexpected event: {:?}", other);
-                }
+    fn process_executable(&mut self, node_executable: roxmltree::Node) {
+        for node_source in node_executable.children() {
+            if node_source.tag_name().name() != "source" {
+                continue;
             }
+            let attr_path = node_source.attribute("path").unwrap();
+            let attr_type = node_source.attribute("type").unwrap();
+            self.process_file(attr_path, attr_type);
         }
-        println!("</executables>");
     }
 
     fn process_tests(&mut self, tests_node: roxmltree::Node) {
@@ -420,6 +349,8 @@ impl<'a> Importer<'a> {
             "names" => self.process_names(node),
             "solutions" => self.process_solutions(node),
             "judging" => self.process_judging_section(node),
+            "executable" => self.process_executable(node),
+            "checker" => self.process_checker(node),
             _ => {
                 for ch in node.children() {
                     self.feed(ch);
@@ -444,7 +375,7 @@ pub fn exec(args: crate::args::ImportArgs) {
         crate::check_dir(&PathBuf::from(&args.out_path), false /* TODO */);
     }
 
-    let src = PathBuf::from(&args.external_package);
+    let src = PathBuf::from(&args.in_path);
     let dest = PathBuf::from(&args.out_path);
 
     let manifest_path = src.join("problem.xml");

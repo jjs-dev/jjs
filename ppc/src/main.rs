@@ -29,10 +29,10 @@ mod args {
 
     #[derive(StructOpt)]
     pub struct ImportArgs {
-        /// Path to package
-        #[structopt(long = "pkg", short = "P")]
-        pub external_package: String,
-        /// Out path
+        /// Path to package being imported
+        #[structopt(long = "in", short = "I")]
+        pub in_path: String,
+        /// Out path (will contain ppc package)
         #[structopt(long = "out", short = "O")]
         pub out_path: String,
         /// Rewrite dir

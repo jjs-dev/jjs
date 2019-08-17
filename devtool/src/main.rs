@@ -72,7 +72,7 @@ fn task_check() {
             "warnings",
         ])
         .run_check_status();
-
+    info!("checking scripts");
     let scripts = find_scripts().collect::<Vec<_>>();
     for script_chunk in scripts.chunks(10) {
         let mut cmd = Command::new("shellcheck");

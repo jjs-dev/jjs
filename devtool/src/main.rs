@@ -8,13 +8,19 @@ use std::{
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
+struct TestArgs {
+    #[structopt(long = "verbose")]
+    verbose: bool,
+}
+
+#[derive(StructOpt)]
 enum CliArgs {
     /// Lint project
     #[structopt(name = "check")]
     Check,
     /// Run all tests
     #[structopt(name = "test")]
-    Test,
+    Test(TestArgs),
 }
 
 static HAD_ERRORS: AtomicBool = AtomicBool::new(false);
@@ -87,8 +93,13 @@ fn task_check() {
     }
 }
 
-fn task_test() {
-    Command::new("cargo").args(&["test"]).run_check_status();
+fn task_test(args: TestArgs) {
+    let mut cmd = Command::new("cargo");
+    cmd.args(&["test"]);
+    if args.verbose {
+        cmd.args(&["--", "--nocapture"]);
+    }
+    cmd.run_check_status();
 }
 
 fn main() {
@@ -97,7 +108,7 @@ fn main() {
     let args = CliArgs::from_args();
     match args {
         CliArgs::Check => task_check(),
-        CliArgs::Test => task_test(),
+        CliArgs::Test(args) => task_test(args),
     }
     if HAD_ERRORS.load(Ordering::SeqCst) {
         exit(1);

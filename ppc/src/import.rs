@@ -1,7 +1,7 @@
 mod template;
 
 use std::{
-    collections::{ HashSet},
+    collections::HashSet,
     path::{Path, PathBuf},
 };
 
@@ -190,15 +190,10 @@ impl<'a> Importer<'a> {
                 continue;
             }
             let file_path = child.attribute("path").unwrap();
-            self.import_file(
-                Path::new(file_path),
-                Path::new("modules/checker/main.cpp"),
-            );
+            self.import_file(Path::new(file_path), Path::new("modules/checker/main.cpp"));
             let cmakefile = self.dest.join("modules/checker/CMakeLists.txt");
-            let cmakedata =
-                template::get_checker_cmakefile(template::CheckerOptions {});
-            std::fs::write(cmakefile, cmakedata)
-                .expect("write checker's CMakeLists.txt");
+            let cmakedata = template::get_checker_cmakefile(template::CheckerOptions {});
+            std::fs::write(cmakefile, cmakedata).expect("write checker's CMakeLists.txt");
         }
     }
 

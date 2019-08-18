@@ -4,4 +4,5 @@ fn main() {
     cbindgen::generate(crate_root)
         .expect("was unable to generate bindings")
         .write_to_file(out_file);
+    std::fs::copy("./prepend.h", "../target/minion-ffi-prepend.h").unwrap();
 }

@@ -91,6 +91,17 @@ fn task_check() {
         }
         cmd.run_check_status();
     }
+    info!("building minion-ffi C example");
+    std::fs::create_dir("minion-ffi/example-c/cmake-build-debug").ok();
+    Command::new("cmake")
+        .current_dir("./minion-ffi/example-c/cmake-build-debug")
+        .arg("..")
+        .run_check_status();
+    Command::new("cmake")
+        .current_dir("./minion-ffi/example-c/cmake-build-debug")
+        .arg("--build")
+        .arg(".")
+        .run_check_status();
 }
 
 fn task_test(args: TestArgs) {

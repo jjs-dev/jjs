@@ -21,6 +21,7 @@ pub enum ErrorCode {
     /// unknown error
     Unknown,
 }
+
 unsafe fn get_string(buf: *const c_char) -> OsString {
     use std::os::unix::ffi::OsStrExt;
     let buf = CStr::from_ptr(buf);
@@ -53,6 +54,7 @@ pub struct Backend(Box<dyn minion::Backend>);
 
 /// Must be called before any library usage
 #[no_mangle]
+#[must_use]
 pub unsafe extern "C" fn minion_lib_init() -> ErrorCode {
     std::panic::set_hook(Box::new(|info| {
         eprintln!("[minion-ffi] PANIC: {} ({:?})", &info, info);
@@ -63,7 +65,8 @@ pub unsafe extern "C" fn minion_lib_init() -> ErrorCode {
 
 /// Create backend, default for target platform
 #[no_mangle]
-pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) -> ErrorCode {
+#[must_use]
+pub unsafe extern "C" fn minion_backend_create(out: &mut *mut Backend) -> ErrorCode {
     let backend = Backend(minion::setup());
     let backend = Box::new(backend);
     *out = Box::into_raw(backend);
@@ -72,6 +75,7 @@ pub unsafe extern "C" fn minion_backend_create(out: *mut *mut Backend) -> ErrorC
 
 /// Drop backend
 #[no_mangle]
+#[must_use]
 pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) -> ErrorCode {
     let b = Box::from_raw(b);
     mem::drop(b);
@@ -97,10 +101,11 @@ pub struct DominionOptions {
 pub struct Dominion(minion::DominionRef);
 
 #[no_mangle]
+#[must_use]
 pub unsafe extern "C" fn minion_dominion_create(
-    backend: *mut Backend,
+    backend: &Backend,
     options: DominionOptions,
-    out: *mut *mut Dominion,
+    out: &mut *mut Dominion,
 ) -> ErrorCode {
     let mut exposed_paths = Vec::new();
     {
@@ -138,6 +143,7 @@ pub unsafe extern "C" fn minion_dominion_create(
 }
 
 #[no_mangle]
+#[must_use]
 pub unsafe extern "C" fn minion_dominion_free(dominion: *mut Dominion) -> ErrorCode {
     let b = Box::from_raw(dominion);
     mem::drop(b);
@@ -158,6 +164,7 @@ pub static ENV_ITEM_FIN: EnvItem = EnvItem {
     name: std::ptr::null(),
     value: std::ptr::null(),
 };
+
 #[repr(C)]
 pub enum StdioMember {
     Stdin,
@@ -171,6 +178,7 @@ pub struct StdioHandleSet {
     pub stdout: u64,
     pub stderr: u64,
 }
+
 #[repr(C)]
 pub struct ChildProcessOptions {
     pub image_path: *mut c_char,
@@ -207,10 +215,11 @@ pub static SHARED_DIRECTORY_ACCESS_FIN: SharedDirectoryAccess = SharedDirectoryA
 pub struct ChildProcess(Box<dyn minion::ChildProcess>);
 
 #[no_mangle]
+#[must_use]
 pub unsafe extern "C" fn minion_cp_spawn(
-    backend: *mut Backend,
+    backend: &Backend,
     options: ChildProcessOptions,
-    out: *mut *mut ChildProcess,
+    out: &mut *mut ChildProcess,
 ) -> ErrorCode {
     let mut arguments = Vec::new();
     {
@@ -248,7 +257,7 @@ pub unsafe extern "C" fn minion_cp_spawn(
         stdio,
         pwd: get_string(options.workdir).into(),
     };
-    let cp = (*backend).0.spawn(options).unwrap();
+    let cp = backend.0.spawn(options).unwrap();
     let cp = ChildProcess(cp);
     let cp = Box::new(cp);
     *out = Box::into_raw(cp);

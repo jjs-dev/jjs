@@ -6,16 +6,16 @@ edition = "2018"
 
 [dependencies]
 structopt = "0.2.18"
-serde = { version = "1.0.98", features = ["derive"] }
-toml = "0.5.1"
-snafu = "0.4.3"
+serde = { version = "1.0.99", features = ["derive"] }
+toml = "0.5.3"
+snafu = "0.4.4"
 glob = "0.3.0"
 indicatif = "0.11.0"
 console = "0.7.7"
-libc = "0.2.60"
+libc = "0.2.62"
 pom = {path = "../pom"}
 serde_json = "1.0.40"
-getrandom = "0.1.8"
+getrandom = "0.1.10"
 hex = "0.3.2"
 formatf = { git = "https://github.com/mikailbag/formatf" }
 roxmltree = "0.7.0"

@@ -7,10 +7,10 @@ edition = "2018"
 [dependencies]
 minion = {path = "../minion"}
 cfg = {path ="../cfg"}
-pretty_env_logger = "0.3.0"
+pretty_env_logger = "0.3.1"
 futures = "0.1.28"
-serde = { version = "1.0.98", features = ["derive"] }
-serde_derive = "1.0.98"
+serde = { version = "1.0.99", features = ["derive"] }
+serde_derive = "1.0.99"
 serde_json = "1.0.40"
 frontend-api = {path = "../frontend-api"}
 db = {path = "../db"}
@@ -24,9 +24,9 @@ aho-corasick = "0.7.6"
 invoker-api = {path = "../invoker-api"}
 cfg-if = "0.1.9"
 pom = {path = "../pom"}
-libc = "0.2.60"
-nix = "0.14.1"
-snafu = "0.4.3"
+libc = "0.2.62"
+nix = "0.15.0"
+snafu = "0.4.4"
 memchr = "2.2.1"
 strum = "0.15.0"
 strum_macros = "0.15.0"
@@ -34,7 +34,7 @@ chrono = "0.4.7"
 color-backtrace = { version = "0.2.2", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"
-snafu-derive = "0.4.3"
+snafu-derive = "0.4.4"
 atty = "0.2.13"
 
 [features]

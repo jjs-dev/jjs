@@ -5,8 +5,8 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0.98", features = ["derive"] }
-serde_derive = "1.0.98"
-toml = "0.5.1"
+serde = { version = "1.0.99", features = ["derive"] }
+serde_derive = "1.0.99"
+toml = "0.5.3"
 pom = {path = "../pom"}
 serde_json = "1.0.40"

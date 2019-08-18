@@ -1,6 +1,9 @@
 //! Abstracts installing to directory, deb, etc
 use crate::{cfg::BuildProfile, Params};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 pub struct InstallCtx<'ictx> {
     /// Sysroot-like dir
@@ -41,21 +44,52 @@ impl<'ictx> InstallCtx<'ictx> {
         p
     }
 
+    fn copy(&self, src: impl AsRef<Path>, dest: impl AsRef<Path>) {
+        let src = src.as_ref().to_path_buf();
+        let dest = dest.as_ref().to_path_buf();
+        if let Err(err) = std::fs::copy(&src, &dest) {
+            eprintln!(
+                "Error when copying {} to {}: {}",
+                src.display(),
+                dest.display(),
+                err
+            );
+            exit(1);
+        }
+    }
+
     pub(crate) fn add_bin_pkg(&self, name: &str, inst_name: &str) {
         let dest = self.artifacts().join("bin").join(inst_name);
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
-        std::fs::copy(self.artifact_path(name), &dest).unwrap();
+        self.copy(self.artifact_path(name), &dest);
+    }
+
+    fn preprocess_dylib_name(name: &str) -> String {
+        format!("lib{}.so", name).replace('-', "_")
+    }
+
+    fn preprocess_header_name(name: &str) -> String {
+        let mut s = name.to_string();
+        s.push_str(".h");
+        s
     }
 
     pub(crate) fn add_dylib_pkg(&self, name: &str, inst_name: &str) {
         let dest = self.artifacts().join("lib").join(inst_name);
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
-        std::fs::copy(self.artifact_path(name), &dest).unwrap();
+        self.copy(
+            self.artifact_path(&InstallCtx::preprocess_dylib_name(name)),
+            &dest,
+        );
     }
 
     pub(crate) fn add_header(&self, name: &str, inst_name: &str) {
         let dest = self.artifacts().join("include/jjs").join(inst_name);
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
-        std::fs::copy(self.non_arch_out_dir().join(name), &dest).unwrap();
+        self.copy(
+            self.non_arch_out_dir()
+                .join(&InstallCtx::preprocess_header_name(name)),
+            &dest,
+        );
     }
 }

@@ -89,6 +89,7 @@ impl Package for MinionFfiPackage {
     fn install(&self, inst_mgr: &InstallCtx) {
         inst_mgr.add_dylib_pkg("minion-ffi", "jjs_minion_ffi");
         inst_mgr.add_header("minion-ffi", "minion-ffi");
+        inst_mgr.add_header("minion-ffi-prepend", "minion-ffi-prepend");
     }
 }
 

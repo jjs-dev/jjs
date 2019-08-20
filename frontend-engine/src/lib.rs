@@ -11,6 +11,7 @@ mod security;
 pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
 
+use gql_server::Context;
 use rocket::{fairing::AdHoc, http::Status, State};
 use slog::Logger;
 use std::{fmt::Debug, sync::Arc};
@@ -145,13 +146,16 @@ impl ApiServer {
         let graphql_context_factory = gql_server::ContextFactory {
             pool: Arc::clone(&pool),
             cfg: std::sync::Arc::new(config.clone()),
+            logger,
         };
 
         let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
 
         let (intro_data, intro_errs) = juniper::introspect(
             &graphql_schema,
-            &graphql_context_factory.create_context_unrestricted(),
+            &Context(Arc::new(
+                graphql_context_factory.create_context_data_unrestricted(),
+            )),
             juniper::IntrospectionFormat::default(),
         )
         .unwrap();
@@ -165,7 +169,6 @@ impl ApiServer {
         rocket::custom(rocket_config)
             .manage(graphql_context_factory)
             .manage(graphql_schema)
-            .manage(logger.clone())
             .manage(GqlApiSchema(introspection_json))
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(security::SecretKey(cfg1.secret.clone().into())))

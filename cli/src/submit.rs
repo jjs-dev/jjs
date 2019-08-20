@@ -6,9 +6,12 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 pub struct Opt {
-    /// problem code
+    /// problem code, e.g. "A"
+    #[structopt(long = "problem", short = "p")]
     problem: String,
+    #[structopt(long = "toolchain", short = "t")]
     toolchain: String,
+    #[structopt(long = "filename", short = "f")]
     filename: String,
 }
 
@@ -23,7 +26,7 @@ fn resolve_toolchain(client: &Client, name: &str) -> String {
         .into_result();
     let res = res.expect("Couldn't get toolchain information");
     for tc in res.toolchains {
-        if tc.name == name {
+        if tc.id == name {
             return tc.id;
         }
     }

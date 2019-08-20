@@ -234,6 +234,9 @@ pub fn get_config() -> Config {
             .unwrap()
             .to_str()
             .expect("Toolchain name is not string")
+            .split('.') // FIXME: use Path::file_name instead
+            .next()
+            .unwrap()
             .to_string();
         toolchain_spec.name = toolchain_name;
         c.toolchains.push(toolchain_spec);

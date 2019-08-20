@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
+use strum_macros::{Display, EnumString};
 
-#[derive(Clone, Debug, Display, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Display, EnumString, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StatusKind {
     Queue,
     /// WA, TLE, rejected by teacher, etc
@@ -12,6 +12,7 @@ pub enum StatusKind {
     Accepted,
     NotSet,
     InternalError,
+    Skipped,
 }
 
 pub mod status_codes {

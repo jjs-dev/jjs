@@ -164,7 +164,7 @@ impl<'a> Invoker<'a> {
         let mut valuer = Valuer::new(self.ctx.clone())?;
         let mut resp = valuer.initial_test()?;
 
-        let (score, treat_as_full) = loop {
+        let (score, treat_as_full, judge_log) = loop {
             match resp {
                 ValuerResponse::Test { test_id: tid } => {
                     let test = &manifest.tests[(tid - 1) as usize];
@@ -196,8 +196,9 @@ impl<'a> Invoker<'a> {
                 ValuerResponse::Finish {
                     score,
                     treat_as_full,
+                    judge_log,
                 } => {
-                    break (score, treat_as_full);
+                    break (score, treat_as_full, judge_log);
                 }
             }
         };
@@ -213,6 +214,16 @@ impl<'a> Invoker<'a> {
                 code: status_codes::PARTIAL_SOLUTION.to_string(),
             }
         };
+        let judge_log_path = self.req.work_dir.path().join("log.json");
+        debug!(
+            self.ctx.logger,
+            "Writing judging log to {}",
+            judge_log_path.display()
+        );
+        let judge_log_file = std::fs::File::create(&judge_log_path)?;
+        let judge_log_file = std::io::BufWriter::new(judge_log_file);
+        serde_json::to_writer(judge_log_file, &judge_log)
+            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
         debug!(self.ctx.logger, "Invokation finished"; "status" => ?status);
         Ok(InvokeOutcome { status, score })
     }

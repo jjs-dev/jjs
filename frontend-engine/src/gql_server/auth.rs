@@ -8,7 +8,7 @@ pub(super) fn simple(
 ) -> ApiResult<schema::SessionToken> {
     let mut success = false;
     let mut reject_reason = "";
-    if let Some(user) = ctx.db.user_try_load_by_login(login.clone())? {
+    if let Some(user) = ctx.db.user_try_load_by_login(login.clone()).internal(ctx)? {
         success = crate::password::check_password_hash(&password, &user.password_hash);
         if !success {
             reject_reason = "IncorrectPassword";
@@ -34,6 +34,7 @@ pub(super) fn simple(
             visible: true,
             extension: ext.map(ErrorExtension::from),
             source: None,
+            ctx: ctx.clone(),
         };
         Err(err)
     }

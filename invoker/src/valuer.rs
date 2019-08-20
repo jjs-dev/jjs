@@ -73,7 +73,7 @@ impl<'a> Valuer<'a> {
                 ValuerResponse::Test { test_id }
             }
             "DONE" => {
-                if items.len() != 3 {
+                if items.len() != 4 {
                     return Err(Box::new(ParseError::WrongArgCount {
                         expected: 2,
                         got: items.len() - 1,
@@ -81,6 +81,8 @@ impl<'a> Valuer<'a> {
                 }
                 let score: u16 = items[1].parse().context(NumParseFail)?;
                 let is_full: i8 = items[2].parse().context(NumParseFail)?;
+                let num_judge_log_rows: usize = items[3].parse().context(NumParseFail)?;
+
                 if score > 100 {
                     return Err(Box::new(ParseError::Range {
                         lhs: 0,
@@ -96,9 +98,20 @@ impl<'a> Valuer<'a> {
                     }));
                 }
 
+                let mut rows = Vec::new();
+                for _ in 0..num_judge_log_rows {
+                    line.clear();
+                    self.stdout.read_line(&mut line)?;
+
+                    rows.push(line.parse()?);
+                }
                 ValuerResponse::Finish {
                     score: score.into(),
                     treat_as_full: is_full == 1,
+                    judge_log: crate::judge_log::JudgeLog {
+                        rows,
+                        name: "main".to_string(),
+                    },
                 }
             }
             _ => {
@@ -123,9 +136,7 @@ impl<'a> Valuer<'a> {
         writeln!(
             self.stdin,
             "{} {} {}",
-            notification.test_id,
-            (notification.test_status.kind == invoker_api::StatusKind::Accepted) as u8,
-            notification.test_status.code
+            notification.test_id, notification.test_status.kind, notification.test_status.code
         )?;
         self.stdin.flush()?;
         self.read_response()

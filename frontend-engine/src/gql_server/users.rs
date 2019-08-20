@@ -15,7 +15,7 @@ pub(super) fn create(
         groups: groups.clone(),
     };
 
-    let user = ctx.db.user_new(new_user)?;
+    let user = ctx.db.user_new(new_user).internal(ctx)?;
 
     Ok((&user).into())
 }

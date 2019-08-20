@@ -5,6 +5,7 @@ mod inter_api;
 mod invoke_context;
 mod invoker;
 mod judge;
+mod judge_log;
 mod os_util;
 mod valuer;
 
@@ -56,12 +57,12 @@ pub(crate) mod err {
         },
         /// Usually, these errors occur if system was given malformed configuration
         /// For example, if interpolation string is bad
-        #[snafu(display("Bad config: {}", inner))]
+        #[snafu(display("bad config: {}", inner))]
         BadConfig {
             backtrace: Backtrace,
             inner: Box<dyn std::error::Error + Send + Sync + 'static>,
         },
-        #[snafu(display("Error: {}", inner))]
+        #[snafu(display("error: {}", inner))]
         Other {
             backtrace: Backtrace,
             inner: ErrorBox,

@@ -17,7 +17,10 @@ fn describe_submission(submission: &db::schema::Run) -> Run {
 }
 
 pub(super) fn list(ctx: &Context, id: Option<RunId>, limit: Option<i32>) -> ApiResult<Vec<Run>> {
-    let user_submissions = ctx.db.run_select(id, limit.map(|x| x as u32))?;
+    let user_submissions = ctx
+        .db
+        .run_select(id, limit.map(|x| x as u32))
+        .internal(ctx)?;
     let user_submissions = user_submissions
         .iter()
         .map(|s| describe_submission(s))
@@ -36,10 +39,10 @@ pub(super) fn submit_simple(
     let toolchain = ctx.cfg.toolchains.iter().find(|t| t.name == toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
-        None => return "unknown toolchain".report(),
+        None => return "unknown toolchain".report(ctx),
     };
     if contest != "TODO" {
-        return "unknown contest".report();
+        return "unknown contest".report(ctx);
     }
 
     let problem = ctx.cfg.contests[0]
@@ -49,7 +52,7 @@ pub(super) fn submit_simple(
         .cloned();
     let problem = match problem {
         Some(p) => p,
-        None => return "unknown problem".report(),
+        None => return "unknown problem".report(ctx),
     };
     let prob_name = problem.name.clone();
 
@@ -62,7 +65,7 @@ pub(super) fn submit_simple(
         rejudge_id: 1,
     };
 
-    let run = ctx.db.run_new(new_run)?;
+    let run = ctx.db.run_new(new_run).internal(ctx)?;
 
     // Put run in sysroot
     let run_dir = ctx
@@ -70,10 +73,10 @@ pub(super) fn submit_simple(
         .sysroot
         .join("var/submissions")
         .join(&format!("s-{}", run.id));
-    std::fs::create_dir(&run_dir)?;
+    std::fs::create_dir(&run_dir).internal(ctx)?;
     let submission_src_path = run_dir.join("source");
-    let decoded_code = base64::decode(&code).report()?;
-    std::fs::write(submission_src_path, &decoded_code)?;
+    let decoded_code = base64::decode(&code).report(ctx)?;
+    std::fs::write(submission_src_path, &decoded_code).internal(ctx)?;
 
     // create invocation request
     let new_inv_req = NewInvocationRequest {
@@ -81,7 +84,7 @@ pub(super) fn submit_simple(
         run_id: run.id,
     };
 
-    ctx.db.inv_req_new(new_inv_req)?;
+    ctx.db.inv_req_new(new_inv_req).internal(ctx)?;
 
     Ok(describe_submission(&run))
 }
@@ -96,9 +99,9 @@ pub(super) fn modify(
     let should_delete = delete.unwrap_or(false);
     if should_delete {
         if status.is_some() || rejudge.is_some() {
-            return "both modification and delete were requested".report();
+            return "both modification and delete were requested".report(ctx);
         }
-        ctx.db.run_delete(id)?;
+        ctx.db.run_delete(id).internal(ctx)?;
     } else {
         let mut patch = db::schema::RunPatch::default();
         if let Some(new_status) = status {
@@ -106,7 +109,7 @@ pub(super) fn modify(
             patch.status_code = Some(new_status.code);
         }
         // TODO: handle rejudge
-        ctx.db.run_update(id, patch)?;
+        ctx.db.run_update(id, patch).internal(ctx)?;
     }
 
     Ok(())

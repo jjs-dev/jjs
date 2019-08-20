@@ -14,11 +14,12 @@ impl Query {
         "0.0"
     }
 
-    fn simple_visible_error() -> ApiResult<String> {
+    fn simple_visible_error(ctx: &Context) -> ApiResult<String> {
         Err(ApiError {
             visible: true,
             extension: Some("this is extension".into()),
             source: None,
+            ctx: ctx.clone(),
         })
     }
 

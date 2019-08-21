@@ -24,3 +24,16 @@ bool is_file_eof(FILE* f) {
     }
     return true;
 }
+
+void oom() {
+    fprintf(stderr, "Out of memory");
+    abort();
+}
+
+void* check_oom(void* ptr) {
+    if (ptr) {
+        return ptr;
+    } else {
+        oom();
+    }
+}

@@ -1,0 +1,38 @@
+language: rust
+cache:
+  cargo: true
+  directories:
+    - jtl-cpp/rand-ffi/target
+dist: bionic
+
+branches:
+  only:
+    - trying
+    - staging
+    - master
+
+rust:
+  - nightly-2019-08-01
+before_install:
+  - rustup component add rustfmt clippy
+  - sudo apt-get update
+  - sudo apt-get install -y libpq-dev
+  - wget -q -O - https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.sh > /tmp/cmake.sh
+  - sudo mkdir -p /opt/cmake
+  - sudo bash /tmp/cmake.sh --skip-license --prefix=/opt/cmake
+  - cargo install cbindgen mdbook -Z install-upgrade
+  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+        wget -q -O - https://files.viva64.com/etc/pubkey.txt | sudo apt-key add -;
+        sudo wget -O /etc/apt/sources.list.d/viva64.list https://files.viva64.com/etc/viva64.list;
+        sudo apt-get update;
+        sudo apt-get install -y pvs-studio;
+        pvs-studio-analyzer credentials $PVS_NAME $PVS_LICENSE_KEY;
+    fi
+
+
+script:
+  - cargo jjs-check
+  - cargo jjs-test
+  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+       cargo jjs-check --fail-fast --pvs --no-clippy --no-rustfmt --no-shellcheck --no-minion-ffi-c-example --no-testlib;
+    fi

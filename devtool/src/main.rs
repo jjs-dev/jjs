@@ -1,10 +1,8 @@
-use log::{debug, error, info};
-use std::{
-    env::set_current_dir,
-    path::PathBuf,
-    process::{exit, Command},
-    sync::atomic::{AtomicBool, Ordering},
-};
+mod check;
+mod runner;
+
+use crate::runner::Runner;
+use std::{env::set_current_dir, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -17,111 +15,69 @@ struct TestArgs {
 enum CliArgs {
     /// Lint project
     #[structopt(name = "check")]
-    Check,
+    Check(check::CheckOpts),
     /// Run all tests
     #[structopt(name = "test")]
     Test(TestArgs),
+    /// Clean all build files except Cargo's
+    #[structopt(name = "clean")]
+    Clean,
 }
 
-static HAD_ERRORS: AtomicBool = AtomicBool::new(false);
-
 trait CommandExt {
-    fn run_check_status(&mut self);
+    fn run_on(&mut self, runner: &Runner);
 }
 
 impl CommandExt for Command {
-    fn run_check_status(&mut self) {
-        let st = self.status().unwrap();
-        if !st.success() {
-            error!("child command failed");
-            HAD_ERRORS.store(true, Ordering::SeqCst);
-        }
+    fn run_on(&mut self, runner: &Runner) {
+        runner.exec(self);
     }
 }
 
-fn find_scripts() -> impl Iterator<Item = PathBuf> {
-    let mut types_builder = ignore::types::TypesBuilder::new();
-    types_builder.add_defaults();
-    types_builder.negate("all");
-    types_builder.select("sh");
-    let types_matched = types_builder.build().unwrap();
-    ignore::WalkBuilder::new(".")
-        .types(types_matched)
-        .build()
-        .map(Result::unwrap)
-        .filter(|x| {
-            let ty = x.file_type();
-            match ty {
-                Some(f) => f.is_file(),
-                None => false,
-            }
-        })
-        .map(|x| x.path().to_path_buf())
-}
-
-fn task_check() {
-    info!("running cargo fmt --check");
-    Command::new("cargo")
-        .args(&["fmt", "--verbose", "--all", "--", "--check"])
-        .run_check_status();
-
-    info!("running clippy");
-    Command::new("cargo")
-        .args(&[
-            "clippy",
-            "--all",
-            "--tests",
-            "--",
-            "-D",
-            "clippy::all",
-            "-D",
-            "warnings",
-        ])
-        .run_check_status();
-    info!("checking scripts");
-    let scripts = find_scripts().collect::<Vec<_>>();
-    for script_chunk in scripts.chunks(10) {
-        let mut cmd = Command::new("shellcheck");
-        cmd.arg("--color=always");
-        // FIXME: cmd.arg("--check-sourced");
-        // requires using fresh shellcheck on CI
-        for scr in script_chunk {
-            debug!("checking script {}", scr.display());
-            cmd.arg(scr);
-        }
-        cmd.run_check_status();
-    }
-    info!("building minion-ffi C example");
-    std::fs::create_dir("minion-ffi/example-c/cmake-build-debug").ok();
-    Command::new("cmake")
-        .current_dir("./minion-ffi/example-c/cmake-build-debug")
-        .arg("..")
-        .run_check_status();
-    Command::new("cmake")
-        .current_dir("./minion-ffi/example-c/cmake-build-debug")
-        .arg("--build")
-        .arg(".")
-        .run_check_status();
-}
-
-fn task_test(args: TestArgs) {
+fn task_test(args: TestArgs, runner: &Runner) {
     let mut cmd = Command::new("cargo");
     cmd.args(&["test"]);
     if args.verbose {
         cmd.args(&["--", "--nocapture"]);
     }
-    cmd.run_check_status();
+    cmd.run_on(runner);
+}
+
+fn task_clean() {
+    use std::fs::{remove_dir_all, remove_file};
+    remove_dir_all("./target/jtl-cpp").ok();
+    remove_dir_all("./target/deb").ok();
+    remove_file("./target/minion-ffi-prepend.h").ok();
+    remove_file("./target/minion-ffi.h").ok();
+    remove_file("./target/Makefile").ok();
+    remove_file("./target/make").ok();
+    remove_file("./target/jjs-build-config.json").ok();
+
+    remove_dir_all("./minion-ffi/example-c/cmake-build").ok();
+    remove_dir_all("./minion-ffi/example-c/cmake-build-debug").ok();
+    remove_dir_all("./minion-ffi/example-c/cmake-build-release").ok();
+
+    remove_dir_all("./jtl-cpp/cmake-build").ok();
+    remove_dir_all("./jtl-cpp/cmake-build-debug").ok();
+    remove_dir_all("./jtl-cpp/cmake-build-release").ok();
 }
 
 fn main() {
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).unwrap();
     let args = CliArgs::from_args();
+    let mut runner = Runner::new();
     match args {
-        CliArgs::Check => task_check(),
-        CliArgs::Test(args) => task_test(args),
+        CliArgs::Check(opts) => {
+            runner.set_fail_fast(opts.fail_fast);
+            check::check(&opts, &runner)
+        }
+        CliArgs::Test(args) => task_test(args, &runner),
+        CliArgs::Clean => task_clean(),
     }
-    if HAD_ERRORS.load(Ordering::SeqCst) {
-        exit(1);
-    }
+    runner.exit_if_errors();
+}
+
+fn ci() -> bool {
+    std::env::var("TRAVIS_RUST_VERSION").is_ok()
 }

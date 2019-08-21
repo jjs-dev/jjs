@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 3.7.0)
+cmake_minimum_required(VERSION 3.13.4)
 project(Jtl VERSION 0.1.0)
+
 set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp src/valuer.cpp src/util.cpp)
 set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/valuer.h)
 
@@ -9,8 +10,15 @@ set(TEMP_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 set(RAND_FFI_HEADER ${CMAKE_CURRENT_BINARY_DIR}/rand-ffi.h)
 set(CRATE ${CMAKE_CURRENT_SOURCE_DIR}/rand-ffi)
-set(RUST_TARGET ${CMAKE_CURRENT_SOURCE_DIR}/../target)
-if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
+set(RUST_TARGET ${CMAKE_CURRENT_SOURCE_DIR}/rand-ffi/target)
+
+if (CMAKE_BUILD_TYPE)
+    set(BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+else ()
+    set(BUILD_TYPE Debug)
+endif ()
+
+if (${BUILD_TYPE} EQUAL "Debug")
     set(RUST_OPT_ARGS --debug)
     set(RUST_TARGET ${RUST_TARGET}/debug)
 else ()

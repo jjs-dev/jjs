@@ -3,7 +3,6 @@ name = "frontend"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
-default-run = "frontend"
 
 [dependencies]
 frontend-engine = {path = "../frontend-engine"}

@@ -56,7 +56,7 @@ enum class Outcome {
 
 /// Checker exits using this function
 /// If checker simply exits with e.g. exit(0) protocol will be broken and internal judging error will be diagnosed
-Uninhabited finish(Outcome outcome);
+void finish(Outcome outcome) ATTR_NORETURN;
 
 
 /// Some comparison functions

@@ -1,3 +1,5 @@
+[![Bors enabled](https://bors.tech/images/badge_small.svg)](https://app.bors.tech/repositories/20068)
+
 # JJS
 Judging system
 

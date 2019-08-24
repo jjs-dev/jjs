@@ -1,3 +1,4 @@
 [alias]
 jjs-check = "run --package devtool -- check"
 jjs-test = "run --package devtool -- test"
+jjs-clean = "run --package devtool -- clean"

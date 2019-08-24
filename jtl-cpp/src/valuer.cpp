@@ -48,9 +48,9 @@ void valuer::run_valuer(valuer::ValuerCallbacks callbacks) {
     callbacks.begin(&ctx);
     while (should_run) {
         int test_id;
-        char status_kind[STATUS_KIND_MAX_LEN];
-        char status_code[64];
-        scanf("%d %s %s", &test_id, status_kind, status_code);
+        char* status_kind;
+        char* status_code;
+        scanf("%d %ms %ms", &test_id, &status_kind, &status_code);
         StatusKind kind = StatusKindOps::parse(status_kind);
         callbacks.on_test_end(&ctx, test_id, kind, status_code);
     }

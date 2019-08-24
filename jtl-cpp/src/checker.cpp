@@ -30,7 +30,7 @@ checker::CheckerInput checker::init(bool open_files) {
     return inp;
 }
 
-Uninhabited checker::finish(Outcome outcome) {
+void checker::finish(Outcome outcome) {
     FILE* proto_file = CHECKER.out_file;
     fprintf(proto_file, "outcome=");
     switch (outcome) {
@@ -125,14 +125,14 @@ void checker::check_sol_eof() {
 
 char* checker::next_token(FILE* f) {
     int cap = 16;
-    char* out = (char*) malloc(16);
-    assert(out);
+    char* out = (char*) check_oom(malloc(16));
     int len = 0;
     bool had_data = false;
     while (true) {
         char ch;
+        clearerr(f);
         int ret = fread(&ch, 1, 1, f);
-        if (ret == -1) {
+        if (ret == 0 && ferror(f) != 0) {
             comment("check_utils: read failed");
             exit(1);
         }
@@ -148,8 +148,8 @@ char* checker::next_token(FILE* f) {
         }
         if (len + 1 == cap) {
             cap = 2 * cap;
-            out = (char*) realloc(out, cap);
-            assert(out);
+            void* const realloced = realloc(out, cap);
+            out = (char*) check_oom(realloced);
         }
         had_data = true;
         out[len] = ch;

@@ -133,7 +133,6 @@ pub unsafe extern "C" fn minion_dominion_create(
         isolation_root: get_string(options.isolation_root).into(),
         exposed_paths,
     };
-    let backend = &*backend;
     let d = backend.0.new_dominion(opts);
     let d = d.unwrap();
 

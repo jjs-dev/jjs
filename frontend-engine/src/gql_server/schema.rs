@@ -1,10 +1,11 @@
 mod contest;
+mod run;
 
 use juniper::{GraphQLInputObject, GraphQLObject};
 use uuid::Uuid;
 
-use super::Context;
 pub(crate) use contest::{Contest, Problem};
+pub(crate) use run::Run;
 
 pub type ToolchainId = String;
 pub type RunId = i32;
@@ -22,43 +23,6 @@ pub(crate) struct InvokeStatusIn {
 pub(crate) struct InvokeStatusOut {
     pub kind: String,
     pub code: String,
-}
-
-pub(crate) struct Run {
-    pub id: RunId,
-    pub toolchain_name: String,
-    pub status: InvokeStatusOut,
-    pub score: Option<i32>,
-    pub problem_name: String,
-}
-
-#[juniper::object(Context = Context)]
-impl Run {
-    fn id(&self) -> RunId {
-        self.id
-    }
-
-    fn toolchain(&self, ctx: &Context) -> Toolchain {
-        ctx.cfg
-            .find_toolchain(&self.toolchain_name)
-            .expect("toolchain not found")
-            .into()
-    }
-
-    fn status(&self) -> &InvokeStatusOut {
-        &self.status
-    }
-
-    fn score(&self) -> Option<i32> {
-        self.score
-    }
-
-    fn problem(&self, ctx: &Context) -> Problem {
-        ctx.cfg
-            .find_problem(&self.problem_name)
-            .expect("problem not found")
-            .into()
-    }
 }
 
 #[derive(GraphQLObject)]

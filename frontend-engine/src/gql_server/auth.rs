@@ -25,14 +25,13 @@ pub(super) fn simple(
         };
         Ok(sess)
     } else {
-        let ext = if ctx.env.is_dev() {
-            Some(reject_reason.to_string())
-        } else {
-            None
-        };
+        let mut ext = ErrorExtension::new();
+        if ctx.env.is_dev() {
+            ext.set_error_code(reject_reason);
+        }
         let err = ApiError {
             visible: true,
-            extension: ext.map(ErrorExtension::from),
+            extension: ext,
             source: None,
             ctx: ctx.clone(),
         };

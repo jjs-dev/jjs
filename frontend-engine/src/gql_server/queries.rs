@@ -15,16 +15,18 @@ impl Query {
     }
 
     fn simple_visible_error(ctx: &Context) -> ApiResult<String> {
+        let mut ext = ErrorExtension::new();
+        ext.set_error_code("SomeError");
         Err(ApiError {
             visible: true,
-            extension: Some("this is extension".into()),
+            extension: ext,
             source: None,
             ctx: ctx.clone(),
         })
     }
 
-    /// List submissions
-    fn submissions(
+    /// List runs
+    fn runs(
         ctx: &Context,
         id: Option<schema::RunId>,
         limit: Option<i32>,

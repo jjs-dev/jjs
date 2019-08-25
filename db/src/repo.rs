@@ -8,7 +8,15 @@ use crate::{schema::*, Error};
 
 pub trait RunsRepo: Send + Sync {
     fn run_new(&self, run_data: NewRun) -> Result<Run, Error>;
-    fn run_load(&self, run_id: RunId) -> Result<Run, Error>;
+    fn run_try_load(&self, run_id: RunId) -> Result<Option<Run>, Error>;
+    fn run_load(&self, run_id: RunId) -> Result<Run, Error> {
+        match self.run_try_load(run_id)? {
+            Some(run) => Ok(run),
+            None => {
+                Err(Error::string("run_load: unknown run_id"))
+            }
+        }
+    }
     fn run_update(&self, run_id: RunId, patch: RunPatch) -> Result<(), Error>;
     fn run_delete(&self, run_id: RunId) -> Result<(), Error>;
     fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>)

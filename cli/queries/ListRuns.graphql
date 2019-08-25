@@ -1,7 +1,10 @@
 query ListRuns($detailed: Boolean!) {
-    submissions {
+    runs {
         id,
-        problem @include(if: $detailed),
+        problem @include(if: $detailed) {
+            title,
+            id
+        },
         score @include(if: $detailed),
         status @include(if: $detailed) {
             kind,

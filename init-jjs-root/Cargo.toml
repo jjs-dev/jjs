@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 fs_extra = "1.1.0"
 structopt = "0.2.18"
+backtrace = "0.3.35"

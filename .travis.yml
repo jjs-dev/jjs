@@ -21,7 +21,7 @@ before_install:
   - sudo mkdir -p /opt/cmake
   - sudo bash /tmp/cmake.sh --skip-license --prefix=/opt/cmake
   - cargo install cbindgen mdbook -Z install-upgrade
-  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+  - if [ "$SECRET_ENABLED" = "1" ]; then
         wget -q -O - https://files.viva64.com/etc/pubkey.txt | sudo apt-key add -;
         sudo wget -O /etc/apt/sources.list.d/viva64.list https://files.viva64.com/etc/viva64.list;
         sudo apt-get update;
@@ -33,6 +33,6 @@ before_install:
 script:
   - cargo jjs-check
   - cargo jjs-test
-  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-       cargo jjs-check --fail-fast --pvs --no-clippy --no-rustfmt --no-shellcheck --no-minion-ffi-c-example --no-testlib;
+  - if [ "$SECRET_ENABLED" = "1" ]; then
+       cargo jjs-check --fail-fast --pvs --no-clippy --no-rustfmt --no-shellcheck --no-minion-ffi-c-example;
     fi

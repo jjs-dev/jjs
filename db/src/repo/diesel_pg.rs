@@ -38,9 +38,9 @@ mod impl_users {
             Ok(user)
         }
 
-        fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {
+        fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>, Error> {
             Ok(users
-                .filter(username.eq(&login))
+                .filter(username.eq(login))
                 .load(&self.conn()?)?
                 .into_iter()
                 .next())
@@ -98,16 +98,12 @@ mod impl_runs {
                 .map_err(Into::into)
         }
 
-        fn run_load(&self, run_id: RunId) -> Result<Run, Error> {
-            let maybe_run = runs
+        fn run_try_load(&self, run_id: i32) -> Result<Option<Run>, Error> {
+            Ok(runs
                 .filter(id.eq(run_id))
                 .load::<Run>(&self.conn()?)?
                 .into_iter()
-                .next();
-            match maybe_run {
-                Some(r) => Ok(r),
-                None => Err(Error::string("run_load@diesel_pg: unknown run id")),
-            }
+                .next())
         }
 
         fn run_update(&self, run_id: RunId, patch: RunPatch) -> Result<(), Error> {

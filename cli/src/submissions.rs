@@ -26,7 +26,7 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
         .expect("transport error")
         .into_result()
         .expect("api error")
-        .submissions;
+        .runs;
     match opt.action.as_str() {
         "view" => serde_json::to_value(&submissions).unwrap(),
         "remove" => {

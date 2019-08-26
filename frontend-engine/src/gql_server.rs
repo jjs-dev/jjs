@@ -6,13 +6,64 @@ mod runs;
 mod schema;
 mod users;
 
-type ErrorExtension = juniper::Value<juniper::DefaultScalarValue>;
+#[derive(Debug)]
+struct ErrorExtension(juniper::Object<juniper::DefaultScalarValue>);
+
+impl ErrorExtension {
+    const KEY_DEV_BACKTRACE: &'static str = "trace";
+    const KEY_ERROR_CODE: &'static str = "errorCode";
+
+    fn new() -> Self {
+        Self(juniper::Object::with_capacity(0))
+    }
+
+    fn set_backtrace(&mut self) {
+        let trace = backtrace::Backtrace::new();
+
+        let trace = format!("{:?}", trace);
+
+        self.0.add_field(
+            Self::KEY_DEV_BACKTRACE,
+            juniper::Value::scalar(trace.as_str()),
+        );
+    }
+
+    fn set_error_code(&mut self, error_code: &str) {
+        self.0
+            .add_field(Self::KEY_ERROR_CODE, juniper::Value::scalar(error_code));
+    }
+
+    fn into_value(self) -> juniper::Value<juniper::DefaultScalarValue> {
+        juniper::Value::Object(self.0)
+    }
+}
 
 struct ApiError {
     visible: bool,
-    extension: Option<ErrorExtension>,
+    extension: ErrorExtension,
     source: Option<Box<dyn std::error::Error>>,
     ctx: Context,
+}
+
+impl ApiError {
+    fn dev_backtrace(&mut self) {
+        if self.ctx.env.is_dev() {
+            self.extension.set_backtrace();
+        }
+    }
+
+    pub fn new(ctx: &Context, error_code: &str) -> Self {
+        let mut ext = ErrorExtension::new();
+        ext.set_error_code(error_code);
+        let mut s = Self {
+            visible: true,
+            extension: ext,
+            source: None,
+            ctx: ctx.clone(),
+        };
+        s.dev_backtrace();
+        s
+    }
 }
 
 mod impl_display {
@@ -27,9 +78,9 @@ mod impl_display {
             } else {
                 write!(f, "(priv) ")?;
             }
-            if let Some(ext) = &self.extension {
-                write!(f, "[{:?}]", ext)?;
-            }
+
+            write!(f, "[{:?}]", &self.extension)?;
+
             if let Some(src) = &self.source {
                 write!(f, ": {}", src)?;
             }
@@ -56,8 +107,9 @@ impl std::error::Error for EmptyError {}
 
 impl juniper::IntoFieldError for ApiError {
     fn into_field_error(self) -> juniper::FieldError {
+        let is_visible = self.visible || self.ctx.env.is_dev();
         let data: &dyn std::error::Error = match &self.source {
-            Some(err) if self.visible => &**err,
+            Some(err) if is_visible => &**err,
             _ => {
                 if let Some(err) = self.source {
                     let err_msg = err.to_string();
@@ -70,7 +122,7 @@ impl juniper::IntoFieldError for ApiError {
                 &EmptyError
             }
         };
-        juniper::FieldError::new(data, self.extension.unwrap_or_else(juniper::Value::null))
+        juniper::FieldError::new(data, self.extension.into_value())
     }
 }
 
@@ -98,28 +150,22 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
     fn internal(self, ctx: &Context) -> Result<T, ApiError> {
         self.map_err(|err| ApiError {
             visible: false,
-            extension: None,
+            extension: ErrorExtension::new(),
             source: Some(Box::new(err)),
             ctx: ctx.clone(),
+        })
+        .map_err(|mut err| {
+            err.dev_backtrace();
+            err
         })
     }
 
     fn report(self, ctx: &Context) -> Result<T, ApiError> {
-        self.map_err(|err| ApiError {
-            visible: true,
-            extension: None,
-            source: Some(Box::new(err)),
-            ctx: ctx.clone(),
-        })
+        self.report_ext(ctx, ErrorExtension::new())
     }
 
     fn report_ext(self, ctx: &Context, ext: ErrorExtension) -> Result<T, ApiError> {
-        self.map_err(|err| ApiError {
-            visible: true,
-            extension: Some(ext),
-            source: Some(Box::new(err)),
-            ctx: ctx.clone(),
-        })
+        self.report_with(ctx, |_| ext)
     }
 
     fn report_with(
@@ -129,9 +175,13 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
     ) -> Result<T, ApiError> {
         self.map_err(|err| ApiError {
             visible: true,
-            extension: Some(make_ext(&err)),
+            extension: make_ext(&err),
             source: Some(Box::new(err)),
             ctx: ctx.clone(),
+        })
+        .map_err(|mut err| {
+            err.dev_backtrace();
+            err
         })
     }
 }
@@ -144,8 +194,8 @@ impl StrErrorMsgUtil for str {
     fn report<T>(&self, ctx: &Context) -> Result<T, ApiError> {
         Err(ApiError {
             visible: true,
-            extension: Some(self.into()),
-            source: None,
+            extension: ErrorExtension::new(),
+            source: Some(self.into()),
             ctx: ctx.clone(),
         })
     }

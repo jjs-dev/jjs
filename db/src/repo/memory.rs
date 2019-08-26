@@ -38,15 +38,10 @@ impl RunsRepo for MemoryRepo {
         Ok(run)
     }
 
-    fn run_load(&self, run_id: i32) -> Result<Run, Error> {
+    fn run_try_load(&self, run_id: i32) -> Result<Option<Run>, Error> {
         let data = self.conn.lock().unwrap();
         let idx = run_id as usize;
-        data.runs
-            .get(idx)
-            .cloned()
-            .unwrap_or(None)
-            .ok_or(())
-            .map_err(|_| Error::string("run_load@memory: unknown run id"))
+        Ok(data.runs.get(idx).cloned().unwrap_or(None))
     }
 
     fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<(), Error> {
@@ -97,7 +92,11 @@ impl RunsRepo for MemoryRepo {
             return Ok(Vec::new());
         }
         match with_run_id {
-            Some(r) => self.run_load(r).map(|x| vec![x]),
+            Some(r) => Ok(self
+                .run_try_load(r)
+                .into_iter()
+                .filter_map(std::convert::identity)
+                .collect()),
             None => {
                 let data = self.conn.lock().unwrap();
                 let cnt = std::cmp::min(lim, data.runs.len());
@@ -141,7 +140,7 @@ impl UsersRepo for MemoryRepo {
         Ok(user)
     }
 
-    fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {
+    fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>, Error> {
         let data = self.conn.lock().unwrap();
         let res = data
             .users

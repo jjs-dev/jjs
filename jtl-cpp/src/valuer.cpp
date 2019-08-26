@@ -5,7 +5,6 @@
 #include <cstring>
 #include "valuer.h"
 #include "proto.h"
-#include "unistd.h"
 #include "util.h"
 
 FILE* pub_comments_file;
@@ -24,7 +23,7 @@ void valuer::ValuerContext::finish(int score, bool treat_as_full, const JudgeLog
     char format_buf[STATUS_KIND_MAX_LEN];
     for (const JudgeLogEntry& entry: judge_log.entries) {
         StatusKindOps::to_string(entry.status_kind, format_buf);
-        printf("%d %s %s %d\n", entry.test_id, format_buf, entry.status_code.c_str(), entry.score);
+        printf("%u %s %s %u\n", entry.test_id, format_buf, entry.status_code.c_str(), entry.score);
     }
     fflush(stdout);
     should_run = false;

@@ -47,4 +47,5 @@ int main() {
     cbs.begin = begin;
     judge_log.name = "main";
     run_valuer(cbs);
+    return 0;
 }

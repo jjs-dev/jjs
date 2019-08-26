@@ -1,6 +1,6 @@
 use super::CommandExt;
 use crate::runner::Runner;
-use log::{debug, info};
+use log::{debug, error, info};
 use std::{path::PathBuf, process::Command};
 use structopt::StructOpt;
 
@@ -86,7 +86,45 @@ fn build_minion_ffi_example(runner: &Runner) {
         .run_on(runner);
 }
 
-fn check_testlib(opts: &CheckOpts, runner: &Runner) {
+fn pvs(runner: &Runner) {
+    Command::new("pvs-studio-analyzer")
+        .current_dir("./jtl-cpp/cmake-build-debug")
+        .arg("analyze")
+        .run_on(runner);
+
+    let diagnostics_important = "GA:1,2;64:1,2;OP:1,2,3";
+    let diagnostics_additional = "GA:3;64:3";
+
+    let output_type = "errorfile";
+
+    let do_convert = |diag_spec: &str, name: &str| {
+        let report_path = format!("./jtl-cpp/cmake-build-debug/pvs-{}", name);
+        std::fs::remove_dir_all(&report_path).ok();
+
+        Command::new("plog-converter")
+            .current_dir("./jtl-cpp/cmake-build-debug")
+            .args(&["-a", diag_spec])
+            .args(&["-t", output_type])
+            .arg("PVS-Studio.log")
+            .args(&["-o", &format!("pvs-{}", name)])
+            .run_on(runner);
+        println!("---info: PVS report {}---", name);
+        let report_text = std::fs::read_to_string(&report_path)
+            .unwrap_or_else(|err| format!("failed to read report: {}", err));
+        // skip first line which is reference to help
+        let report_text = report_text.splitn(2, '\n').nth(1).unwrap();
+        println!("{}\n---", report_text);
+        !report_text.chars().any(|c| !c.is_whitespace())
+    };
+
+    if !do_convert(diagnostics_important, "high") {
+        error!("PVS found some errors");
+        runner.error();
+    }
+    do_convert(diagnostics_additional, "low");
+}
+
+fn check_testlib(runner: &Runner) {
     info!("checking testlib");
     std::fs::create_dir("jtl-cpp/cmake-build-debug").ok();
     Command::new(cmake_bin())
@@ -99,27 +137,6 @@ fn check_testlib(opts: &CheckOpts, runner: &Runner) {
         .args(&["--build", "."])
         .args(&["--target", "all"])
         .run_on(runner);
-    if opts.pvs {
-        Command::new("pvs-studio-analyzer")
-            .current_dir("./jtl-cpp/cmake-build-debug")
-            .arg("analyze")
-            .run_on(runner);
-
-        let report_path = "./jtl-cpp/cmake-build-debug/pvs";
-        let diagnostics = "GA:1,2;64:1,2;OP:1,2,3";
-
-        std::fs::remove_dir_all(report_path).ok();
-
-        let output_type = if crate::ci() { "errorfile" } else { "fullhtml" };
-
-        Command::new("plog-converter")
-            .current_dir("./jtl-cpp/cmake-build-debug")
-            .args(&["-a", diagnostics])
-            .args(&["-t", output_type])
-            .arg("PVS-Studio.log")
-            .args(&["-o", "pvs"])
-            .run_on(runner);
-    }
 }
 
 #[derive(StructOpt)]
@@ -158,9 +175,12 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
         build_minion_ffi_example(runner);
     }
     if !opts.no_testlib {
-        check_testlib(opts, runner);
+        check_testlib(runner);
     }
     if !opts.no_clippy {
         clippy(runner);
+    }
+    if opts.pvs {
+        pvs(runner);
     }
 }

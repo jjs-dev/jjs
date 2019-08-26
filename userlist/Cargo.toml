@@ -12,6 +12,6 @@ base64 = "0.10.1"
 pest = "2.1.1"
 pest_derive = "2.1.0"
 graphql_client = "0.8.0"
-reqwest = "0.9.19"
+reqwest = "0.9.20"
 serde = { version = "1.0.99", features = ["derive"] }
 uuid = "0.7.4"

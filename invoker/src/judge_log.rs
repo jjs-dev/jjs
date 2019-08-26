@@ -56,5 +56,7 @@ impl std::str::FromStr for JudgeLogRow {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct JudgeLog {
     pub(crate) name: String,
-    pub(crate) rows: Vec<JudgeLogRow>,
+    pub(crate) tests: Vec<JudgeLogRow>,
+    pub(crate) compile_stdout: String,
+    pub(crate) compile_stderr: String,
 }

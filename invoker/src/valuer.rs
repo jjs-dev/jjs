@@ -98,19 +98,21 @@ impl<'a> Valuer<'a> {
                     }));
                 }
 
-                let mut rows = Vec::new();
+                let mut tests = Vec::new();
                 for _ in 0..num_judge_log_rows {
                     line.clear();
                     self.stdout.read_line(&mut line)?;
 
-                    rows.push(line.parse()?);
+                    tests.push(line.parse()?);
                 }
                 ValuerResponse::Finish {
                     score: score.into(),
                     treat_as_full: is_full == 1,
                     judge_log: crate::judge_log::JudgeLog {
-                        rows,
+                        tests,
+                        compile_stdout: String::new(),
                         name: "main".to_string(),
+                        compile_stderr: String::new(),
                     },
                 }
             }

@@ -3,9 +3,11 @@ use crate::{
     compiler::Compiler,
     err,
     inter_api::{
-        BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification, ValuerResponse,
+        Artifact, BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification,
+        ValuerResponse,
     },
     judge::Judge,
+    judge_log::JudgeLog,
     valuer::Valuer,
     Error, InvokeRequest,
 };
@@ -13,7 +15,7 @@ use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog::{debug, error};
 use snafu::Snafu;
-use std::{collections::HashMap, ffi::OsString};
+use std::{collections::HashMap, ffi::OsString, path::PathBuf};
 
 #[derive(Debug, Clone, Snafu)]
 pub(crate) enum InterpolateError {
@@ -114,51 +116,15 @@ impl<'a> Invoker<'a> {
         Invoker { ctx, req }
     }
 
-    pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
-        let problem_path = self
-            .ctx
+    fn problem_path(&self) -> PathBuf {
+        self.ctx
             .cfg
             .sysroot
             .join("var/problems")
-            .join(&self.ctx.problem_cfg.name);
+            .join(&self.ctx.problem_cfg.name)
+    }
 
-        let manifest = self.ctx.problem_data;
-
-        let compiler = Compiler {
-            ctx: self.ctx.clone(),
-        };
-
-        let build_paths = Paths::new(
-            &self.req.submission.root_dir,
-            self.req.work_dir.path(),
-            0,
-            &problem_path,
-        );
-
-        if !self.req.submission.root_dir.exists() {
-            error!(self.ctx.logger, "Submission root dir not exists"; "submission" => self.req.submission.props.id);
-            return Err(Error::BadConfig {
-                backtrace: Default::default(),
-                inner: Box::new(err::StringError(
-                    "Submission root dir not exists".to_string(),
-                )),
-            });
-        }
-        let compiler_request = BuildRequest {
-            paths: &build_paths,
-        };
-        let compiler_response = compiler.compile(compiler_request);
-        let artifact = match compiler_response {
-            Err(err) => return Err(err),
-            Ok(BuildOutcome::Error(st)) => {
-                return Ok(InvokeOutcome {
-                    status: st,
-                    score: 0,
-                });
-            }
-            Ok(BuildOutcome::Success(artifact)) => artifact,
-        };
-
+    fn run_tests(&self, artifact: &Artifact) -> Result<(InvokeOutcome, JudgeLog), Error> {
         let mut test_results = vec![];
 
         let mut valuer = Valuer::new(self.ctx.clone())?;
@@ -167,12 +133,12 @@ impl<'a> Invoker<'a> {
         let (score, treat_as_full, judge_log) = loop {
             match resp {
                 ValuerResponse::Test { test_id: tid } => {
-                    let test = &manifest.tests[(tid - 1) as usize];
+                    let test = &self.ctx.problem_data.tests[(tid - 1) as usize];
                     let run_paths = Paths::new(
                         &self.req.submission.root_dir,
                         self.req.work_dir.path(),
                         tid,
-                        &problem_path,
+                        &self.problem_path(),
                     );
                     let judge_request = JudgeRequest {
                         paths: &run_paths,
@@ -214,6 +180,88 @@ impl<'a> Invoker<'a> {
                 code: status_codes::PARTIAL_SOLUTION.to_string(),
             }
         };
+        let outcome = InvokeOutcome { status, score };
+        Ok((outcome, judge_log))
+    }
+
+    pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
+        use std::io::Read;
+
+        let compiler = Compiler {
+            ctx: self.ctx.clone(),
+        };
+
+        let build_paths = Paths::new(
+            &self.req.submission.root_dir,
+            self.req.work_dir.path(),
+            0,
+            &self.problem_path(),
+        );
+
+        if !self.req.submission.root_dir.exists() {
+            error!(self.ctx.logger, "Submission root dir not exists"; "submission" => self.req.submission.props.id);
+            return Err(Error::BadConfig {
+                backtrace: Default::default(),
+                inner: Box::new(err::StringError(
+                    "Submission root dir not exists".to_string(),
+                )),
+            });
+        }
+        let compiler_request = BuildRequest {
+            paths: &build_paths,
+        };
+        let compiler_response = compiler.compile(compiler_request);
+
+        let mut outcome = None;
+
+        let artifact = match compiler_response {
+            Err(err) => return Err(err),
+            Ok(BuildOutcome::Error(st)) => {
+                outcome = Some(InvokeOutcome {
+                    status: st,
+                    score: 0,
+                });
+                None
+            }
+            Ok(BuildOutcome::Success(artifact)) => Some(artifact),
+        };
+
+        let judge_log;
+
+        if let Some(art) = artifact {
+            let (tests_outcome, jlog) = self.run_tests(&art)?;
+            judge_log = jlog;
+            outcome = Some(tests_outcome);
+        } else {
+            judge_log = JudgeLog {
+                name: "".to_string(),
+                tests: vec![],
+                compile_stdout: "".to_string(),
+                compile_stderr: "".to_string(),
+            };
+        }
+        let mut judge_log = judge_log;
+
+        // now fill compile_stdout and compile_stderr in judge_log
+        {
+            let mut compile_stdout = Vec::new();
+            let mut compile_stderr = Vec::new();
+            let compile_dir = self.req.work_dir.path().join("s-0");
+            for i in 0.. {
+                let stdout_file = compile_dir.join(format!("stdout-{}.txt", i));
+                let stderr_file = compile_dir.join(format!("stderr-{}.txt", i));
+                if !stdout_file.exists() || !stderr_file.exists() {
+                    break;
+                }
+                let mut stdout_file = std::fs::File::open(stdout_file)?;
+                let mut stderr_file = std::fs::File::open(stderr_file)?;
+                stdout_file.read_to_end(&mut compile_stdout)?;
+                stderr_file.read_to_end(&mut compile_stderr)?;
+            }
+            judge_log.compile_stdout = base64::encode(&compile_stdout);
+            judge_log.compile_stderr = base64::encode(&compile_stderr);
+        }
+
         let judge_log_path = self.req.work_dir.path().join("log.json");
         debug!(
             self.ctx.logger,
@@ -224,7 +272,9 @@ impl<'a> Invoker<'a> {
         let judge_log_file = std::io::BufWriter::new(judge_log_file);
         serde_json::to_writer(judge_log_file, &judge_log)
             .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
-        debug!(self.ctx.logger, "Invokation finished"; "status" => ?status);
-        Ok(InvokeOutcome { status, score })
+        let outcome = outcome.unwrap_or_else(|| unreachable!());
+        debug!(self.ctx.logger, "Invokation finished"; "status" => ?outcome.status);
+
+        Ok(outcome)
     }
 }

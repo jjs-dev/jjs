@@ -230,7 +230,7 @@ unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
     expose_dirs(&options.exposed_paths, &options.isolation_root, uid);
 }
 
-/// Derives user_ids (in range 1_000_000 to 2_000_000) from jail_id in deterministic way
+/// Derives user_ids (in range 1_000_000 to 3_000_000) from jail_id in deterministic way
 pub fn derive_user_ids(jail_id: &str) -> Uid {
     let jail_id = jail_id.as_bytes();
     let mut hasher = DefaultHasher::new();

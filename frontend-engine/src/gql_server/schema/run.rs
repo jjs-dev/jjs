@@ -19,6 +19,10 @@ impl Run {
             .join("var/submissions")
             .join(format!("s-{}", self.id))
     }
+
+    fn lookup(&self, ctx: &Context) -> Result<db::schema::Run, db::Error> {
+        ctx.db.run_load(self.id)
+    }
 }
 
 #[juniper::object(Context = Context)]
@@ -55,5 +59,15 @@ impl Run {
         let source = std::fs::read(source_path).internal(ctx)?;
         let source = base64::encode(&source);
         Ok(source)
+    }
+
+    /// Returns run build artifact as base64-encoded string
+    fn binary(&self, ctx: &Context) -> ApiResult<String> {
+        let binary_path = self
+            .data_dir(ctx)
+            .join("build");
+        let binary = std::fs::read(binary_path).internal(ctx)?;
+        let binary = base64::encode(&binary);
+        Ok(binary)
     }
 }

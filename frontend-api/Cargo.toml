@@ -5,7 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-reqwest = "0.9.19"
+reqwest = "0.9.20"
 serde = "1.0.99"
 graphql_client = "0.8.0"
 frontend-api-derive = {path = "../frontend-api-derive"}

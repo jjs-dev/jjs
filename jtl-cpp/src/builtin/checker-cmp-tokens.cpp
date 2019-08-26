@@ -1,5 +1,4 @@
 #include <checker.h>
-#include <cstdint>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -74,7 +73,7 @@ int main(int argc, char** argv) {
             comment("note: next actual token was %s", actual);
             finish(Outcome::WRONG_ANSWER);
         }
-        if (!expected && !actual) {
+        if (!expected) {
             break;
         }
         bool eq = compare_tokens(expected, actual, args);

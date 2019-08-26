@@ -29,15 +29,19 @@ impl Runner {
         }
     }
 
+    pub fn error(&self) {
+        if self.fail_fast {
+            exit(1);
+        } else {
+            self.had_errors.store(true, Ordering::SeqCst);
+        }
+    }
+
     pub fn exec(&self, cmd: &mut Command) {
         let st = cmd.status().unwrap();
         if !st.success() {
             error!("child command failed");
-            if self.fail_fast {
-                exit(1);
-            } else {
-                self.had_errors.store(true, Ordering::SeqCst);
-            }
+            self.error();
         }
     }
 }

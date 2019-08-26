@@ -20,8 +20,14 @@ impl Run {
             .join(format!("s-{}", self.id))
     }
 
-    fn lookup(&self, ctx: &Context) -> Result<db::schema::Run, db::Error> {
-        ctx.db.run_load(self.id)
+    fn last_invoke_dir(&self, ctx: &Context) -> ApiResult<PathBuf> {
+        let rejudge_id = self.lookup(ctx)?.rejudge_id;
+        let f = format!("i-{}", rejudge_id);
+        Ok(self.data_dir(ctx).join(f))
+    }
+
+    fn lookup(&self, ctx: &Context) -> ApiResult<db::schema::Run> {
+        ctx.db.run_load(self.id).internal(ctx)
     }
 }
 
@@ -63,11 +69,17 @@ impl Run {
 
     /// Returns run build artifact as base64-encoded string
     fn binary(&self, ctx: &Context) -> ApiResult<String> {
-        let binary_path = self
-            .data_dir(ctx)
-            .join("build");
+        let binary_path = self.data_dir(ctx).join("build");
         let binary = std::fs::read(binary_path).internal(ctx)?;
         let binary = base64::encode(&binary);
         Ok(binary)
+    }
+
+    /// Returns invocation protocol as JSON string
+    fn invocation_protocol(&self, ctx: &Context) -> ApiResult<String> {
+        let path = self.last_invoke_dir(ctx)?.join("log.json");
+        let protocol = std::fs::read(path).internal(ctx)?;
+        let protocol = String::from_utf8(protocol).internal(ctx)?;
+        Ok(protocol)
     }
 }

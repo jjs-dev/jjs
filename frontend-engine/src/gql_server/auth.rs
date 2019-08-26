@@ -8,7 +8,7 @@ pub(super) fn simple(
 ) -> ApiResult<schema::SessionToken> {
     let mut success = false;
     let mut reject_reason = "";
-    if let Some(user) = ctx.db.user_try_load_by_login(login.clone()).internal(ctx)? {
+    if let Some(user) = ctx.db.user_try_load_by_login(&login).internal(ctx)? {
         success = crate::password::check_password_hash(&password, &user.password_hash);
         if !success {
             reject_reason = "IncorrectPassword";
@@ -26,9 +26,7 @@ pub(super) fn simple(
         Ok(sess)
     } else {
         let mut ext = ErrorExtension::new();
-        if ctx.env.is_dev() {
-            ext.set_error_code(reject_reason);
-        }
+        ext.set_error_code(reject_reason);
         let err = ApiError {
             visible: true,
             extension: ext,

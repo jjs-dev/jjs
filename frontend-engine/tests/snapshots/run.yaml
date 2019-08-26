@@ -1,6 +1,5 @@
 description: |
-  tests operations with run
-  Since it is not end-to-end test, it doesn't check judging
+
 env:
   toolchains:
     cpp: |
@@ -28,19 +27,9 @@ steps:
       - var: runCode
         fn: base64::encode
         data: |
-          #include <cstdio>
 
-          int main() {
-              int a, b;
-              scanf("%d %d", &a, &b);
-              printf("%d", a + b);
-          }
     query: |
-      mutation CreateRun($runCode: String!) {
-          submitSimple(toolchain: "cpp", runCode: $runCode, problem: "A", contest: "TODO") {
-              id
-          }
-      }
+
     res:
       submitSimple:
         id: 0

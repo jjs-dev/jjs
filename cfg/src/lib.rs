@@ -42,7 +42,7 @@ impl Default for Limits {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Default, Debug, Clone)]
 pub struct Command {
     #[serde(default = "Command::default_env")]
     pub env: HashMap<String, String>,

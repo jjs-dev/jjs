@@ -38,9 +38,9 @@ mod impl_users {
             Ok(user)
         }
 
-        fn user_try_load_by_login(&self, login: String) -> Result<Option<User>, Error> {
+        fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>, Error> {
             Ok(users
-                .filter(username.eq(&login))
+                .filter(username.eq(login))
                 .load(&self.conn()?)?
                 .into_iter()
                 .next())

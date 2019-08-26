@@ -22,11 +22,15 @@ impl ErrorExtension {
 
         let trace = format!("{:?}", trace);
 
-        self.0.add_field(Self::KEY_DEV_BACKTRACE, juniper::Value::scalar(trace.as_str()));
+        self.0.add_field(
+            Self::KEY_DEV_BACKTRACE,
+            juniper::Value::scalar(trace.as_str()),
+        );
     }
 
     fn set_error_code(&mut self, error_code: &str) {
-        self.0.add_field(Self::KEY_ERROR_CODE, juniper::Value::scalar(error_code));
+        self.0
+            .add_field(Self::KEY_ERROR_CODE, juniper::Value::scalar(error_code));
     }
 
     fn into_value(self) -> juniper::Value<juniper::DefaultScalarValue> {
@@ -46,6 +50,19 @@ impl ApiError {
         if self.ctx.env.is_dev() {
             self.extension.set_backtrace();
         }
+    }
+
+    pub fn new(ctx: &Context, error_code: &str) -> Self {
+        let mut ext = ErrorExtension::new();
+        ext.set_error_code(error_code);
+        let mut s = Self {
+            visible: true,
+            extension: ext,
+            source: None,
+            ctx: ctx.clone(),
+        };
+        s.dev_backtrace();
+        s
     }
 }
 
@@ -136,7 +153,8 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
             extension: ErrorExtension::new(),
             source: Some(Box::new(err)),
             ctx: ctx.clone(),
-        }).map_err(|mut err| {
+        })
+        .map_err(|mut err| {
             err.dev_backtrace();
             err
         })
@@ -160,7 +178,8 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
             extension: make_ext(&err),
             source: Some(Box::new(err)),
             ctx: ctx.clone(),
-        }).map_err(|mut err| {
+        })
+        .map_err(|mut err| {
             err.dev_backtrace();
             err
         })
@@ -170,7 +189,6 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
 trait StrErrorMsgUtil {
     fn report<T>(&self, ctx: &Context) -> Result<T, ApiError>;
 }
-
 
 impl StrErrorMsgUtil for str {
     fn report<T>(&self, ctx: &Context) -> Result<T, ApiError> {

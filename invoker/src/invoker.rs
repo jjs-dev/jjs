@@ -184,9 +184,61 @@ impl<'a> Invoker<'a> {
         Ok((outcome, judge_log))
     }
 
-    pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
+    fn update_judge_log(&self, log: &mut crate::judge_log::JudgeLog) -> Result<(), Error> {
+        use crate::judge_log::VisibleComponents;
         use std::io::Read;
+        // now fill compile_stdout and compile_stderr in judge_log
+        {
+            let mut compile_stdout = Vec::new();
+            let mut compile_stderr = Vec::new();
+            let compile_dir = self.req.work_dir.path().join("s-0");
+            for i in 0.. {
+                let stdout_file = compile_dir.join(format!("stdout-{}.txt", i));
+                let stderr_file = compile_dir.join(format!("stderr-{}.txt", i));
+                if !stdout_file.exists() || !stderr_file.exists() {
+                    break;
+                }
+                let mut stdout_file = std::fs::File::open(stdout_file)?;
+                let mut stderr_file = std::fs::File::open(stderr_file)?;
+                stdout_file.read_to_end(&mut compile_stdout)?;
+                stderr_file.read_to_end(&mut compile_stderr)?;
+            }
+            log.compile_stdout = base64::encode(&compile_stdout);
+            log.compile_stderr = base64::encode(&compile_stderr);
+        }
+        // if valuer allowed, add stdin/stdout/stderr to judge_log
+        {
+            for item in &mut log.tests {
+                let test_local_dir = self
+                    .req
+                    .work_dir
+                    .path()
+                    .join(format!("s-{}", item.test_id.0.get()));
+                if item.components.contains(VisibleComponents::TEST_DATA) {
+                    let test_file = &self.ctx.problem_data.tests[item.test_id].path;
+                    let test_file = self.ctx.get_asset_path(&test_file);
+                    let test_data = std::fs::read(test_file)?;
+                    let test_data = base64::encode(&test_data);
+                    item.test_stdin = Some(test_data);
+                }
+                if item.components.contains(VisibleComponents::OUTPUT) {
+                    let stdout_file = test_local_dir.join("stdout.txt");
+                    let stderr_file = test_local_dir.join("stderr.txt");
+                    //println!("DEBUG: stdout_file={}", stdout_file.display());
+                    let sol_stdout = std::fs::read(stdout_file)?;
+                    let sol_stderr = std::fs::read(stderr_file)?;
+                    let sol_stdout = base64::encode(&sol_stdout);
+                    let sol_stderr = base64::encode(&sol_stderr);
+                    item.test_stdout = Some(sol_stdout);
+                    item.test_stderr = Some(sol_stderr);
+                }
+            }
+        }
 
+        Ok(())
+    }
+
+    pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
         let compiler = Compiler {
             ctx: self.ctx.clone(),
         };
@@ -242,25 +294,7 @@ impl<'a> Invoker<'a> {
         }
         let mut judge_log = judge_log;
 
-        // now fill compile_stdout and compile_stderr in judge_log
-        {
-            let mut compile_stdout = Vec::new();
-            let mut compile_stderr = Vec::new();
-            let compile_dir = self.req.work_dir.path().join("s-0");
-            for i in 0.. {
-                let stdout_file = compile_dir.join(format!("stdout-{}.txt", i));
-                let stderr_file = compile_dir.join(format!("stderr-{}.txt", i));
-                if !stdout_file.exists() || !stderr_file.exists() {
-                    break;
-                }
-                let mut stdout_file = std::fs::File::open(stdout_file)?;
-                let mut stderr_file = std::fs::File::open(stderr_file)?;
-                stdout_file.read_to_end(&mut compile_stdout)?;
-                stderr_file.read_to_end(&mut compile_stderr)?;
-            }
-            judge_log.compile_stdout = base64::encode(&compile_stdout);
-            judge_log.compile_stderr = base64::encode(&compile_stderr);
-        }
+        self.update_judge_log(&mut judge_log)?;
 
         let judge_log_path = self.req.work_dir.path().join("log.json");
         debug!(

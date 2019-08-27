@@ -43,7 +43,7 @@ impl EnvBuilder {
                 title: "DEV PROBLEM".to_string(),
                 loaded: true,
             }],
-            group: "".to_string(),
+            group: Vec::new(),
             unregistered_visible: false,
             anon_visible: false,
         };
@@ -65,7 +65,7 @@ impl EnvBuilder {
             host: "127.0.0.1".to_string(),
             secret: config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE"),
             unix_socket_path: "".to_string(),
-            env: config::Env::Dev, // TODO
+            env: config::Env::Dev,
         };
 
         let rock = ApiServer::create(frontend_config, logger, &config, db_conn.into());

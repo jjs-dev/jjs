@@ -222,7 +222,7 @@ unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
 
 unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     let cpu_tl = jail_options.time_limit.as_nanos() as u64;
-    let real_tl = cpu_tl * 3; //TODO to JailOptions
+    let real_tl = jail_options.wall_time_limit.as_nanos() as u64;
     observe_time(&jail_options.jail_id, cpu_tl, real_tl)
 }
 

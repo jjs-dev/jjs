@@ -29,18 +29,22 @@ fn main() {
             if libc::umount2(procfs_path.as_ptr(), libc::MNT_DETACH) == -1 {
                 let err = nix::errno::errno();
                 let err = nix::errno::from_i32(err);
-                eprintln!("Error while unmounting procfs: {:?}", err);
+                eprintln!("Error while unmounting procfs: {}", err);
             }
         }
         println!("done");
     }
     println!("----> Cgroups");
-    //TODO: cleanup  pids-ex cgroup
     for subsys in &["pids", "memory", "cpuacct"] {
-        let path = format!("{}/{}/jjs/g-{}", &argv.cgroupfs, subsys, argv.jail_id);
+        let path = format!("{}/{}/jjs/g-{}", &argv.cgroupfs, subsys, &argv.jail_id);
         println!("deleting {}", &path);
         if let Err(e) = fs::remove_dir(path) {
-            eprintln!("Error: {:?}", e);
+            eprintln!("Error: {}", e);
         }
+    }
+    let path = format!("{}/pids/jjs/g-{}-ex", &argv.cgroupfs, &argv.jail_id);
+    println!("deleting {}", &path);
+    if let Err(e)  = fs::remove_dir(path) {
+        eprintln!("Error: {}", e);
     }
 }

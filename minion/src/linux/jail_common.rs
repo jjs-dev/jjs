@@ -9,8 +9,11 @@ use tiny_nix_ipc::Socket;
 pub(crate) struct JailOptions {
     pub(crate) max_alive_process_count: u32,
     pub(crate) memory_limit: u64,
-    ///specifies total CPU time for all dominion
+    /// specifies total CPU time for whole dominion.
     pub(crate) time_limit: Duration,
+    /// Specifies wall-closk time limit for whole dominion.
+    /// Possible value: time_limit * 3
+    pub(crate) wall_time_limit: Duration,
     pub(crate) isolation_root: PathBuf,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
     pub(crate) jail_id: String,

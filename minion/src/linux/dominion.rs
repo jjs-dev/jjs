@@ -78,6 +78,7 @@ impl LinuxDominion {
             max_alive_process_count: options.max_alive_process_count,
             memory_limit: options.memory_limit,
             time_limit: options.time_limit,
+            wall_time_limit: Duration::from_nanos(options.time_limit.as_nanos() as u64 * 3),
             isolation_root: options.isolation_root.clone(),
             exposed_paths: options.exposed_paths.clone(),
             jail_id: jail_id.clone(),

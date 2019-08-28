@@ -15,7 +15,7 @@ rust:
   - nightly-2019-08-01
 before_install:
   - rustup component add rustfmt clippy
-  - sudo apt-get update
+  - sudo apt-get update || true
   - sudo apt-get install -y libpq-dev
   - wget -q -O - https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.sh > /tmp/cmake.sh
   - sudo mkdir -p /opt/cmake

@@ -10,7 +10,7 @@ set(TEMP_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 set(RAND_FFI_HEADER ${CMAKE_CURRENT_BINARY_DIR}/rand-ffi.h)
 set(CRATE ${CMAKE_CURRENT_SOURCE_DIR}/rand-ffi)
-set(RUST_TARGET ${CMAKE_CURRENT_SOURCE_DIR}/rand-ffi/target)
+set(RUST_TARGET ${CMAKE_CURRENT_SOURCE_DIR}/../target)
 
 if (CMAKE_BUILD_TYPE)
     set(BUILD_TYPE "${CMAKE_BUILD_TYPE}")
@@ -28,7 +28,7 @@ endif ()
 add_custom_target(JtlRsHeaders
         COMMAND cbindgen ${CRATE} -o ${RAND_FFI_HEADER} -c ${CMAKE_CURRENT_SOURCE_DIR}/cbindgen.toml)
 add_custom_target(JtlRsBuild
-        COMMAND cargo build ${RUST_OPT_ARGS} WORKING_DIRECTORY ${CRATE})
+        COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=../../target cargo  build ${RUST_OPT_ARGS} WORKING_DIRECTORY ${CRATE})
 add_custom_target(JtlRs)
 add_custom_command(TARGET JtlRs COMMAND ${CMAKE_COMMAND} -E copy ${RUST_TARGET}/librand_ffi.a ${CMAKE_CURRENT_BINARY_DIR}/libJtlRsAr.a)
 add_dependencies(JtlRs JtlRsBuild JtlRsHeaders)

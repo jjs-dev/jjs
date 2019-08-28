@@ -14,7 +14,7 @@ static bool should_run;
 
 void valuer::ValuerContext::select_next_test(valuer::TestId next_test) {
     assert(1 <= next_test && next_test <= problem_test_count);
-    printf("RUN %d\n", next_test);
+    printf("RUN %u\n", next_test);
     fflush(stdout);
 }
 

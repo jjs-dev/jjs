@@ -2,7 +2,7 @@ mod check;
 mod runner;
 
 use crate::runner::Runner;
-use std::{env::set_current_dir, process::Command};
+use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -22,6 +22,9 @@ enum CliArgs {
     /// Clean all build files except Cargo's
     #[structopt(name = "clean")]
     Clean,
+    /// remove target files, related to JJS. This should prevent cache invalidation
+    #[structopt(name = "ci-clean")]
+    CiClean,
 }
 
 trait CommandExt {
@@ -62,6 +65,47 @@ fn task_clean() {
     remove_dir_all("./jtl-cpp/cmake-build-release").ok();
 }
 
+fn get_package_list() -> Vec<String> {
+    let t = std::fs::read_to_string("Cargo.toml").unwrap();
+    let t: toml::Value = toml::from_str(&t).unwrap();
+    let t = t.get("workspace").unwrap().get("members").unwrap();
+    let t = t.as_array().unwrap();
+    t.iter()
+        .map(|val| val.as_str().unwrap().to_string())
+        .collect()
+}
+
+fn task_ci_clean() {
+    let mut pkgs = get_package_list();
+    pkgs.push("rand-ffi".to_string());
+    for s in &mut pkgs {
+        s.push('-');
+    }
+    let process_dir = |path: &Path| {
+        for item in std::fs::read_dir(path).unwrap() {
+            let item = item.unwrap();
+            let name = item.file_name();
+            let name = name.to_str().unwrap();
+            let is_from_jjs = pkgs
+                .iter()
+                .any(|pkg| name.starts_with(pkg) && !name.contains("cfg-if"));
+            if is_from_jjs {
+                let p = item.path();
+                println!("removing: {}", p.display());
+                if p.is_file() {
+                    std::fs::remove_file(p).unwrap();
+                } else {
+                    std::fs::remove_dir_all(p).unwrap();
+                }
+            }
+        }
+    };
+    process_dir(Path::new("target/debug/deps"));
+    process_dir(Path::new("target/debug/.fingerprint"));
+    process_dir(Path::new("target/debug/build"));
+    process_dir(Path::new("target/debug/incremental"));
+}
+
 fn main() {
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).unwrap();
@@ -74,6 +118,7 @@ fn main() {
         }
         CliArgs::Test(args) => task_test(args, &runner),
         CliArgs::Clean => task_clean(),
+        CliArgs::CiClean => task_ci_clean(),
     }
     runner.exit_if_errors();
 }

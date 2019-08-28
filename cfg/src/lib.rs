@@ -3,7 +3,12 @@ extern crate toml;
 #[macro_use]
 extern crate serde_derive;
 
-use std::{collections::HashMap, env, fs, path::PathBuf, process::exit};
+use std::{
+    collections::HashMap,
+    env, fs,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Limits {
@@ -107,8 +112,7 @@ pub struct Contest {
     pub problems: Vec<Problem>,
 
     /// Which group members are considered registered for contest
-    // TODO support several groups
-    pub group: String,
+    pub group: Vec<String>,
 
     /// Whether contest is visible for users that are not included in contestants
     #[serde(rename = "vis-unreg")]
@@ -229,14 +233,14 @@ pub fn get_config() -> Config {
                 e, raw_toolchain_spec_data
             ),
         };
-        let toolchain_name = item
+        let toolchain_name = item.file_name().unwrap();
+
+        let toolchain_name = Path::new(toolchain_name);
+        let toolchain_name = toolchain_name
             .file_name()
-            .unwrap()
+            .expect("toolchain config must start with toolchain name")
             .to_str()
             .expect("Toolchain name is not string")
-            .split('.') // FIXME: use Path::file_name instead
-            .next()
-            .unwrap()
             .to_string();
         toolchain_spec.name = toolchain_name;
         c.toolchains.push(toolchain_spec);

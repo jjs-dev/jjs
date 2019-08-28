@@ -8,10 +8,13 @@ use slog::{o, Drain, Logger};
 use std::process::exit;
 use structopt::StructOpt;
 
+/// Command-line client for JJS
+///
+/// To get Bash completion, run:
+/// COMPLETION=1 <path/to/jjs-cli> > /tmp/compl.sh
+/// . /tmp/compl.sh
 #[derive(StructOpt)]
 struct Opt {
-    #[structopt(long = "dump-completion")]
-    dump_completion: bool,
     #[structopt(subcommand)]
     sub: SubOpt,
 }
@@ -47,12 +50,6 @@ fn main() {
     }
 
     let opt: Opt = Opt::from_args();
-
-    // TODO works pretty bad
-    if opt.dump_completion {
-        gen_completion();
-        exit(0);
-    }
 
     let drain =
         slog_term::CompactFormat::new(slog_term::TermDecorator::new().stderr().build()).build();

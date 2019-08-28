@@ -1,10 +1,6 @@
 language: rust
-cache:
-  cargo: true
-  directories:
-    - jtl-cpp/rand-ffi/target
+cache: cargo
 dist: bionic
-
 branches:
   only:
     - trying
@@ -13,6 +9,9 @@ branches:
 
 rust:
   - nightly-2019-08-01
+
+env: CARGO_INCREMENTAL=0
+
 before_install:
   - rustup component add rustfmt clippy
   - sudo apt-get update || true
@@ -20,7 +19,7 @@ before_install:
   - wget -q -O - https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.sh > /tmp/cmake.sh
   - sudo mkdir -p /opt/cmake
   - sudo bash /tmp/cmake.sh --skip-license --prefix=/opt/cmake
-  - cargo install cbindgen mdbook -Z install-upgrade
+  - cargo install cbindgen mdbook cargo-sweep -Z install-upgrade
   - if [ "$SECRET_ENABLED" = "1" ]; then
         wget -q -O - https://files.viva64.com/etc/pubkey.txt | sudo apt-key add -;
         sudo wget -O /etc/apt/sources.list.d/viva64.list https://files.viva64.com/etc/viva64.list;
@@ -28,7 +27,15 @@ before_install:
         sudo apt-get install -y pvs-studio;
         pvs-studio-analyzer credentials $PVS_NAME $PVS_LICENSE_KEY;
     fi
+  - mkdir /tmp/sweep
+  - cargo sweep --stamp /tmp/sweep
 
+before_cache:
+  - cargo run -p devtool -- ci-clean
+  - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
+  - cargo sweep --file /tmp/sweep
+  - find ./target/debug -maxdepth 1 -type f -delete
+  - rm -f ./target/.rustc_info.json
 
 script:
   - cargo jjs-check

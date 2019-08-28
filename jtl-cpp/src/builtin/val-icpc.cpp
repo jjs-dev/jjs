@@ -22,6 +22,7 @@ void on_test_end(ValuerContext* ctx, TestId test, StatusKind status_kind, const 
     if (test == 1) {
         entry.components.expose_output();
         entry.components.expose_test_data();
+        entry.components.expose_answer();
     }
     judge_log.entries.push_back(entry);
     const bool test_passed = StatusKindOps::is_passed(status_kind);

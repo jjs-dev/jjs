@@ -28,6 +28,7 @@ static bool is_passed(StatusKind kind);
 struct VisibleComponents {
     static const uint32_t TEST_DATA = 1;
     static const uint32_t OUTPUT = 2;
+    static const uint32_t ANSWER = 4;
 
 
     uint32_t flags = 0;
@@ -35,6 +36,8 @@ struct VisibleComponents {
     void expose_test_data();
 
     void expose_output();
+
+    void expose_answer();
 };
 
 using TestId = uint32_t;

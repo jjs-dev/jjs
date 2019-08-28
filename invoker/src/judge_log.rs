@@ -5,8 +5,10 @@ use snafu::{ResultExt, Snafu};
 bitflags! {
     pub(crate) struct VisibleComponents: u32 {
         const TEST_DATA = 1;
-        /// solution stdout & stderr
+        /// Solution stdout & stderr
         const OUTPUT = 2;
+        /// Test answer
+        const ANSWER = 4;
     }
 }
 
@@ -19,6 +21,7 @@ pub(crate) struct JudgeLogRow {
     pub(crate) test_stdin: Option<String>,
     pub(crate) test_stdout: Option<String>,
     pub(crate) test_stderr: Option<String>,
+    pub(crate) test_answer: Option<String>,
     #[serde(skip)]
     pub(crate) components: VisibleComponents,
 }
@@ -80,6 +83,7 @@ impl std::str::FromStr for JudgeLogRow {
             test_stdin: None,
             test_stdout: None,
             test_stderr: None,
+            test_answer: None,
         };
 
         Ok(jr)

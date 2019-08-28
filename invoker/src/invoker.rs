@@ -232,6 +232,15 @@ impl<'a> Invoker<'a> {
                     item.test_stdout = Some(sol_stdout);
                     item.test_stderr = Some(sol_stderr);
                 }
+                if item.components.contains(VisibleComponents::ANSWER) {
+                    let answer_ref = &self.ctx.problem_data.tests[item.test_id].correct;
+                    if let Some(answer_ref) = answer_ref {
+                        let answer_file = self.ctx.get_asset_path(answer_ref);
+                        let answer = std::fs::read(answer_file)?;
+                        let answer = base64::encode(&answer);
+                        item.test_answer = Some(answer);
+                    }
+                }
             }
         }
 

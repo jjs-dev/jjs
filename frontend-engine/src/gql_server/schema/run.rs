@@ -39,6 +39,8 @@ pub(crate) struct RunProtocolFilterParams {
     test_data: bool,
     /// If false, solution stdout&stderr will be excluded for all tests
     output: bool,
+    /// If false, correct answer will be excluded for all tests
+    answer: bool,
 }
 
 fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParams) {
@@ -60,6 +62,9 @@ fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParam
                     }
                     if !filter.test_data {
                         test.remove("test_stdin");
+                    }
+                    if !filter.answer {
+                        test.remove("test_answer");
                     }
                 }
             }

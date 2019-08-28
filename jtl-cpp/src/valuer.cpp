@@ -112,3 +112,7 @@ void valuer::VisibleComponents::expose_test_data() {
 void valuer::VisibleComponents::expose_output() {
     flags |= OUTPUT;
 }
+
+void valuer::VisibleComponents::expose_answer() {
+    flags |= ANSWER;
+}

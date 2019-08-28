@@ -3,8 +3,12 @@ extern crate toml;
 #[macro_use]
 extern crate serde_derive;
 
-use std::{collections::HashMap, env, fs, path::PathBuf, process::exit};
-use std::path::Path;
+use std::{
+    collections::HashMap,
+    env, fs,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Limits {
@@ -229,9 +233,7 @@ pub fn get_config() -> Config {
                 e, raw_toolchain_spec_data
             ),
         };
-        let toolchain_name = item
-            .file_name()
-            .unwrap();
+        let toolchain_name = item.file_name().unwrap();
 
         let toolchain_name = Path::new(toolchain_name);
         let toolchain_name = toolchain_name

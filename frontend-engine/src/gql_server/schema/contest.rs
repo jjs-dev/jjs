@@ -1,5 +1,4 @@
 use super::{super::prelude::*, ContestId, ProblemId};
-use juniper::GraphQLObject;
 
 #[derive(GraphQLObject)]
 pub(crate) struct Problem {

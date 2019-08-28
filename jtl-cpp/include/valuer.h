@@ -25,11 +25,26 @@ static void to_string(StatusKind kind, char buf[STATUS_KIND_MAX_LEN]);
 static bool is_passed(StatusKind kind);
 };
 
+struct VisibleComponents {
+    static const uint32_t TEST_DATA = 1;
+    static const uint32_t OUTPUT = 2;
+
+
+    uint32_t flags = 0;
+
+    void expose_test_data();
+
+    void expose_output();
+};
+
+using TestId = uint32_t;
+
 struct JudgeLogEntry {
-    uint32_t test_id;
+    TestId test_id;
     std::string status_code;
     StatusKind status_kind;
     uint32_t score;
+    VisibleComponents components;
 };
 
 struct JudgeLog {
@@ -40,7 +55,7 @@ struct JudgeLog {
 struct ValuerContext {
     int problem_test_count = -1;
 
-    void select_next_test(int next_test);
+    void select_next_test(TestId next_test);
 
     void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
 };
@@ -50,7 +65,7 @@ struct ValuerCallbacks {
 
     void (* begin)(ValuerContext* ctx) = nullptr;
 
-    void (* on_test_end)(ValuerContext* ctx, int test, StatusKind status_kind, const char* status_code) = nullptr;
+    void (* on_test_end)(ValuerContext* ctx, TestId test, StatusKind status_kind, const char* status_code) = nullptr;
 };
 
 void run_valuer(ValuerCallbacks callbacks);

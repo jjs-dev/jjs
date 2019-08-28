@@ -8,22 +8,21 @@ using namespace valuer;
 
 static JudgeLog judge_log;
 
-static void foo(const char* msg) {
-    write(-1, msg, strlen(msg));
-}
-
 void begin(ValuerContext* ctx) {
     assert(ctx->problem_test_count >= 1);
     ctx->select_next_test(1);
-    foo("ICPCValuer: selected test");
 }
 
-void on_test_end(ValuerContext* ctx, int test, StatusKind status_kind, const char* status_code) {
+void on_test_end(ValuerContext* ctx, TestId test, StatusKind status_kind, const char* status_code) {
     JudgeLogEntry entry;
     entry.status_kind = status_kind;
     entry.status_code = status_code;
     entry.test_id = test;
     entry.score = 0;
+    if (test == 1) {
+        entry.components.expose_output();
+        entry.components.expose_test_data();
+    }
     judge_log.entries.push_back(entry);
     const bool test_passed = StatusKindOps::is_passed(status_kind);
     const bool should_stop = !test_passed || (test == ctx->problem_test_count);

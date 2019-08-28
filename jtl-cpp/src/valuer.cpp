@@ -12,9 +12,9 @@ FILE* priv_comments_file;
 
 static bool should_run;
 
-void valuer::ValuerContext::select_next_test(int next_test) {
+void valuer::ValuerContext::select_next_test(valuer::TestId next_test) {
     assert(1 <= next_test && next_test <= problem_test_count);
-    printf("RUN %d\n", next_test);
+    printf("RUN %u\n", next_test);
     fflush(stdout);
 }
 
@@ -23,7 +23,8 @@ void valuer::ValuerContext::finish(int score, bool treat_as_full, const JudgeLog
     char format_buf[STATUS_KIND_MAX_LEN];
     for (const JudgeLogEntry& entry: judge_log.entries) {
         StatusKindOps::to_string(entry.status_kind, format_buf);
-        printf("%u %s %s %u\n", entry.test_id, format_buf, entry.status_code.c_str(), entry.score);
+        printf("%u %s %s %u %u\n", entry.test_id, format_buf, entry.status_code.c_str(), entry.score,
+               entry.components.flags);
     }
     fflush(stdout);
     should_run = false;
@@ -102,4 +103,12 @@ void valuer::StatusKindOps::to_string(const valuer::StatusKind kind, char* buf) 
 
 bool valuer::StatusKindOps::is_passed(const valuer::StatusKind kind) {
     return kind == StatusKind::ACCEPTED;
+}
+
+void valuer::VisibleComponents::expose_test_data() {
+    flags |= TEST_DATA;
+}
+
+void valuer::VisibleComponents::expose_output() {
+    flags |= OUTPUT;
 }

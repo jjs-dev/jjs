@@ -102,7 +102,6 @@ impl<'a> Valuer<'a> {
                 for _ in 0..num_judge_log_rows {
                     line.clear();
                     self.stdout.read_line(&mut line)?;
-
                     tests.push(line.parse()?);
                 }
                 ValuerResponse::Finish {

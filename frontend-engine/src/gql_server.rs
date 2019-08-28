@@ -206,6 +206,7 @@ mod prelude {
         schema, ApiError, ApiResult, Context, ErrorExtension, ResultToApiUtil as _,
         StrErrorMsgUtil as _,
     };
+    pub(super) use juniper::{GraphQLInputObject, GraphQLObject};
 }
 
 pub(crate) use context::{Context, ContextFactory};

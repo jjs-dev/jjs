@@ -38,13 +38,36 @@ fn route_graphiql() -> rocket::response::content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
 }
 
+struct JuniperResponseDebug(juniper_rocket::GraphQLResponse);
+
+impl std::fmt::Debug for JuniperResponseDebug {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let resp = &self.0;
+        std::fmt::Debug::fmt(&resp.1, f)
+    }
+}
+
+fn execute_request(
+    req: juniper_rocket::GraphQLRequest,
+    schema: &gql_server::Schema,
+    ctx: &gql_server::Context,
+) -> juniper_rocket::GraphQLResponse {
+    let res = req.execute(schema, ctx);
+
+    let res = JuniperResponseDebug(res);
+
+    slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
+
+    res.0
+}
+
 #[get("/graphql?<request>")]
 fn route_get_graphql(
     ctx: gql_server::Context,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &ctx)
+    execute_request(request, &*schema, &ctx)
 }
 
 #[post("/graphql", data = "<request>")]
@@ -53,7 +76,7 @@ fn route_post_graphql(
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &ctx)
+    execute_request(request, &*schema, &ctx)
 }
 
 #[derive(Clone)]

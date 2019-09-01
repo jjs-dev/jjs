@@ -34,7 +34,7 @@ chrono = "0.4.7"
 color-backtrace = { version = "0.2.3", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"
-snafu-derive = "0.4.4"
+snafu-derive = "0.5.0"
 atty = "0.2.13"
 base64 = "0.10.1"
 bitflags = "1.1.0"

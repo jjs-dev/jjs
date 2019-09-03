@@ -41,8 +41,8 @@ fn main() {
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
 
-    let logger = slog::Logger::root(drain, slog::o!("app"=>"jjs:frontend"));
-    slog::info!(logger, "starting");
+    let logger = slog::Logger::root(drain, slog::o!("app" => "jjs:frontend"));
+    slog::info!(logger, "starting frontend");
 
     launch_root_login_server(&logger, frontend_cfg.clone());
     launch_api(frontend_cfg, logger, cfg);

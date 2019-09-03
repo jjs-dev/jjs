@@ -237,8 +237,8 @@ pub fn get_config() -> Config {
 
         let toolchain_name = Path::new(toolchain_name);
         let toolchain_name = toolchain_name
-            .file_name()
-            .expect("toolchain config must start with toolchain name")
+            .file_stem()
+            .expect("toolchain config file name must start with toolchain name")
             .to_str()
             .expect("Toolchain name is not string")
             .to_string();

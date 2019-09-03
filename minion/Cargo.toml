@@ -16,6 +16,6 @@ tiny-nix-ipc = { git = "https://github.com/mikailbag/tiny-nix-ipc", rev = "bfd29
 procfs = "0.5.3"
 nix = "0.15.0"
 downcast-rs = "1.0.4"
-snafu = { version = "0.4.4", features = ["rust_1_30"] }
+snafu = { version = "0.5.0", features = ["rust_1_30"] }
 base64 = "0.10.1"
 backtrace = "0.3.35"

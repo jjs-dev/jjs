@@ -30,7 +30,7 @@ snafu = "0.4.4"
 memchr = "2.2.1"
 strum = "0.15.0"
 strum_macros = "0.15.0"
-chrono = "0.4.7"
+chrono = "0.4.8"
 color-backtrace = { version = "0.2.3", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"

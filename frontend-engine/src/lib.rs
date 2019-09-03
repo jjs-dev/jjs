@@ -12,30 +12,9 @@ pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
 
 use gql_server::Context;
-use rocket::{fairing::AdHoc, http::Status, State};
+use rocket::{fairing::AdHoc, State};
 use slog::Logger;
-use std::{fmt::Debug, sync::Arc};
-#[derive(Debug)]
-enum FrontendError {
-    Internal(Option<Box<dyn Debug>>),
-    Db(db::Error),
-}
-
-impl<'r> rocket::response::Responder<'r> for FrontendError {
-    fn respond_to(self, _request: &rocket::Request) -> rocket::response::Result<'r> {
-        eprintln!("FrontendError: {:?}", &self);
-        let res = match self {
-            FrontendError::Internal(_) | FrontendError::Db(_) => Status::InternalServerError,
-        };
-        Err(res)
-    }
-}
-
-impl From<db::Error> for FrontendError {
-    fn from(e: db::Error) -> Self {
-        FrontendError::Db(e)
-    }
-}
+use std::sync::Arc;
 
 type DbPool = Arc<dyn db::DbConn>;
 

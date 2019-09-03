@@ -1,7 +1,3 @@
-#![feature(proc_macro_hygiene, decl_macro, param_attrs)]
-
-extern crate rocket;
-
 use slog::{error, Logger};
 use std::process::exit;
 

@@ -1,5 +1,3 @@
-#![feature(never_type, nll)]
-
 use cfg_if::cfg_if;
 use minion;
 use std::time::Duration;
@@ -11,29 +9,37 @@ struct EnvItem {
     value: String,
 }
 
-fn parse_env_item(src: &str) -> Result<EnvItem, !> {
-    let p = src.find('=').unwrap();
+fn parse_env_item(src: &str) -> Result<EnvItem, &'static str> {
+    let p = src.find('=').ok_or("Env item doesn't look like KEY=VAL")?;
     Ok(EnvItem {
         name: String::from(&src[0..p]),
         value: String::from(&src[p + 1..]),
     })
 }
 
-fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions, !> {
+fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions, String> {
     let sep1 = match src.find(':') {
         Some(x) => x,
-        None => panic!("--expose item must contain to colons(`:`), but no one was provided"),
+        None => {
+            return Err(
+                "--expose item must contain to colons(`:`), but no one was provided".to_string(),
+            )
+        }
     };
     let sep2 = match src[sep1 + 1..].find(':') {
         Some(x) => x + sep1 + 1,
-        None => panic!("--expose item must contain two colone(`:`), but one was provided"),
+        None => {
+            return Err(
+                "--expose item must contain two colone(`:`), but one was provided".to_string(),
+            )
+        }
     };
     let amask = &src[sep1 + 1..sep2];
     if amask.len() != 3 {
-        panic!(
+        return Err(format!(
             "access mask must contain 3 chars (R, W, X flags), but {} provided",
             amask.len()
-        );
+        ));
     }
     let access = match amask {
         "rwx" => minion::DesiredAccess::Full,
@@ -46,6 +52,7 @@ fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions
         access,
     })
 }
+
 #[derive(StructOpt, Debug)]
 struct ExecOpt {
     /// Full name of executable file (e.g. /bin/ls)

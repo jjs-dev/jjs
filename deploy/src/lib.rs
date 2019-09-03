@@ -237,7 +237,7 @@ fn generate_envscript(params: &Params) {
         "{}",
         env_add(
             "LIBRARY_PATH",
-            &format!("{}/lib", &params.sysroot.display())
+            &format!("{}/lib", &params.sysroot.display()),
         )
     )
     .unwrap();
@@ -265,6 +265,7 @@ fn generate_envscript(params: &Params) {
         )
     )
     .unwrap();
+
     let out_file_path = params.sysroot.join("share/env.sh");
     std::fs::write(&out_file_path, out).unwrap();
 }

@@ -8,7 +8,7 @@ branches:
     - master
 
 rust:
-  - nightly-2019-08-01
+  - nightly-2019-08-28
 
 env: CARGO_INCREMENTAL=0
 

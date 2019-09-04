@@ -3,12 +3,51 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
+#include <inipp.h>
+#include <fstream>
 
 using namespace valuer;
 
 static JudgeLog judge_log;
 
-void begin(ValuerContext* ctx) {
+struct Params {
+    int open_test_count = 1;
+};
+
+using Ini = inipp::Ini<char>;
+
+static Params read_config() {
+    Params p {};
+    Ini ini;
+    std::ifstream cfg;
+    cfg.open("./cfg.ini");
+    if (cfg.fail()) {
+        char const* const err_buf = strerror(errno);
+        comment_private("warning: failed open config file: %s\n", err_buf);
+        comment_private("note: will use defaults\n");
+        return p;
+    }
+    ini.parse(cfg);
+    auto const& main_sec = ini.sections[""];
+    if (main_sec.count("open-test-count")) {
+        inipp::extract(main_sec.at("open-test-count"), p.open_test_count);
+    }
+
+    return p;
+}
+
+void init(ValuerContext* const ctx) {
+    auto const cfg = read_config();
+    auto* const params  = new Params;
+    *params = cfg;
+    ctx->data = params;
+}
+
+Params const& get_params(ValuerContext const* const ctx) {
+    return *(Params*) ctx->data;
+}
+
+void begin(ValuerContext* const ctx) {
     assert(ctx->problem_test_count >= 1);
     ctx->select_next_test(1);
 }
@@ -19,7 +58,7 @@ void on_test_end(ValuerContext* ctx, TestId test, StatusKind status_kind, const 
     entry.status_code = status_code;
     entry.test_id = test;
     entry.score = 0;
-    if (test == 1) {
+    if (test <= get_params(ctx).open_test_count) {
         entry.components.expose_output();
         entry.components.expose_test_data();
         entry.components.expose_answer();
@@ -43,6 +82,7 @@ void on_test_end(ValuerContext* ctx, TestId test, StatusKind status_kind, const 
 
 int main() {
     ValuerCallbacks cbs;
+    cbs.init = init;
     cbs.on_test_end = on_test_end;
     cbs.begin = begin;
     judge_log.name = "main";

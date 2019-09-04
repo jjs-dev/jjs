@@ -36,6 +36,8 @@ impl<'a> Valuer<'a> {
         let private_comments = make_anon_file("PrivateValuerComments");
         cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
+        let work_dir = ctx.get_asset_path(&ctx.problem_data.valuer_cfg);
+        cmd.current_dir(work_dir);
         let mut child = cmd.spawn().map_err(Box::new)?;
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();

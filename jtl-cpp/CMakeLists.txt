@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13.4)
 project(Jtl VERSION 0.1.0)
+set(CMAKE_CXX_STANDARD 17)
 
 set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp src/valuer.cpp src/util.cpp)
 set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/valuer.h)
@@ -34,7 +35,7 @@ add_custom_command(TARGET JtlRs COMMAND ${CMAKE_COMMAND} -E copy ${RUST_TARGET}/
 add_dependencies(JtlRs JtlRsBuild JtlRsHeaders)
 # JTL itself
 add_library(Jtl STATIC ${SRC_FILES})
-target_include_directories(Jtl PUBLIC include src ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(Jtl PUBLIC include src ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/deps)
 add_dependencies(Jtl JtlRs)
 set_target_properties(Jtl PROPERTIES PUBLIC_HEADER "${HEADER_FILES}")
 target_link_libraries(Jtl PUBLIC pthread rt dl m)

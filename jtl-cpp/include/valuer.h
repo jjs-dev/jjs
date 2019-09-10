@@ -56,6 +56,8 @@ struct JudgeLog {
 };
 
 struct ValuerContext {
+    void* data = nullptr;
+
     int problem_test_count = -1;
 
     void select_next_test(TestId next_test);

@@ -1,6 +1,6 @@
 #![feature(is_sorted)]
 
-use std::{env, path::PathBuf};
+use std::env;
 
 mod cfg;
 mod command;
@@ -11,7 +11,7 @@ mod args {
     use std::path::PathBuf;
     use structopt::StructOpt;
 
-    #[derive(StructOpt)]
+    #[derive(Debug, StructOpt)]
     pub struct CompileArgs {
         /// Path to problem package root
         #[structopt(long = "pkg", short = "P")]
@@ -80,38 +80,6 @@ fn check_dir(path: &Path, allow_nonempty: bool) {
     }
 }
 
-fn get_progress_bar_style() -> indicatif::ProgressStyle {
-    let mut st = indicatif::ProgressStyle::default_bar();
-    st = st.template("[{elapsed_precise}] {bar:40.green/blue} {pos:>7}/{len:7} {msg}");
-    st
-}
-
-mod style {
-    pub fn in_progress() -> console::Style {
-        console::Style::new().blue()
-    }
-
-    pub fn ready() -> console::Style {
-        console::Style::new().green()
-    }
-}
-
-trait BeatufilStringExt: Sized {
-    fn style_with(self, s: &console::Style) -> String;
-}
-
-impl BeatufilStringExt for &str {
-    fn style_with(self, s: &console::Style) -> String {
-        s.apply_to(self).to_string()
-    }
-}
-
-impl BeatufilStringExt for String {
-    fn style_with(self, s: &console::Style) -> String {
-        (self.as_str()).style_with(s)
-    }
-}
-
 fn open_as_handle(path: &str) -> std::io::Result<i64> {
     use std::os::unix::io::IntoRawFd;
     // note: platform-dependent code
@@ -154,8 +122,9 @@ fn compile_problem(args: args::CompileArgs) {
         cfg: &problem_cfg,
         problem_dir: &problem_dir,
         out_dir: &out_dir,
-        jjs_dir: &PathBuf::from(&jjs_dir),
-        args: &args,
+        build_backend: &compile::build::Pibs {
+            jjs_dir: Path::new(&jjs_dir),
+        },
     };
     builder.build();
 }

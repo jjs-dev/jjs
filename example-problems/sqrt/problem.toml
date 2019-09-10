@@ -2,7 +2,7 @@ title = "Calc sqrt"
 name = "sqrt"
 random-seed = "bd0cc794d352f84a1162abc7d1441a641eabef3610b541d673ef6c014b4b2aa7"
 check-type = "builtin"
-primary-solution = "full"
+primary-solution = "main"
 valuer = "icpc"
 
 [builtin-check]

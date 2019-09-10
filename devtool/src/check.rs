@@ -90,6 +90,8 @@ fn pvs(runner: &Runner) {
     Command::new("pvs-studio-analyzer")
         .current_dir("./jtl-cpp/cmake-build-debug")
         .arg("analyze")
+        .args(&["--exclude-path", "./jtl-cpp/deps"])
+        .args(&["-j", "4"])
         .run_on(runner);
 
     let diagnostics_important = "GA:1,2;64:1,2;OP:1,2,3";

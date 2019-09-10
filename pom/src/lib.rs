@@ -50,4 +50,5 @@ pub struct Problem {
     pub checker_exe: FileRef,
     pub checker_cmd: Vec<String>,
     pub valuer_exe: FileRef,
+    pub valuer_cfg: FileRef,
 }

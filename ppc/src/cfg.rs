@@ -164,6 +164,9 @@ pub struct RawProblem {
 
     #[serde(rename = "check-options")]
     pub check_options: Option<CheckOptions>,
+
+    #[serde(rename = "valuer-cfg")]
+    pub valuer_cfg: Option<String>,
 }
 
 impl RawProblem {
@@ -259,9 +262,10 @@ impl RawProblem {
             name: self.name,
             random_seed,
             check_options: self.check_options.unwrap_or_else(|| CheckOptions {
-                args: vec![], // do not pass additional argv to checker
+                args: vec![], // do not pass additional argv to checker it they are not provided
             }),
             valuer: self.valuer,
+            valuer_cfg: self.valuer_cfg,
         };
 
         Ok((out, warnings))
@@ -284,4 +288,5 @@ pub struct Problem {
     pub random_seed: String,
     pub check_options: CheckOptions,
     pub valuer: String,
+    pub valuer_cfg: Option<String>,
 }

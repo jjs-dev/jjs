@@ -28,12 +28,10 @@ before_install:
         pvs-studio-analyzer credentials $PVS_NAME $PVS_LICENSE_KEY;
     fi
   - mkdir /tmp/sweep
-  - cargo sweep --stamp /tmp/sweep
 
 before_cache:
   - cargo run -p devtool -- ci-clean
   - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
-  - cargo sweep --file /tmp/sweep
   - find ./target/debug -maxdepth 1 -type f -delete
   - rm -f ./target/.rustc_info.json
 

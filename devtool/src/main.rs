@@ -22,6 +22,9 @@ enum CliArgs {
     /// Clean all build files except Cargo's
     #[structopt(name = "clean")]
     Clean,
+    /// Perform build & install
+    #[structopt(name = "build")]
+    Build,
     /// remove target files, related to JJS. This should prevent cache invalidation
     #[structopt(name = "ci-clean")]
     CiClean,
@@ -115,6 +118,17 @@ fn task_ci_clean() {
     process_dir(Path::new("target/debug/incremental"));
 }
 
+fn task_build(runner: &Runner) {
+    std::fs::File::create("./target/.jjsbuild").unwrap();
+    Command::new("../configure")
+        .current_dir("target")
+        .args(&["--prefix", "/opt/jjs"])
+        .args(&["--disable-core", "--disable-tools", "--disable-testlib"])
+        .run_on(runner);
+
+    Command::new("make").current_dir("target").run_on(runner);
+}
+
 fn main() {
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).unwrap();
@@ -128,6 +142,7 @@ fn main() {
         CliArgs::Test(args) => task_test(args, &runner),
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
+        CliArgs::Build => task_build(&runner),
     }
     runner.exit_if_errors();
     eprintln!("OK");

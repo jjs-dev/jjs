@@ -37,7 +37,16 @@ before_cache:
 
 script:
   - cargo jjs-check
+  - cargo jjs-build
   - cargo jjs-test
   - if [ "$SECRET_ENABLED" = "1" ]; then
        cargo jjs-check --fail-fast --pvs --no-clippy --no-rustfmt --no-shellcheck --no-minion-ffi-c-example;
     fi
+
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  local-dir: /opt/jjs/share/docs
+  on:
+    branch: master

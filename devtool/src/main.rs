@@ -29,11 +29,20 @@ enum CliArgs {
 
 trait CommandExt {
     fn run_on(&mut self, runner: &Runner);
+
+    fn cargo_color(&mut self);
 }
 
 impl CommandExt for Command {
     fn run_on(&mut self, runner: &Runner) {
         runner.exec(self);
+    }
+
+    fn cargo_color(&mut self) {
+        if atty::is(atty::Stream::Stdout) {
+            self.args(&["--color", "always"]);
+            self.env("RUST_LOG_STYLE", "always");
+        }
     }
 }
 
@@ -121,6 +130,7 @@ fn main() {
         CliArgs::CiClean => task_ci_clean(),
     }
     runner.exit_if_errors();
+    eprintln!("OK");
 }
 
 fn ci() -> bool {

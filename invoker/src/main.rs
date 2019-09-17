@@ -10,8 +10,7 @@ mod os_util;
 mod valuer;
 
 use cfg_if::cfg_if;
-use db::schema::{InvocationRequest, Run};
-use diesel::{pg::PgConnection, prelude::*};
+use db::schema::InvocationRequest;
 use invoker::{InvokeContext, Invoker};
 use slog::{debug, error, info, o, Drain, Logger};
 use snafu::ResultExt;
@@ -55,6 +54,10 @@ pub(crate) mod err {
             source: std::io::Error,
             backtrace: Backtrace,
         },
+        Db {
+            source: db::Error,
+            backtrace: Backtrace,
+        },
         /// Usually, these errors occur if system was given malformed configuration
         /// For example, if interpolation string is bad
         #[snafu(display("bad config: {}", inner))]
@@ -78,6 +81,15 @@ pub(crate) mod err {
         }
     }
 
+    impl From<db::Error> for Error {
+        fn from(source: db::Error) -> Error {
+            Error::Db {
+                source,
+                backtrace: Backtrace::new(),
+            }
+        }
+    }
+
     impl From<ErrorBox> for Error {
         fn from(x: ErrorBox) -> Error {
             Error::Other {
@@ -89,7 +101,7 @@ pub(crate) mod err {
 }
 
 pub(crate) use err::{Error, StringError};
-use std::path::Path;
+use std::{path::Path, process::exit};
 
 /// Secondary information, used for various interpolations
 #[derive(Debug)]
@@ -135,29 +147,26 @@ if #[cfg(target_os="linux")] {
 }
 
 fn submission_set_judge_outcome(
-    conn: &PgConnection,
+    conn: &dyn db::DbConn,
     submission_id: i32,
     outcome: invoker::InvokeOutcome,
     request: &InvocationRequest,
-) {
-    use db::schema::runs::dsl::*;
-    let target = runs.filter(id.eq(submission_id));
-    let subm_patch = db::schema::RunPatch {
+) -> Result<(), Error> {
+    let run_patch = db::schema::RunPatch {
         status_code: Some(outcome.status.code.to_string()),
         status_kind: Some(outcome.status.kind.to_string()),
         score: Some(outcome.score as i32),
         rejudge_id: Some(request.invoke_revision as i32),
     };
-    diesel::update(target)
-        .set(subm_patch)
-        .execute(conn)
-        .expect("Db query failed");
+
+    conn.run_update(submission_id, run_patch)?;
+    Ok(())
 }
 
 struct Server {
     config: cfg::Config,
     logger: Logger,
-    db_conn: PgConnection,
+    db_conn: Box<dyn db::DbConn>,
     backend: Box<dyn minion::Backend>,
 }
 
@@ -176,27 +185,9 @@ impl Server {
     }
 
     fn try_get_task(&self) -> Option<InvocationRequest> {
-        use db::schema::invocation_requests::dsl::*;
         let res: Option<InvocationRequest> = self
             .db_conn
-            .transaction::<_, diesel::result::Error, _>(|| {
-                let waiting_submission = invocation_requests
-                    .limit(1)
-                    .load::<InvocationRequest>(&self.db_conn)
-                    .expect("db error");
-                let waiting_submission = waiting_submission.into_iter().next();
-                match waiting_submission {
-                    Some(s) => {
-                        diesel::delete(invocation_requests)
-                            .filter(id.eq(s.id))
-                            .execute(&self.db_conn)
-                            .expect("db error");
-
-                        Ok(Some(s))
-                    }
-                    None => Ok(None),
-                }
-            })
+            .inv_req_pop() // TODO handle error
             .ok()
             .flatten();
 
@@ -231,7 +222,7 @@ impl Server {
         let req = self.fetch_submission_info(&inv_req)?;
         let submission_id = req.submission.props.id;
         let outcome = self.process_invoke_request(&req);
-        submission_set_judge_outcome(&self.db_conn, submission_id, outcome, &inv_req);
+        submission_set_judge_outcome(&*self.db_conn, submission_id, outcome, &inv_req)?;
         self.copy_invokation_data_dir_to_shared_fs(&req.work_dir.path(), submission_id, req.id)?;
         Ok(())
     }
@@ -300,17 +291,7 @@ impl Server {
         &self,
         db_inv_req: &InvocationRequest,
     ) -> Result<InvokeRequest, Error> {
-        let db_submission;
-        {
-            use db::schema::runs::dsl::*;
-            db_submission = runs
-                .filter(id.eq(db_inv_req.run_id as i32))
-                .load::<Run>(&self.db_conn)
-                .unwrap()
-                .into_iter()
-                .next()
-                .unwrap();
-        }
+        let db_submission = self.db_conn.run_load(db_inv_req.run_id)?;
 
         let submission_root = self.config.sysroot.join("var/submissions");
         let submission_root = submission_root.join(&format!("s-{}", db_submission.id));
@@ -410,9 +391,13 @@ fn main() {
     info!(root, "starting");
 
     let config = cfg::get_config();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL - must contain postgres URL");
-    let db_conn = diesel::pg::PgConnection::establish(db_url.as_str())
-        .unwrap_or_else(|_e| panic!("Couldn't connect to {}", db_url));
+    let db_conn = match db::connect_env() {
+        Ok(db_conn) => db_conn,
+        Err(e) => {
+            eprintln!("Startup error: failed connect to database: {}", e);
+            exit(1);
+        }
+    };
 
     if check_system() {
         debug!(root, "system check passed")

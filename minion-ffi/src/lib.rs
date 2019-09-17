@@ -240,13 +240,9 @@ pub unsafe extern "C" fn minion_cp_spawn(
         }
     }
     let stdio = minion::StdioSpecification {
-        stdin: minion::InputSpecification::RawHandle(minion::RawHandle::new(options.stdio.stdin)),
-        stdout: minion::OutputSpecification::RawHandle(minion::RawHandle::new(
-            options.stdio.stdout,
-        )),
-        stderr: minion::OutputSpecification::RawHandle(minion::RawHandle::new(
-            options.stdio.stderr,
-        )),
+        stdin: minion::InputSpecification::handle(options.stdio.stdin),
+        stdout: minion::OutputSpecification::handle(options.stdio.stdout),
+        stderr: minion::OutputSpecification::handle(options.stdio.stderr),
     };
     let options = minion::ChildProcessOptions {
         path: get_string(options.image_path).into(),

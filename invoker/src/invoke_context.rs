@@ -4,7 +4,6 @@ use crate::{
     invoker::CommandInterp,
 };
 use cfg::Config;
-use minion::RawHandle;
 use slog::{debug, Logger};
 use snafu::ResultExt;
 use std::{
@@ -134,13 +133,11 @@ impl<'a> InvokeContext<'a> {
         let stdout_file = fs::File::create(stdout_path).expect("io error");
 
         let stderr_file = fs::File::create(stderr_path).expect("io error");
-        cmd.stdout(minion::OutputSpecification::RawHandle(unsafe {
-            RawHandle::from(stdout_file)
-        }));
+        unsafe {
+            cmd.stdout(minion::OutputSpecification::handle_of(stdout_file));
 
-        cmd.stderr(minion::OutputSpecification::RawHandle(unsafe {
-            RawHandle::from(stderr_file)
-        }));
+            cmd.stderr(minion::OutputSpecification::handle_of(stderr_file));
+        }
     }
 
     pub(crate) fn log_execute_command(&self, command_interp: &CommandInterp) {

@@ -12,7 +12,8 @@ use crate::{
         util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    InputSpecification, OutputSpecification, WaitOutcome,
+    InputSpecification, InputSpecificationData, OutputSpecification, OutputSpecificationData,
+    WaitOutcome,
 };
 use nix::sys::memfd;
 use snafu::ResultExt;
@@ -28,6 +29,8 @@ use std::{
     },
     time::{self, Duration},
 };
+
+pub type LinuxHandle = libc::c_int;
 
 pub struct LinuxChildProcess {
     exit_code: AtomicI64,
@@ -119,8 +122,8 @@ impl Drop for LinuxChildProcess {
 }
 
 fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
-    match spec {
-        InputSpecification::Pipe => {
+    match spec.0 {
+        InputSpecificationData::Pipe => {
             let mut h_read = 0;
             let mut h_write = 0;
             pipe::setup_pipe(&mut h_read, &mut h_write)?;
@@ -128,24 +131,24 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
             unsafe { libc::close(h_read) };
             Ok((Some(h_write), f))
         }
-        InputSpecification::RawHandle(rh) => {
-            let h = rh.get() as Handle;
+        InputSpecificationData::Handle(rh) => {
+            let h = rh as Handle;
             Ok((None, h))
         }
-        InputSpecification::Empty => {
+        InputSpecificationData::Empty => {
             let file = fs::File::create("/dev/null").context(crate::errors::Io)?;
             let file = file.into_raw_fd();
             Ok((None, file))
         }
-        InputSpecification::Null => Ok((None, -1 as Handle)),
+        InputSpecificationData::Null => Ok((None, -1 as Handle)),
     }
 }
 
 fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
-    match spec {
-        OutputSpecification::Null => Ok((None, -1 as Handle)),
-        OutputSpecification::RawHandle(rh) => Ok((None, rh.get() as Handle)),
-        OutputSpecification::Pipe => {
+    match spec.0 {
+        OutputSpecificationData::Null => Ok((None, -1 as Handle)),
+        OutputSpecificationData::Handle(rh) => Ok((None, rh as Handle)),
+        OutputSpecificationData::Pipe => {
             let mut h_read = 0;
             let mut h_write = 0;
             pipe::setup_pipe(&mut h_read, &mut h_write)?;
@@ -153,13 +156,13 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
             unsafe { libc::close(h_write) };
             Ok((Some(h_read), f))
         }
-        OutputSpecification::Ignore => {
+        OutputSpecificationData::Ignore => {
             let file = fs::File::open("/dev/null").context(crate::errors::Io)?;
             let file = file.into_raw_fd();
             let fd = unsafe { libc::dup(file) };
             Ok((None, fd))
         }
-        OutputSpecification::Buffer(sz) => {
+        OutputSpecificationData::Buffer(sz) => {
             let memfd_name = "libminion_output_memfd";
             let memfd_name = CString::new(memfd_name).unwrap();
             let mut flags = memfd::MemFdCreateFlag::MFD_CLOEXEC;

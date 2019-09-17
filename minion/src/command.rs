@@ -23,8 +23,8 @@ pub struct Command {
 
 impl Command {
     pub fn build(&self) -> Option<ChildProcessOptions> {
-        let create_default_in_channel = || InputSpecification::Empty;
-        let create_default_out_channel = || OutputSpecification::Ignore;
+        let create_default_in_channel = || InputSpecification::empty();
+        let create_default_out_channel = || OutputSpecification::ignore();
         let opts = ChildProcessOptions {
             path: self.exe.clone()?,
             arguments: self.argv.clone(),

@@ -38,10 +38,10 @@ fn create_registry() -> Registry {
     add_bin("envck", "jjs-env-check", PackageComponentKind::Tools);
     add_bin("init-jjs-root", "jjs-mkroot", PackageComponentKind::Tools);
     add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools);
-    add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
-    add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
     add_bin("frontend", "jjs-frontend", PackageComponentKind::Core);
+    add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
     add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
+    add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
 
     {
         let mut minion_cli =

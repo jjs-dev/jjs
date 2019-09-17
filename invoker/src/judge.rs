@@ -57,7 +57,7 @@ impl<'a> Judge<'a> {
         native_command.dominion(sandbox);
 
         // capture child output
-        native_command.stdin(minion::InputSpecification::Pipe);
+        native_command.stdin(minion::InputSpecification::pipe());
 
         let mut child = match native_command.spawn(self.ctx.minion_backend) {
             Ok(child) => child,

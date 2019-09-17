@@ -34,7 +34,7 @@ pub trait Backend: Debug + Send + Sync {
 }
 
 #[cfg(target_os = "linux")]
-pub use crate::linux::DesiredAccess;
+pub use {linux::DesiredAccess, linux::LinuxHandle};
 
 pub use command::Command;
 
@@ -92,15 +92,12 @@ pub trait Dominion: Debug + downcast_rs::Downcast {
 }
 impl_downcast!(Dominion);
 
-#[cfg(target_os = "linux")]
-pub type SelectedDominion = LinuxDominion;
-
 #[derive(Debug)]
 struct DominionPointerOwner {
     b: Box<dyn Dominion>,
 }
 
-unsafe impl Send for DominionPointerOwner {}
+//unsafe impl Send for DominionPointerOwner {}
 
 #[derive(Clone, Debug)]
 pub struct DominionRef {
@@ -113,43 +110,82 @@ impl DominionRef {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct RawHandle(u64);
-
-impl RawHandle {
-    /// Takes ownership of handle
-    pub unsafe fn new(handle: u64) -> Self {
-        Self(handle)
-    }
-
-    #[cfg(unix)]
-    pub unsafe fn from<T: std::os::unix::io::IntoRawFd>(obj: T) -> Self {
-        Self::new(obj.into_raw_fd() as u64)
-    }
-
-    pub(crate) fn get(&self) -> u64 {
-        self.0
-    }
-}
-
 /// Configures stdin for child
 #[derive(Debug, Clone)]
-pub enum InputSpecification {
+enum InputSpecificationData {
     Null,
     Empty,
     Pipe,
-    RawHandle(RawHandle),
+    Handle(u64),
+}
+
+#[derive(Debug, Clone)]
+pub struct InputSpecification(InputSpecificationData);
+
+impl InputSpecification {
+    pub fn null() -> Self {
+        Self(InputSpecificationData::Null)
+    }
+
+    pub fn empty() -> Self {
+        Self(InputSpecificationData::Empty)
+    }
+
+    pub fn pipe() -> Self {
+        Self(InputSpecificationData::Pipe)
+    }
+
+    pub unsafe fn handle(h: u64) -> Self {
+        Self(InputSpecificationData::Handle(h))
+    }
+
+    pub unsafe fn handle_of<T: std::os::unix::io::IntoRawFd>(obj: T) -> Self {
+        Self::handle(obj.into_raw_fd() as u64)
+    }
 }
 
 /// Configures stdout and stderr for child
 #[derive(Debug, Clone)]
-pub enum OutputSpecification {
+enum OutputSpecificationData {
     Null,
     Ignore,
     Pipe,
     Buffer(Option<usize>),
-    RawHandle(RawHandle),
+    Handle(u64),
 }
+
+impl OutputSpecification {
+    pub fn null() -> Self {
+        Self(OutputSpecificationData::Null)
+    }
+
+    pub fn ignore() -> Self {
+        Self(OutputSpecificationData::Ignore)
+    }
+
+    pub fn pipe() -> Self {
+        Self(OutputSpecificationData::Pipe)
+    }
+
+    pub fn buffer(size: usize) -> Self {
+        Self(OutputSpecificationData::Buffer(Some(size)))
+    }
+
+    pub fn unbounded_buffer() -> Self {
+        Self(OutputSpecificationData::Buffer(None))
+    }
+
+    pub unsafe fn handle(h: u64) -> Self {
+        Self(OutputSpecificationData::Handle(h))
+    }
+
+    pub unsafe fn handle_of<T: std::os::unix::io::IntoRawFd>(obj: T) -> Self {
+        Self::handle(obj.into_raw_fd() as u64)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OutputSpecification(OutputSpecificationData);
 
 /// Specifies how to provide child stdio
 #[derive(Debug, Clone)]

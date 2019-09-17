@@ -18,23 +18,14 @@ fn parse_env_item(src: &str) -> Result<EnvItem, &'static str> {
 }
 
 fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions, String> {
-    let sep1 = match src.find(':') {
-        Some(x) => x,
-        None => {
-            return Err(
-                "--expose item must contain to colons(`:`), but no one was provided".to_string(),
-            )
-        }
-    };
-    let sep2 = match src[sep1 + 1..].find(':') {
-        Some(x) => x + sep1 + 1,
-        None => {
-            return Err(
-                "--expose item must contain two colone(`:`), but one was provided".to_string(),
-            )
-        }
-    };
-    let amask = &src[sep1 + 1..sep2];
+    let parts = src.splitn(3, ':').collect::<Vec<_>>();
+    if parts.len() != 3 {
+        return Err(format!(
+            "--expose item must contain two colons (`:`), but no {} was provided",
+            parts.len()
+        ));
+    }
+    let amask = parts[1];
     if amask.len() != 3 {
         return Err(format!(
             "access mask must contain 3 chars (R, W, X flags), but {} provided",
@@ -44,11 +35,16 @@ fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions
     let access = match amask {
         "rwx" => minion::DesiredAccess::Full,
         "r-x" => minion::DesiredAccess::Readonly,
-        _ => panic!("unknown access mask {}. rwx or r-x expected", amask),
+        _ => {
+            return Err(format!(
+                "unknown access mask {}. rwx or r-x expected",
+                amask
+            ))
+        }
     };
     Ok(minion::PathExpositionOptions {
-        src: (&src[..sep1]).to_string().into(),
-        dest: (&src[sep2 + 1..]).to_string().into(),
+        src: parts[0].to_string().into(),
+        dest: parts[2].to_string().into(),
         access,
     })
 }
@@ -71,7 +67,7 @@ struct ExecOpt {
     #[structopt(short = "n", long = "max-process-count", default_value = "16")]
     num_processes: usize,
 
-    /// Max memory availible to isolated process
+    /// Max memory available to isolated process
     #[structopt(short = "m", long = "memory-limit", default_value = "256000000")]
     memory_limit: usize,
 
@@ -145,19 +141,13 @@ fn main() {
         dominion,
         stdio: minion::StdioSpecification {
             stdin: unsafe {
-                minion::InputSpecification::RawHandle(
-                    minion::RawHandle::new(0), /* our stdin handle */
-                )
+                minion::InputSpecification::handle(0 /* our stdin handle */)
             },
             stdout: unsafe {
-                minion::OutputSpecification::RawHandle(
-                    minion::RawHandle::new(1), /* our stdout handle */
-                )
+                minion::OutputSpecification::handle(1 /* our stdout handle */)
             },
             stderr: unsafe {
-                minion::OutputSpecification::RawHandle(
-                    minion::RawHandle::new(2), /* our stderr handle */
-                )
+                minion::OutputSpecification::handle(2 /* our stderr handle */)
             },
         },
         pwd: options.pwd.into(),

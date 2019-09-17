@@ -25,12 +25,14 @@ impl Runner {
 impl Runner {
     pub fn exit_if_errors(&self) {
         if self.had_errors.load(Ordering::SeqCst) {
+            eprintln!("Check was not successful: some commands returned non-zero");
             exit(1);
         }
     }
 
     pub fn error(&self) {
         if self.fail_fast {
+            eprintln!("Exiting because fail-fast mode enabled");
             exit(1);
         } else {
             self.had_errors.store(true, Ordering::SeqCst);

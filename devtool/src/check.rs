@@ -26,6 +26,7 @@ fn clippy(runner: &Runner) {
             "clippy",
             "--all",
             "--tests",
+            "--frozen",
             "--",
             "-D",
             "clippy::all",
@@ -105,10 +106,10 @@ fn pvs(runner: &Runner) {
 
         Command::new("plog-converter")
             .current_dir("./jtl-cpp/cmake-build-debug")
-            .args(&["-a", diag_spec])
-            .args(&["-t", output_type])
+            .args(&["--analyzer", diag_spec])
+            .args(&["--renderTypes", output_type])
             .arg("PVS-Studio.log")
-            .args(&["-o", &format!("pvs-{}", name)])
+            .args(&["--output", &format!("pvs-{}", name)])
             .run_on(runner);
         println!("---info: PVS report {}---", name);
         let report_text = std::fs::read_to_string(&report_path)

@@ -41,3 +41,11 @@ script:
   - if [ "$SECRET_ENABLED" = "1" ]; then
        cargo jjs-check --fail-fast --pvs --no-clippy --no-rustfmt --no-shellcheck --no-minion-ffi-c-example;
     fi
+
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  local-dir: man/book
+  on:
+    branch: master

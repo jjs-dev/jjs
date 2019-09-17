@@ -125,10 +125,7 @@ fn task_build(runner: &Runner) {
         .args(&["--disable-core", "--disable-tools", "--disable-testlib"])
         .run_on(runner);
 
-    Command::new("make")
-        .current_dir("target")
-        .run_on(runner);
-
+    Command::new("make").current_dir("target").run_on(runner);
 }
 
 fn main() {
@@ -144,7 +141,7 @@ fn main() {
         CliArgs::Test(args) => task_test(args, &runner),
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
-        CliArgs::Build => task_build(&runner)
+        CliArgs::Build => task_build(&runner),
     }
     runner.exit_if_errors();
     eprintln!("OK");

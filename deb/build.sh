@@ -21,6 +21,8 @@ cd data; tar --owner=root -cvJf ../data.tar.xz .; cd ..
 
 mkdir control
 cp ../manifest.txt control/control
+sed -i 's/^Version:.*$/Version: '"$(cat ../../Version.txt)"'/g' /control/control
+sed -i 's/^Architecture:.*$/Architecture: '"$(dpkg --print-architecture)"'/g' control/control
 cp ../scripts/* control/ || true
 cd control; tar --owner=root -cvJf ../control.tar.xz .; cd ..
 

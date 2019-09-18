@@ -1,14 +1,7 @@
 Package: jjs
-<<<<<<< HEAD
-Version: 0.TODO
-Architecture: all
-Maintainer: TODO <todo@example.org>
-Installed-Size: 64
-=======
 Version:
 Architecture:
 Maintainer: Mikail Bagishov <bagishov.mikail@yandex.ru>
->>>>>>> a8b35ed... Add .deb build scripts
 Suggests: postgresql
 Description: JJS testing system
  JJS testing system (see https://github.com/MikailBag/jjs)

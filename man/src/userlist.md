@@ -1,21 +1,26 @@
 # Userlist
-Userlist is a tool, which helps you managing users
+Userlist is a tool, which helps you managing users.
 ## Adding users
 1. Prepare file, containing users data.
-2. Run `jjs-userlist add path/to/file`. For additional options (including authentication), run `jjs-userlist --help`
+2. Run `jjs-userlist add path/to/file`. For additional options (including authentication), run `jjs-userlist --help`.
 
 File format:
 Each line is handled separately. It can be
-- Header entry. This entry must be first line in file
-- A comment. Such line must start from # character
+- Configuration update entry.
 - User entry. It must contain login, password, and groups.
 ### User Entry Format
-`USERNAME PASSWORD GROUP1:GROUP2...`
-All items must be  separated by one color/whitespace as shown upper
-Username, login and groups are separated with whitespace
+`add <USERNAME> <PASSWORD> [SETTINGS]`
 ### Header Entry Format
-`! OPT1,OPT2,OPT3` (note, that options are _not_ separated by whitespace)
-
-Currently, following options are supported:
- - `BASE64` - additionally decoded all other entities (logins, passwords, groups) in file from base64.
- This option is recommended to use if userlist can contain non-ASCII chars
+`cfg SETTINGS` 
+### Supported Options and Flags
+Setting are comma-separated.
+To enable flag, pass it's name.
+To set option, use `option_name=option_value`
+Currently, following flags are supported:
+ - `base64` - if enabled, `userlist` decodes all other entities (logins, passwords, groups) in file from base64.
+ This option is recommended to use if login, password or other piece of information can contain non-ASCII chars.
+ - `ignore-fail` - if enabled, `userlist` will continue creating users, ignoring possible errors.
+Following options are supported:
+ - `groups` (takes colon-separated list of groups) - adds groups to implicit list. When user is created, 
+ it is added to all groups from this list.
+ - `set-groups` - same as `groups`, but clears that implicit list instead of appending.

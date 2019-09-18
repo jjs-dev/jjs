@@ -5,4 +5,4 @@ adduser --system --ingroup jjs --home /var/lib/jjs --disabled-login jjs
 
 su -c 'jjs-mkroot /var/lib/jjs /usr/share/jjs/example-config' -s "$SHELL" jjs
 
-# так, конфиг я сгенерил, а вот пилить говносистемд мне влом
+# TODO: proper systemd unit for jjs

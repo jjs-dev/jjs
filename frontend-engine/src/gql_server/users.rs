@@ -7,7 +7,7 @@ pub(super) fn create(
     password: String,
     groups: Vec<String>,
 ) -> ApiResult<schema::User> {
-    // FIXME transaction
+    // TODO transaction
     let cur_user = ctx.db.user_try_load_by_login(&login).internal(ctx)?;
     if let Some(..) = cur_user {
         let mut ext = ErrorExtension::new();

@@ -21,7 +21,7 @@ fn launch_api(frcfg: FrontendConfig, logger: Logger, config: cfg::Config) {
 
 fn launch_root_login_server(logger: &slog::Logger, fcfg: FrontendConfig) {
     let cfg = frontend_engine::root_auth::Config {
-        socket_path: String::from("/tmp/jjs-auth-sock"), /* FIXME dehardcode */
+        socket_path: String::from("/tmp/jjs-auth-sock"), /* TODO dehardcode */
     };
     let sublogger = logger.new(slog::o!("app" => "jjs:frontend:localauth"));
     frontend_engine::root_auth::LocalAuthServer::start(sublogger, cfg.clone(), &fcfg);

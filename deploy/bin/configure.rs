@@ -86,7 +86,10 @@ fn check_build_dir(_src: &str, build: &str) {
     if std::path::PathBuf::from(&dot_build_file).exists() {
         return;
     }
-    eprintln!("maybe, assumed build dir ({}) contains some important files. If you are sure, add .jjsbuild in this dir", build);
+    eprintln!(
+        "maybe, assumed build dir ({}) contains some important files. If you are sure, add .jjsbuild in this dir",
+        build
+    );
     std::process::exit(1);
 }
 

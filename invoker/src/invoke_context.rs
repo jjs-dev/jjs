@@ -56,7 +56,10 @@ impl<'a> InvokeContext<'a> {
             let item = item.context(err::Io {})?;
             let item_type = item.file_type().context(err::Io {})?;
             if !item_type.is_dir() {
-                panic!("couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory", item.file_name());
+                panic!(
+                    "couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory",
+                    item.file_name()
+                );
             }
             let name = item.file_name();
             let peo = minion::PathExpositionOptions {

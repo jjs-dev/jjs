@@ -79,39 +79,82 @@ pub struct Env {
     client: rocket::local::Client,
 }
 
-impl Env {
-    pub fn new(name: &str) -> Self {
-        EnvBuilder::new().build(name)
+pub struct RequestBuilder<'a> {
+    vars: Option<serde_json::Value>,
+    auth_token: Option<String>,
+    operation: Option<String>,
+    client: &'a rocket::local::Client,
+}
+
+impl RequestBuilder<'_> {
+    pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
+        assert!(v.is_object());
+        self.vars = Some(v.clone());
+        self
     }
 
-    pub fn exec(&self, operation: &str, vars: &serde_json::Value) -> serde_json::Value {
+    pub fn operation(&mut self, op: &str) -> &mut Self {
+        self.operation = Some(op.to_string());
+        self
+    }
+
+    pub fn exec(&self) -> Response {
         let obj = serde_json::json!({
-             "query": operation,
-             "variables": vars,
+             "query": self.operation.as_ref().unwrap(),
+             "variables": self.vars.clone().unwrap_or_else(||serde_json::Value::Null),
         });
         let body = serde_json::to_string(&obj).unwrap();
         let request = self
             .client
             .post("/graphql")
             .body(body)
+            .header(rocket::http::Header::new(
+                "X-Jjs-Auth",
+                self.auth_token
+                    .clone()
+                    .unwrap_or_else(|| "dev_root".to_string())
+                    .to_string(),
+            ))
             .header(rocket::http::ContentType::JSON);
 
         let mut response = request.dispatch();
-        assert_eq!(response.status(), rocket::http::Status::Ok);
+        if response.status() != rocket::http::Status::Ok {
+            eprintln!("Frontend returned non-200: {:?}", response.status());
+            eprintln!("Response: {}", response.body_string().unwrap_or_default());
+            panic!()
+        }
         assert_eq!(
             response.content_type(),
             Some("application/json".parse().unwrap())
         );
         let body = response.body_string().unwrap();
         let body: serde_json::Value = serde_json::from_str(&body).unwrap();
-        body
+        Response(body)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Response(serde_json::Value);
+
+impl std::ops::Deref for Response {
+    type Target = serde_json::Value;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Response {
+    pub fn is_ok(&self) -> bool {
+        self.0.get("errors").is_none()
     }
 
-    fn check_ok(res: serde_json::Value) -> serde_json::Value {
-        if util::is_ok(&res) {
-            res.get("data").unwrap().clone()
+    pub fn unwrap_ok(self) -> serde_json::Value {
+        if self.is_ok() {
+            self.0.get("data").unwrap().clone()
         } else {
-            let errs = res
+            let errs = self
+                .0
                 .get("errors")
                 .expect("errors missing on failed request")
                 .as_array()
@@ -129,36 +172,35 @@ impl Env {
         }
     }
 
-    pub fn exec_ok(&self, req: &str) -> serde_json::Value {
-        let res = self.exec(req, &serde_json::Value::Object(Default::default()));
-        Self::check_ok(res)
-    }
-
-    pub fn exec_ok_with_vars(&self, req: &str, vars: &serde_json::Value) -> serde_json::Value {
-        assert!(vars.is_object());
-        let res = self.exec(req, vars);
-        Self::check_ok(res)
-    }
-
-    pub fn exec_err(&self, req: &str) -> Vec<serde_json::Value> {
-        let res = self.exec(req, &serde_json::Value::Object(Default::default()));
-        if util::is_ok(&res) {
+    pub fn unwrap_errs(self) -> Vec<serde_json::Value> {
+        if self.is_ok() {
             eprintln!("Error: query with fail=true succeeded");
-            eprintln!("Response: \n{:?}", res);
+            eprintln!("Response: \n{:?}", self.0);
             panic!("Operation succeeded unexpectedly");
         } else {
-            let errs = res.get("errors").unwrap().as_array().unwrap();
+            let errs = self.0.get("errors").unwrap().as_array().unwrap();
             assert!(!errs.is_empty());
             errs.clone()
         }
     }
 }
 
-pub mod util {
-    pub fn is_ok(res: &serde_json::Value) -> bool {
-        res.get("errors").is_none()
+impl Env {
+    pub fn new(name: &str) -> Self {
+        EnvBuilder::new().build(name)
     }
 
+    pub fn req(&self) -> RequestBuilder {
+        RequestBuilder {
+            vars: None,
+            auth_token: None,
+            operation: None,
+            client: &self.client,
+        }
+    }
+}
+
+pub mod util {
     pub fn print_error(err: &serde_json::Value) {
         let mut err = err.as_object().unwrap().clone();
         let ext = err.remove("extensions");

@@ -13,6 +13,10 @@ pub struct Token {
     pub(super) user_info: UserInfo,
 }
 
+static TOKEN_PREFIX_BRANCA: &str = "Branca ";
+static TOKEN_PREFIX_DEV: &str = "Dev ";
+static TOKEN_PREFIX_GUEST: &str = "Guest";
+
 impl Token {
     pub fn issue_for_virtual_user(name: String, groups: Vec<String>) -> Token {
         Token {
@@ -56,19 +60,31 @@ impl Token {
             Ok(d) => d,
             Err(_) => return Err(TokenFromRequestError::BadFormat),
         };
-        if allow_dev && data.starts_with("dev_") {
-            let data = data.trim_start_matches("dev_");
-            if data == "root" {
-                return Ok(Token::new_root());
-            }
-            return Err(TokenFromRequestError::BadFormat);
+        if data.starts_with(TOKEN_PREFIX_BRANCA) {
+            let data = data.trim_start_matches(TOKEN_PREFIX_BRANCA);
+            let token_data = match branca::decode(data, key, 0) {
+                Ok(s) => s,
+                Err(err) => return Err(TokenFromRequestError::Branca(err)),
+            };
+            let res = serde_json::from_str(&token_data).expect("Token decoding error");
+            return Ok(res);
         }
-        let token_data = match branca::decode(data, key, 0) {
-            Ok(s) => s,
-            Err(err) => return Err(TokenFromRequestError::Branca(err)),
-        };
-        let res = serde_json::from_str(&token_data).expect("Token decoding error");
-        Ok(res)
+        if data.starts_with(TOKEN_PREFIX_DEV) {
+            if allow_dev {
+                let data = data.trim_start_matches(TOKEN_PREFIX_DEV);
+                if data == "root" {
+                    return Ok(Token::new_root());
+                }
+                return Err(TokenFromRequestError::BadFormat);
+            } else {
+                return Err(TokenFromRequestError::Denied);
+            }
+        }
+        if data.starts_with(TOKEN_PREFIX_GUEST) {
+            return Ok(Token::new_guest());
+        }
+
+        Err(TokenFromRequestError::UnknownKind)
     }
 }
 
@@ -77,5 +93,7 @@ pub enum TokenFromRequestError {
     Missing,
     BadFormat,
     Invalid,
+    UnknownKind,
+    Denied,
     Branca(branca::errors::Error),
 }

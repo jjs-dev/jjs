@@ -112,7 +112,7 @@ impl RequestBuilder<'_> {
                 "X-Jjs-Auth",
                 self.auth_token
                     .clone()
-                    .unwrap_or_else(|| "dev_root".to_string())
+                    .unwrap_or_else(|| "Dev root".to_string())
                     .to_string(),
             ))
             .header(rocket::http::ContentType::JSON);

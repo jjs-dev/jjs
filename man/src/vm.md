@@ -17,10 +17,11 @@ make
 ## VM image build dependencies
 * `postgres` (for inclusion in the image; must be stopped for the build process to work properly)
 * `g++` (for inclusion in the image)
-* `jjs` and its build dependencies  (see above)
+* `jjs` and its build dependencies (see above)
+* PowerShell for building g++ sysroot
 * `user-mode-linux` (used for packing the filesystem image; not required if you pack the image yourself)
 
-On Debian, all of these dependencies (except JJS) can be installed with a single command:
+On Debian, all of these dependencies (except JJS and PowerShell) can be installed with a single command:
 
 `sudo apt-get install postgresql g++ user-mode-linux`
 

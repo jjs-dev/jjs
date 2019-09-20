@@ -64,6 +64,10 @@ impl ApiError {
         s.dev_backtrace();
         s
     }
+
+    pub fn access_denied(ctx: &Context) -> Self {
+        Self::new(ctx, "AccessDenied")
+    }
 }
 
 mod impl_display {

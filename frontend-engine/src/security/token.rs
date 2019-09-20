@@ -1,27 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-// TODO
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserInfo {
-    name: String,
-    groups: Vec<String>,
+    /// TODO: name should have hierarchical type
+    pub(super) name: String,
+    pub(super) groups: Vec<String>,
 }
 
+/// Struct representing API session
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
-    user_info: UserInfo,
+    pub(super) user_info: UserInfo,
 }
 
 impl Token {
-    pub fn issue_for_user(user_name: &str) -> Token {
-        Token {
-            user_info: UserInfo {
-                name: user_name.to_string(),
-                groups: Vec::new(),
-            },
-        }
-    }
-
     pub fn issue_for_virtual_user(name: String, groups: Vec<String>) -> Token {
         Token {
             user_info: UserInfo { name, groups },
@@ -53,6 +45,30 @@ impl Token {
         let mut nonce = [0 as u8; 24];
         rand_gen.fill(&mut nonce);
         branca::encode(&ser, key, 0).expect("Token encoding error")
+    }
+
+    pub fn deserialize(
+        key: &[u8],
+        data: &[u8],
+        allow_dev: bool,
+    ) -> Result<Self, TokenFromRequestError> {
+        let data = match std::str::from_utf8(data) {
+            Ok(d) => d,
+            Err(_) => return Err(TokenFromRequestError::BadFormat),
+        };
+        if allow_dev && data.starts_with("dev_") {
+            let data = data.trim_start_matches("dev_");
+            if data == "root" {
+                return Ok(Token::new_root());
+            }
+            return Err(TokenFromRequestError::BadFormat);
+        }
+        let token_data = match branca::decode(data, key, 0) {
+            Ok(s) => s,
+            Err(err) => return Err(TokenFromRequestError::Branca(err)),
+        };
+        let res = serde_json::from_str(&token_data).expect("Token decoding error");
+        Ok(res)
     }
 }
 

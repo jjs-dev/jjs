@@ -8,13 +8,17 @@ use serde_json::json;
 #[test]
 fn test_smoke_ops() {
     let env = common::Env::new("SmokeOps");
-    let res = env.exec_ok(
-        "
+    let res = env
+        .req()
+        .operation(
+            "
 query GetApiVersion {
     apiVersion
 }
     ",
-    );
+        )
+        .exec()
+        .unwrap_ok();
     assert_eq!(
         res,
         json!({
@@ -27,15 +31,19 @@ query GetApiVersion {
 #[test]
 fn test_user_ops() {
     let env = common::Env::new("UserOps");
-    let res = env.exec_ok(
-        r#"
+    let res = env
+        .req()
+        .operation(
+            r#"
 mutation CreateAUser {
     createUser(login: "JonSnow", password: "VerySecretPass", groups: []) {
         login
     }
 }
     "#,
-    );
+        )
+        .exec()
+        .unwrap_ok();
     assert_eq!(
         res,
         json!({
@@ -45,15 +53,19 @@ mutation CreateAUser {
         })
     );
 
-    let res = env.exec_err(
-        r#"
+    let res = env
+        .req()
+        .operation(
+            r#"
 mutation CreateSameUserAgain {
     createUser(login: "JonSnow", password: "VerySecretPass", groups: []) {
         login
     }
 }
         "#,
-    );
+        )
+        .exec()
+        .unwrap_errs();
     assert_eq!(res.len(), 1);
     util::check_error(&res[0], "UserAlreadyExists");
 }
@@ -73,15 +85,19 @@ fn test_runs_ops() {
         })
         .build("runs_ops");
 
-    let res = env.exec_ok(
-        r#"
+    let res = env
+        .req()
+        .operation(
+            r#"
 query GetNonExistingRun {
     runs(id: 0) {
         id
     }
 }
     "#,
-    );
+        )
+        .exec()
+        .unwrap_ok();
     assert_eq!(
         res,
         json!({
@@ -99,16 +115,20 @@ int main() {
 "#;
     let run_encoded = base64::encode(RUN_TEXT);
 
-    let res = env.exec_ok_with_vars(
-        r#"
+    let res = env
+        .req()
+        .operation(
+            r#"
 mutation CreateRun($runCode: String!) {
     submitSimple(toolchain: "cpp", runCode: $runCode, problem: "A", contest: "TODO") {
         id
     }
 }
     "#,
-        &json!({ "runCode": &run_encoded }),
-    );
+        )
+        .vars(&json!({ "runCode": &run_encoded }))
+        .exec()
+        .unwrap_ok();
     assert_eq!(
         res,
         json!({
@@ -118,15 +138,19 @@ mutation CreateRun($runCode: String!) {
         })
     );
 
-    let res = env.exec_ok(
-        r#"
+    let res = env
+        .req()
+        .operation(
+            r#"
 query GetRun {
     runs(id: 0) {
         source
     }
 }
     "#,
-    );
+        )
+        .exec()
+        .unwrap_ok();
     let res = res
         .get("runs")
         .unwrap()

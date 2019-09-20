@@ -191,6 +191,13 @@ impl Config {
     pub fn find_problem(&self, name: &str) -> Option<&Problem> {
         self.problems.get(name)
     }
+
+    pub fn find_contest(&self, name: &str) -> Option<&Contest> {
+        match name {
+            "TODO" => Some(&self.contests[0]),
+            _ => None,
+        }
+    }
 }
 
 pub fn parse_file(path: PathBuf) -> Config {

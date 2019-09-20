@@ -1,5 +1,4 @@
 use super::prelude::*;
-use crate::security::Token;
 
 pub(super) fn simple(
     ctx: &Context,
@@ -17,7 +16,7 @@ pub(super) fn simple(
         reject_reason = "UnknownUser";
     }
     if success {
-        let token = Token::issue_for_user(&login);
+        let token = ctx.token_mgr.create_token(&login).internal(ctx)?;
         let buf = token.serialize(&ctx.secret_key);
         let sess = schema::SessionToken {
             data: buf,

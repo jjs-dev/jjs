@@ -39,12 +39,14 @@ pub(super) fn submit_simple(
     let toolchain = ctx.cfg.toolchains.iter().find(|t| t.name == toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
-        None => return "unknown toolchain".report(ctx),
+        None => return Err(ApiError::new(ctx, "ToolchainUnknown")),
     };
     if contest != "TODO" {
-        return "unknown contest".report(ctx);
+        return Err(ApiError::new(ctx, "ContestUnknown"));
     }
-
+    if !ctx.access().user_can_submit(&contest).internal(ctx)? {
+        return Err(ApiError::access_denied(ctx));
+    }
     let problem = ctx.cfg.contests[0]
         .problems
         .iter()
@@ -52,7 +54,7 @@ pub(super) fn submit_simple(
         .cloned();
     let problem = match problem {
         Some(p) => p,
-        None => return "unknown problem".report(ctx),
+        None => return Err(ApiError::new(ctx, "ProblemUnknown")),
     };
     let prob_name = problem.name.clone();
 
@@ -96,6 +98,9 @@ pub(super) fn modify(
     rejudge: Option<bool>,
     delete: Option<bool>,
 ) -> ApiResult<()> {
+    if !ctx.access().user_can_modify_run(id).internal(ctx)? {
+        return Err(ApiError::access_denied(ctx));
+    }
     let should_delete = delete.unwrap_or(false);
     if should_delete {
         if status.is_some() || rejudge.is_some() {

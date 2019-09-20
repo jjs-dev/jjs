@@ -1,4 +1,4 @@
-use crate::security::TokenFromRequestError;
+use crate::security::{AccessChecker, Token, TokenFromRequestError, TokenMgr};
 use std::sync::Arc;
 
 pub(crate) type DbPool = Arc<dyn db::DbConn>;
@@ -10,6 +10,17 @@ pub(crate) struct ContextData {
     pub(crate) secret_key: Arc<[u8]>,
     pub(crate) env: crate::config::Env,
     pub(crate) logger: slog::Logger,
+    pub(crate) token_mgr: TokenMgr,
+    pub(crate) token: Token,
+}
+
+impl ContextData {
+    pub(crate) fn access(&self) -> AccessChecker {
+        AccessChecker {
+            token: &self.token,
+            cfg: &self.cfg,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -41,12 +52,31 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .guard::<rocket::State<crate::security::SecretKey>>()
             .expect("State<SecretKey> missing");
 
+        let token = request
+            .headers()
+            .get("X-Jjs-Auth")
+            .next()
+            .ok_or(TokenFromRequestError::Missing);
+
+        let token = token
+            .and_then(|header| Token::deserialize(&*secret_key, header.as_bytes(), env.is_dev()));
+        let token = match token {
+            Ok(tok) => Ok(tok),
+            Err(e) => match e {
+                TokenFromRequestError::Missing => Ok(Token::new_guest()),
+                _ => Err(e),
+            },
+        };
+        let token = token.map_err(|e| Err((rocket::http::Status::BadRequest, e)))?;
+
         rocket::Outcome::Success(ContextData {
             db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
             env: *env,
             secret_key: Arc::clone(&(*secret_key).0),
             logger: factory.logger.clone(),
+            token_mgr: TokenMgr::new(factory.pool.clone()),
+            token,
         })
     }
 }
@@ -78,6 +108,8 @@ impl ContextFactory {
             secret_key: Arc::new([]),
             env: crate::config::Env::Dev,
             logger: self.logger.clone(),
+            token_mgr: TokenMgr::new(self.pool.clone()),
+            token: Token::new_root(),
         }
     }
 }

@@ -39,7 +39,7 @@ fn parse_path_exposition_item(src: &str) -> Result<minion::PathExpositionOptions
             return Err(format!(
                 "unknown access mask {}. rwx or r-x expected",
                 amask
-            ))
+            ));
         }
     };
     Ok(minion::PathExpositionOptions {

@@ -16,7 +16,7 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     // at first, load submissions from DB
     // TODO optimizations
     let vars = crate::queries::list_runs::Variables { detailed: true };
-    // FIXME:                                                   ^
+    // TODO:                                                   ^
     //                                       should be false here
     //                                see https://github.com/graphql-rust/graphql-client/issues/250
     let query = crate::queries::ListRuns::build_query(vars);

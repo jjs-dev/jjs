@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 pub(crate) type DbPool = Arc<dyn db::DbConn>;
 
-//FIXME: Do not clone Context on every request
+//TODO: Do not clone Context on every request
 pub(crate) struct ContextData {
     pub(crate) db: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,

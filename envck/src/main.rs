@@ -73,7 +73,10 @@ fn main() {
             build: vec![],
         };
         if version < min_version {
-            eprintln!("error: Linux Kernel version {} is unsupported. Minimal supported version is currently {}", version, min_version);
+            eprintln!(
+                "error: Linux Kernel version {} is unsupported. Minimal supported version is currently {}",
+                version, min_version
+            );
         }
     }
     println!("OK");

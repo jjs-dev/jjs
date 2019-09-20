@@ -18,7 +18,7 @@ pub trait RunsRepo: Send + Sync {
     fn run_update(&self, run_id: RunId, patch: RunPatch) -> Result<(), Error>;
     fn run_delete(&self, run_id: RunId) -> Result<(), Error>;
     fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>)
-        -> Result<Vec<Run>, Error>;
+    -> Result<Vec<Run>, Error>;
 }
 
 pub trait InvocationRequestsRepo: Send + Sync {

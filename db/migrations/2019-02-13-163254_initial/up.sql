@@ -20,17 +20,27 @@ CREATE SEQUENCE user_id_seq START WITH 0 MINVALUE 0;
 
 CREATE TABLE users
 (
-    id            UUID  UNIQUE PRIMARY KEY NOT NULL,
+    id            UUID UNIQUE PRIMARY KEY NOT NULL,
     username      VARCHAR(100) UNIQUE     NOT NULL,
-    password_hash CHAR(128)               NOT NULL, -- SHA3-512, in hex encoding
+    password_hash CHAR(128), -- SHA3-512, in hex encoding
     groups        TEXT[]                  NOT NULL
 );
+
+INSERT INTO users
+values ('04eb5beb-bf14-459c-bcf1-57eca87a0055'::uuid,
+        'Root',
+        NULL,
+        '{}'),
+       ('56ff846e-81bd-451b-aeea-90afc192bd77'::uuid,
+        'Guest',
+        NULL,
+        '{}');
 
 CREATE SEQUENCE inv_req_id_seq START WITH 0 MINVALUE 0;
 
 CREATE table invocation_requests
 (
     id              unsigned_integer DEFAULT nextval('inv_req_id_seq') UNIQUE PRIMARY KEY NOT NULL,
-    run_id   unsigned_integer REFERENCES runs (id)                                 NOT NULL,
+    run_id          unsigned_integer REFERENCES runs (id)                                 NOT NULL,
     invoke_revision unsigned_integer                                                      NOT NULL
 );

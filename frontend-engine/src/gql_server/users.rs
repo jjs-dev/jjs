@@ -1,6 +1,7 @@
 use super::prelude::*;
 use crate::password;
 
+// TODO allow creation without password
 pub(super) fn create(
     ctx: &Context,
     login: String,
@@ -10,8 +11,6 @@ pub(super) fn create(
     // TODO transaction
     let cur_user = ctx.db.user_try_load_by_login(&login).internal(ctx)?;
     if let Some(..) = cur_user {
-        let mut ext = ErrorExtension::new();
-        ext.set_error_code("UserAlreadyExists");
         return Err(ApiError::new(ctx, "UserAlreadyExists"));
     }
 
@@ -19,7 +18,7 @@ pub(super) fn create(
 
     let new_user = db::schema::NewUser {
         username: login.clone(),
-        password_hash: provided_password_hash,
+        password_hash: Some(provided_password_hash),
         groups: groups.clone(),
     };
 

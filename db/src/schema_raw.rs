@@ -28,7 +28,7 @@ table! {
     users (id) {
         id -> Uuid,
         username -> Varchar,
-        password_hash -> Bpchar,
+        password_hash -> Nullable<Bpchar>,
         groups -> Array<Text>,
     }
 }

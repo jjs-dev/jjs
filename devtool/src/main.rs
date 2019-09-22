@@ -14,19 +14,14 @@ struct TestArgs {
 #[derive(StructOpt)]
 enum CliArgs {
     /// Lint project
-    #[structopt(name = "check")]
     Check(check::CheckOpts),
     /// Run all tests
-    #[structopt(name = "test")]
     Test(TestArgs),
     /// Clean all build files except Cargo's
-    #[structopt(name = "clean")]
     Clean,
     /// Perform build & install
-    #[structopt(name = "build")]
     Build,
     /// remove target files, related to JJS. This should prevent cache invalidation
-    #[structopt(name = "ci-clean")]
     CiClean,
 }
 

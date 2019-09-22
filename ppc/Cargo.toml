@@ -3,17 +3,20 @@ name = "ppc"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
+description = """
+PPC is tool for prepararing problems and contests
+"""
 
 [dependencies]
-structopt = "0.2.18"
-serde = { version = "1.0.99", features = ["derive"] }
+structopt = "0.3.2"
+serde = { version = "1.0.101", features = ["derive"] }
 toml = "0.5.3"
 snafu = "0.5.0"
 glob = "0.3.0"
 libc = "0.2.62"
 pom = {path = "../pom"}
 serde_json = "1.0.40"
-getrandom = "0.1.11"
-hex = "0.3.2"
+getrandom = "0.1.12"
+hex = "0.4.0"
 formatf = { git = "https://github.com/mikailbag/formatf" }
-roxmltree = "0.7.0"
+roxmltree = "0.7.1"

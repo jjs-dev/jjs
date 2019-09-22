@@ -1,3 +1,4 @@
+mod api_version;
 mod contests;
 mod queries;
 mod submissions;
@@ -27,6 +28,8 @@ enum SubOpt {
     ManageSubmissions(submissions::Opt),
     #[structopt(name = "contests")]
     Contests(contests::Opt),
+    #[structopt(name = "api-version")]
+    ApiVersion,
 }
 
 pub struct CommonParams {
@@ -68,6 +71,7 @@ fn main() {
         SubOpt::Submit(sopt) => submit::exec(sopt, &common),
         SubOpt::ManageSubmissions(sopt) => submissions::exec(sopt, &common),
         SubOpt::Contests(sopt) => contests::exec(sopt, &common),
+        SubOpt::ApiVersion => api_version::exec(&common),
     };
 
     let data = serde_json::to_string_pretty(&data).unwrap();

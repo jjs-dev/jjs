@@ -41,7 +41,7 @@ fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
     }
     info!(logger, "issuing root credentials");
     let token = crate::security::Token::new_root().serialize(&fcfg.secret);
-    let message = format!("==={}===\n", token);
+    let message = format!("===Branca {}===\n", token);
     conn.write_all(message.as_bytes()).ok();
 }
 

@@ -48,7 +48,8 @@ impl Token {
         let mut rand_gen = rand::thread_rng();
         let mut nonce = [0 as u8; 24];
         rand_gen.fill(&mut nonce);
-        branca::encode(&ser, key, 0).expect("Token encoding error")
+        let branca_data = branca::encode(&ser, key, 0).expect("Token encoding error");
+        format!("Branca {}", branca_data)
     }
 
     pub fn deserialize(

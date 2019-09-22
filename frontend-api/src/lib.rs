@@ -110,7 +110,7 @@ impl Client {
             .and_then(|s| s.parse().map_err(|_| ()))
             .unwrap_or(1779);
         let endpoint = var("JJS_API_ENDPOINT").unwrap_or_else(|_| "graphql".to_string());
-        let token = var("JJS_AUTH").unwrap_or_else(|_| "Dev:User=Root".to_string());
+        let token = var("JJS_AUTH").unwrap_or_else(|_| "Dev root".to_string());
         let mut cl = Client {
             host,
             port,

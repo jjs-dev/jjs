@@ -88,15 +88,22 @@ fn task_ci_clean() {
     for s in &mut pkgs {
         s.push('-');
     }
+    let is_from_jjs = |name: &str| {
+        if name.contains("cfg-if") || name.contains("cfg_if") {
+            return false;
+        }
+        pkgs.iter().any(|pkg| {
+            let pname = name.replace('_', "-");
+            let libpkg = format!("lib{}", &pkg);
+            pname.starts_with(pkg) || pname.starts_with(&libpkg)
+        })
+    };
     let process_dir = |path: &Path| {
         for item in std::fs::read_dir(path).unwrap() {
             let item = item.unwrap();
             let name = item.file_name();
             let name = name.to_str().unwrap();
-            let is_from_jjs = pkgs
-                .iter()
-                .any(|pkg| name.starts_with(pkg) && !name.contains("cfg-if"));
-            if is_from_jjs {
+            if is_from_jjs(name) {
                 let p = item.path();
                 println!("removing: {}", p.display());
                 if p.is_file() {

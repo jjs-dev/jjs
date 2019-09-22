@@ -20,7 +20,7 @@ before_install:
   - sudo mkdir -p /opt/cmake
   - sudo bash /tmp/cmake.sh --skip-license --prefix=/opt/cmake
   - cargo install cbindgen --version 0.9.1 -Z install-upgrade
-  - cargo install mdbook --version 0.3.1 -Z install-upgrade
+  - cargo install mdbook --version 0.3.1 --no-default-features --features search -Z install-upgrade
   - if [ "$SECRET_ENABLED" = "1" ]; then
         wget -q -O - https://files.viva64.com/etc/pubkey.txt | sudo apt-key add -;
         sudo wget -O /etc/apt/sources.list.d/viva64.list https://files.viva64.com/etc/viva64.list;

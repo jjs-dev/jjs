@@ -5,8 +5,8 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.18"
-serde = { version = "1.0.99", features = ["derive"] }
+structopt = "0.3.2"
+serde = { version = "1.0.101", features = ["derive"] }
 log = "0.4.8"
 env_logger = "0.6.2"
 ignore = "0.4.10"

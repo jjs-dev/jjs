@@ -7,8 +7,8 @@ edition = "2018"
 [dependencies]
 minion = {path = "../minion"}
 cfg = {path ="../cfg"}
-serde = { version = "1.0.99", features = ["derive"] }
-serde_derive = "1.0.99"
+serde = { version = "1.0.101", features = ["derive"] }
+serde_derive = "1.0.101"
 serde_json = "1.0.40"
 db = {path = "../db"}
 dotenv = "0.14.1"
@@ -24,9 +24,9 @@ libc = "0.2.62"
 nix = "0.15.0"
 snafu = "0.5.0"
 memchr = "2.2.1"
-strum = "0.15.0"
-strum_macros = "0.15.0"
-chrono = "0.4.8"
+strum = "0.16.0"
+strum_macros = "0.16.0"
+chrono = "0.4.9"
 color-backtrace = { version = "0.2.3", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"

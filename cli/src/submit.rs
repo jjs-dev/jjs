@@ -7,11 +7,11 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 pub struct Opt {
     /// problem code, e.g. "A"
-    #[structopt(long = "problem", short = "p")]
+    #[structopt(long, short = "p")]
     problem: String,
-    #[structopt(long = "toolchain", short = "t")]
+    #[structopt(long, short = "t")]
     toolchain: String,
-    #[structopt(long = "filename", short = "f")]
+    #[structopt(long, short = "f")]
     filename: String,
 }
 

@@ -20,10 +20,10 @@ mod args {
         #[structopt(long = "out", short = "O")]
         pub out_path: PathBuf,
         /// Rewrite dir
-        #[structopt(long = "force", short = "F")]
+        #[structopt(long, short = "F")]
         pub force: bool,
         /// Verbose
-        #[structopt(long = "verbose", short = "V")]
+        #[structopt(long, short = "V")]
         pub verbose: bool,
     }
 
@@ -36,15 +36,14 @@ mod args {
         #[structopt(long = "out", short = "O")]
         pub out_path: String,
         /// Rewrite dir
-        #[structopt(long = "force", short = "F")]
+        #[structopt(long, short = "F")]
         pub force: bool,
     }
 
     #[derive(StructOpt)]
+    #[structopt(author, about)]
     pub enum Args {
-        #[structopt(name = "compile")]
         Compile(CompileArgs),
-        #[structopt(name = "import")]
         Import(ImportArgs),
     }
 }

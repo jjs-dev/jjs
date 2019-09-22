@@ -60,7 +60,7 @@ struct ExecOpt {
     argv: Vec<String>,
 
     /// Environment variables (KEY=VAL) which will be passed to isolated process
-    #[structopt(short = "e", long = "env", parse(try_from_str = "parse_env_item"))]
+    #[structopt(short = "e", long, parse(try_from_str = parse_env_item))]
     env: Vec<EnvItem>,
 
     /// Max peak process count (including main)
@@ -68,15 +68,14 @@ struct ExecOpt {
     num_processes: usize,
 
     /// Max memory available to isolated process
-    #[structopt(short = "m", long = "memory-limit", default_value = "256000000")]
+    #[structopt(short = "m", long, default_value = "256000000")]
     memory_limit: usize,
 
     /// Total CPU time in milliseconds
-    #[structopt(short = "t", long = "time-limit", default_value = "1000")]
+    #[structopt(short = "t", long, default_value = "1000")]
     time_limit: u32,
 
     /// Print parsed argv
-    #[structopt(long = "dump-argv")]
     dump_argv: bool,
 
     /// Print libminion parameters
@@ -91,7 +90,7 @@ struct ExecOpt {
     #[structopt(
         short = "x",
         long = "expose",
-        parse(try_from_str = "parse_path_exposition_item")
+        parse(try_from_str = parse_path_exposition_item)
     )]
     exposed_paths: Vec<minion::PathExpositionOptions>,
 

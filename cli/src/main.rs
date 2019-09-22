@@ -15,6 +15,7 @@ use structopt::StructOpt;
 /// COMPLETION=1 <path/to/jjs-cli> > /tmp/compl.sh
 /// . /tmp/compl.sh
 #[derive(StructOpt)]
+#[structopt(author, about)]
 struct Opt {
     #[structopt(subcommand)]
     sub: SubOpt,
@@ -22,11 +23,8 @@ struct Opt {
 
 #[derive(StructOpt)]
 enum SubOpt {
-    #[structopt(name = "submit")]
     Submit(submit::Opt),
-    #[structopt(name = "runs")]
     ManageSubmissions(submissions::Opt),
-    #[structopt(name = "contests")]
     Contests(contests::Opt),
     #[structopt(name = "api-version")]
     ApiVersion,

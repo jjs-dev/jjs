@@ -5,7 +5,7 @@ use structopt::StructOpt;
 pub struct Args {
     pub sysroot_dir: String,
     pub config_dir: Option<String>,
-    #[structopt(long = "symlink-config")]
+    #[structopt(long)]
     pub symlink_config: bool,
 }
 

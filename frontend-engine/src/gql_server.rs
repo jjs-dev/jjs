@@ -1,6 +1,7 @@
 mod auth;
 mod context;
 mod misc;
+mod monitor;
 mod queries;
 mod runs;
 mod schema;

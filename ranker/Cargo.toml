@@ -1,0 +1,8 @@
+[package]
+name = "ranker"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0.99", features = ["derive"] }

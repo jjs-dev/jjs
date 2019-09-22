@@ -56,13 +56,13 @@ pub struct NewInvocationRequest {
 pub struct User {
     pub id: UserId,
     pub username: String,
-    pub password_hash: String,
+    pub password_hash: Option<String>,
     pub groups: Vec<String>,
 }
 
 pub struct NewUser {
     pub username: String,
-    pub password_hash: String,
+    pub password_hash: Option<String>,
     pub groups: Vec<String>,
 }
 

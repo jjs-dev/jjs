@@ -1,4 +1,4 @@
-use super::{auth, misc, prelude::*, runs, schema, users, Context, Mutation, Query};
+use super::{auth, misc, monitor, prelude::*, runs, schema, users, Context, Mutation, Query};
 
 #[juniper::object(Context = Context)]
 impl Query {
@@ -42,6 +42,11 @@ impl Query {
     /// List contests
     fn contests(ctx: &Context) -> ApiResult<Vec<schema::Contest>> {
         misc::get_contests(ctx)
+    }
+
+    /// Get standings as JSON-encoded string
+    fn standings_simple(ctx: &Context) -> ApiResult<String> {
+        monitor::get_standings(ctx)
     }
 }
 

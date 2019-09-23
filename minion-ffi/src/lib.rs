@@ -52,6 +52,8 @@ impl std::ops::Try for ErrorCode {
 
 pub struct Backend(Box<dyn minion::Backend>);
 
+/// # Safety
+/// Must be called once
 /// Must be called before any library usage
 #[no_mangle]
 #[must_use]
@@ -66,7 +68,7 @@ pub unsafe extern "C" fn minion_lib_init() -> ErrorCode {
 /// Create backend, default for target platform
 #[no_mangle]
 #[must_use]
-pub unsafe extern "C" fn minion_backend_create(out: &mut *mut Backend) -> ErrorCode {
+pub extern "C" fn minion_backend_create(out: &mut *mut Backend) -> ErrorCode {
     let backend = Backend(minion::setup());
     let backend = Box::new(backend);
     *out = Box::into_raw(backend);
@@ -74,6 +76,8 @@ pub unsafe extern "C" fn minion_backend_create(out: &mut *mut Backend) -> ErrorC
 }
 
 /// Drop backend
+/// # Safety
+/// `b` must be pointer to Backend, allocated by `minion_backend_create`
 #[no_mangle]
 #[must_use]
 pub unsafe extern "C" fn minion_backend_free(b: *mut Backend) -> ErrorCode {
@@ -100,6 +104,8 @@ pub struct DominionOptions {
 #[derive(Clone)]
 pub struct Dominion(minion::DominionRef);
 
+/// # Safety
+/// Provided arguments must be well-formed
 #[no_mangle]
 #[must_use]
 pub unsafe extern "C" fn minion_dominion_create(
@@ -141,6 +147,8 @@ pub unsafe extern "C" fn minion_dominion_create(
     ErrorCode::Ok
 }
 
+/// # Safety
+/// `dominion` must be pointer, returned by `minion_dominion_create`.
 #[no_mangle]
 #[must_use]
 pub unsafe extern "C" fn minion_dominion_free(dominion: *mut Dominion) -> ErrorCode {
@@ -213,6 +221,8 @@ pub static SHARED_DIRECTORY_ACCESS_FIN: SharedDirectoryAccess = SharedDirectoryA
 
 pub struct ChildProcess(Box<dyn minion::ChildProcess>);
 
+/// # Safety
+/// Provided `options` must be well-formed
 #[no_mangle]
 #[must_use]
 pub unsafe extern "C" fn minion_cp_spawn(

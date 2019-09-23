@@ -249,7 +249,6 @@ impl Server {
     }
 
     fn process_invoke_request(&self, request: &InvokeRequest) -> invoker::InvokeOutcome {
-        use snafu::ErrorCompat;
         use std::error::Error;
         let invoke_ctx = InvokeContext {
             minion_backend: &*self.backend,
@@ -267,8 +266,7 @@ impl Server {
                 .source()
                 .map(|e| e.to_string())
                 .unwrap_or_else(|| "<missing>".to_string());
-            let backtrace = err
-                .backtrace()
+            let backtrace = snafu::ErrorCompat::backtrace(&err)
                 .map(|bt| bt.to_string())
                 .unwrap_or_else(|| "<not captured>".to_string());
             error!(self.logger, "Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);

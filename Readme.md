@@ -15,6 +15,10 @@ mkdir build && cd build
 # This will automatically include most of JJS features. See ../configure --help for possible options
 ../configure --prefix /opt/jjs
 
+# Install packages
+sudo apt-get install libpq-dev
+sudo apt-get install libssl-dev
+
 # Now, start build. This will also install JJS
 # If you don't have make installed, run ./make
 make

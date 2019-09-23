@@ -1,4 +1,5 @@
-use frontend_engine::{config, ApiServer};
+use frontend_engine::{config, test_util, ApiServer};
+pub use test_util::check_error;
 
 use std::{env::temp_dir, path::PathBuf};
 
@@ -80,30 +81,24 @@ pub struct Env {
 }
 
 pub struct RequestBuilder<'a> {
-    vars: Option<serde_json::Value>,
+    builder: test_util::RequestBuilder,
     auth_token: Option<String>,
-    operation: Option<String>,
     client: &'a rocket::local::Client,
 }
 
 impl RequestBuilder<'_> {
     pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
-        assert!(v.is_object());
-        self.vars = Some(v.clone());
+        self.builder.vars(v);
         self
     }
 
     pub fn operation(&mut self, op: &str) -> &mut Self {
-        self.operation = Some(op.to_string());
+        self.builder.operation(op);
         self
     }
 
-    pub fn exec(&self) -> Response {
-        let obj = serde_json::json!({
-             "query": self.operation.as_ref().unwrap(),
-             "variables": self.vars.clone().unwrap_or_else(||serde_json::Value::Null),
-        });
-        let body = serde_json::to_string(&obj).unwrap();
+    pub fn exec(&self) -> test_util::Response {
+        let body = self.builder.to_query();
         let request = self
             .client
             .post("/graphql")
@@ -129,59 +124,7 @@ impl RequestBuilder<'_> {
         );
         let body = response.body_string().unwrap();
         let body: serde_json::Value = serde_json::from_str(&body).unwrap();
-        Response(body)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Response(serde_json::Value);
-
-impl std::ops::Deref for Response {
-    type Target = serde_json::Value;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Response {
-    pub fn is_ok(&self) -> bool {
-        self.0.get("errors").is_none()
-    }
-
-    pub fn unwrap_ok(self) -> serde_json::Value {
-        if self.is_ok() {
-            self.0.get("data").unwrap().clone()
-        } else {
-            let errs = self
-                .0
-                .get("errors")
-                .expect("errors missing on failed request")
-                .as_array()
-                .expect("errors field must be array");
-            assert!(!errs.is_empty());
-            eprintln!("Error: query failed");
-            eprintln!("Server response contains errors:");
-            for (i, err) in errs.iter().enumerate() {
-                if i != 0 {
-                    eprintln!("------");
-                }
-                util::print_error(&err);
-            }
-            panic!("Operation failed unexpectedly");
-        }
-    }
-
-    pub fn unwrap_errs(self) -> Vec<serde_json::Value> {
-        if self.is_ok() {
-            eprintln!("Error: query with fail=true succeeded");
-            eprintln!("Response: \n{:?}", self.0);
-            panic!("Operation succeeded unexpectedly");
-        } else {
-            let errs = self.0.get("errors").unwrap().as_array().unwrap();
-            assert!(!errs.is_empty());
-            errs.clone()
-        }
+        test_util::Response(body)
     }
 }
 
@@ -192,38 +135,9 @@ impl Env {
 
     pub fn req(&self) -> RequestBuilder {
         RequestBuilder {
-            vars: None,
+            builder: test_util::RequestBuilder::new(),
             auth_token: None,
-            operation: None,
             client: &self.client,
         }
-    }
-}
-
-pub mod util {
-    pub fn print_error(err: &serde_json::Value) {
-        let mut err = err.as_object().unwrap().clone();
-        let ext = err.remove("extensions");
-        println!("{}", serde_json::to_string_pretty(&err).unwrap());
-        if let Some(ext) = ext {
-            if let Some(ext) = ext.as_object() {
-                println!("extensions:\n");
-                if let Some(error_code) = ext.get("errorCode") {
-                    println!("error code: {}", error_code.to_string());
-                }
-                if let Some(backtrace) = ext.get("trace") {
-                    println!("backtrace: {}", backtrace.as_str().unwrap());
-                }
-            }
-        }
-    }
-
-    pub fn check_error(err: &serde_json::Value, exp_code: &str) {
-        let code = err
-            .get("extensions")
-            .and_then(|v| v.get("errorCode"))
-            .and_then(|v| v.as_str())
-            .map(|x| x.to_string());
-        assert_eq!(code.as_ref().map(String::as_str), Some(exp_code));
     }
 }

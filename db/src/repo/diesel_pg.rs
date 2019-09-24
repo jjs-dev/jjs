@@ -7,6 +7,12 @@ pub struct DieselRepo {
     pool: Pool<ConnectionManager<PgConnection>>,
 }
 
+impl std::fmt::Debug for DieselRepo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("DieselRepo").finish()
+    }
+}
+
 impl DieselRepo {
     fn conn(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>, Error> {
         self.pool.get().map_err(Into::into)

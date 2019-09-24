@@ -21,7 +21,7 @@ pub(super) fn simple(
     }
     if success {
         let token = ctx.token_mgr.create_token(&login).internal(ctx)?;
-        let buf = token.serialize(&ctx.secret_key);
+        let buf = ctx.token_mgr.serialize(&token);
         let sess = schema::SessionToken {
             data: buf,
             raw_data: None, //TODO

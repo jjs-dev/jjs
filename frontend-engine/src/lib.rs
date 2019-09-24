@@ -6,7 +6,7 @@ pub mod config;
 mod gql_server;
 mod password;
 pub mod root_auth;
-mod security;
+pub mod security;
 pub mod test_util;
 
 pub use config::FrontendConfig;
@@ -92,7 +92,7 @@ pub struct ApiServer {}
 
 impl ApiServer {
     pub fn create_embedded() -> Rocket {
-        let db_conn = db::connect::connect_memory().unwrap();
+        let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
 
         let config = cfg::Config {
             toolchains: vec![],
@@ -106,15 +106,20 @@ impl ApiServer {
             problems: Default::default(),
         };
         let logger = slog::Logger::root(slog::Discard, slog::o!());
+        let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE")
+            .into_boxed_slice()
+            .into();
+        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.clone());
         let frontend_config = config::FrontendConfig {
             port: 0,
             host: "127.0.0.1".to_string(),
-            secret: config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE"),
             unix_socket_path: "".to_string(),
-            env: config::Env::Dev, // TODO
+            env: config::Env::Dev,
+            token_mgr,
+            db_conn: db_conn.clone(),
         };
 
-        Self::create(frontend_config, logger, &config, db_conn.into())
+        Self::create(frontend_config, logger, &config, db_conn)
     }
 
     pub fn get_schema() -> String {
@@ -143,7 +148,7 @@ impl ApiServer {
             config::Env::Prod => rocket::config::LoggingLevel::Critical,
         });
         rocket_config
-            .set_secret_key(base64::encode(&frontend_config.secret))
+            .set_secret_key(base64::encode(frontend_config.token_mgr.secret_key()))
             .unwrap();
 
         let graphql_context_factory = gql_server::ContextFactory {
@@ -174,7 +179,7 @@ impl ApiServer {
             .manage(graphql_schema)
             .manage(GqlApiSchema(introspection_json))
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
-                Ok(rocket.manage(security::SecretKey(cfg1.secret.clone().into())))
+                Ok(rocket.manage(security::SecretKey(cfg1.token_mgr.secret_key().into())))
             }))
             .attach(AdHoc::on_attach("RegisterEnvironmentKind", move |rocket| {
                 Ok(rocket.manage(cfg2.env))

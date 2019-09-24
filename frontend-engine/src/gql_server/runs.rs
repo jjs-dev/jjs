@@ -65,6 +65,7 @@ pub(super) fn submit_simple(
         problem_id: prob_name,
         score: 0,
         rejudge_id: 1,
+        user_id: ctx.token.user_id(),
     };
 
     let run = ctx.db.run_new(new_run).internal(ctx)?;

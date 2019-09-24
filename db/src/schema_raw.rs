@@ -19,6 +19,7 @@ table! {
         problem_id -> Varchar,
         score -> Int4,
         rejudge_id -> Int4,
+        user_id -> Uuid,
     }
 }
 
@@ -34,6 +35,7 @@ table! {
 }
 
 joinable!(invocation_requests -> runs (run_id));
+joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     invocation_requests,

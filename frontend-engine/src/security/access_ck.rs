@@ -5,12 +5,19 @@ use snafu::Snafu;
 pub(crate) struct AccessChecker<'a> {
     pub(crate) token: &'a Token,
     pub(crate) cfg: &'a cfg::Config,
-    //TODO: pub(crate) db: &'a dyn db::DbConn
+    pub(crate) db: &'a dyn db::DbConn,
 }
 
 #[derive(Debug, Snafu)]
 pub(crate) enum AccessCheckError {
     NotFound,
+    Db { source: db::Error },
+}
+
+impl From<db::Error> for AccessCheckError {
+    fn from(source: db::Error) -> Self {
+        Self::Db { source }
+    }
 }
 
 pub(crate) type AccessResult = Result<bool, AccessCheckError>;
@@ -37,13 +44,31 @@ impl AccessChecker<'_> {
         Ok(self.token.user_info.name == "Global/Root")
     }
 
-    fn user_is_contest_sudo(&self, _contest_id: &str) -> AccessResult {
-        // TODO
-        self.is_sudo()
+    fn user_is_contest_sudo(&self, contest_id: &str) -> AccessResult {
+        if self.is_sudo()? {
+            return Ok(true);
+        }
+        let contest = self
+            .cfg
+            .find_contest(contest_id)
+            .ok_or(AccessCheckError::NotFound)?;
+        for judges_group in &contest.judges {
+            if self.token.user_info.groups.contains(judges_group) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
-    pub(crate) fn user_can_modify_run(&self, _run_id: i32) -> AccessResult {
-        // TODO
-        Ok(true)
+    pub(crate) fn user_can_modify_run(&self, run_id: i32) -> AccessResult {
+        if self.user_is_contest_sudo(
+            // TODO: correctly determine contest_id here
+            "TODO",
+        )? {
+            return Ok(true);
+        }
+        let run = self.db.run_load(run_id)?;
+
+        Ok(run.user_id == self.token.user_id())
     }
 }

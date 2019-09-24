@@ -111,6 +111,10 @@ pub struct Contest {
     /// process (which is controlled by problem itself)
     pub problems: Vec<Problem>,
 
+    /// List of groups of judges
+    /// Judges will have full capabilities in this contest
+    pub judges: Vec<String>,
+
     /// Which group members are considered registered for contest
     pub group: Vec<String>,
 

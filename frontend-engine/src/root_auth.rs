@@ -40,7 +40,14 @@ fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
         return;
     }
     info!(logger, "issuing root credentials");
-    let token = crate::security::Token::new_root().serialize(&fcfg.secret);
+    let token = match fcfg.token_mgr.create_root_token() {
+        Ok(tok) => fcfg.token_mgr.serialize(&tok),
+        Err(err) => {
+            eprintln!("Error when issuing root credentials: {}", err);
+            conn.write_all(b"internal error").ok();
+            return;
+        }
+    }; //crate::security::Token::new_root().serialize(&fcfg.secret);
     let message = format!("===Branca {}===\n", token);
     conn.write_all(message.as_bytes()).ok();
 }

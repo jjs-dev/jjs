@@ -14,6 +14,7 @@ pub struct Run {
     pub problem_id: ProblemId,
     pub score: i32,
     pub rejudge_id: i32,
+    pub user_id: UserId,
 }
 
 #[derive(Insertable)]
@@ -25,6 +26,7 @@ pub struct NewRun {
     pub problem_id: ProblemId,
     pub score: i32,
     pub rejudge_id: i32,
+    pub user_id: UserId,
 }
 
 #[derive(AsChangeset, Default)]

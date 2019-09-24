@@ -1,20 +1,7 @@
 CREATE DOMAIN unsigned_integer AS INTEGER
     CHECK (VALUE >= 0);
 
-CREATE SEQUENCE run_id_seq START WITH 0 MINVALUE 0;
-
-CREATE TABLE runs
-(
-    id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
-    toolchain_id VARCHAR(100)                                               NOT NULL,
-    status_code  VARCHAR(100)                                               NOT NULL,
-    status_kind  VARCHAR(100)                                               NOT NULL,
-    problem_id   VARCHAR(100)                                               NOT NULL,
-    score        INTEGER                                                    NOT NULL,
-    rejudge_id   unsigned_integer                                           NOT NULL
-);
-
-CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);
+-- Users table
 
 CREATE SEQUENCE user_id_seq START WITH 0 MINVALUE 0;
 
@@ -28,15 +15,35 @@ CREATE TABLE users
 
 INSERT INTO users
 values ('04eb5beb-bf14-459c-bcf1-57eca87a0055'::uuid,
-        'Root',
+        'Global/Root',
         NULL,
         '{}'),
        ('56ff846e-81bd-451b-aeea-90afc192bd77'::uuid,
-        'Guest',
+        'Global/Guest',
         NULL,
         '{}');
 
+-- Runs
+
+CREATE SEQUENCE run_id_seq START WITH 0 MINVALUE 0;
+
+CREATE TABLE runs
+(
+    id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
+    toolchain_id VARCHAR(100)                                               NOT NULL,
+    status_code  VARCHAR(100)                                               NOT NULL,
+    status_kind  VARCHAR(100)                                                NOT NULL,
+    problem_id   VARCHAR(100)                                               NOT NULL,
+    score        INTEGER                                                                  NOT NULL,
+    rejudge_id   unsigned_integer                                            NOT NULL,
+    user_id UUID REFERENCES users(id) NOT NULL
+);
+
+CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);
+
 CREATE SEQUENCE inv_req_id_seq START WITH 0 MINVALUE 0;
+
+-- Invocation requests
 
 CREATE table invocation_requests
 (

@@ -6,7 +6,7 @@ pub use memory::MemoryRepo;
 
 use crate::{schema::*, Error};
 
-pub trait RunsRepo: Send + Sync {
+pub trait RunsRepo: std::fmt::Debug + Send + Sync {
     fn run_new(&self, run_data: NewRun) -> Result<Run, Error>;
     fn run_try_load(&self, run_id: RunId) -> Result<Option<Run>, Error>;
     fn run_load(&self, run_id: RunId) -> Result<Run, Error> {

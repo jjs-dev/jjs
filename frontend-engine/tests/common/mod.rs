@@ -1,7 +1,7 @@
 use frontend_engine::{config, test_util, ApiServer};
 pub use test_util::check_error;
 
-use std::{env::temp_dir, path::PathBuf};
+use std::{env::temp_dir, path::PathBuf, sync::Arc};
 
 #[derive(Default)]
 pub struct EnvBuilder {
@@ -20,7 +20,7 @@ impl EnvBuilder {
 
     pub fn build(&self, name: &str) -> Env {
         // TODO partially duplicates ApiServer::create_embedded()
-        let db_conn = db::connect::connect_memory().unwrap();
+        let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
 
         let path = temp_dir().join(format!("jjs-fr-eng-integ-test-{}", name));
         let path = path.to_str().expect("os temp dir is not utf8").to_string();
@@ -47,6 +47,7 @@ impl EnvBuilder {
             group: Vec::new(),
             unregistered_visible: false,
             anon_visible: false,
+            judges: Vec::new(),
         };
 
         let config = cfg::Config {
@@ -61,15 +62,17 @@ impl EnvBuilder {
             problems: Default::default(),
         };
         let logger = slog::Logger::root(slog::Discard, slog::o!());
+        let secret = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE");
         let frontend_config = config::FrontendConfig {
             port: 0,
             host: "127.0.0.1".to_string(),
-            secret: config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE"),
             unix_socket_path: "".to_string(),
             env: config::Env::Dev,
+            db_conn: db_conn.clone(),
+            token_mgr: frontend_engine::security::TokenMgr::new(db_conn.clone(), secret.into()),
         };
 
-        let rock = ApiServer::create(frontend_config, logger, &config, db_conn.into());
+        let rock = ApiServer::create(frontend_config, logger, &config, db_conn);
         Env {
             client: rocket::local::Client::new(rock).unwrap(),
         }

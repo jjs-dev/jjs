@@ -7,6 +7,7 @@ mod gql_server;
 mod password;
 pub mod root_auth;
 mod security;
+pub mod test_util;
 
 pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;

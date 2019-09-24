@@ -7,8 +7,10 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct TestArgs {
-    #[structopt(long = "verbose")]
+    #[structopt(long)]
     verbose: bool,
+    #[structopt(long, short = "i")]
+    integration_tests: bool,
 }
 
 #[derive(StructOpt)]
@@ -47,6 +49,10 @@ impl CommandExt for Command {
 fn task_test(args: TestArgs, runner: &Runner) {
     let mut cmd = Command::new("cargo");
     cmd.args(&["test"]);
+    cmd.arg("--workspace");
+    if !args.integration_tests {
+        cmd.args(&["--exclude", "all"]);
+    }
     if args.verbose {
         cmd.args(&["--", "--nocapture"]);
     }

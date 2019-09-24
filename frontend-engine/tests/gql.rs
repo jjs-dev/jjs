@@ -1,7 +1,5 @@
 mod common;
 
-use common::util;
-
 use serde_json::json;
 
 /// Smoke test
@@ -67,7 +65,7 @@ mutation CreateSameUserAgain {
         .exec()
         .unwrap_errs();
     assert_eq!(res.len(), 1);
-    util::check_error(&res[0], "UserAlreadyExists");
+    common::check_error(&res[0], "UserAlreadyExists");
 }
 
 ///  tests operations with run

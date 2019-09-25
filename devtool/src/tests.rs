@@ -8,6 +8,8 @@ pub(crate) struct TestArgs {
     verbose: bool,
     #[structopt(long, short = "i")]
     integration_tests: bool,
+    #[structopt(long)]
+    pub(crate) fail_fast: bool,
 }
 
 fn run_integ_test(runner: &Runner) {
@@ -23,20 +25,23 @@ fn run_integ_test(runner: &Runner) {
         .stdout;
 
     let out = String::from_utf8(out).expect("cargo output is not utf8");
+    let mut cnt_tests = 0;
     for line in out.lines() {
         if line.contains(": test") {
             let test_name = line
                 .split_whitespace()
                 .next()
                 .expect("line is empty")
-                .trim_end_matches(":");
+                .trim_end_matches(':');
             println!("Running: {}", test_name);
             Command::new("cargo")
                 .current_dir("all")
                 .args(&["test", test_name])
                 .run_on(runner);
+            cnt_tests += 1;
         }
     }
+    println!("{} integration tests runned", cnt_tests);
 }
 
 pub(crate) fn task_test(args: TestArgs, runner: &Runner) {

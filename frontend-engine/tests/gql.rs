@@ -124,7 +124,7 @@ mutation CreateRun($runCode: String!) {
 }
     "#,
         )
-        .vars(&json!({ "runCode": &run_encoded }))
+        .var("runCode", &json!(run_encoded))
         .exec()
         .unwrap_ok();
     assert_eq!(

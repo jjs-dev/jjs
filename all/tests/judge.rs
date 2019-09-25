@@ -14,7 +14,8 @@ mutation Submit($runCode: String!) {
 }
     "#,
         )
-        .vars(&serde_json::json!({ "runCode": code }))
+        .user("taiwin")
+        .var("runCode", &serde_json::Value::from(code))
         .exec()
         .unwrap_ok();
     let resp = resp.pointer("/submitSimple/id").unwrap();
@@ -94,4 +95,37 @@ fn test_wrong_solution_is_rejected() {
         "#,
         "PARTIAL_SOLUTION",
     )
+}
+
+#[test]
+fn test_non_privileged_user_cannot_see_non_their_runs() {
+    let id = submit(
+        r#"
+    Can i have CE?
+    "#,
+    );
+    let err = util::RequestBuilder::new()
+        .operation(
+            r#"
+    
+mutation DeleteRun($runId: Int!) {
+  modifyRun(id:$runId, delete: true)
+}
+    "#,
+        )
+        .var("runId", &serde_json::Value::from(id))
+        .user("cersei")
+        .exec()
+        .unwrap_errs()
+        .into_iter()
+        .next()
+        .unwrap();
+    dbg!(&err);
+    assert!(
+        err.pointer("/extensions/errorCode")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .contains("AccessDenied")
+    );
 }

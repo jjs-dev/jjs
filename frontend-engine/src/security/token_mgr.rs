@@ -104,6 +104,10 @@ impl TokenMgr {
                 if data == "root" {
                     return Ok(self.create_root_token()?);
                 }
+                if data.starts_with("User:") {
+                    let data = data.trim_start_matches("User:");
+                    return Ok(self.create_token(data)?);
+                }
                 return Err(TokenMgrError::BadFormat);
             } else {
                 return Err(TokenMgrError::Denied);

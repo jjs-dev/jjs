@@ -11,6 +11,7 @@ pub mod test_util;
 
 pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
+use security::TokenMgrError;
 
 use gql_server::Context;
 use rocket::{fairing::AdHoc, State};
@@ -48,35 +49,55 @@ impl std::fmt::Debug for JuniperResponseDebug {
     }
 }
 
+type BadRequestResponder = rocket::response::status::BadRequest<String>;
+
 fn execute_request(
     req: juniper_rocket::GraphQLRequest,
     schema: &gql_server::Schema,
-    ctx: &gql_server::Context,
-) -> juniper_rocket::GraphQLResponse {
-    let res = req.execute(schema, ctx);
+    ctx: &Result<gql_server::Context, TokenMgrError>,
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
+    match ctx {
+        Ok(ctx) => {
+            let res = req.execute(schema, ctx);
 
-    let res = JuniperResponseDebug(res);
+            let res = JuniperResponseDebug(res);
 
-    slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
+            slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
 
-    res.0
+            Ok(res.0)
+        }
+        Err(err) => {
+            let error_message = if cfg!(debug_assertions) {
+                format!("bad request: {}", err)
+            } else {
+                r#"
+Your request is incorrect.
+Possible reasons:
+- Query body is missing or is not valid JSON
+- X-Jjs-Auth header is not valid access token
+    "#
+                .to_string()
+            };
+            Err(rocket::response::status::BadRequest(Some(error_message)))
+        }
+    }
 }
 
 #[get("/graphql?<request>")]
 fn route_get_graphql(
-    ctx: gql_server::Context,
+    ctx: Result<gql_server::Context, TokenMgrError>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
-) -> juniper_rocket::GraphQLResponse {
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
     execute_request(request, &*schema, &ctx)
 }
 
 #[post("/graphql", data = "<request>")]
 fn route_post_graphql(
-    ctx: gql_server::Context,
+    ctx: Result<gql_server::Context, TokenMgrError>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
-) -> juniper_rocket::GraphQLResponse {
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
     execute_request(request, &*schema, &ctx)
 }
 

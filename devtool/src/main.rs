@@ -5,8 +5,7 @@ mod tests;
 use crate::runner::Runner;
 use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
-use tests::{TestArgs, task_test};
-
+use tests::{task_test, TestArgs};
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -40,8 +39,6 @@ impl CommandExt for Command {
         }
     }
 }
-
-
 
 fn task_clean() {
     use std::fs::{remove_dir_all, remove_file};
@@ -131,7 +128,10 @@ fn main() {
             runner.set_fail_fast(opts.fail_fast);
             check::check(&opts, &runner)
         }
-        CliArgs::Test(args) => task_test(args, &runner),
+        CliArgs::Test(args) => {
+            runner.set_fail_fast(args.fail_fast);
+            task_test(args, &runner)
+        }
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
         CliArgs::Build => task_build(&runner),

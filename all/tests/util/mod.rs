@@ -13,8 +13,8 @@ impl RequestBuilder {
         }
     }
 
-    pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
-        self.builder.vars(v);
+    pub fn var(&mut self, name: &str, val: &serde_json::Value) -> &mut Self {
+        self.builder.var(name, val);
         self
     }
 
@@ -24,8 +24,8 @@ impl RequestBuilder {
     }
 
     pub fn user(&mut self, user: &str) -> &mut Self {
-       self.auth_token = Some(format!("Dev User:{}", user));
-       self
+        self.auth_token = Some(format!("Dev User:{}", user));
+        self
     }
 
     pub fn exec(&self) -> frontend_engine::test_util::Response {

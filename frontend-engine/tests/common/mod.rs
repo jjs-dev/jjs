@@ -90,8 +90,8 @@ pub struct RequestBuilder<'a> {
 }
 
 impl RequestBuilder<'_> {
-    pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
-        self.builder.vars(v);
+    pub fn var(&mut self, name: &str, val: &serde_json::Value) -> &mut Self {
+        self.builder.var(name, val);
         self
     }
 

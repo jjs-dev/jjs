@@ -1,2 +1,3 @@
 add jon_snow NotKing groups=Judges:Starks
 add taiwin pay_my_debt groups=Participants:Lannisters
+add cersei LolQueen groups=Participants:Lannisters

@@ -13,13 +13,18 @@ impl RequestBuilder {
         }
     }
 
-    pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
-        self.builder.vars(v);
+    pub fn var(&mut self, name: &str, val: &serde_json::Value) -> &mut Self {
+        self.builder.var(name, val);
         self
     }
 
     pub fn operation(&mut self, op: &str) -> &mut Self {
         self.builder.operation(op);
+        self
+    }
+
+    pub fn user(&mut self, user: &str) -> &mut Self {
+        self.auth_token = Some(format!("Dev User:{}", user));
         self
     }
 

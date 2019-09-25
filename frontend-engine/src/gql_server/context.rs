@@ -1,4 +1,4 @@
-use crate::security::{AccessChecker, Token, TokenFromRequestError, TokenMgr};
+use crate::security::{AccessChecker, Token, TokenMgr, TokenMgrError};
 use std::sync::Arc;
 
 pub(crate) type DbPool = Arc<dyn db::DbConn>;
@@ -7,7 +7,6 @@ pub(crate) type DbPool = Arc<dyn db::DbConn>;
 pub(crate) struct ContextData {
     pub(crate) db: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
-    pub(crate) secret_key: Arc<[u8]>,
     pub(crate) env: crate::config::Env,
     pub(crate) logger: slog::Logger,
     pub(crate) token_mgr: TokenMgr,
@@ -19,6 +18,7 @@ impl ContextData {
         AccessChecker {
             token: &self.token,
             cfg: &self.cfg,
+            db: &*self.db,
         }
     }
 }
@@ -35,7 +35,7 @@ impl std::ops::Deref for Context {
 }
 
 impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
-    type Error = TokenFromRequestError;
+    type Error = TokenMgrError;
 
     fn from_request(
         request: &'a rocket::request::Request<'r>,
@@ -56,14 +56,17 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .headers()
             .get("X-Jjs-Auth")
             .next()
-            .ok_or(TokenFromRequestError::Missing);
+            .ok_or(TokenMgrError::TokenMissing);
 
-        let token = token
-            .and_then(|header| Token::deserialize(&*secret_key, header.as_bytes(), env.is_dev()));
+        let secret_key = Arc::clone(&(*secret_key).0);
+        let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key.clone());
+
+        let token = token.and_then(|header| token_mgr.deserialize(header.as_bytes(), env.is_dev()));
         let token = match token {
             Ok(tok) => Ok(tok),
             Err(e) => match e {
-                TokenFromRequestError::Missing => Ok(Token::new_guest()),
+                TokenMgrError::TokenMissing => Ok(token_mgr.create_guest_token())
+                    .map_err(|e| Err((rocket::http::Status::BadRequest, e)))?,
                 _ => Err(e),
             },
         };
@@ -73,16 +76,15 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
             env: *env,
-            secret_key: Arc::clone(&(*secret_key).0),
             logger: factory.logger.clone(),
-            token_mgr: TokenMgr::new(factory.pool.clone()),
+            token_mgr,
             token,
         })
     }
 }
 
 impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
-    type Error = TokenFromRequestError;
+    type Error = TokenMgrError;
 
     fn from_request(
         request: &'a rocket::request::Request<'r>,
@@ -102,14 +104,19 @@ pub(crate) struct ContextFactory {
 impl ContextFactory {
     /// Creates context, not bound to particular request
     pub(crate) fn create_context_data_unrestricted(&self) -> ContextData {
+        let secret_key = Arc::new([]);
+        let token_mgr = TokenMgr::new(self.pool.clone(), secret_key);
+        let token = match token_mgr.create_root_token() {
+            Ok(tok) => tok,
+            Err(e) => panic!("failed create root's Token: {}", e),
+        };
         ContextData {
             db: self.pool.clone(),
             cfg: self.cfg.clone(),
-            secret_key: Arc::new([]),
             env: crate::config::Env::Dev,
             logger: self.logger.clone(),
-            token_mgr: TokenMgr::new(self.pool.clone()),
-            token: Token::new_root(),
+            token_mgr,
+            token,
         }
     }
 }

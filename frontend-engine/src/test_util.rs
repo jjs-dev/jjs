@@ -75,7 +75,7 @@ impl std::fmt::Display for ErrorPrettyPrinter<'_> {
 
 #[derive(Default)]
 pub struct RequestBuilder {
-    vars: Option<serde_json::Value>,
+    vars: std::collections::HashMap<String, serde_json::Value>,
     operation: Option<String>,
 }
 
@@ -84,9 +84,8 @@ impl RequestBuilder {
         Default::default()
     }
 
-    pub fn vars(&mut self, v: &serde_json::Value) -> &mut Self {
-        assert!(v.is_object());
-        self.vars = Some(v.clone());
+    pub fn var(&mut self, name: &str, val: &serde_json::Value) -> &mut Self {
+        self.vars.insert(name.to_string(), val.clone());
         self
     }
 
@@ -98,7 +97,7 @@ impl RequestBuilder {
     pub fn to_query(&self) -> String {
         let obj = serde_json::json!({
              "query": self.operation.as_ref().unwrap(),
-             "variables": self.vars.clone().unwrap_or_else(||serde_json::Value::Null),
+             "variables": self.vars.clone(),
         });
         serde_json::to_string(&obj).unwrap()
     }

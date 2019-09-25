@@ -1,17 +1,11 @@
 mod check;
 mod runner;
+mod tests;
 
 use crate::runner::Runner;
 use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
-
-#[derive(StructOpt)]
-struct TestArgs {
-    #[structopt(long)]
-    verbose: bool,
-    #[structopt(long, short = "i")]
-    integration_tests: bool,
-}
+use tests::{task_test, TestArgs};
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -44,19 +38,6 @@ impl CommandExt for Command {
             self.env("RUST_LOG_STYLE", "always");
         }
     }
-}
-
-fn task_test(args: TestArgs, runner: &Runner) {
-    let mut cmd = Command::new("cargo");
-    cmd.args(&["test"]);
-    cmd.arg("--workspace");
-    if !args.integration_tests {
-        cmd.args(&["--exclude", "all"]);
-    }
-    if args.verbose {
-        cmd.args(&["--", "--nocapture"]);
-    }
-    cmd.run_on(runner);
 }
 
 fn task_clean() {
@@ -147,7 +128,10 @@ fn main() {
             runner.set_fail_fast(opts.fail_fast);
             check::check(&opts, &runner)
         }
-        CliArgs::Test(args) => task_test(args, &runner),
+        CliArgs::Test(args) => {
+            runner.set_fail_fast(args.fail_fast);
+            task_test(args, &runner)
+        }
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
         CliArgs::Build => task_build(&runner),

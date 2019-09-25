@@ -4,8 +4,8 @@ mod token_mgr;
 
 pub(crate) use access_ck::AccessChecker;
 use std::sync::Arc;
-pub(crate) use token::{Token, TokenFromRequestError};
-pub(crate) use token_mgr::TokenMgr;
+pub(crate) use token::Token;
+pub use token_mgr::{TokenMgr, TokenMgrError};
 
 #[derive(Clone)]
 pub struct SecretKey(pub Arc<[u8]>);

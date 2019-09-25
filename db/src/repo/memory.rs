@@ -2,7 +2,7 @@ use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
 use crate::{schema::*, Error};
 use std::{convert::TryFrom, sync::Mutex};
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Data {
     // None if run was deleted
     runs: Vec<Option<Run>>,
@@ -10,14 +10,28 @@ struct Data {
     users: Vec<User>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct MemoryRepo {
     conn: Mutex<Data>,
 }
 
 impl MemoryRepo {
     pub fn new() -> Self {
-        Default::default()
+        // TODO duplicates db/migrations/<initial>/up.sql
+        let this: Self = Self::default();
+        this.user_new(NewUser {
+            username: "Global/Root".to_string(),
+            password_hash: None,
+            groups: vec![],
+        })
+        .unwrap();
+        this.user_new(NewUser {
+            username: "Global/Guest".to_string(),
+            password_hash: None,
+            groups: vec![],
+        })
+        .unwrap();
+        this
     }
 }
 
@@ -33,6 +47,7 @@ impl RunsRepo for MemoryRepo {
             problem_id: run_data.problem_id,
             score: run_data.score,
             rejudge_id: run_data.rejudge_id,
+            user_id: run_data.user_id,
         };
         data.runs.push(Some(run.clone()));
         Ok(run)
@@ -163,6 +178,8 @@ mod tests {
         #[test]
         fn test_basic() {
             let repo = MemoryRepo::new();
+
+            let john_id = uuid::Uuid::new_v4();
             assert!(repo.run_load(228).is_err());
             assert!(repo.run_load(0).is_err());
             let new_run = NewRun {
@@ -172,6 +189,7 @@ mod tests {
                 problem_id: "quux".to_string(),
                 score: 444,
                 rejudge_id: 33,
+                user_id: john_id,
             };
             let inserted_run = repo.run_new(new_run).unwrap();
             assert_eq!(inserted_run.id, 0);
@@ -189,6 +207,7 @@ mod tests {
                 problem_id: "0".to_string(),
                 score: 0,
                 rejudge_id: 0,
+                user_id: uuid::Uuid::new_v4(),
             };
             repo.run_new(new_run).unwrap();
             let patch = RunPatch {

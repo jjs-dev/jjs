@@ -6,11 +6,12 @@ pub mod config;
 mod gql_server;
 mod password;
 pub mod root_auth;
-mod security;
+pub mod security;
 pub mod test_util;
 
 pub use config::FrontendConfig;
 pub use root_auth::LocalAuthServer;
+use security::TokenMgrError;
 
 use gql_server::Context;
 use rocket::{fairing::AdHoc, State};
@@ -48,35 +49,55 @@ impl std::fmt::Debug for JuniperResponseDebug {
     }
 }
 
+type BadRequestResponder = rocket::response::status::BadRequest<String>;
+
 fn execute_request(
     req: juniper_rocket::GraphQLRequest,
     schema: &gql_server::Schema,
-    ctx: &gql_server::Context,
-) -> juniper_rocket::GraphQLResponse {
-    let res = req.execute(schema, ctx);
+    ctx: &Result<gql_server::Context, TokenMgrError>,
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
+    match ctx {
+        Ok(ctx) => {
+            let res = req.execute(schema, ctx);
 
-    let res = JuniperResponseDebug(res);
+            let res = JuniperResponseDebug(res);
 
-    slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
+            slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
 
-    res.0
+            Ok(res.0)
+        }
+        Err(err) => {
+            let error_message = if cfg!(debug_assertions) {
+                format!("bad request: {}", err)
+            } else {
+                r#"
+Your request is incorrect.
+Possible reasons:
+- Query body is missing or is not valid JSON
+- X-Jjs-Auth header is not valid access token
+    "#
+                .to_string()
+            };
+            Err(rocket::response::status::BadRequest(Some(error_message)))
+        }
+    }
 }
 
 #[get("/graphql?<request>")]
 fn route_get_graphql(
-    ctx: gql_server::Context,
+    ctx: Result<gql_server::Context, TokenMgrError>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
-) -> juniper_rocket::GraphQLResponse {
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
     execute_request(request, &*schema, &ctx)
 }
 
 #[post("/graphql", data = "<request>")]
 fn route_post_graphql(
-    ctx: gql_server::Context,
+    ctx: Result<gql_server::Context, TokenMgrError>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<gql_server::Schema>,
-) -> juniper_rocket::GraphQLResponse {
+) -> Result<juniper_rocket::GraphQLResponse, BadRequestResponder> {
     execute_request(request, &*schema, &ctx)
 }
 
@@ -92,7 +113,7 @@ pub struct ApiServer {}
 
 impl ApiServer {
     pub fn create_embedded() -> Rocket {
-        let db_conn = db::connect::connect_memory().unwrap();
+        let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
 
         let config = cfg::Config {
             toolchains: vec![],
@@ -106,15 +127,20 @@ impl ApiServer {
             problems: Default::default(),
         };
         let logger = slog::Logger::root(slog::Discard, slog::o!());
+        let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE")
+            .into_boxed_slice()
+            .into();
+        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.clone());
         let frontend_config = config::FrontendConfig {
             port: 0,
             host: "127.0.0.1".to_string(),
-            secret: config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE"),
             unix_socket_path: "".to_string(),
-            env: config::Env::Dev, // TODO
+            env: config::Env::Dev,
+            token_mgr,
+            db_conn: db_conn.clone(),
         };
 
-        Self::create(frontend_config, logger, &config, db_conn.into())
+        Self::create(frontend_config, logger, &config, db_conn)
     }
 
     pub fn get_schema() -> String {
@@ -143,7 +169,7 @@ impl ApiServer {
             config::Env::Prod => rocket::config::LoggingLevel::Critical,
         });
         rocket_config
-            .set_secret_key(base64::encode(&frontend_config.secret))
+            .set_secret_key(base64::encode(frontend_config.token_mgr.secret_key()))
             .unwrap();
 
         let graphql_context_factory = gql_server::ContextFactory {
@@ -174,7 +200,7 @@ impl ApiServer {
             .manage(graphql_schema)
             .manage(GqlApiSchema(introspection_json))
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
-                Ok(rocket.manage(security::SecretKey(cfg1.secret.clone().into())))
+                Ok(rocket.manage(security::SecretKey(cfg1.token_mgr.secret_key().into())))
             }))
             .attach(AdHoc::on_attach("RegisterEnvironmentKind", move |rocket| {
                 Ok(rocket.manage(cfg2.env))

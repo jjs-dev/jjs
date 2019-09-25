@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Env {
@@ -42,7 +42,8 @@ pub fn derive_key_512(secret: &str) -> Vec<u8> {
 pub struct FrontendConfig {
     pub port: u16,
     pub host: String,
-    pub secret: Vec<u8>,
+    pub token_mgr: crate::security::TokenMgr,
+    pub db_conn: Arc<dyn db::DbConn>,
     pub unix_socket_path: String,
     pub env: Env,
 }
@@ -76,15 +77,21 @@ impl FrontendConfig {
             }
         });
         let secret = derive_key_512(&secret);
+        let db_conn: Arc<dyn db::DbConn> = db::connect_env()
+            .expect("initialize db connection failed")
+            .into();
         let unix_socket_path =
             env::var("JJS_UNIX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/jjs-auth-sock".to_string());
+
+        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.clone().into());
 
         FrontendConfig {
             port,
             host,
-            secret,
+            db_conn,
             unix_socket_path,
             env: environ,
+            token_mgr,
         }
     }
 }

@@ -23,6 +23,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn user(&mut self, user: &str) -> &mut Self {
+       self.auth_token = Some(format!("Dev User:{}", user));
+       self
+    }
+
     pub fn exec(&self) -> frontend_engine::test_util::Response {
         let body = self.builder.to_query();
         let request = self

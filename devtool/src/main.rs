@@ -1,17 +1,12 @@
 mod check;
 mod runner;
+mod tests;
 
 use crate::runner::Runner;
 use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
+use tests::{TestArgs, task_test};
 
-#[derive(StructOpt)]
-struct TestArgs {
-    #[structopt(long)]
-    verbose: bool,
-    #[structopt(long, short = "i")]
-    integration_tests: bool,
-}
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -46,18 +41,7 @@ impl CommandExt for Command {
     }
 }
 
-fn task_test(args: TestArgs, runner: &Runner) {
-    let mut cmd = Command::new("cargo");
-    cmd.args(&["test"]);
-    cmd.arg("--workspace");
-    if !args.integration_tests {
-        cmd.args(&["--exclude", "all"]);
-    }
-    if args.verbose {
-        cmd.args(&["--", "--nocapture"]);
-    }
-    cmd.run_on(runner);
-}
+
 
 fn task_clean() {
     use std::fs::{remove_dir_all, remove_file};

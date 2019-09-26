@@ -93,7 +93,29 @@ fn check_build_dir(_src: &str, build: &str) {
     std::process::exit(1);
 }
 
+fn check_env() {
+    for (bin, cmd) in &[
+        ("cmake", vec![]),
+        ("gcc", vec!["--version"]),
+        ("g++", vec!["--version"]),
+        ("mdbook", vec!["--version"]),
+    ] {
+        print!("checking {} is installed... ", bin);
+        let st = std::process::Command::new(bin)
+            .args(cmd)
+            .output()
+            .map(|st| st.status.success())
+            .unwrap_or(false);
+        if !st {
+            println!("no");
+        } else {
+            println!("ok");
+        }
+    }
+}
+
 fn main() {
+    check_env();
     let jjs_path = std::env::var("JJS_CFGR_SOURCE_DIR").unwrap();
     let build_dir_path = std::env::current_dir()
         .unwrap()

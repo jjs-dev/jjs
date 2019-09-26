@@ -11,6 +11,7 @@ then
     echo "Error: rustc not found"
     exit 1
 fi
+echo "checking rustc is installed... ok"
 
 RustcVersionDataRaw=$( rustc --version )
 

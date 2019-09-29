@@ -15,7 +15,7 @@ enum CliArgs {
     /// Clean all build files except Cargo's
     Clean,
     /// Perform build & install
-    Build,
+    CiBuild,
     /// remove target files, related to JJS. This should prevent cache invalidation
     CiClean,
 }
@@ -87,7 +87,8 @@ fn task_ci_clean() {
     process_dir(Path::new("target/debug/incremental"));
 }
 
-fn task_build(runner: &Runner) {
+fn task_ci_build(runner: &Runner) {
+    println!("Building jjs");
     std::fs::File::create("./target/.jjsbuild").unwrap();
     let mut cmd = Command::new("../configure");
     cmd.current_dir("target");
@@ -97,6 +98,7 @@ fn task_build(runner: &Runner) {
     cmd.args(&["--enable-docker", "--docker-tag", "jjs-%:dev"]);
     // used in CI
     cmd.arg("--enable-archive");
+    cmd.arg("--enable-systemd");
     cmd.run_on(runner);
 
     Command::new("make").current_dir("target").run_on(runner);
@@ -118,7 +120,7 @@ fn main() {
         }
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
-        CliArgs::Build => task_build(&runner),
+        CliArgs::CiBuild => task_ci_build(&runner),
     }
     runner.exit_if_errors();
     eprintln!("OK");

@@ -13,7 +13,7 @@ Judging system
 mkdir build && cd build
 
 # This will automatically include most of JJS features. See ../configure --help for possible options
-../configure --prefix /opt/jjs
+../configure --out /opt/jjs
 
 # Install dependencies
 make deps

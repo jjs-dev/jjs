@@ -21,7 +21,7 @@ constant_time_eq = "0.1.4"
 libc = "0.2.62"
 serde_json = "1.0.40"
 branca = "0.9.0"
-juniper_rocket = "0.4.1"
+juniper_rocket = "0.5.0"
 backtrace = "0.3.38"
 snafu = "0.5.0"
 ranker = {path = "../ranker"}

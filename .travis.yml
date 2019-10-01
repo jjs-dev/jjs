@@ -8,11 +8,12 @@ branches:
     - master
 
 rust:
-  - nightly-2019-09-22
+  - nightly-2019-09-28
 
 env: CARGO_INCREMENTAL=0
 
 before_install:
+  - rm rust-toolchain
   - unset RUSTC_WRAPPER
   - rustup component add rustfmt clippy
   - sudo apt-get update || true

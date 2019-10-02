@@ -111,7 +111,7 @@ fn task_build(runner: &Runner) {
     std::fs::File::create("./target/.jjsbuild").unwrap();
     Command::new("../configure")
         .current_dir("target")
-        .args(&["--prefix", "/opt/jjs"])
+        .args(&["--out", "/opt/jjs"])
         .args(&["--disable-core", "--disable-tools", "--disable-testlib"])
         .run_on(runner);
 

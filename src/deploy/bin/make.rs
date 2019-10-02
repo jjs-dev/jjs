@@ -12,11 +12,12 @@ fn main() {
         cfg: manifest.clone(),
         src,
         build: build.clone(),
-        sysroot: manifest.prefix.clone().unwrap_or_else(|| {
+        artifacts: manifest.artifacts_dir.clone().unwrap_or_else(|| {
             let path = build.join("jjs-build-res-sysroot");
             deploy::util::make_empty(&path).unwrap();
             path
         }),
+        install_prefix: manifest.install_prefix.clone(),
     };
     deploy::package(&params);
 }

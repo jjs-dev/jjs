@@ -411,5 +411,7 @@ fn main() {
         backend,
     };
 
+    util::daemon_notify_ready();
+
     invoker.serve_forever();
 }

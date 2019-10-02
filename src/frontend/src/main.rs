@@ -41,5 +41,6 @@ fn main() {
     slog::info!(logger, "starting frontend");
 
     launch_root_login_server(&logger, frontend_cfg.clone());
+    util::daemon_notify_ready();
     launch_api(frontend_cfg, logger, cfg);
 }

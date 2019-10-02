@@ -1,0 +1,15 @@
+[Unit]
+Description=JJS invoker
+Requires=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=notify
+Environment=JJS_SYSROOT={{ jjs_sysroot }} JJS_SD_NOTIFY=1
+EnvironmentFile=/var/jjs/etc/env.txt
+User=jjs
+Group=jjs
+ExecStart={{ jjs_sysroot }}/bin/jjs-invoker
+
+[Install]
+WantedBy=multi-user.target

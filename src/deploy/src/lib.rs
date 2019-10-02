@@ -83,7 +83,7 @@ fn build_jjs_components(params: &Params) {
 
     print_section("Generating migration script");
     {
-        let mut migration_script: Vec<_> = fs::read_dir(proj_root.join("db/migrations"))
+        let mut migration_script: Vec<_> = fs::read_dir(proj_root.join("src/db/migrations"))
             .unwrap()
             .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
             .filter(|x| !x.contains(".gitkeep"))

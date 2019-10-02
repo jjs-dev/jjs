@@ -120,7 +120,7 @@ fn task_build(runner: &Runner) {
 
 fn main() {
     env_logger::init();
-    set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).unwrap();
+    set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).unwrap();
     let args = CliArgs::from_args();
     let mut runner = Runner::new();
     match args {

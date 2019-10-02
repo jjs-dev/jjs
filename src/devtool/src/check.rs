@@ -75,13 +75,13 @@ fn shellcheck(runner: &Runner) {
 
 fn build_minion_ffi_example(runner: &Runner) {
     info!("building minion-ffi C example");
-    std::fs::create_dir("minion-ffi/example-c/cmake-build-debug").ok();
+    std::fs::create_dir("src/minion-ffi/example-c/cmake-build-debug").ok();
     Command::new(cmake_bin())
-        .current_dir("./minion-ffi/example-c/cmake-build-debug")
+        .current_dir("./src/minion-ffi/example-c/cmake-build-debug")
         .arg("..")
         .run_on(runner);
     Command::new(cmake_bin())
-        .current_dir("./minion-ffi/example-c/cmake-build-debug")
+        .current_dir("./src/minion-ffi/example-c/cmake-build-debug")
         .arg("--build")
         .arg(".")
         .run_on(runner);

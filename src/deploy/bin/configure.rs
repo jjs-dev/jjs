@@ -25,10 +25,10 @@ struct Opt {
     #[structopt(long = "enable-archive")]
     archive: bool,
     /// Cargo path
-    #[structopt(long = "with-cargo")]
+    #[structopt(long = "with-cargo", env = "CARGO")]
     cargo: Option<String>,
     /// CMake path
-    #[structopt(long = "with-cmake")]
+    #[structopt(long = "with-cmake", env = "CMAKE")]
     cmake: Option<String>,
     /// Target triple
     #[structopt(long = "target", short = "T")]
@@ -42,12 +42,21 @@ struct Opt {
     /// Emit verbose information about build
     #[structopt(long = "verbose", short = "V")]
     verbose: bool,
-    /// Prefix
-    #[structopt(long = "prefix", short = "P")]
-    install_prefix: Option<PathBuf>,
+    /// Destination for artifacts
+    #[structopt(long = "out", short = "P")]
+    out_dir: Option<PathBuf>,
     /// Build deb packages
     #[structopt(long = "enable-deb")]
     deb: bool,
+    /// Generate SystemD unit files
+    #[structopt(long = "enable-systemd")]
+    systemd: bool,
+    /// Destination JJS will be installed to
+    ///
+    /// Some JJS components can not be built or work properly without this option
+    /// By default, same as prefix.
+    #[structopt(long)]
+    install_prefix: Option<PathBuf>,
 }
 
 static MAKE_SCRIPT_TPL: &str = include_str!("../make-tpl.sh");
@@ -159,12 +168,17 @@ fn main() {
         core: !opt.no_core,
         extras: opt.extras,
     };
-    let config = cfg::Config {
-        prefix: opt.install_prefix.clone(),
-        verbose: opt.verbose,
+    let packaging = cfg::PackagingConfig {
         deb: opt.deb,
+        systemd: opt.systemd,
+    };
+    let config = cfg::Config {
+        artifacts_dir: opt.out_dir.clone(),
+        verbose: opt.verbose,
+        packaging,
         build: build_config,
         components: comps_config,
+        install_prefix: opt.install_prefix.clone().or_else(|| opt.out_dir.clone()),
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Emitting JJS build config: {}", &manifest_path);

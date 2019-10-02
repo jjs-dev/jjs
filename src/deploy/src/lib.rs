@@ -6,6 +6,7 @@ mod packages;
 mod pkg;
 mod registry;
 mod sel_ctx;
+mod systemd;
 pub mod util;
 
 use crate::{
@@ -16,14 +17,16 @@ use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
 use util::print_section;
 
 pub struct Params {
-    // build config
+    /// build config
     pub cfg: cfg::Config,
-    // jjs src dir
+    /// jjs src dir
     pub src: PathBuf,
-    // jjs build dir
+    /// jjs build dir
     pub build: PathBuf,
-    // Intermediate sysroot dir (for compressing / copying), containing only build artifacts
-    pub sysroot: PathBuf,
+    /// Intermediate sysroot dir (for compressing / copying), containing only build artifacts
+    pub artifacts: PathBuf,
+    /// Target installation dir, if given (only to generate some paths)
+    pub install_prefix: Option<PathBuf>,
 }
 
 fn create_registry() -> Registry {
@@ -62,10 +65,12 @@ fn build_jjs_components(params: &Params) {
     let proj_root = &params.src;
 
     print_section("Creating directories");
-    let pkg_dir = params.sysroot.clone();
+    let pkg_dir = params.artifacts.clone();
 
     util::make_empty(&pkg_dir).unwrap();
     fs::create_dir(pkg_dir.join("lib")).ok();
+    fs::create_dir(pkg_dir.join("lib/systemd")).ok();
+    fs::create_dir(pkg_dir.join("lib/systemd/system")).ok();
     fs::create_dir(pkg_dir.join("bin")).ok();
     fs::create_dir(pkg_dir.join("include")).ok();
     fs::create_dir(pkg_dir.join("share")).ok();
@@ -125,9 +130,13 @@ pub fn package(params: &Params) {
     if params.cfg.components.archive {
         generate_archive(params);
     }
-    if params.cfg.deb {
+    if params.cfg.packaging.deb {
         print_section("Generating Debian package");
         deb::create(params);
+    }
+    if params.cfg.packaging.systemd {
+        print_section("Generating SystemD unit files");
+        systemd::build(params);
     }
 
     generate_envscript(params);
@@ -140,12 +149,12 @@ fn generate_archive(params: &Params) {
         std::fs::File::create(&out_file_path).expect("couldn't open archive for writing");
     println!(
         "packaging {} into {}",
-        params.sysroot.display(),
+        params.artifacts.display(),
         &out_file_path.display()
     );
     let mut builder = tar::Builder::new(out_file);
     builder
-        .append_dir_all("jjs", &params.sysroot)
+        .append_dir_all("jjs", &params.artifacts)
         .expect("couldn't add files to archive");
     let _ = builder
         .into_inner()
@@ -157,7 +166,7 @@ fn build_testlib(params: &Params) {
     print_section("Build testlib[C++]");
     let jtl_path = proj_dir.join("jtl-cpp");
     let cmake_build_dir = params.build.join("jtl-cpp");
-    let sysroot_dir = &params.sysroot;
+    let sysroot_dir = &params.artifacts;
     util::ensure_exists(&cmake_build_dir).unwrap();
     let cmake_build_type = match params.cfg.build.profile {
         BuildProfile::Debug => "Debug",
@@ -216,7 +225,7 @@ fn generate_man(params: &Params) {
         .unwrap()
         .map(|e| e.unwrap().path())
         .collect();
-    let dst = params.sysroot.join("share/docs");
+    let dst = params.artifacts.join("share/docs");
     fs::create_dir_all(&dst).unwrap();
     fs_extra::copy_items(&src, &dst, &opts).unwrap();
 
@@ -228,44 +237,50 @@ fn env_add(var_name: &str, prepend: &str) -> String {
 }
 
 fn generate_envscript(params: &Params) {
-    print_section("Generate environ activate script");
     use std::fmt::Write;
-    let mut out = String::new();
-    writeln!(out, "export JJS_PATH={}", &params.sysroot.display()).unwrap();
-    writeln!(
-        out,
-        "{}",
-        env_add(
-            "LIBRARY_PATH",
-            &format!("{}/lib", &params.sysroot.display()),
+    print_section("Generate environ activate script");
+    if let Some(install_prefix) = &params.install_prefix {
+        let mut out = String::new();
+        writeln!(out, "export JJS_PATH={}", &install_prefix.display()).unwrap();
+        writeln!(
+            out,
+            "{}",
+            env_add(
+                "LIBRARY_PATH",
+                &format!("{}/lib", &install_prefix.display()),
+            )
         )
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "{}",
-        env_add("PATH", &format!("{}/bin", &params.sysroot.display()))
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "{}",
-        env_add(
-            "CPLUS_INCLUDE_PATH",
-            &format!("{}/include", &params.sysroot.display()),
+        .unwrap();
+        writeln!(
+            out,
+            "{}",
+            env_add("PATH", &format!("{}/bin", &install_prefix.display()))
         )
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "{}",
-        env_add(
-            "CMAKE_PREFIX_PATH",
-            &format!("{}/share/cmake", &params.sysroot.display()),
+        .unwrap();
+        writeln!(
+            out,
+            "{}",
+            env_add(
+                "CPLUS_INCLUDE_PATH",
+                &format!("{}/include", &install_prefix.display()),
+            )
         )
-    )
-    .unwrap();
+        .unwrap();
+        writeln!(
+            out,
+            "{}",
+            env_add(
+                "CMAKE_PREFIX_PATH",
+                &format!("{}/share/cmake", &install_prefix.display()),
+            )
+        )
+        .unwrap();
 
-    let out_file_path = params.sysroot.join("share/env.sh");
-    std::fs::write(&out_file_path, out).unwrap();
+        let out_file_path = params.artifacts.join("share/env.sh");
+        std::fs::write(&out_file_path, out).unwrap();
+    } else {
+        eprintln!(
+            "warning: skipping generating environment vars activation script because --install-prefix missing"
+        );
+    }
 }

@@ -35,10 +35,22 @@ pub struct ComponentsConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    pub prefix: Option<PathBuf>,
-    pub verbose: bool,
+pub struct SystemdConfig {
+    pub install_to_lib_systemd: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackagingConfig {
     pub deb: bool,
+    pub systemd: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub artifacts_dir: Option<PathBuf>,
+    pub install_prefix: Option<PathBuf>,
+    pub verbose: bool,
+    pub packaging: PackagingConfig,
     pub build: BuildConfig,
     pub components: ComponentsConfig,
 }

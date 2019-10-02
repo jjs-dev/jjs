@@ -34,6 +34,7 @@ snafu-derive = "0.5.0"
 atty = "0.2.13"
 base64 = "0.10.1"
 bitflags = "1.2.0"
+util = {path = "../util"}
 
 [features]
 beautiful_backtrace = ["color-backtrace"]

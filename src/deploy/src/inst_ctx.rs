@@ -16,7 +16,7 @@ impl<'ictx> InstallCtx<'ictx> {
     }
 
     fn artifacts(&self) -> &Path {
-        &self.params.sysroot
+        &self.params.artifacts
     }
 
     fn non_arch_out_dir(&self) -> PathBuf {

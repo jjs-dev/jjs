@@ -22,3 +22,4 @@ filetime = "0.2.7"
 tar = "0.4.26"
 serde = { version = "1.0.101", features = ["derive"] }
 shell-escape = "0.1.4"
+tera = "0.11.20"

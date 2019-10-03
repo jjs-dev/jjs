@@ -127,9 +127,6 @@ pub fn package(params: &Params) {
     if params.cfg.components.man {
         generate_man(params);
     }
-    if params.cfg.components.archive {
-        generate_archive(params);
-    }
     if params.cfg.packaging.deb {
         print_section("Generating Debian package");
         deb::create(params);
@@ -138,8 +135,10 @@ pub fn package(params: &Params) {
         print_section("Generating SystemD unit files");
         systemd::build(params);
     }
-
     generate_envscript(params);
+    if params.cfg.components.archive {
+        generate_archive(params);
+    }
 }
 
 fn generate_archive(params: &Params) {

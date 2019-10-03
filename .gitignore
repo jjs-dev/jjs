@@ -7,4 +7,4 @@ cmake-build-*
 /vm-sysroot/sysroot/*
 /vm-sysroot/image/hdd.img
 /vm-sysroot/typescript
-frontend-api/src/schema-gen.json
+src/frontend-api/src/schema-gen.json

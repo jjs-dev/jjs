@@ -1,8 +1,7 @@
-use super::CommandExt;
-use crate::runner::Runner;
 use log::{debug, error, info};
 use std::{path::PathBuf, process::Command};
 use structopt::StructOpt;
+use util::cmd::{CommandExt, Runner};
 
 fn cmake_bin() -> &'static str {
     "cmake"

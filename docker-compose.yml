@@ -1,0 +1,67 @@
+version: '3.7'
+services:
+  db:
+    image: postgres:11
+    environment:
+      POSTGRES_USER: root
+  init-db:
+    image: jjs-tools:dev
+    command:
+      - "jjs-setup"
+      - "--install-dir"
+      - "/opt/jjs"
+      - "--data-dir"
+      - "/var/jjs"
+      - "--setup-config"
+      - "--sample-contest"
+      - "--db-url"
+      - "postgres://db:5432/jjs"
+      - "--force"
+      - "--touch"
+      - "/var/jjs/done.txt"
+    depends_on:
+      - db
+    environment:
+      RUST_LOG: debug
+      JJS_WAIT: tcp://db:5432
+    volumes:
+      - type: 'volume'
+        source: jjs_data
+        target: /var/jjs
+      - /opt/jjs:/opt/jjs:ro
+  frontend:
+    image: jjs-frontend:dev
+    environment:
+      DATABASE_URL: postgres://db:5432/jjs
+      JJS_SYSROOT: /var/jjs
+      JJS_PATH: /
+      JJS_WAIT: file:///var/jjs/done.txt
+      JJS_HOST: "0.0.0.0"
+      RUST_LOG: debug
+    depends_on:
+      - db
+      - init-db
+    volumes:
+      - type: 'volume'
+        source: jjs_data
+        target: /var/jjs
+    ports:
+      - "1779:1779"
+  invoker:
+    image: jjs-invoker:dev
+    privileged: true
+    environment:
+      DATABASE_URL: postgres://db:5432/jjs
+      JJS_SYSROOT: /var/jjs
+      JJS_PATH: /
+      JJS_WAIT: file:///var/jjs/done.txt
+      RUST_LOG: debug
+    depends_on:
+      - db
+      - init-db
+    volumes:
+      - type: 'volume'
+        source: jjs_data
+        target: /var/jjs
+volumes:
+  jjs_data:

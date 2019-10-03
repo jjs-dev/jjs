@@ -11,3 +11,6 @@ Simple utility to setup JJS on current host
 backtrace = "0.3.38"
 fs_extra = "1.1.0"
 structopt = "0.3.2"
+util = {path = "../util"}
+log = "0.4.8"
+url = "2.1.0"

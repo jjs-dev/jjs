@@ -4,7 +4,7 @@ use crate::{
     invoker::CommandInterp,
 };
 use cfg::Config;
-use slog::{debug, Logger};
+use slog_scope::debug;
 use snafu::ResultExt;
 use std::{
     collections::HashMap,
@@ -22,7 +22,6 @@ pub(crate) struct InvokeContext<'a> {
     pub(crate) toolchain_cfg: &'a cfg::Toolchain,
     pub(crate) problem_cfg: &'a cfg::Problem,
     pub(crate) problem_data: &'a pom::Problem,
-    pub(crate) logger: &'a Logger,
     pub(crate) submission_props: &'a crate::SubmissionProps,
 }
 
@@ -144,6 +143,6 @@ impl<'a> InvokeContext<'a> {
     }
 
     pub(crate) fn log_execute_command(&self, command_interp: &CommandInterp) {
-        debug!(self.logger, "executing command"; "command" => ?command_interp);
+        debug!("executing command"; "command" => ?command_interp);
     }
 }

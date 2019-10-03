@@ -6,6 +6,7 @@ mod queries;
 mod runs;
 mod schema;
 mod users;
+use slog_scope::error;
 
 #[derive(Debug)]
 struct ErrorExtension(juniper::Object<juniper::DefaultScalarValue>);
@@ -118,8 +119,7 @@ impl juniper::IntoFieldError for ApiError {
             _ => {
                 if let Some(err) = self.source {
                     let err_msg = err.to_string();
-                    slog::error!(
-                        self.ctx.logger,
+                    error!(
                         "Error when processing api request: {error}",
                         error = &err_msg
                     );

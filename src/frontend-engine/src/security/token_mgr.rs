@@ -19,8 +19,10 @@ pub enum TokenMgrError {
     Db {
         source: db::Error,
     },
-    #[snafu(display("user not exists"))]
-    UserMissing,
+    #[snafu(display("user '{}' not exists", user))]
+    UserMissing {
+        user: String,
+    },
     #[snafu(display("token not provided"))]
     TokenMissing,
     #[snafu(display("token buffer format is invalid"))]
@@ -53,10 +55,12 @@ impl TokenMgr {
 
     // TODO: use custom errors
     pub fn create_token(&self, username: &str) -> Result<Token, TokenMgrError> {
-        let user_data = self
-            .db
-            .user_try_load_by_login(username)?
-            .ok_or(TokenMgrError::UserMissing)?;
+        let user_data =
+            self.db
+                .user_try_load_by_login(username)?
+                .ok_or(TokenMgrError::UserMissing {
+                    user: username.to_string(),
+                })?;
         Ok(Token {
             user_info: UserInfo {
                 name: user_data.username,

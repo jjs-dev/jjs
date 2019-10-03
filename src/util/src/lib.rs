@@ -1,3 +1,7 @@
+pub mod cmd;
+pub mod log;
+pub mod wait;
+
 use std::sync::atomic::AtomicBool;
 
 /// Called by daemon component (e.g. `frontend` and `invoker`), when it is ready to serve
@@ -14,5 +18,15 @@ pub fn daemon_notify_ready() {
         if !success {
             eprintln!("error: unable to notify systemd");
         }
+    }
+}
+
+pub fn daemon_startup_sleep() {
+    if let Ok(duration) = std::env::var("JJS_DEV_SLEEP") {
+        let duration: u8 = duration.parse().expect("invalid sleep duration");
+        let duration = std::time::Duration::from_secs(duration as _);
+        println!("Sleeping for {} seconds", duration.as_secs());
+        std::thread::sleep(duration);
+        println!("sleep done");
     }
 }

@@ -4,6 +4,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+#[derive(Default)]
 pub struct Runner {
     fail_fast: bool,
     had_errors: AtomicBool,
@@ -11,10 +12,7 @@ pub struct Runner {
 
 impl Runner {
     pub fn new() -> Self {
-        Self {
-            fail_fast: false,
-            had_errors: AtomicBool::new(false),
-        }
+        Runner::default()
     }
 
     pub fn set_fail_fast(&mut self, ff: bool) {
@@ -25,7 +23,7 @@ impl Runner {
 impl Runner {
     pub fn exit_if_errors(&self) {
         if self.had_errors.load(Ordering::SeqCst) {
-            eprintln!("Check was not successful: some commands returned non-zero");
+            eprintln!("Action was not successful: some commands returned non-zero");
             exit(1);
         }
     }
@@ -44,6 +42,25 @@ impl Runner {
         if !st.success() {
             error!("child command failed");
             self.error();
+        }
+    }
+}
+
+pub trait CommandExt {
+    fn run_on(&mut self, runner: &Runner);
+
+    fn cargo_color(&mut self);
+}
+
+impl CommandExt for Command {
+    fn run_on(&mut self, runner: &Runner) {
+        runner.exec(self);
+    }
+
+    fn cargo_color(&mut self) {
+        if atty::is(atty::Stream::Stdout) {
+            self.args(&["--color", "always"]);
+            self.env("RUST_LOG_STYLE", "always");
         }
     }
 }

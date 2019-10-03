@@ -14,3 +14,4 @@ db = {path = "../db"}
 dotenv = "0.14.1"
 slog-term = "2.4.1"
 util = {path = "../util"}
+slog-scope = "4.1.2"

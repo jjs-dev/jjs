@@ -14,7 +14,6 @@ mutation Submit($runCode: String!) {
 }
     "#,
         )
-        .user("taiwin")
         .var("runCode", &serde_json::Value::from(code))
         .exec()
         .unwrap_ok();
@@ -99,6 +98,19 @@ fn test_wrong_solution_is_rejected() {
 
 #[test]
 fn test_non_privileged_user_cannot_see_non_their_runs() {
+    util::RequestBuilder::new()
+        .operation(
+            r#"
+mutation CreateUsrs {
+  createUser(login:"cersei", groups: [], password:"") {
+    id
+  }
+}
+            "#,
+        )
+        .exec()
+        .unwrap_ok();
+
     let id = submit(
         r#"
     Can i have CE?

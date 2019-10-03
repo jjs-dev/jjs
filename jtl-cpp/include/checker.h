@@ -5,13 +5,13 @@
 
 namespace checker {
 
-void comment(const char* format, ...) FORMAT_FN(1);
+void comment(const char* format, ...) PRINT_FORMAT_FN(1);
 
-void sol_scanf(const char* format, ...) FORMAT_FN(1);
+void sol_scanf(const char* format, ...) SCAN_FORMAT_FN(1);
 
-void corr_scanf(const char* format, ...) FORMAT_FN(1);
+void corr_scanf(const char* format, ...) SCAN_FORMAT_FN(1);
 
-void test_scanf(const char* format, ...) FORMAT_FN(1);
+void test_scanf(const char* format, ...) SCAN_FORMAT_FN(1);
 
 void check_sol_eof();
 

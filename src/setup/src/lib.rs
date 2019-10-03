@@ -1,4 +1,5 @@
 use std::{fs, path::PathBuf, process, process::Command};
+use util::cmd::{CommandExt, Runner};
 
 pub struct ConfigParams {
     pub symlink: bool,
@@ -87,21 +88,42 @@ fn copy_or_symlink_config(
     Ok(())
 }
 
-fn setup_db(db_params: &DatabaseParams, params: &SetupParams) -> Result<(), SetupError> {
+fn setup_db(
+    db_params: &DatabaseParams,
+    params: &SetupParams,
+    runner: &Runner,
+) -> Result<(), SetupError> {
+    let conn_url = url::Url::parse(&db_params.uri).expect("db connection string is ill-formed");
     let migrate_script_path = params.install_dir.join("share/db-setup.sql");
+    log::info!("Creating DB");
+    let host = conn_url.host().expect("db hostname missing");
+    let port = conn_url.port().unwrap_or(5432);
     {
         Command::new("createdb")
-            .arg("jjs") // TODO: take from params
+            .arg(conn_url.path().trim_start_matches('/')) // TODO: take from params
+            .arg(format!("--host={}", &host))
+            .arg(format!("--port={}", &port))
             .status()?;
     }
-    {
+    let psql = || {
         let mut cmd = Command::new("psql");
-        cmd.arg(format!("--file={}", migrate_script_path.display()));
         cmd.arg(format!("--dbname={}", &db_params.uri));
-        let st = cmd.status()?;
-        if !st.success() {
-            panic!("psql failed");
-        }
+        cmd
+    };
+    log::info!("Running migrations");
+    {
+        let mut cmd = psql();
+        cmd.arg(format!("--file={}", migrate_script_path.display()));
+        cmd.run_on(runner);
+    }
+    log::info!("Creating user");
+    {
+        let mut cmd = Command::new("createuser");
+        cmd.arg("--superuser");
+        cmd.arg(format!("--host={}", &host));
+        cmd.arg(format!("--port={}", &port));
+        cmd.arg("--no-password");
+        cmd.arg("root");
     }
     Ok(())
 }
@@ -130,17 +152,20 @@ fn setup_contest(params: &SetupParams) -> Result<(), SetupError> {
     Ok(())
 }
 
-pub fn setup(params: &SetupParams) -> Result<(), SetupError> {
+pub fn setup(params: &SetupParams, runner: &Runner) -> Result<(), SetupError> {
     std::env::set_var("JJS_PATH", &params.install_dir);
     std::env::set_var("JJS_SYSROOT", &params.data_dir);
     create_dirs(params)?;
     if let Some(conf_params) = &params.config {
+        log::info!("setting up config");
         copy_or_symlink_config(conf_params, params)?;
     }
     if let Some(db_params) = &params.db {
-        setup_db(db_params, params)?;
+        log::info!("setting up DB");
+        setup_db(db_params, params, runner)?;
     }
     if params.sample_contest {
+        log::info!("setting up sample contests");
         setup_contest(params)?;
     }
     Ok(())

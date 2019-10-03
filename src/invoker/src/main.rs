@@ -12,7 +12,7 @@ mod valuer;
 use cfg_if::cfg_if;
 use db::schema::InvocationRequest;
 use invoker::{InvokeContext, Invoker};
-use slog::{debug, error, info, o, Drain, Logger};
+use slog_scope::{debug, error};
 use snafu::ResultExt;
 use std::{
     collections::HashMap,
@@ -165,7 +165,6 @@ fn submission_set_judge_outcome(
 
 struct Server {
     config: cfg::Config,
-    logger: Logger,
     db_conn: Box<dyn db::DbConn>,
     backend: Box<dyn minion::Backend>,
 }
@@ -212,7 +211,7 @@ impl Server {
             match self.process_task(inv_req) {
                 Ok(_) => {}
                 Err(err) => {
-                    error!(self.logger, "Invokation fault"; "submission" => run_id, "message" => %err, "message-detailed" => ?err);
+                    error!("Invokation fault"; "submission" => run_id, "message" => %err, "message-detailed" => ?err);
                 }
             }
         }
@@ -253,14 +252,13 @@ impl Server {
         let invoke_ctx = InvokeContext {
             minion_backend: &*self.backend,
             cfg: &self.config,
-            logger: &self.logger,
             problem_cfg: &request.submission.problem_cfg,
             toolchain_cfg: &request.submission.toolchain_cfg,
             problem_data: &request.submission.problem_data,
             submission_props: &request.submission.props,
         };
         let invoker = Invoker::new(invoke_ctx, request);
-        debug!(self.logger, "Executing invoker request"; "request" => ?request, "submission" => ?request.submission.props.id, "workdir" => ?request.work_dir.path().display());
+        debug!("Executing invoker request"; "request" => ?request, "submission" => ?request.submission.props.id, "workdir" => ?request.work_dir.path().display());
         let status = invoker.invoke().unwrap_or_else(|err| {
             let cause = err
                 .source()
@@ -269,7 +267,7 @@ impl Server {
             let backtrace = snafu::ErrorCompat::backtrace(&err)
                 .map(|bt| bt.to_string())
                 .unwrap_or_else(|| "<not captured>".to_string());
-            error!(self.logger, "Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);
+            error!("Judge fault: {}", err; "backtrace" => backtrace, "cause" => cause);
             let st = invoker_api::Status {
                 kind: invoker_api::StatusKind::InternalError,
                 code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
@@ -280,7 +278,7 @@ impl Server {
             }
         });
 
-        debug!(self.logger, "Judging finished"; "outcome" => ?status, "submission" => ?request.submission.props.id);
+        debug!("Judging finished"; "outcome" => ?status, "submission" => ?request.submission.props.id);
         status
     }
 
@@ -380,13 +378,9 @@ fn main() {
     if atty::is(atty::Stream::Stderr) {
         install_color_backtrace();
     }
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
-
-    let root = Logger::root(drain.fuse(), o!("app"=>"jjs:invoker"));
-
-    info!(root, "starting");
+    util::log::setup();
+    util::daemon_startup_sleep();
+    util::wait::wait();
 
     let config = cfg::get_config();
     let db_conn = match db::connect_env() {
@@ -398,7 +392,7 @@ fn main() {
     };
 
     if check_system() {
-        debug!(root, "system check passed")
+        debug!("system check passed")
     } else {
         return;
     }
@@ -406,7 +400,6 @@ fn main() {
 
     let invoker = Server {
         config,
-        logger: root,
         db_conn,
         backend,
     };

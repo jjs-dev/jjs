@@ -1,6 +1,7 @@
 mod build_ctx;
 pub mod cfg;
 mod deb;
+mod docker;
 mod inst_ctx;
 mod packages;
 mod pkg;
@@ -141,6 +142,11 @@ pub fn package(params: &Params) {
         print_section("Generating SystemD unit files");
         systemd::build(params);
     }
+    if params.cfg.packaging.docker {
+        print_section("Building docker images");
+        docker::build_docker_image(params);
+    }
+
     generate_envscript(params);
     if params.cfg.components.archive {
         generate_archive(params);

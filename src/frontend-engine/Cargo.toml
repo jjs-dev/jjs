@@ -25,6 +25,8 @@ juniper_rocket = "0.5.0"
 backtrace = "0.3.38"
 snafu = "0.5.0"
 ranker = {path = "../ranker"}
+util = {path = "../util"}
+slog-scope = "4.1.2"
 
 [dev-dependencies]
 serde_yaml = "0.8.9"

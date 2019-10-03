@@ -1,7 +1,7 @@
 // this module is responsible for root user authentification strategies
 // it provides tcp service, which provides some platform-specific authentification options
 use crate::FrontendConfig;
-use slog::{error, info, Logger};
+use slog_scope::{error, info};
 use std::{
     mem,
     os::unix::{
@@ -16,7 +16,7 @@ pub struct Config {
     //pub token_provider: Arc<dyn Fn() -> String + Send + Sync>,
 }
 
-fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
+fn handle_conn(fcfg: &FrontendConfig, mut conn: UnixStream) {
     use std::{ffi::c_void, io::Write};
     let conn_handle = conn.as_raw_fd();
     let mut peer_cred: libc::ucred = unsafe { mem::zeroed() };
@@ -39,7 +39,7 @@ fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
             .ok();
         return;
     }
-    info!(logger, "issuing root credentials");
+    info!("issuing root credentials");
     let token = match fcfg.token_mgr.create_root_token() {
         Ok(tok) => fcfg.token_mgr.serialize(&tok),
         Err(err) => {
@@ -52,35 +52,35 @@ fn handle_conn(logger: &Logger, fcfg: &FrontendConfig, mut conn: UnixStream) {
     conn.write_all(message.as_bytes()).ok();
 }
 
-fn server_loop(logger: Logger, sock: UnixListener, fcfg: FrontendConfig) {
-    info!(logger, "starting unix local root login service");
+fn server_loop(sock: UnixListener, fcfg: FrontendConfig) {
+    info!("starting unix local root login service");
     for conn in sock.incoming() {
         if let Ok(conn) = conn {
-            handle_conn(&logger, &fcfg, conn)
+            handle_conn(&fcfg, conn)
         }
     }
 }
 
-fn do_start(logger: Logger, cfg: Config, fcfg: &FrontendConfig) {
-    info!(logger, "binding login server at {}", &cfg.socket_path);
+fn do_start(cfg: Config, fcfg: &FrontendConfig) {
+    info!("binding login server at {}", &cfg.socket_path);
     let listener = match UnixListener::bind(&cfg.socket_path) {
         Ok(l) => l,
         Err(err) => {
-            error!(logger, "couldn't bind unix socket server due to {:?}",  err; "err" => ?err);
+            error!("couldn't bind unix socket server due to {:?}",  err; "err" => ?err);
             return;
         }
     };
     let fcfg = fcfg.clone();
     std::thread::spawn(move || {
-        server_loop(logger, listener, fcfg);
+        server_loop(listener, fcfg);
     });
 }
 
 pub struct LocalAuthServer {}
 
 impl LocalAuthServer {
-    pub fn start(logger: Logger, cfg: Config, fcfg: &FrontendConfig) -> Self {
-        do_start(logger, cfg, fcfg);
+    pub fn start(cfg: Config, fcfg: &FrontendConfig) -> Self {
+        do_start(cfg, fcfg);
         LocalAuthServer {}
     }
 }

@@ -1,11 +1,10 @@
 mod check;
-mod runner;
 mod tests;
 
-use crate::runner::Runner;
 use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
 use tests::{task_test, TestArgs};
+use util::cmd::{CommandExt, Runner};
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -19,25 +18,6 @@ enum CliArgs {
     Build,
     /// remove target files, related to JJS. This should prevent cache invalidation
     CiClean,
-}
-
-trait CommandExt {
-    fn run_on(&mut self, runner: &Runner);
-
-    fn cargo_color(&mut self);
-}
-
-impl CommandExt for Command {
-    fn run_on(&mut self, runner: &Runner) {
-        runner.exec(self);
-    }
-
-    fn cargo_color(&mut self) {
-        if atty::is(atty::Stream::Stdout) {
-            self.args(&["--color", "always"]);
-            self.env("RUST_LOG_STYLE", "always");
-        }
-    }
 }
 
 fn task_clean() {
@@ -112,6 +92,7 @@ fn task_build(runner: &Runner) {
     Command::new("../configure")
         .current_dir("target")
         .args(&["--out", "/opt/jjs"])
+        .args(&["--enable-docker", "--docker-tag", "jjs-%:dev"])
         .run_on(runner);
 
     Command::new("make").current_dir("target").run_on(runner);

@@ -1,10 +1,13 @@
 [package]
-name = "init-jjs-root"
+name = "setup"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
+description = """
+Simple utility to setup JJS on current host
+"""
 
 [dependencies]
+backtrace = "0.3.38"
 fs_extra = "1.1.0"
 structopt = "0.3.2"
-backtrace = "0.3.38"

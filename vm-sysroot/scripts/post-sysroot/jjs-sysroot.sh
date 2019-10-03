@@ -3,18 +3,16 @@ ORIG_CWD="$(pwd)"
 
 sudo mkdir -p "$SYSROOT/var/lib/jjs"
 sudo chown "$(whoami):$(whoami)" "$SYSROOT/var/lib/jjs"
-cd ../init-jjs-root || exit 1
-cargo run -- "$SYSROOT/var/lib/jjs" ../pkg/ar_data/example-config
+cargo run -p setup -- --data-dir "$SYSROOT/var/lib/jjs" --install-dir ../pkg/ar_data/ --setup-config
 
 sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
-cd ../ppc || exit 1
 # shellcheck disable=SC2012
 if [ -d "$ORIG_CWD/problems" ] && ! ls "$ORIG_CWD/problems" | cmp - /dev/null 2>/dev/null
 then for i in "$ORIG_CWD"/problems/*
 do
     out="$SYSROOT/var/lib/jjs/var/problems/$(basename "$i")"
     mkdir "$out"
-    CMAKE_PREFIX_PATH="$ORIG_CWD/../pkg/ar_data/share/cmake"  CPLUS_INCLUDE_PATH="$ORIG_CWD/../pkg/ar_data/include" LIBRARY_PATH="$ORIG_CWD/../pkg/ar_data/lib" JJS_PATH="$ORIG_CWD/../pkg/ar_data" cargo run -- compile --pkg "$i" --out "$out"
+    CMAKE_PREFIX_PATH="$ORIG_CWD/../pkg/ar_data/share/cmake"  CPLUS_INCLUDE_PATH="$ORIG_CWD/../pkg/ar_data/include" LIBRARY_PATH="$ORIG_CWD/../pkg/ar_data/lib" JJS_PATH="$ORIG_CWD/../pkg/ar_data" cargo run -p ppc -- compile --pkg "$i" --out "$out"
     out=
 done
 fi

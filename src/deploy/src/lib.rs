@@ -39,7 +39,7 @@ fn create_registry() -> Registry {
 
     add_bin("cleanup", "jjs-cleanup", PackageComponentKind::Tools);
     add_bin("envck", "jjs-env-check", PackageComponentKind::Tools);
-    add_bin("init-jjs-root", "jjs-mkroot", PackageComponentKind::Tools);
+    add_bin("setup", "jjs-setup", PackageComponentKind::Tools);
     add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools);
     add_bin("frontend", "jjs-frontend", PackageComponentKind::Core);
     add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
@@ -114,6 +114,12 @@ fn build_jjs_components(params: &Params) {
     fs_extra::dir::copy(
         proj_root.join("example-config"),
         pkg_dir.join("example-config"),
+        &opts,
+    )
+    .unwrap();
+    fs_extra::dir::copy(
+        proj_root.join("example-problems"),
+        pkg_dir.join("example-problems"),
         &opts,
     )
     .unwrap();

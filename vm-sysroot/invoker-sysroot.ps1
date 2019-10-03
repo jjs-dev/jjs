@@ -18,7 +18,7 @@ function Invoke-StraceLog {
         [String]$LogPath
     )
     $StraceJSON = "$Prefix-str.json"
-    Get-Content -Path $Strace | python3 $PSScriptRoot/../soft/strace-parser.py > $StraceJSON
+    Get-Content -Path $Strace | python3 $PSScriptRoot/../src/soft/strace-parser.py > $StraceJSON
     $FileList = "$Prefix-list.json"
     cargo run "--package" soft -- "--data" $StraceJSON "--format" json "--dest" $FileList "--skip" "/dev" "--skip" "/home"
     $Files = Get-Content $FileList | ConvertFrom-Json

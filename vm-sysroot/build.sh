@@ -22,7 +22,7 @@ EOF
 exit 1
 fi
 
-bash -c 'cd ../soft; cargo build'
+bash -c 'cd ..; cargo build -p soft'
 bash -c 'cd ..; rm -rf pkg; mkdir -p pkg; cd pkg; tar -xvf ../target/jjs.tgz; mv jjs ar_data'
 
 SYSROOT="$1"
@@ -41,7 +41,7 @@ sudo rm -rf "$SYSROOT" 2>&1
 sudo mkdir "$SYSROOT" || exit 1
 
 for i in scripts/sysroot/*
-do bash "$i"
+do bash -x "$i"
 done | sort | uniq | tee /dev/stderr | while read -r path
 do
     sudo mkdir -p "$SYSROOT/$path"

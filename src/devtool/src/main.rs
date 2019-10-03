@@ -112,7 +112,6 @@ fn task_build(runner: &Runner) {
     Command::new("../configure")
         .current_dir("target")
         .args(&["--out", "/opt/jjs"])
-        .args(&["--disable-core", "--disable-tools", "--disable-testlib"])
         .run_on(runner);
 
     Command::new("make").current_dir("target").run_on(runner);

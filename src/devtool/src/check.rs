@@ -5,11 +5,7 @@ use std::{path::PathBuf, process::Command};
 use structopt::StructOpt;
 
 fn cmake_bin() -> &'static str {
-    if crate::ci() {
-        "/opt/cmake/bin/cmake"
-    } else {
-        "cmake"
-    }
+    "cmake"
 }
 
 fn rustfmt(runner: &Runner) {

@@ -139,7 +139,3 @@ fn main() {
     runner.exit_if_errors();
     eprintln!("OK");
 }
-
-fn ci() -> bool {
-    std::env::var("TRAVIS_RUST_VERSION").is_ok()
-}

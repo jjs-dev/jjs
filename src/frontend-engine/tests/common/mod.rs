@@ -28,10 +28,14 @@ impl EnvBuilder {
         std::fs::remove_dir_all(&path).ok();
         std::fs::create_dir(&path).expect("failed create dir for sysroot");
 
-        init_jjs_root::init_jjs_root(init_jjs_root::Args {
-            sysroot_dir: path.clone(),
-            config_dir: None,
-            symlink_config: false,
+        setup::setup(&setup::SetupParams {
+            data_dir: path.clone().into(),
+            config: None,
+            db: None,
+            // dummy value can be used because we don't setup db
+            install_dir: PathBuf::new(),
+            force: false,
+            sample_contest: false,
         })
         .expect("failed initialize JJS sysroot");
 

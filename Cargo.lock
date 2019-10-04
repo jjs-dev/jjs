@@ -873,7 +873,6 @@ dependencies = [
  "constant_time_eq 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "db 0.1.0",
  "digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "init-jjs-root 0.1.0",
  "juniper 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "juniper_rocket 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -884,6 +883,7 @@ dependencies = [
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_yaml 0.8.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "setup 0.1.0",
  "sha3 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog 2.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "snafu 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1244,15 +1244,6 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "init-jjs-root"
-version = "0.1.0"
-dependencies = [
- "backtrace 0.3.38 (registry+https://github.com/rust-lang/crates.io-index)",
- "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "structopt 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2512,6 +2503,15 @@ dependencies = [
  "linked-hash-map 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "yaml-rust 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "setup"
+version = "0.1.0"
+dependencies = [
+ "backtrace 0.3.38 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "structopt 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

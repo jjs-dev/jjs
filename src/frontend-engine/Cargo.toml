@@ -29,4 +29,4 @@ ranker = {path = "../ranker"}
 [dev-dependencies]
 serde_yaml = "0.8.9"
 toml = "0.5.3"
-init-jjs-root = {path = "../init-jjs-root"}
+setup = {path = "../setup"}

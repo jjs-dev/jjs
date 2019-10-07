@@ -80,8 +80,15 @@ fn generate_make_script(src: &str, build: &str) {
         .to_str()
         .unwrap()
         .to_string();
+    let deps_script_path = format!("{}/src/deploy/deps.sh", &src);
+    let full_deps_script_path = std::fs::canonicalize(&deps_script_path)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let makefile = MAKEFILE_TPL
         .replace("___SCRIPT_PATH___", &full_script_path)
+        .replace("___DEPS_SCRIPT_PATH___", &full_deps_script_path)
         .replace("    ", "\t");
     let makefile_path = format!("{}/Makefile", &build);
     std::fs::write(&makefile_path, makefile).unwrap();

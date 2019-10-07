@@ -1,9 +1,9 @@
-use slog::{error, Logger};
+use slog_scope::{error, info};
 use std::process::exit;
 
 use frontend_engine::FrontendConfig;
 
-fn launch_api(frcfg: FrontendConfig, logger: Logger, config: cfg::Config) {
+fn launch_api(frcfg: FrontendConfig, config: cfg::Config) {
     let pool = match db::connect_env() {
         Ok(p) => p,
         Err(e) => {
@@ -12,35 +12,29 @@ fn launch_api(frcfg: FrontendConfig, logger: Logger, config: cfg::Config) {
         }
     };
 
-    let launch_err =
-        frontend_engine::ApiServer::create(frcfg, logger.clone(), &config, pool.into()).launch();
+    let launch_err = frontend_engine::ApiServer::create(frcfg, &config, pool.into()).launch();
 
-    error!(logger, "launch error: {}", launch_err);
+    error!("launch error: {}", launch_err);
     exit(1)
 }
 
-fn launch_root_login_server(logger: &slog::Logger, fcfg: FrontendConfig) {
+fn launch_root_login_server(fcfg: FrontendConfig) {
     let cfg = frontend_engine::root_auth::Config {
         socket_path: String::from("/tmp/jjs-auth-sock"), /* TODO dehardcode */
     };
-    let sublogger = logger.new(slog::o!("app" => "jjs:frontend:localauth"));
-    frontend_engine::root_auth::LocalAuthServer::start(sublogger, cfg.clone(), &fcfg);
+    frontend_engine::root_auth::LocalAuthServer::start(cfg.clone(), &fcfg);
 }
 
 fn main() {
-    use slog::Drain;
     dotenv::dotenv().ok();
+    util::daemon_startup_sleep();
+    util::log::setup();
+    util::wait::wait();
     let frontend_cfg = frontend_engine::config::FrontendConfig::obtain();
     let cfg = cfg::get_config();
+    info!("starting frontend");
 
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
-
-    let logger = slog::Logger::root(drain, slog::o!("app" => "jjs:frontend"));
-    slog::info!(logger, "starting frontend");
-
-    launch_root_login_server(&logger, frontend_cfg.clone());
+    launch_root_login_server(frontend_cfg.clone());
     util::daemon_notify_ready();
-    launch_api(frontend_cfg, logger, cfg);
+    launch_api(frontend_cfg, cfg);
 }

@@ -1,6 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 use rocket::{catch, catchers, get, post, routes, Rocket};
+use slog_scope::debug;
 
 pub mod config;
 mod gql_server;
@@ -15,7 +16,6 @@ use security::TokenMgrError;
 
 use gql_server::Context;
 use rocket::{fairing::AdHoc, State};
-use slog::Logger;
 use std::sync::Arc;
 
 type DbPool = Arc<dyn db::DbConn>;
@@ -62,7 +62,7 @@ fn execute_request(
 
             let res = JuniperResponseDebug(res);
 
-            slog::debug!(ctx.logger, "API request"; "request" => ?req, "response" => ?res);
+            debug!("API request"; "request" => ?req, "response" => ?res);
 
             Ok(res.0)
         }
@@ -126,7 +126,6 @@ impl ApiServer {
             contests: vec![],
             problems: Default::default(),
         };
-        let logger = slog::Logger::root(slog::Discard, slog::o!());
         let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE")
             .into_boxed_slice()
             .into();
@@ -140,7 +139,7 @@ impl ApiServer {
             db_conn: db_conn.clone(),
         };
 
-        Self::create(frontend_config, logger, &config, db_conn)
+        Self::create(frontend_config, &config, db_conn)
     }
 
     pub fn get_schema() -> String {
@@ -150,7 +149,6 @@ impl ApiServer {
 
     pub fn create(
         frontend_config: config::FrontendConfig,
-        logger: Logger,
         config: &cfg::Config,
         pool: DbPool,
     ) -> Rocket {
@@ -175,7 +173,6 @@ impl ApiServer {
         let graphql_context_factory = gql_server::ContextFactory {
             pool: Arc::clone(&pool),
             cfg: std::sync::Arc::new(config.clone()),
-            logger,
         };
 
         let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);

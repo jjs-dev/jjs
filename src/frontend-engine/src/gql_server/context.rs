@@ -8,7 +8,6 @@ pub(crate) struct ContextData {
     pub(crate) db: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
     pub(crate) env: crate::config::Env,
-    pub(crate) logger: slog::Logger,
     pub(crate) token_mgr: TokenMgr,
     pub(crate) token: Token,
 }
@@ -76,7 +75,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
             env: *env,
-            logger: factory.logger.clone(),
             token_mgr,
             token,
         })
@@ -98,7 +96,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
 pub(crate) struct ContextFactory {
     pub(crate) pool: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
-    pub(crate) logger: slog::Logger,
 }
 
 impl ContextFactory {
@@ -114,7 +111,6 @@ impl ContextFactory {
             db: self.pool.clone(),
             cfg: self.cfg.clone(),
             env: crate::config::Env::Dev,
-            logger: self.logger.clone(),
             token_mgr,
             token,
         }

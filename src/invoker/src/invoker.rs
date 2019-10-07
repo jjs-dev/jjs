@@ -13,7 +13,7 @@ use crate::{
 };
 use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
-use slog::{debug, error};
+use slog_scope::{debug, error};
 use snafu::Snafu;
 use std::{collections::HashMap, ffi::OsString, path::PathBuf};
 
@@ -260,7 +260,7 @@ impl<'a> Invoker<'a> {
         );
 
         if !self.req.submission.root_dir.exists() {
-            error!(self.ctx.logger, "Submission root dir not exists"; "submission" => self.req.submission.props.id);
+            error!("Submission root dir not exists"; "submission" => self.req.submission.props.id);
             return Err(Error::BadConfig {
                 backtrace: Default::default(),
                 inner: Box::new(err::StringError(
@@ -306,17 +306,13 @@ impl<'a> Invoker<'a> {
         self.update_judge_log(&mut judge_log)?;
 
         let judge_log_path = self.req.work_dir.path().join("log.json");
-        debug!(
-            self.ctx.logger,
-            "Writing judging log to {}",
-            judge_log_path.display()
-        );
+        debug!("Writing judging log to {}", judge_log_path.display());
         let judge_log_file = std::fs::File::create(&judge_log_path)?;
         let judge_log_file = std::io::BufWriter::new(judge_log_file);
         serde_json::to_writer(judge_log_file, &judge_log)
             .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
         let outcome = outcome.unwrap_or_else(|| unreachable!());
-        debug!(self.ctx.logger, "Invokation finished"; "status" => ?outcome.status);
+        debug!("Invokation finished"; "status" => ?outcome.status);
 
         Ok(outcome)
     }

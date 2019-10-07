@@ -75,7 +75,7 @@ struct ValuerCallbacks {
 
 void run_valuer(ValuerCallbacks callbacks);
 
-void comment_public(const char* format, ...) FORMAT_FN(1);
+void comment_public(const char* format, ...) PRINT_FORMAT_FN(1);
 
-void comment_private(const char* format, ...) FORMAT_FN(1);
+void comment_private(const char* format, ...) PRINT_FORMAT_FN(1);
 }

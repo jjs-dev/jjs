@@ -43,6 +43,7 @@ pub struct SystemdConfig {
 pub struct PackagingConfig {
     pub deb: bool,
     pub systemd: bool,
+    pub docker: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,4 +54,5 @@ pub struct Config {
     pub packaging: PackagingConfig,
     pub build: BuildConfig,
     pub components: ComponentsConfig,
+    pub docker_tag: Option<String>,
 }

@@ -25,10 +25,10 @@ struct Opt {
     #[structopt(long = "enable-archive")]
     archive: bool,
     /// Cargo path
-    #[structopt(long = "with-cargo", env = "CARGO")]
+    #[structopt(long, env = "CARGO")]
     cargo: Option<String>,
     /// CMake path
-    #[structopt(long = "with-cmake", env = "CMAKE")]
+    #[structopt(long, env = "CMAKE")]
     cmake: Option<String>,
     /// Target triple
     #[structopt(long = "target", short = "T")]
@@ -57,6 +57,12 @@ struct Opt {
     /// By default, same as prefix.
     #[structopt(long)]
     install_prefix: Option<PathBuf>,
+    /// Build docker images
+    #[structopt(long = "enable-docker")]
+    docker: bool,
+    /// Docker image tag
+    #[structopt(long)]
+    docker_tag: Option<String>,
 }
 
 static MAKE_SCRIPT_TPL: &str = include_str!("../make-tpl.sh");
@@ -140,6 +146,13 @@ fn main() {
         .to_string();
     check_build_dir(&jjs_path, &build_dir_path);
     let opt: Opt = Opt::from_args();
+
+    if let Some(tag) = &opt.docker_tag {
+        if !tag.contains('%') {
+            eprintln!("warning: --docker-tag is not tag template. Only last image will be tagged");
+        }
+    }
+
     let tool_info = cfg::ToolInfo {
         cargo: opt
             .cargo
@@ -178,6 +191,7 @@ fn main() {
     let packaging = cfg::PackagingConfig {
         deb: opt.deb,
         systemd: opt.systemd,
+        docker: opt.docker,
     };
     let config = cfg::Config {
         artifacts_dir: opt.out_dir.clone(),
@@ -186,6 +200,7 @@ fn main() {
         build: build_config,
         components: comps_config,
         install_prefix: opt.install_prefix.clone().or_else(|| opt.out_dir.clone()),
+        docker_tag: opt.docker_tag,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Emitting JJS build config: {}", &manifest_path);

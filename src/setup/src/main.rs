@@ -22,10 +22,15 @@ pub struct Opts {
     /// Force mode: ignore some errors
     #[structopt(long)]
     force: bool,
+    /// Touch file on success
+    #[structopt(long)]
+    touch: Option<PathBuf>,
 }
 
 fn main() {
     let opts: Opts = Opts::from_args();
+    util::log::setup();
+    util::wait::wait();
     let params = setup::SetupParams {
         data_dir: opts.data_dir,
         install_dir: opts.install_dir,
@@ -44,9 +49,14 @@ fn main() {
         sample_contest: opts.sample_contest,
         force: opts.force,
     };
-    if let Err(e) = setup::setup(&params) {
+    let runner = util::cmd::Runner::new();
+    if let Err(e) = setup::setup(&params, &runner) {
         eprintln!("error: {}", e.source);
         eprintln!("at: {:?}", e.backtrace);
         std::process::exit(1);
+    }
+    runner.exit_if_errors();
+    if let Some(touch) = &opts.touch {
+        std::fs::File::create(touch).ok();
     }
 }

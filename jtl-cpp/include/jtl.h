@@ -4,9 +4,11 @@
 #include "testgen.h"
 
 #ifdef __GNUC__
-#define FORMAT_FN(x) __attribute__ (( format( printf, x, x+1 ) ))
+#define SCAN_FORMAT_FN(x) __attribute__ (( format( scanf, x, x+1 ) ))
+#define PRINT_FORMAT_FN(x) __attribute__ (( format( printf, x, x+1 ) ))
 #else
-#define FORMAT_FN(x)
+#define SCAN_FORMAT_FN(x)
+#define PRINT_FORMAT_FN(x)
 #endif
 
 #ifdef __GNUC__

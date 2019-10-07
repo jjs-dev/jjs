@@ -60,7 +60,8 @@ impl<'a> ProblemBuilder<'a> {
         match self.build_backend.process_task(task) {
             Ok(cmd) => cmd.command,
             Err(err) => {
-                eprintln!("Build error: {}", err);
+                eprintln!("Build error: unable to run build task: {}", err);
+                eprintln!("Build task: {:#?}", task);
                 exit(1);
             }
         }

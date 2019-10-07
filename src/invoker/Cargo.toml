@@ -35,6 +35,7 @@ atty = "0.2.13"
 base64 = "0.10.1"
 bitflags = "1.2.0"
 util = {path = "../util"}
+slog-scope = "4.1.2"
 
 [features]
 beautiful_backtrace = ["color-backtrace"]

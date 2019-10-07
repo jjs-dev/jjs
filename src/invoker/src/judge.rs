@@ -7,6 +7,7 @@ use crate::{
     os_util, Error,
 };
 use invoker_api::{status_codes, Status, StatusKind};
+use slog_scope::error;
 use snafu::ResultExt;
 use std::{fs, io::Write, path::PathBuf, time::Duration};
 
@@ -163,20 +164,20 @@ impl<'a> Judge<'a> {
 
         let st = st.unwrap_or(false);
         if !st {
-            slog::error!(self.ctx.logger, "Judge fault: checker returned non-zero");
+            error!("Judge fault: checker returned non-zero");
             return return_value_for_judge_fault;
         }
         let checker_out = match String::from_utf8(os_util::handle_read_all(out_judge_side)) {
             Ok(c) => c,
             Err(_) => {
-                slog::error!(self.ctx.logger, "checker produced non-utf8 output");
+                error!("checker produced non-utf8 output");
                 return return_value_for_judge_fault;
             }
         };
         let parsed_out = match checker_proto::parse(&checker_out) {
             Ok(o) => o,
             Err(err) => {
-                slog::error!(self.ctx.logger, "checker output couldn't be parsed"; "error" => ? err);
+                error!( "checker output couldn't be parsed"; "error" => ? err);
                 return return_value_for_judge_fault;
             }
         };

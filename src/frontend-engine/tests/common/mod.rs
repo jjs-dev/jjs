@@ -19,6 +19,7 @@ impl EnvBuilder {
     }
 
     pub fn build(&self, name: &str) -> Env {
+        util::log::setup();
         // TODO partially duplicates ApiServer::create_embedded()
         let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
 
@@ -28,16 +29,23 @@ impl EnvBuilder {
         std::fs::remove_dir_all(&path).ok();
         std::fs::create_dir(&path).expect("failed create dir for sysroot");
 
-        setup::setup(&setup::SetupParams {
-            data_dir: path.clone().into(),
-            config: None,
-            db: None,
-            // dummy value can be used because we don't setup db
-            install_dir: PathBuf::new(),
-            force: false,
-            sample_contest: false,
-        })
+        let runner = util::cmd::Runner::new();
+
+        setup::setup(
+            &setup::SetupParams {
+                data_dir: path.clone().into(),
+                config: None,
+                db: None,
+                // dummy value can be used because we don't setup db
+                install_dir: PathBuf::new(),
+                force: false,
+                sample_contest: false,
+            },
+            &runner,
+        )
         .expect("failed initialize JJS sysroot");
+
+        runner.exit_if_errors();
 
         let contest = cfg::Contest {
             title: "DEV CONTEST".to_string(),
@@ -65,7 +73,6 @@ impl EnvBuilder {
             contests: vec![contest],
             problems: Default::default(),
         };
-        let logger = slog::Logger::root(slog::Discard, slog::o!());
         let secret = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE");
         let frontend_config = config::FrontendConfig {
             port: 0,
@@ -76,7 +83,7 @@ impl EnvBuilder {
             token_mgr: frontend_engine::security::TokenMgr::new(db_conn.clone(), secret.into()),
         };
 
-        let rock = ApiServer::create(frontend_config, logger, &config, db_conn);
+        let rock = ApiServer::create(frontend_config, &config, db_conn);
         Env {
             client: rocket::local::Client::new(rock).unwrap(),
         }

@@ -1,6 +1,6 @@
-use crate::{CommandExt, Runner};
 use std::process::Command;
 use structopt::StructOpt;
+use util::cmd::{CommandExt, Runner};
 
 #[derive(StructOpt)]
 pub(crate) struct TestArgs {
@@ -16,7 +16,7 @@ fn run_integ_test(runner: &Runner) {
     println!("Running integration tests");
     // TODO: hacky. Probably it can be done better.
     let out = Command::new("cargo")
-        .current_dir("all")
+        .current_dir("src/all")
         .args(&["test"])
         .arg("--")
         .arg("--list")
@@ -35,7 +35,7 @@ fn run_integ_test(runner: &Runner) {
                 .trim_end_matches(':');
             println!("Running: {}", test_name);
             Command::new("cargo")
-                .current_dir("all")
+                .current_dir("src/all")
                 .args(&["test", test_name])
                 .run_on(runner);
             cnt_tests += 1;

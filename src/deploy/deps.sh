@@ -20,6 +20,3 @@ then $sudo $apt update
 # shellcheck disable=SC2086
 $sudo $apt install $packages
 fi
-
-cargo install cbindgen -Z install-upgrade
-cargo install mdbook -Z install-upgrade

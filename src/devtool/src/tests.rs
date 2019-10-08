@@ -10,6 +10,8 @@ pub(crate) struct TestArgs {
     integration_tests: bool,
     #[structopt(long)]
     pub(crate) fail_fast: bool,
+    #[structopt(long)]
+    skip_unit: bool,
 }
 
 fn run_integ_test(runner: &Runner) {
@@ -44,17 +46,22 @@ fn run_integ_test(runner: &Runner) {
     println!("{} integration tests runned", cnt_tests);
 }
 
-pub(crate) fn task_test(args: TestArgs, runner: &Runner) {
+fn run_unit_tests(args: &TestArgs, runner: &Runner) {
     let mut cmd = Command::new("cargo");
     cmd.args(&["test"]);
     cmd.arg("--workspace");
     cmd.args(&["--exclude", "all"]);
-
     if args.verbose {
         cmd.args(&["--", "--nocapture"]);
+    }
+    cmd.run_on(runner);
+}
+
+pub(crate) fn task_test(args: TestArgs, runner: &Runner) {
+    if !args.skip_unit {
+        run_unit_tests(&args, runner);
     }
     if args.integration_tests {
         run_integ_test(runner);
     }
-    cmd.run_on(runner);
 }

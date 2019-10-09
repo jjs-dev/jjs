@@ -1,0 +1,107 @@
+name: "ci"
+on:
+  pull_request: {}
+  push:
+    branches-ignore:
+      - staging.tmp
+      - trying.tmp
+env:
+  CI: 1
+jobs:
+  check:
+    name: check
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: install global dependencies
+        run: bash scripts/ci-env.sh
+        env:
+          SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
+      - name: debug
+        run: echo $(which cmake)
+      - name: cargo jjs-check
+        run: cargo jjs-check
+        env:
+          SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
+
+
+  unit-tests:
+    name: unit-tests
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: install global dependencies
+        run: bash scripts/ci-env.sh
+      - name: cargo jjs-test
+        run: cargo jjs-test
+
+  build:
+    name: build
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: install global dependencies
+        run: |
+          bash scripts/ci-env.sh
+          cargo install mdbook -Z install-upgrade
+      - name: cargo jjs-build
+        run: cargo jjs-build
+      - name: upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: dist.tgz
+          path: target/jjs.tgz
+      - name: upload docker images
+        run: |
+          docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
+          docker tag jjs-frontend:dev docker.pkg.github.com/mikailbag/jjs/frontend:dev
+          docker push docker.pkg.github.com/mikailbag/jjs/frontend:dev
+          docker tag jjs-invoker:dev docker.pkg.github.com/mikailbag/jjs/invoker:dev
+          docker push docker.pkg.github.com/mikailbag/jjs/invoker:dev
+          docker tag jjs-tools:dev docker.pkg.github.com/mikailbag/jjs/tools:dev
+          docker push docker.pkg.github.com/mikailbag/jjs/tools:dev
+  e2e:
+    name: e2e
+    runs-on: 'ubuntu-18.04'
+    needs: build
+    if: false # TODO
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: download jjs artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: dist.tgz
+          path: /opt/jjs
+      - name: launch jjs
+        run: docker-compose up --detach
+      - name: run tests
+        run: cargo jjs-test --integration-tests --skip-unit
+      - name: collect logs
+        if: always()
+        run: docker-compose logs > logs.txt
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: docker-compose-logs.txt
+          path: ./logs.txtvjc

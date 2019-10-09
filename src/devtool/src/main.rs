@@ -89,11 +89,15 @@ fn task_ci_clean() {
 
 fn task_build(runner: &Runner) {
     std::fs::File::create("./target/.jjsbuild").unwrap();
-    Command::new("../configure")
-        .current_dir("target")
-        .args(&["--out", "/opt/jjs"])
-        .args(&["--enable-docker", "--docker-tag", "jjs-%:dev"])
-        .run_on(runner);
+    let mut cmd = Command::new("../configure");
+    cmd.current_dir("target");
+    cmd.args(&["--out", "/opt/jjs"]);
+    // useful for easily starting up & shutting down
+    // required for docker compose
+    cmd.args(&["--enable-docker", "--docker-tag", "jjs-%:dev"]);
+    // used in CI
+    cmd.arg("--enable-archive");
+    cmd.run_on(runner);
 
     Command::new("make").current_dir("target").run_on(runner);
 }

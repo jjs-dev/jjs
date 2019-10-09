@@ -1,10 +1,11 @@
+mod build;
 mod check;
 mod tests;
 
-use std::{env::set_current_dir, path::Path, process::Command};
+use std::{env::set_current_dir, path::Path};
 use structopt::StructOpt;
 use tests::{task_test, TestArgs};
-use util::cmd::{CommandExt, Runner};
+use util::cmd::Runner;
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -15,7 +16,7 @@ enum CliArgs {
     /// Clean all build files except Cargo's
     Clean,
     /// Perform build & install
-    Build,
+    Build(build::RawBuildOpts),
     /// remove target files, related to JJS. This should prevent cache invalidation
     CiClean,
 }
@@ -87,21 +88,6 @@ fn task_ci_clean() {
     process_dir(Path::new("target/debug/incremental"));
 }
 
-fn task_build(runner: &Runner) {
-    std::fs::File::create("./target/.jjsbuild").unwrap();
-    let mut cmd = Command::new("../configure");
-    cmd.current_dir("target");
-    cmd.args(&["--out", "/opt/jjs"]);
-    // useful for easily starting up & shutting down
-    // required for docker compose
-    cmd.args(&["--enable-docker", "--docker-tag", "jjs-%:dev"]);
-    // used in CI
-    cmd.arg("--enable-archive");
-    cmd.run_on(runner);
-
-    Command::new("make").current_dir("target").run_on(runner);
-}
-
 fn main() {
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).unwrap();
@@ -118,7 +104,7 @@ fn main() {
         }
         CliArgs::Clean => task_clean(),
         CliArgs::CiClean => task_ci_clean(),
-        CliArgs::Build => task_build(&runner),
+        CliArgs::Build(opts) => build::task_build(opts, &runner),
     }
     runner.exit_if_errors();
     eprintln!("OK");

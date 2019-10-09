@@ -37,24 +37,27 @@ impl Runner {
         }
     }
 
-    pub fn exec(&self, cmd: &mut Command) {
+    pub fn exec(&self, cmd: &mut Command) -> bool {
         let st = cmd.status().unwrap();
-        if !st.success() {
+        if st.success() {
+            true
+        } else {
             error!("child command failed");
             self.error();
+            false
         }
     }
 }
 
 pub trait CommandExt {
-    fn run_on(&mut self, runner: &Runner);
+    fn run_on(&mut self, runner: &Runner) -> bool;
 
     fn cargo_color(&mut self);
 }
 
 impl CommandExt for Command {
-    fn run_on(&mut self, runner: &Runner) {
-        runner.exec(self);
+    fn run_on(&mut self, runner: &Runner) -> bool {
+        runner.exec(self)
     }
 
     fn cargo_color(&mut self) {

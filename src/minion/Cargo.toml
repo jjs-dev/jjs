@@ -10,11 +10,11 @@ errno= "0.2.4"
 rand = "0.7.2"
 cfg-if = "0.1.10"
 serde = { version = "1.0.101", features = ["derive"] }
-serde_json = "1.0.40"
+serde_json = "1.0.41"
 tiny-nix-ipc = { git = "https://github.com/mikailbag/tiny-nix-ipc", rev = "bfd29b8b05098c132dd30cd1c7909377e88cb789", features = ["ser_json"] }
-procfs = "0.5.3"
+procfs = "0.5.4"
 nix = "0.15.0"
-downcast-rs = "1.0.4"
+downcast-rs = "1.1.0"
 snafu = { version = "0.5.0", features = ["rust_1_30"] }
 base64 = "0.10.1"
 backtrace = "0.3.38"

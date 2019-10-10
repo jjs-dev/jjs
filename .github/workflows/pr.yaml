@@ -2,9 +2,9 @@ name: "ci"
 on:
   pull_request: {}
   push:
-    branches-ignore:
-      - staging.tmp
-      - trying.tmp
+    branches:
+      - staging
+      - trying
 env:
   CI: 1
   RUST_BACKTRACE: full
@@ -25,8 +25,6 @@ jobs:
           SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
           PVS_NAME: ${{ secrets.PVS_NAME }}
           PVS_LICENSE_KEY: ${{ secrets.PVS_LICENSE_KEY }}
-      - name: debug
-        run: echo $(which cmake)
       - name: cargo jjs-check
         run: cargo jjs-check
         env:
@@ -64,15 +62,6 @@ jobs:
           cargo install mdbook -Z install-upgrade
       - name: cargo jjs-build
         run: cargo jjs-build
-      - name: upload docker images
-        run: |
-          docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
-          docker tag jjs-frontend:dev docker.pkg.github.com/mikailbag/jjs/frontend:dev
-          docker push docker.pkg.github.com/mikailbag/jjs/frontend:dev
-          docker tag jjs-invoker:dev docker.pkg.github.com/mikailbag/jjs/invoker:dev
-          docker push docker.pkg.github.com/mikailbag/jjs/invoker:dev
-          docker tag jjs-tools:dev docker.pkg.github.com/mikailbag/jjs/tools:dev
-          docker push docker.pkg.github.com/mikailbag/jjs/tools:dev
   e2e:
     name: e2e
     runs-on: 'ubuntu-18.04'

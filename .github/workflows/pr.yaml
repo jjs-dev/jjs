@@ -22,6 +22,8 @@ jobs:
         run: bash scripts/ci-env.sh
         env:
           SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
+          PVS_NAME: ${{ secrets.PVS_NAME }}
+          PVS_LICENSE_KEY: ${{ secrets.PVS_LICENSE_KEY }}
       - name: debug
         run: echo $(which cmake)
       - name: cargo jjs-check

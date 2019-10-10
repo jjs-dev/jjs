@@ -2,9 +2,9 @@ name: "ci"
 on:
   pull_request: {}
   push:
-    branches-ignore:
-      - staging.tmp
-      - trying.tmp
+    branches:
+      - staging
+      - trying
 env:
   CI: 1
   RUST_BACKTRACE: full

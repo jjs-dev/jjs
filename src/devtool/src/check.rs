@@ -110,7 +110,11 @@ fn pvs(runner: &Runner) {
         let report_text = std::fs::read_to_string(&report_path)
             .unwrap_or_else(|err| format!("failed to read report: {}", err));
         // skip first line which is reference to help
-        let report_text = report_text.splitn(2, '\n').nth(1).unwrap();
+        let report_text = report_text
+            .splitn(2, '\n')
+            .nth(1)
+            .map(str::to_string)
+            .unwrap_or_default();
         println!("{}\n---", report_text);
         !report_text.chars().any(|c| !c.is_whitespace())
     };
@@ -178,7 +182,8 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     if !opts.no_clippy {
         clippy(runner);
     }
-    if opts.pvs {
+    let force_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_ok();
+    if opts.pvs || force_pvs {
         pvs(runner);
     }
 }

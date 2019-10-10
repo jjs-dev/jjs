@@ -12,10 +12,10 @@ pub mod util;
 
 use crate::{
     build_ctx::BuildCtx, cfg::BuildProfile, inst_ctx::InstallCtx, packages::BinPackage,
-    pkg::PackageComponentKind, registry::Registry, sel_ctx::SelCtx,
+    pkg::PackageComponentKind, registry::Registry, sel_ctx::SelCtx, util::print_section,
 };
+use ::util::cmd::Runner;
 use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
-use util::print_section;
 
 pub struct Params {
     /// build config
@@ -76,6 +76,7 @@ fn build_jjs_components(params: &Params) {
     fs::create_dir(pkg_dir.join("include")).ok();
     fs::create_dir(pkg_dir.join("share")).ok();
     fs::create_dir(pkg_dir.join("share/cmake")).ok();
+    fs::create_dir(pkg_dir.join("pkg")).ok();
 
     let mut reg = create_registry();
 
@@ -126,7 +127,7 @@ fn build_jjs_components(params: &Params) {
     .unwrap();
 }
 
-pub fn package(params: &Params) {
+pub fn package(params: &Params, runner: &Runner) {
     build_jjs_components(params);
     if params.cfg.components.testlib {
         build_testlib(params);
@@ -136,7 +137,7 @@ pub fn package(params: &Params) {
     }
     if params.cfg.packaging.deb {
         print_section("Generating Debian package");
-        deb::create(params);
+        deb::create(params, runner);
     }
     if params.cfg.packaging.systemd {
         print_section("Generating SystemD unit files");
@@ -144,7 +145,7 @@ pub fn package(params: &Params) {
     }
     if params.cfg.packaging.docker {
         print_section("Building docker images");
-        docker::build_docker_image(params);
+        docker::build_docker_image(params, runner);
     }
 
     generate_envscript(params);

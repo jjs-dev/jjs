@@ -1,6 +1,7 @@
 use std::process::Command;
+use util::cmd::CommandExt;
 
-pub fn build_docker_image(params: &crate::Params) {
+pub fn build_docker_image(params: &crate::Params, runner: &util::cmd::Runner) {
     let process_component = |name: &str| {
         println!("Building docker image for {}", name);
         let mut cmd = Command::new("docker");
@@ -12,8 +13,7 @@ pub fn build_docker_image(params: &crate::Params) {
             let tag = tag.replace('%', name);
             cmd.args(&["--tag", &tag]);
         }
-        let st = cmd.status().expect("failed run docker");
-        assert!(st.success());
+        cmd.run_on(runner);
     };
     process_component("frontend");
     process_component("invoker");

@@ -19,5 +19,7 @@ fn main() {
         }),
         install_prefix: manifest.install_prefix.clone(),
     };
-    deploy::package(&params);
+    let runner = ::util::cmd::Runner::new();
+    deploy::package(&params, &runner);
+    runner.exit_if_errors();
 }

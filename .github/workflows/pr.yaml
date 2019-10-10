@@ -7,6 +7,7 @@ on:
       - trying.tmp
 env:
   CI: 1
+  RUST_BACKTRACE: full
 jobs:
   check:
     name: check
@@ -63,11 +64,6 @@ jobs:
           cargo install mdbook -Z install-upgrade
       - name: cargo jjs-build
         run: cargo jjs-build
-      - name: upload artifacts
-        uses: actions/upload-artifact@v1
-        with:
-          name: dist.tgz
-          path: target/jjs.tgz
       - name: upload docker images
         run: |
           docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com

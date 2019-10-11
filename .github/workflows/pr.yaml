@@ -57,9 +57,7 @@ jobs:
           toolchain: nightly-2019-09-28
           override: true
       - name: install global dependencies
-        run: |
-          bash scripts/ci-env.sh
-          cargo install mdbook -Z install-upgrade
+        run: bash scripts/ci-env.sh
       - name: cargo jjs-build
         run: cargo jjs-build
   e2e:
@@ -91,4 +89,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: docker-compose-logs.txt
-          path: ./logs.txtvjc
+          path: ./logs.txt

@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 libsystemd = "0.1.0"
 log = "0.4.8"
@@ -16,4 +14,3 @@ slog-envlogger = "2.2.0"
 slog-scope = "4.1.2"
 slog-stdlog = "4.0.0"
 url = "2.1.0"
-lazy_static = "1.4.0"

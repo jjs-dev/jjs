@@ -1,5 +1,8 @@
+#![feature(option_result_contains)]
+
 mod build;
 mod check;
+mod ci;
 mod tests;
 
 use std::{env::set_current_dir, path::Path};

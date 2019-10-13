@@ -1,4 +1,3 @@
-pub mod ci;
 pub mod cmd;
 pub mod log;
 pub mod wait;

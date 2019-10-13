@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-      - ci # TODO: temp, do not forget to remove in followup PR
 env:
   CI: 1
   RUST_BACKTRACE: full
@@ -22,6 +21,8 @@ jobs:
         run: bash scripts/ci-env.sh
       - name: cargo jjs-build
         run: cargo jjs-build
+        env:
+          JJS_DT_DEPLOY: docker
       - name: upload docker images
         run: |
           docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
@@ -31,3 +32,25 @@ jobs:
           docker push docker.pkg.github.com/mikailbag/jjs/invoker:master
           docker tag jjs-tools:dev docker.pkg.github.com/mikailbag/jjs/tools:master
           docker push docker.pkg.github.com/mikailbag/jjs/tools:master
+  man:
+    name: man
+    if: false # TODO
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: install global dependencies
+        run: |
+          bash scripts/ci-env.sh
+          cargo install mdbook -Z install-upgrade
+      - name: cargo jjs-build
+        run: cargo jjs-build
+        env:
+          JJS_DT_DEPLOY: man
+      - name: upload man
+        run: |
+          echo TODO

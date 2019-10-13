@@ -12,8 +12,13 @@ struct BuildOpts(RawBuildOpts);
 
 impl BuildOpts {
     fn full(&self) -> bool {
-        let bt = util::ci::detect_build_type();
+        let bt = crate::ci::detect_build_type();
         bt.is_deploy() || self.0.full
+    }
+
+    fn should_build_man(&self) -> bool {
+        let bt = crate::ci::detect_build_type();
+        bt.deploy_info().contains(&crate::ci::DeployKind::Man) || bt.is_not_ci()
     }
 }
 
@@ -32,6 +37,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     cmd.args(&["--enable-docker", "--docker-tag", "jjs-%:dev"]);
     if opts.full() {
         cmd.arg("--enable-archive");
+    }
+    if !opts.should_build_man() {
+        cmd.arg("--disable-man");
     }
     if !cmd.run_on(runner) {
         return;

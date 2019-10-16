@@ -86,8 +86,8 @@ impl LinuxDominion {
         let startup_info = jobserver::start_jobserver(jail_options)?;
 
         Ok(LinuxDominion {
-            id: jail_id.clone(),
-            options: options.clone(),
+            id: jail_id,
+            options,
             jobserver_sock: startup_info.socket,
             util_cgroup_path: startup_info.wrapper_cgroup_path,
         })

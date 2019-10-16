@@ -129,7 +129,7 @@ impl ApiServer {
         let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE")
             .into_boxed_slice()
             .into();
-        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.clone());
+        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret);
         let frontend_config = config::FrontendConfig {
             port: 0,
             host: "127.0.0.1".to_string(),
@@ -190,7 +190,7 @@ impl ApiServer {
         let introspection_json = serde_json::to_string(&intro_data).unwrap();
 
         let cfg1 = frontend_config.clone();
-        let cfg2 = frontend_config.clone();
+        let cfg2 = frontend_config;
 
         rocket::custom(rocket_config)
             .manage(graphql_context_factory)

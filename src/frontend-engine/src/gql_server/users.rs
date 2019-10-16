@@ -17,9 +17,9 @@ pub(super) fn create(
     let provided_password_hash = password::get_password_hash(&password);
 
     let new_user = db::schema::NewUser {
-        username: login.clone(),
+        username: login,
         password_hash: Some(provided_password_hash),
-        groups: groups.clone(),
+        groups,
     };
 
     let user = ctx.db.user_new(new_user).internal(ctx)?;

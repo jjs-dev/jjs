@@ -38,8 +38,7 @@ impl RequestBuilder {
                 "X-Jjs-Auth",
                 self.auth_token
                     .clone()
-                    .unwrap_or_else(|| "Dev root".to_string())
-                    .to_string(),
+                    .unwrap_or_else(|| "Dev root".to_string()),
             )
             .header("Content-Type", "application/json");
 

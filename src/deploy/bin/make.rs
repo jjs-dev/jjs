@@ -17,7 +17,7 @@ fn main() {
             deploy::util::make_empty(&path).unwrap();
             path
         }),
-        install_prefix: manifest.install_prefix.clone(),
+        install_prefix: manifest.install_prefix,
     };
     let runner = ::util::cmd::Runner::new();
     deploy::package(&params, &runner);

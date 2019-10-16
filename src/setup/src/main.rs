@@ -4,7 +4,7 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 pub struct Opts {
     #[structopt(long)]
-    data_dir: PathBuf,
+    data_dir: Option<PathBuf>,
     #[structopt(long)]
     install_dir: PathBuf,
     /// Connection string for database to setup

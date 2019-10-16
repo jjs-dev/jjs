@@ -139,9 +139,7 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
     let mut data = Vec::new();
     let ignore_failures;
     {
-        let file = std::fs::read(&arg.file).context(ReadFile {
-            filename: arg.file.clone(),
-        })?;
+        let file = std::fs::read(&arg.file).context(ReadFile { filename: arg.file })?;
         let file = String::from_utf8(file).context(Utf8)?;
 
         let statements = list_parse::parse(&file);

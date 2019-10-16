@@ -33,7 +33,7 @@ impl EnvBuilder {
 
         setup::setup(
             &setup::SetupParams {
-                data_dir: path.clone().into(),
+                data_dir: Some(path.clone().into()),
                 config: None,
                 db: None,
                 // dummy value can be used because we don't setup db
@@ -121,8 +121,7 @@ impl RequestBuilder<'_> {
                 "X-Jjs-Auth",
                 self.auth_token
                     .clone()
-                    .unwrap_or_else(|| "Dev root".to_string())
-                    .to_string(),
+                    .unwrap_or_else(|| "Dev root".to_string()),
             ))
             .header(rocket::http::ContentType::JSON);
 

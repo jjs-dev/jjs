@@ -528,7 +528,7 @@ pub(crate) unsafe fn start_jobserver(
         write!(logger, "thread C (jobserver main)").unwrap();
         mem::drop(sock);
         let js_arg = JobServerOptions {
-            jail_options: jail_options.clone(),
+            jail_options,
             sock: js_sock,
         };
         let jobserver_ret_code = jobserver_main::jobserver_entry(js_arg);

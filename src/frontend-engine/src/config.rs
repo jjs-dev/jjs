@@ -83,7 +83,7 @@ impl FrontendConfig {
         let unix_socket_path =
             env::var("JJS_UNIX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/jjs-auth-sock".to_string());
 
-        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.clone().into());
+        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.into());
 
         FrontendConfig {
             port,

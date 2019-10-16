@@ -56,7 +56,7 @@ pub(super) fn submit_simple(
         Some(p) => p,
         None => return Err(ApiError::new(ctx, "ProblemUnknown")),
     };
-    let prob_name = problem.name.clone();
+    let prob_name = problem.name;
 
     let new_run = db::schema::NewRun {
         toolchain_id: toolchain.name,

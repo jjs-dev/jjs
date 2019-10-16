@@ -58,7 +58,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .ok_or(TokenMgrError::TokenMissing);
 
         let secret_key = Arc::clone(&(*secret_key).0);
-        let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key.clone());
+        let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key);
 
         let token = token.and_then(|header| token_mgr.deserialize(header.as_bytes(), env.is_dev()));
         let token = match token {

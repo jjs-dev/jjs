@@ -22,7 +22,7 @@ fn launch_root_login_server(fcfg: FrontendConfig) {
     let cfg = frontend_engine::root_auth::Config {
         socket_path: String::from("/tmp/jjs-auth-sock"), /* TODO dehardcode */
     };
-    frontend_engine::root_auth::LocalAuthServer::start(cfg.clone(), &fcfg);
+    frontend_engine::root_auth::LocalAuthServer::start(cfg, &fcfg);
 }
 
 fn main() {

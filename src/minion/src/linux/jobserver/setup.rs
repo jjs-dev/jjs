@@ -33,7 +33,7 @@ unsafe fn configure_dir(dir_path: &Path, uid: Uid) {
         err_exit("chmod");
     }
 
-    if libc::chown(path.clone().as_ptr(), uid, uid) == -1 {
+    if libc::chown(path.as_ptr(), uid, uid) == -1 {
         err_exit("chown");
     }
 }
@@ -67,7 +67,7 @@ fn expose_dir(
         if let DesiredAccess::Readonly = access {
             let rem_ret = libc::mount(
                 ptr::null(),
-                bind_target.clone().as_ptr(),
+                bind_target.as_ptr(),
                 ptr::null(),
                 libc::MS_BIND | libc::MS_REMOUNT | libc::MS_RDONLY,
                 ptr::null(),
@@ -199,13 +199,7 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
     }
     let proc = CString::new("proc").unwrap();
     let targ = CString::new(procfs_path.as_os_str().as_bytes()).unwrap();
-    let mret = libc::mount(
-        proc.clone().as_ptr(),
-        targ.clone().as_ptr(),
-        proc.clone().as_ptr(),
-        0,
-        ptr::null(),
-    );
+    let mret = libc::mount(proc.as_ptr(), targ.as_ptr(), proc.as_ptr(), 0, ptr::null());
     if -1 == mret {
         err_exit("mount")
     }

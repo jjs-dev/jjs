@@ -1,5 +1,3 @@
-#![allow(clippy::redundant_clone)]
-/// TODO(https://github.com/rust-lang/rust-clippy/issues/4682)
 use cfg_if::cfg_if;
 use minion;
 use std::time::Duration;

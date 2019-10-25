@@ -22,7 +22,6 @@ EOF
 exit 1
 fi
 
-bash -c 'cd ..; cargo build -p soft'
 bash -c 'cd ..; rm -rf pkg; mkdir -p pkg; cd pkg; tar -xvf ../target/jjs.tgz; mv jjs ar_data'
 
 SYSROOT="$1"

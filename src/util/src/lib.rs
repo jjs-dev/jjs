@@ -30,3 +30,12 @@ pub fn daemon_startup_sleep() {
         println!("sleep done");
     }
 }
+
+pub fn print_error(err: &dyn std::error::Error) {
+    eprintln!("error: {}", err);
+    let mut iter = err.source();
+    while let Some(cause) = iter {
+        eprintln!("caused by: {}", cause);
+        iter = cause.source();
+    }
+}

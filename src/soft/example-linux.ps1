@@ -1,4 +1,4 @@
-# Use this script as starting point
+ Use this script as starting point
 # prerequisities:
 # $ cargo install --git https://github.com/mikailbag/copy-ln
 
@@ -28,12 +28,7 @@ New-Item -ItemType Directory -Path $GlobalDataRoot -ErrorAction SilentlyContinue
 function Gcc {
     $Prefix="$GlobalDataRoot/g++"
     $Program = @'
-    #include <bits/stdc++.h> 
-    #include <string_view>
-    #include <bits/string_view.tcc>
 
-    int main() {
-    return 0;
     }
 '@
 

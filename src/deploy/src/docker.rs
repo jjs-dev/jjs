@@ -9,12 +9,15 @@ pub fn build_docker_image(params: &crate::Params, runner: &util::cmd::Runner) {
         cmd.arg("build")
             .arg(&params.artifacts)
             .args(&["--file", &dockerfile_path]);
+        let default_tag = format!("jjs-{}", name);
+        cmd.args(&["--tag", &default_tag]);
         if let Some(tag) = &params.cfg.docker_tag {
             let tag = tag.replace('%', name);
             cmd.args(&["--tag", &tag]);
         }
         cmd.run_on(runner);
     };
+    process_component("env");
     process_component("frontend");
     process_component("invoker");
     process_component("tools");

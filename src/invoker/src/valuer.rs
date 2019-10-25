@@ -16,7 +16,7 @@ pub(crate) struct Valuer<'a> {
 impl<'a> Valuer<'a> {
     pub(crate) fn new(ctx: InvokeContext<'a>) -> anyhow::Result<Valuer> {
         let valuer_exe = ctx.get_asset_path(&ctx.problem_data.valuer_exe);
-        let mut cmd = std::process::Command::new(valuer_exe);
+        let mut cmd = std::process::Command::new(&valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
@@ -26,7 +26,9 @@ impl<'a> Valuer<'a> {
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
         let work_dir = ctx.get_asset_path(&ctx.problem_data.valuer_cfg);
         cmd.current_dir(work_dir);
-        let mut child = cmd.spawn().context("spawning valuer")?;
+        let mut child = cmd
+            .spawn()
+            .with_context(|| format!("failed to spawn valuer {}", valuer_exe.display()))?;
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();
         let val = Valuer {

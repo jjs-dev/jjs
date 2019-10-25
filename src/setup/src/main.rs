@@ -19,6 +19,9 @@ pub struct Opts {
     /// Build sample contest (requires ppc to be available)
     #[structopt(long)]
     sample_contest: bool,
+    /// Configure toolchains
+    #[structopt(long)]
+    toolchains: bool,
     /// Force mode: ignore some errors
     #[structopt(long)]
     force: bool,
@@ -46,13 +49,13 @@ fn main() {
         } else {
             None
         },
+        toolchains: opts.toolchains,
         sample_contest: opts.sample_contest,
         force: opts.force,
     };
     let runner = util::cmd::Runner::new();
     if let Err(e) = setup::setup(&params, &runner) {
-        eprintln!("error: {}", e.source);
-        eprintln!("at: {:?}", e.backtrace);
+        eprintln!("{:?}", e);
         std::process::exit(1);
     }
     runner.exit_if_errors();

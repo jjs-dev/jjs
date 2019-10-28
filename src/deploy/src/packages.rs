@@ -6,6 +6,7 @@ use crate::{
     util::print_section,
 };
 use std::path::PathBuf;
+use util::cmd::CommandExt;
 
 #[derive(Debug)]
 pub(crate) struct BinPackage {
@@ -57,8 +58,7 @@ impl Package for BinPackage {
             let feat = self.features.join(",");
             cmd.arg(&feat);
         }
-        let st = cmd.status().unwrap().success();
-        assert_eq!(st, true);
+        cmd.run_on(bctx.runner());
     }
 
     fn install(&self, ictx: &InstallCtx) {

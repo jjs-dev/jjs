@@ -62,7 +62,7 @@ fn create_registry() -> Registry {
     reg
 }
 
-fn build_jjs_components(params: &Params) {
+fn build_jjs_components(params: &Params, runner: &Runner) {
     let proj_root = &params.src;
 
     print_section("Creating directories");
@@ -81,7 +81,7 @@ fn build_jjs_components(params: &Params) {
     let mut reg = create_registry();
 
     let sctx = SelCtx::new(params);
-    let bctx = BuildCtx::new(params);
+    let bctx = BuildCtx::new(params, runner);
     let ictx = InstallCtx::new(params);
     reg.run_selection(&sctx);
     reg.build(&bctx);
@@ -128,13 +128,14 @@ fn build_jjs_components(params: &Params) {
 }
 
 pub fn package(params: &Params, runner: &Runner) {
-    build_jjs_components(params);
+    build_jjs_components(params, runner);
     if params.cfg.components.testlib {
         build_testlib(params);
     }
     if params.cfg.components.man {
         generate_man(params);
     }
+    runner.exit_if_errors();
     if params.cfg.packaging.deb {
         print_section("Generating Debian package");
         deb::create(params, runner);

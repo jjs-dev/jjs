@@ -19,7 +19,7 @@ pub fn create(params: &Params, runner: &util::cmd::Runner) {
     cmd.arg("--archive-path").arg(archive_path);
 
     let out_path = params.artifacts.join("pkg/jjs.deb");
-    cmd.arg("--out-path").arg(out_path);
+    cmd.arg("--out").arg(out_path);
 
     cmd.run_on(runner);
 }

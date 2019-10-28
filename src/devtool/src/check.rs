@@ -141,46 +141,65 @@ fn check_testlib(runner: &Runner) {
         .run_on(runner);
 }
 
+fn udeps(runner: &Runner) {
+    Command::new("cargo")
+        .arg("udeps")
+        .arg("--all")
+        .arg("--tests")
+        // do not check minion-ffi because there is some problem with cbindgen
+        .args(&["--exclude", "minion-ffi"])
+        .run_on(runner);
+}
+
 #[derive(StructOpt)]
 pub struct CheckOpts {
-    /// Do not run clippy
-    #[structopt(long = "no-clippy")]
-    no_clippy: bool,
-    /// Do not run rustfmt
-    #[structopt(long = "no-rustfmt")]
-    no_rustfmt: bool,
-    /// Do not run shellcheck
-    #[structopt(long = "no-shellcheck")]
-    no_shellcheck: bool,
-    /// Do not build minion-ffi C example
-    #[structopt(long = "no-minion-ffi-c-example")]
-    no_minion_ffi_example: bool,
-    /// Do not build testlib
-    #[structopt(long = "no-testlib")]
-    no_testlib: bool,
+    /// Run clippy
+    #[structopt(long)]
+    clippy: bool,
+    /// Run rustfmt
+    #[structopt(long)]
+    rustfmt: bool,
+    /// Run shellcheck
+    #[structopt(long)]
+    shellcheck: bool,
+    /// Build minion-ffi C example
+    #[structopt(long)]
+    minion_ffi_example: bool,
+    /// Build testlib
+    #[structopt(long)]
+    testlib: bool,
     /// Use PVS-Studio to analyze testlib
-    #[structopt(long = "pvs")]
+    #[structopt(long)]
     pvs: bool,
+    /// Enable `cargo-udeps`
+    #[structopt(long)]
+    udeps: bool,
+    /// Do not run default checks
+    #[structopt(long)]
+    no_default: bool,
     /// Exit with status 1 as soon as any invoked command fails
-    #[structopt(long = "fail-fast")]
+    #[structopt(long)]
     pub(crate) fail_fast: bool,
 }
 
 pub fn check(opts: &CheckOpts, runner: &Runner) {
-    if !opts.no_rustfmt {
+    if opts.rustfmt || !opts.no_default {
         rustfmt(runner);
     }
-    if !opts.no_shellcheck {
+    if opts.shellcheck || !opts.no_default {
         shellcheck(runner);
     }
-    if !opts.no_minion_ffi_example {
+    if opts.minion_ffi_example || !opts.no_default {
         build_minion_ffi_example(runner);
     }
-    if !opts.no_testlib {
+    if opts.testlib || !opts.no_default {
         check_testlib(runner);
     }
-    if !opts.no_clippy {
+    if opts.clippy || !opts.no_default {
         clippy(runner);
+    }
+    if opts.udeps {
+        udeps(runner);
     }
     let force_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_ok();
     if opts.pvs || force_pvs {

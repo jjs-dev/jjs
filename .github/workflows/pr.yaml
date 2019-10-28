@@ -30,7 +30,6 @@ jobs:
         env:
           SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
 
-
   unit-tests:
     name: unit-tests
     runs-on: 'ubuntu-18.04'
@@ -60,6 +59,23 @@ jobs:
         run: bash scripts/ci-env.sh
       - name: cargo jjs-build
         run: cargo jjs-build
+  udeps:
+    name: udeps
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-09-28
+          override: true
+      - name: install global dependencies
+        run: |
+          bash scripts/ci-env.sh
+          cargo install cargo-udeps
+      - name: cargo-udeps
+        run: cargo jjs-check --no-default --udeps
+
   e2e:
     name: e2e
     runs-on: 'ubuntu-18.04'

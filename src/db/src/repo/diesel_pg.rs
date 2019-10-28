@@ -22,9 +22,12 @@ impl DieselRepo {
         let conn_manager = ConnectionManager::new(conn_url);
         let mut pool_builder = Pool::builder();
         // TODO refactor
-        if let Some(timeout) = std::env::var("JJS_DB_TIMEOUT").ok().and_then(|s| s.parse::<u64>().ok()) {
-               let dur =std::time::Duration::from_secs(timeout);
-              pool_builder = pool_builder.connection_timeout(dur);
+        if let Some(timeout) = std::env::var("JJS_DB_TIMEOUT")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            let dur = std::time::Duration::from_secs(timeout);
+            pool_builder = pool_builder.connection_timeout(dur);
         }
         let pool = pool_builder.build(conn_manager)?;
         Ok(DieselRepo { pool })

@@ -1530,7 +1530,7 @@ dependencies = [
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "snafu 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny-nix-ipc 0.1.0 (git+https://github.com/mikailbag/tiny-nix-ipc?rev=bfd29b8b05098c132dd30cd1c7909377e88cb789)",
+ "tiny-nix-ipc 0.1.0 (git+https://github.com/myfreeweb/tiny-nix-ipc)",
 ]
 
 [[package]]
@@ -2854,10 +2854,10 @@ dependencies = [
 [[package]]
 name = "tiny-nix-ipc"
 version = "0.1.0"
-source = "git+https://github.com/mikailbag/tiny-nix-ipc?rev=bfd29b8b05098c132dd30cd1c7909377e88cb789#bfd29b8b05098c132dd30cd1c7909377e88cb789"
+source = "git+https://github.com/myfreeweb/tiny-nix-ipc#922d9137c7c4b6974f77571fe50bf755ed9b6c24"
 dependencies = [
  "error-chain 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3655,7 +3655,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum textwrap 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 "checksum thread_local 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
 "checksum time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "db8dcfca086c1143c9270ac42a2bbd8a7ee477b78ac8e45b19abfb0cbede4b6f"
-"checksum tiny-nix-ipc 0.1.0 (git+https://github.com/mikailbag/tiny-nix-ipc?rev=bfd29b8b05098c132dd30cd1c7909377e88cb789)" = "<none>"
+"checksum tiny-nix-ipc 0.1.0 (git+https://github.com/myfreeweb/tiny-nix-ipc)" = "<none>"
 "checksum tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)" = "5a09c0b5bb588872ab2f09afa13ee6e9dac11e10a0ec9e8e3ba39a5a5d530af6"
 "checksum tokio-buf 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8fb220f46c53859a4b7ec083e41dec9778ff0b1851c0942b211edb89e0ccdc46"
 "checksum tokio-current-thread 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "d16217cad7f1b840c5a97dfb3c43b0c871fef423a6e8d2118c604e843662a443"

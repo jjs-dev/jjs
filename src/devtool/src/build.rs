@@ -5,6 +5,7 @@ use util::cmd::{CommandExt, Runner};
 #[derive(StructOpt)]
 pub(crate) struct RawBuildOpts {
     /// enable things that are not required for running tests
+    #[structopt(long)]
     full: bool,
 }
 

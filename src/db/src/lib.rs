@@ -19,7 +19,7 @@ pub enum Error {
         source: diesel::result::Error,
     },
     Other {
-        source: Box<dyn std::error::Error + 'static>,
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
 }
 

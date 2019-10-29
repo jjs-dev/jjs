@@ -1,12 +1,9 @@
 use crate::{
-    err::ErrorBox,
     inter_api::{ValuerNotification, ValuerResponse},
     invoke_context::InvokeContext,
+    os_util::make_anon_file,
 };
-use snafu::ResultExt;
-use snafu_derive::Snafu;
-
-use crate::os_util::make_anon_file;
+use anyhow::{bail, Context};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 
 pub(crate) struct Valuer<'a> {
@@ -16,17 +13,8 @@ pub(crate) struct Valuer<'a> {
     stdout: BufReader<std::process::ChildStdout>,
 }
 
-#[derive(Debug, Snafu)]
-enum ParseError {
-    WrongArgCount { got: usize, expected: usize },
-    UnknownMessage { head: String, tail: Vec<String> },
-    NumParseFail { source: std::num::ParseIntError },
-    Range { lhs: i64, rhs: i64, got: i64 },
-    Other { message: String },
-}
-
 impl<'a> Valuer<'a> {
-    pub(crate) fn new(ctx: InvokeContext<'a>) -> Result<Valuer, ErrorBox> {
+    pub(crate) fn new(ctx: InvokeContext<'a>) -> anyhow::Result<Valuer> {
         let valuer_exe = ctx.get_asset_path(&ctx.problem_data.valuer_exe);
         let mut cmd = std::process::Command::new(valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
@@ -38,7 +26,7 @@ impl<'a> Valuer<'a> {
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
         let work_dir = ctx.get_asset_path(&ctx.problem_data.valuer_cfg);
         cmd.current_dir(work_dir);
-        let mut child = cmd.spawn().map_err(Box::new)?;
+        let mut child = cmd.spawn().context("spawning valuer")?;
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();
         let val = Valuer {
@@ -51,60 +39,50 @@ impl<'a> Valuer<'a> {
         Ok(val)
     }
 
-    fn write_problem_data(&mut self) -> Result<(), ErrorBox> {
+    fn write_problem_data(&mut self) -> anyhow::Result<()> {
         let problem_info = &self.ctx.problem_data;
         writeln!(self.stdin, "{} ", problem_info.tests.len())?;
         self.stdin.flush()?;
         Ok(())
     }
 
-    fn read_response(&mut self) -> Result<ValuerResponse, ErrorBox> {
+    fn read_response(&mut self) -> anyhow::Result<ValuerResponse> {
         let mut line = String::new();
-        self.stdout.read_line(&mut line)?;
+        self.stdout.read_line(&mut line).context("early eof")?;
 
         let items: Vec<_> = line.split_whitespace().collect();
         let res = match items[0] {
             "RUN" => {
                 if items.len() != 2 {
-                    return Err(Box::new(ParseError::WrongArgCount {
-                        expected: 1,
-                        got: items.len() - 1,
-                    }));
+                    bail!("RUN: expected 1 item, got {}", items.len() - 1);
                 }
-                let test_id: u32 = items[1].parse().context(NumParseFail)?;
+                let test_id: u32 = items[1].parse().context("RUN: test_id is not u32")?;
                 ValuerResponse::Test { test_id }
             }
             "DONE" => {
                 if items.len() != 4 {
-                    return Err(Box::new(ParseError::WrongArgCount {
-                        expected: 2,
-                        got: items.len() - 1,
-                    }));
+                    bail!("DONE: expected 4 items, got {}", items.len() - 1);
                 }
-                let score: u16 = items[1].parse().context(NumParseFail)?;
-                let is_full: i8 = items[2].parse().context(NumParseFail)?;
-                let num_judge_log_rows: usize = items[3].parse().context(NumParseFail)?;
+                let score: u16 = items[1].parse().context("DONE: score is not u16")?;
+                let is_full: i8 = items[2].parse().context("DONE: is_full is not flag")?;
+                let num_judge_log_rows: usize = items[3]
+                    .parse()
+                    .context("Done: num_judge_log_rows is not uint")?;
 
                 if score > 100 {
-                    return Err(Box::new(ParseError::Range {
-                        lhs: 0,
-                        rhs: 100,
-                        got: score.into(),
-                    }));
+                    bail!("score is bigger than 100");
                 }
                 if is_full < 0 || is_full > 1 {
-                    return Err(Box::new(ParseError::Range {
-                        lhs: 0,
-                        rhs: 1,
-                        got: is_full.into(),
-                    }));
+                    bail!("DONE: is_full must be 0 or 1");
                 }
 
                 let mut tests = Vec::new();
                 for _ in 0..num_judge_log_rows {
                     line.clear();
-                    self.stdout.read_line(&mut line)?;
-                    tests.push(line.parse()?);
+                    self.stdout
+                        .read_line(&mut line)
+                        .context("failed to read judge log row")?;
+                    tests.push(line.parse().context("failed to parse judge log row")?);
                 }
                 ValuerResponse::Finish {
                     score: score.into(),
@@ -118,16 +96,13 @@ impl<'a> Valuer<'a> {
                 }
             }
             _ => {
-                return Err(Box::new(ParseError::UnknownMessage {
-                    head: items[0].to_string(),
-                    tail: items[1..].iter().map(|x| x.to_string()).collect(),
-                }));
+                bail!("unknown message {}", items[0]);
             }
         };
         Ok(res)
     }
 
-    pub(crate) fn initial_test(&mut self) -> Result<ValuerResponse, ErrorBox> {
+    pub(crate) fn initial_test(&mut self) -> anyhow::Result<ValuerResponse> {
         self.write_problem_data()?;
         self.read_response()
     }
@@ -135,7 +110,7 @@ impl<'a> Valuer<'a> {
     pub(crate) fn notify_test_done(
         &mut self,
         notification: ValuerNotification,
-    ) -> Result<ValuerResponse, ErrorBox> {
+    ) -> anyhow::Result<ValuerResponse> {
         writeln!(
             self.stdin,
             "{} {} {}",

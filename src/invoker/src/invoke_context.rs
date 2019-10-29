@@ -1,11 +1,7 @@
-use crate::{
-    err::{self, Error},
-    inter_api::Paths,
-    invoker::CommandInterp,
-};
+use crate::{inter_api::Paths, invoker::CommandInterp};
+use anyhow::{bail, Context};
 use cfg::Config;
 use slog_scope::debug;
-use snafu::ResultExt;
 use std::{
     collections::HashMap,
     ffi::OsString,
@@ -47,17 +43,20 @@ impl<'a> InvokeContext<'a> {
         &self,
         limits: &cfg::Limits,
         paths: &Paths,
-    ) -> Result<minion::DominionRef, Error> {
+    ) -> anyhow::Result<minion::DominionRef> {
         let mut exposed_paths = vec![];
         let toolchains_dir = self.cfg.sysroot.join("opt");
-        let opt_items = fs::read_dir(&toolchains_dir).context(err::Io {})?;
+        let opt_items =
+            fs::read_dir(&toolchains_dir).context("failed to list toolchains sysroot")?;
         for item in opt_items {
-            let item = item.context(err::Io {})?;
-            let item_type = item.file_type().context(err::Io {})?;
+            let item = item.context("failed to stat toolchains sysroot item")?;
+            let item_type = item
+                .file_type()
+                .context("failed to get toolchain sysroot item file type")?;
             if !item_type.is_dir() {
-                panic!(
-                    "couldn't link child chroot, because it contains toplevel-item `{:?}`, which is not directory",
-                    item.file_name()
+                bail!(
+                    "couldn't link child chroot, because it contains toplevel-item `{}`, which is not directory",
+                    item.file_name().to_string_lossy()
                 );
             }
             let name = item.file_name();
@@ -86,7 +85,7 @@ impl<'a> InvokeContext<'a> {
 
         self.minion_backend
             .new_dominion(dominion_options)
-            .context(err::Minion {})
+            .context("failed to create minion dominion")
     }
 
     pub(crate) fn get_common_interpolation_dict(&self) -> HashMap<String, OsString> {

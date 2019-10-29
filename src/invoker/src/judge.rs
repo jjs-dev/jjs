@@ -1,15 +1,14 @@
 mod checker_proto;
 
 use crate::{
-    err,
     inter_api::{JudgeOutcome, JudgeRequest},
     invoker::{interpolate_command, InvokeContext},
-    os_util, Error,
+    os_util,
 };
+use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog_scope::error;
-use snafu::ResultExt;
-use std::{fs, io::Write, path::PathBuf, time::Duration};
+use std::{fs, path::PathBuf, time::Duration};
 
 /// Runs Artifact on one test and produces output
 pub(crate) struct Judge<'a> {
@@ -23,7 +22,7 @@ enum RunOutcome {
 }
 
 impl<'a> Judge<'a> {
-    fn run_solution(&self, test_data: &[u8]) -> Result<RunOutcome, Error> {
+    fn run_solution(&self, test_data: &[u8]) -> anyhow::Result<RunOutcome> {
         let limits = &self.ctx.problem_cfg.limits;
 
         let sandbox = self.ctx.create_sandbox(limits, self.req.paths)?;
@@ -32,7 +31,7 @@ impl<'a> Judge<'a> {
             self.req.paths.submission.join("build"),
             self.req.paths.share_dir().join("build"),
         )
-        .context(err::Io {})?;
+        .context("failed to copy build artifact to share dir")?;
 
         let mut dict = self.ctx.get_common_interpolation_dict();
         dict.insert("Test.Id".to_string(), self.req.test_id.to_string().into());
@@ -41,9 +40,8 @@ impl<'a> Judge<'a> {
         let stderr_path = self.req.paths.step.join("stderr.txt");
 
         let command_interp = interpolate_command(&self.req.artifact.execute_command, &dict)
-            .map_err(|e| err::Error::BadConfig {
-                backtrace: Default::default(),
-                inner: Box::new(e),
+            .map_err(|e| {
+                anyhow::Error::new(e).context("Config specifies incorrect execute command")
             })?;
 
         self.ctx.log_execute_command(&command_interp);
@@ -64,7 +62,7 @@ impl<'a> Judge<'a> {
             Ok(child) => child,
             Err(err) => {
                 if err.is_system() {
-                    Err(err).context(err::Minion {})?
+                    Err(err).context("failed to spawn solution")?
                 } else {
                     return Ok(RunOutcome::Fail(Status {
                         kind: StatusKind::Rejected,
@@ -79,7 +77,7 @@ impl<'a> Judge<'a> {
 
         let wait_result = child
             .wait_for_exit(Duration::from_millis(limits.time))
-            .context(err::Minion {})?;
+            .context("failed to wait for child")?;
 
         match wait_result {
             minion::WaitOutcome::Timeout => {
@@ -91,7 +89,12 @@ impl<'a> Judge<'a> {
             }
             minion::WaitOutcome::AlreadyFinished => unreachable!("not expected other to wait"),
             minion::WaitOutcome::Exited => {
-                if child.get_exit_code().context(err::Minion {})?.unwrap() != 0 {
+                if child
+                    .get_exit_code()
+                    .context("failed to get exit code")?
+                    .unwrap()
+                    != 0
+                {
                     return Ok(RunOutcome::Fail(Status {
                         kind: StatusKind::Rejected,
                         code: status_codes::RUNTIME_ERROR.to_string(),
@@ -105,21 +108,21 @@ impl<'a> Judge<'a> {
         })
     }
 
-    pub fn judge(&self) -> Result<JudgeOutcome, Error> {
+    pub fn judge(&self) -> anyhow::Result<JudgeOutcome> {
         use std::os::unix::io::IntoRawFd;
-        fs::create_dir(&self.req.paths.step).context(err::Io {})?;
-        fs::create_dir(&self.req.paths.share_dir()).context(err::Io {})?;
-        fs::create_dir(&self.req.paths.chroot_dir()).context(err::Io {})?;
+        fs::create_dir(&self.req.paths.step).context("failed to create step dir")?;
+        fs::create_dir(&self.req.paths.share_dir()).context("failed to create share dir")?;
+        fs::create_dir(&self.req.paths.chroot_dir()).context("failed to create chroot dir")?;
 
         let input_file = self.ctx.get_asset_path(&self.req.test.path);
-        let test_data = std::fs::read(input_file).expect("couldn't read test");
+        let test_data = std::fs::read(input_file).context("failed to read test")?;
 
         let sol_file_path = match self.run_solution(&test_data)? {
             RunOutcome::Success { out_data_path } => out_data_path,
             RunOutcome::Fail(status) => return Ok(JudgeOutcome { status }),
         };
         // run checker
-        let sol_file = fs::File::open(sol_file_path).unwrap();
+        let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
         let full_checker_path = self.ctx.get_asset_path(&self.ctx.problem_data.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
@@ -134,7 +137,7 @@ impl<'a> Judge<'a> {
 
         let corr_handle = if let Some(corr_path) = &test_cfg.correct {
             let full_path = self.ctx.get_asset_path(corr_path);
-            let data = fs::read(full_path).unwrap();
+            let data = fs::read(full_path).context("failed to read correct answer")?;
             os_util::buffer_to_file(&data, "invoker-correct-data")
         } else {
             os_util::buffer_to_file(&[], "invoker-correct-data")

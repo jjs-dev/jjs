@@ -21,7 +21,6 @@ cfg-if = "0.1.10"
 pom = {path = "../pom"}
 libc = "0.2.65"
 nix = "0.15.0"
-snafu = "0.5.0"
 memchr = "2.2.1"
 strum = "0.16.0"
 strum_macros = "0.16.0"
@@ -29,12 +28,13 @@ chrono = "0.4.9"
 color-backtrace = { version = "0.2.3", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"
-snafu-derive = "0.5.0"
 atty = "0.2.13"
 base64 = "0.10.1"
 bitflags = "1.2.1"
 util = {path = "../util"}
 slog-scope = "4.2.0"
+anyhow = "1.0.18"
+thiserror = "1.0.4"
 
 [features]
 beautiful_backtrace = ["color-backtrace"]

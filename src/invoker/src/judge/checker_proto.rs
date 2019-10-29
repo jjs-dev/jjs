@@ -1,5 +1,5 @@
 //! Checker out file parser
-use snafu::Snafu;
+use anyhow::bail;
 use strum_macros::EnumString;
 
 #[derive(EnumString)]
@@ -15,27 +15,17 @@ pub struct Output {
     pub outcome: Outcome,
 }
 
-#[derive(Snafu, Debug)]
-pub enum Error {
-    UnknownTag { line: u32, tag: String },
-    ParseError { line: u32, description: String },
-    TagMissing { tag: String },
-    TagRedefined { tag: String },
-    TagFormat { tag: String, error_message: String },
-}
-
-pub fn parse(data: &str) -> Result<Output, Error> {
+pub fn parse(data: &str) -> anyhow::Result<Output> {
     let mut res_outcome = None;
     for (line_id, line) in data.lines().enumerate() {
-        let line_id = line_id as u32;
+        let line_id = (line_id + 1) as u32;
         let p = match line.find('=') {
             Some(i) => i,
             None => {
-                return ParseError {
-                    line: line_id,
-                    description: "Line doesn't contain '='-separated key and value".to_string(),
-                }
-                .fail();
+                bail!(
+                    "Line {} doesn't contain '='-separated key and value",
+                    line_id
+                );
             }
         };
         let tag = &data[..p];
@@ -46,37 +36,22 @@ pub fn parse(data: &str) -> Result<Output, Error> {
                 let outcome: Outcome = match data.parse() {
                     Ok(o) => o,
                     Err(e) => {
-                        let msg = e.to_string();
-                        return TagFormat {
-                            tag: tag.to_string(),
-                            error_message: msg,
-                        }
-                        .fail();
+                        bail!("Tag outcome: {}", e);
                     }
                 };
                 if res_outcome.replace(outcome).is_some() {
-                    return TagRedefined {
-                        tag: tag.to_string(),
-                    }
-                    .fail();
+                    bail!("Tag outcome redefined");
                 }
             }
             _ => {
-                return UnknownTag {
-                    line: line_id,
-                    tag: tag.to_string(),
-                }
-                .fail();
+                bail!("Line {}: unknown tag {}", line_id, tag);
             }
         }
     }
     let outcome = match res_outcome {
         Some(o) => o,
         None => {
-            return TagMissing {
-                tag: "outcome".to_string(),
-            }
-            .fail();
+            bail!("Tag outcome missong");
         }
     };
     Ok(Output { outcome })

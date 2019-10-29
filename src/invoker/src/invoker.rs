@@ -1,7 +1,6 @@
 pub(crate) use crate::invoke_context::InvokeContext;
 use crate::{
     compiler::Compiler,
-    err,
     inter_api::{
         Artifact, BuildOutcome, BuildRequest, JudgeRequest, Paths, ValuerNotification,
         ValuerResponse,
@@ -9,19 +8,19 @@ use crate::{
     judge::Judge,
     judge_log::JudgeLog,
     valuer::Valuer,
-    Error, InvokeRequest,
+    InvokeRequest,
 };
+use anyhow::{bail, Context};
 use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
-use slog_scope::{debug, error};
-use snafu::Snafu;
+use slog_scope::debug;
 use std::{collections::HashMap, ffi::OsString, path::PathBuf};
 
-#[derive(Debug, Clone, Snafu)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub(crate) enum InterpolateError {
-    #[snafu(display("template syntax violation: {}", message))]
-    BadSyntax { message: String },
-    #[snafu(display("unknown key {} in command template", key))]
+    #[error("template syntax violation: {message}")]
+    BadSyntax { message: &'static str },
+    #[error("unknown key {key} in command template")]
     MissingKey { key: String },
 }
 
@@ -46,12 +45,9 @@ pub(crate) fn interpolate_string(
     let mut next_pat_id = 0;
     for m in matches {
         if m.pattern() != next_pat_id {
-            return BadSyntax {
-                message:
-                    "get pattern start while parsing pattern or pattern end outside of pattern"
-                        .to_string(),
-            }
-            .fail();
+            return Err(InterpolateError::BadSyntax {
+                message: "get pattern start while parsing pattern or pattern end outside of pattern",
+            });
         }
 
         let chunk = &string[cur_pos..m.start()];
@@ -64,7 +60,9 @@ pub(crate) fn interpolate_string(
                     out.push(val);
                 }
                 None => {
-                    return MissingKey { key: chunk }.fail();
+                    return Err(InterpolateError::MissingKey {
+                        key: chunk.to_string(),
+                    });
                 }
             }
         }
@@ -124,11 +122,13 @@ impl<'a> Invoker<'a> {
             .join(&self.ctx.problem_cfg.name)
     }
 
-    fn run_tests(&self, artifact: &Artifact) -> Result<(InvokeOutcome, JudgeLog), Error> {
+    fn run_tests(&self, artifact: &Artifact) -> anyhow::Result<(InvokeOutcome, JudgeLog)> {
         let mut test_results = vec![];
 
-        let mut valuer = Valuer::new(self.ctx.clone())?;
-        let mut resp = valuer.initial_test()?;
+        let mut valuer = Valuer::new(self.ctx.clone()).context("failed to init valuer")?;
+        let mut resp = valuer
+            .initial_test()
+            .context("failed to get initial test")?;
 
         let (score, treat_as_full, judge_log) = loop {
             match resp {
@@ -152,12 +152,18 @@ impl<'a> Invoker<'a> {
                         ctx: self.ctx.clone(),
                     };
 
-                    let judge_response = judge.judge()?;
+                    let judge_response = judge
+                        .judge()
+                        .with_context(|| format!("failed to judge solution on test {}", tid))?;
                     test_results.push((tid, judge_response.clone()));
-                    resp = valuer.notify_test_done(ValuerNotification {
-                        test_id: tid,
-                        test_status: judge_response.status,
-                    })?;
+                    resp = valuer
+                        .notify_test_done(ValuerNotification {
+                            test_id: tid,
+                            test_status: judge_response.status,
+                        })
+                        .with_context(|| {
+                            format!("failed to notify valuer that test {} is done", tid)
+                        })?;
                 }
                 ValuerResponse::Finish {
                     score,
@@ -184,7 +190,7 @@ impl<'a> Invoker<'a> {
         Ok((outcome, judge_log))
     }
 
-    fn update_judge_log(&self, log: &mut crate::judge_log::JudgeLog) -> Result<(), Error> {
+    fn update_judge_log(&self, log: &mut crate::judge_log::JudgeLog) -> anyhow::Result<()> {
         use crate::judge_log::VisibleComponents;
         use std::io::Read;
         // now fill compile_stdout and compile_stderr in judge_log
@@ -198,10 +204,16 @@ impl<'a> Invoker<'a> {
                 if !stdout_file.exists() || !stderr_file.exists() {
                     break;
                 }
-                let mut stdout_file = std::fs::File::open(stdout_file)?;
-                let mut stderr_file = std::fs::File::open(stderr_file)?;
-                stdout_file.read_to_end(&mut compile_stdout)?;
-                stderr_file.read_to_end(&mut compile_stderr)?;
+                let mut stdout_file =
+                    std::fs::File::open(stdout_file).context("failed to open output log")?;
+                let mut stderr_file =
+                    std::fs::File::open(stderr_file).context("failed to open errors log")?;
+                stdout_file
+                    .read_to_end(&mut compile_stdout)
+                    .context("failed to read output log")?;
+                stderr_file
+                    .read_to_end(&mut compile_stderr)
+                    .context("failed to read errors log")?;
             }
             log.compile_stdout = base64::encode(&compile_stdout);
             log.compile_stderr = base64::encode(&compile_stderr);
@@ -217,7 +229,7 @@ impl<'a> Invoker<'a> {
                 if item.components.contains(VisibleComponents::TEST_DATA) {
                     let test_file = &self.ctx.problem_data.tests[item.test_id].path;
                     let test_file = self.ctx.get_asset_path(&test_file);
-                    let test_data = std::fs::read(test_file)?;
+                    let test_data = std::fs::read(test_file).context("failed to read test data")?;
                     let test_data = base64::encode(&test_data);
                     item.test_stdin = Some(test_data);
                 }
@@ -225,8 +237,10 @@ impl<'a> Invoker<'a> {
                     let stdout_file = test_local_dir.join("stdout.txt");
                     let stderr_file = test_local_dir.join("stderr.txt");
                     //println!("DEBUG: stdout_file={}", stdout_file.display());
-                    let sol_stdout = std::fs::read(stdout_file)?;
-                    let sol_stderr = std::fs::read(stderr_file)?;
+                    let sol_stdout =
+                        std::fs::read(stdout_file).context("failed to read solution stdout")?;
+                    let sol_stderr =
+                        std::fs::read(stderr_file).context("failed to read solution stderr")?;
                     let sol_stdout = base64::encode(&sol_stdout);
                     let sol_stderr = base64::encode(&sol_stderr);
                     item.test_stdout = Some(sol_stdout);
@@ -236,7 +250,8 @@ impl<'a> Invoker<'a> {
                     let answer_ref = &self.ctx.problem_data.tests[item.test_id].correct;
                     if let Some(answer_ref) = answer_ref {
                         let answer_file = self.ctx.get_asset_path(answer_ref);
-                        let answer = std::fs::read(answer_file)?;
+                        let answer =
+                            std::fs::read(answer_file).context("failed to read correct answer")?;
                         let answer = base64::encode(&answer);
                         item.test_answer = Some(answer);
                     }
@@ -247,7 +262,7 @@ impl<'a> Invoker<'a> {
         Ok(())
     }
 
-    pub(crate) fn invoke(&self) -> Result<InvokeOutcome, Error> {
+    pub(crate) fn invoke(&self) -> anyhow::Result<InvokeOutcome> {
         let compiler = Compiler {
             ctx: self.ctx.clone(),
         };
@@ -260,13 +275,7 @@ impl<'a> Invoker<'a> {
         );
 
         if !self.req.submission.root_dir.exists() {
-            error!("Submission root dir not exists"; "submission" => self.req.submission.props.id);
-            return Err(Error::BadConfig {
-                backtrace: Default::default(),
-                inner: Box::new(err::StringError(
-                    "Submission root dir not exists".to_string(),
-                )),
-            });
+            bail!("Submission root dir not exists");
         }
         let compiler_request = BuildRequest {
             paths: &build_paths,
@@ -310,7 +319,7 @@ impl<'a> Invoker<'a> {
         let judge_log_file = std::fs::File::create(&judge_log_path)?;
         let judge_log_file = std::io::BufWriter::new(judge_log_file);
         serde_json::to_writer(judge_log_file, &judge_log)
-            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
+            .context("failed to write judge log to file")?;
         let outcome = outcome.unwrap_or_else(|| unreachable!());
         debug!("Invokation finished"; "status" => ?outcome.status);
 

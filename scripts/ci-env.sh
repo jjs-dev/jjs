@@ -11,4 +11,4 @@ if [[ "x$SECRET_ENABLED" != "x" ]]; then
     sudo apt-get install -y pvs-studio;
     pvs-studio-analyzer credentials "$PVS_NAME" "$PVS_LICENSE_KEY";
 fi
-rustup component add clippy rustfmt
+bash scripts/install-rust.sh

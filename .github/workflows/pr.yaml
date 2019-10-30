@@ -14,11 +14,6 @@ jobs:
     runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
-      - name: install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-09-28
-          override: true
       - name: install global dependencies
         run: bash scripts/ci-env.sh
         env:
@@ -35,11 +30,6 @@ jobs:
     runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
-      - name: install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-09-28
-          override: true
       - name: install global dependencies
         run: bash scripts/ci-env.sh
       - name: cargo jjs-test
@@ -50,11 +40,6 @@ jobs:
     runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
-      - name: install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-09-28
-          override: true
       - name: install global dependencies
         run: bash scripts/ci-env.sh
       - name: cargo jjs-build
@@ -64,11 +49,6 @@ jobs:
     runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
-      - name: install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-09-28
-          override: true
       - name: install global dependencies
         run: |
           bash scripts/ci-env.sh
@@ -83,11 +63,6 @@ jobs:
     if: false # TODO
     steps:
       - uses: actions/checkout@v1
-      - name: install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-09-28
-          override: true
       - name: download jjs artifacts
         uses: actions/download-artifact@v1
         with:

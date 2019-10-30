@@ -1,5 +1,3 @@
-#![feature(option_flattening)]
-
 mod compiler;
 mod inter_api;
 mod invoke_context;

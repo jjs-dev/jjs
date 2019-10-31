@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: root
   init-db:
-    image: jjs-tools:dev
+    image: jjs-tools:latest
     command:
       - "jjs-setup"
       - "--install-dir=/opt/jjs"
@@ -25,11 +25,10 @@ services:
       - type: 'volume'
         source: jjs_data
         target: /var/jjs
-      - /opt/jjs:/opt/jjs:ro
     security_opt:
       - seccomp=unconfined
   frontend:
-    image: jjs-frontend:dev
+    image: jjs-frontend:latest
     environment:
       DATABASE_URL: postgres://db:5432/jjs
       JJS_SYSROOT: /var/jjs
@@ -47,7 +46,7 @@ services:
     ports:
       - "1779:1779"
   invoker:
-    image: jjs-invoker:dev
+    image: jjs-invoker:latest
     privileged: true
     environment:
       DATABASE_URL: postgres://db:5432/jjs
@@ -63,7 +62,6 @@ services:
       - type: 'volume'
         source: jjs_data
         target: /var/jjs
-      - /opt/jjs:/opt/jjs:ro
 volumes:
   jjs_data:
 

@@ -31,7 +31,8 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     cmd.args(&["--out", "/opt/jjs"]);
 
     if opts.full() {
-        cmd.arg("--enable-deb");
+        // TODO: enable when deb support is OK
+        // cmd.arg("--enable-deb");
     }
     // useful for easily starting up & shutting down
     // required for docker compose

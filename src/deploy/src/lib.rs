@@ -46,7 +46,11 @@ fn create_registry() -> Registry {
     add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
     add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
     add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
-
+    add_bin(
+        "soft",
+        "jjs-configure-toolchains",
+        PackageComponentKind::Tools,
+    );
     {
         let mut minion_cli =
             packages::BinPackage::new("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
@@ -113,18 +117,14 @@ fn build_jjs_components(params: &Params, runner: &Runner) {
         copy_inside: true,
         depth: 0,
     };
-    fs_extra::dir::copy(
-        proj_root.join("example-config"),
-        pkg_dir.join("example-config"),
-        &opts,
-    )
-    .unwrap();
-    fs_extra::dir::copy(
-        proj_root.join("example-problems"),
-        pkg_dir.join("example-problems"),
-        &opts,
-    )
-    .unwrap();
+
+    let copy_dir = |dir_name: &str| {
+        fs_extra::dir::copy(proj_root.join(dir_name), pkg_dir.join(dir_name), &opts).unwrap();
+    };
+
+    copy_dir("example-config");
+    copy_dir("example-problems");
+    copy_dir("toolchains");
 }
 
 pub fn package(params: &Params, runner: &Runner) {

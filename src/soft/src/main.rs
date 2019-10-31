@@ -45,20 +45,20 @@ fn run_under_trace(script_path: &Path, data_path: &Path) -> anyhow::Result<Vec<u
     let current_dir = tempfile::TempDir::new().context("failed to create temp dir")?;
     println!("running in {}", current_dir.path().display());
     let log_out_file = current_dir.path().join("__jjs_trace.json");
+    let data_path = data_path.canonicalize().context("data dir not exists")?;
+    println!("script will use data from {}", data_path.display());
     let status = Command::new("ktrace")
         .current_dir(current_dir.path())
         // machine-readable
         .arg("--json")
         // redirect to file, so it will not mix with script output
+        .arg("--inherit-env")
         .arg("--file")
         .arg(&log_out_file)
         .arg("--")
         .arg("bash")
         .arg(script_path.canonicalize().context("script not exists")?)
-        .env(
-            "DATA",
-            data_path.canonicalize().context("data dir not exists")?,
-        )
+        .env("DATA", data_path)
         .status()
         .context("failed to start ktrace")?;
     if !status.success() {
@@ -90,6 +90,7 @@ fn process_toolchain(
         let scanner = serde_json::Deserializer::from_slice(&out).into_iter();
         let mut cnt = 0;
         let mut cnt_items = 0;
+        let mut cnt_errors = 0;
         for val in scanner {
             let val: serde_json::Value = val.context("failed to parse ktrace output")?;
             if let Some(mut wr) = event_log.as_mut() {
@@ -105,14 +106,15 @@ fn process_toolchain(
                 Ok(cnt) => cnt,
                 Err(err) => {
                     util::print_error(&*err);
+                    cnt_errors += 1;
                     0
                 }
             };
             cnt_items += 1;
         }
         println!(
-            "script processed: {} trace events, {} new files",
-            cnt_items, cnt
+            "script processed: {} trace events, {} new files, {} errors",
+            cnt_items, cnt, cnt_errors
         );
     }
     Ok(())

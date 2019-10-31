@@ -28,7 +28,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     std::fs::File::create("./target/.jjsbuild").unwrap();
     let mut cmd = Command::new("../configure");
     cmd.current_dir("target");
-    cmd.args(&["--out", "/opt/jjs"]);
+    cmd.arg("--out=/opt/jjs");
 
     if opts.full() {
         // TODO: enable when deb support is OK
@@ -36,7 +36,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     }
     // useful for easily starting up & shutting down
     // required for docker compose
-    cmd.args(&["--enable-docker", "--docker-tag", "jjs-%:dev"]);
+    cmd.arg("--enable-docker");
     if opts.full() {
         cmd.arg("--enable-archive");
     }

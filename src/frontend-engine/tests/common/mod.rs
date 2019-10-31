@@ -33,6 +33,7 @@ impl EnvBuilder {
 
         setup::setup(
             &setup::SetupParams {
+                toolchains: false,
                 data_dir: Some(path.clone().into()),
                 config: None,
                 db: None,

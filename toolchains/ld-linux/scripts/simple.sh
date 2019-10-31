@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-file /lib64/ld-linux-x86-64.so.2
+busybox stat /lib64/ld-linux-x86-64.so.2

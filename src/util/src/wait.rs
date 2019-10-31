@@ -59,7 +59,7 @@ fn do_poll(items: &[WaitItem]) {
     for (i, item) in active.iter_mut().enumerate() {
         *item = i;
     }
-    let timeout = Duration::from_secs(45);
+    let timeout = Duration::from_secs(90);
     let deadline = std::time::Instant::now() + timeout;
     while !active.is_empty() {
         log::debug!("Running poll attempt. {} remaining", active.len());
@@ -80,7 +80,7 @@ fn do_poll(items: &[WaitItem]) {
                 }
             }
         }
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_secs(3));
         if std::time::Instant::now() > deadline {
             log::error!("Wait timed out: {} waits outstanding", new_active.len());
             std::process::exit(1);

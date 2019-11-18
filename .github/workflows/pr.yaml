@@ -8,49 +8,67 @@ on:
 env:
   CI: 1
   RUST_BACKTRACE: full
+  CARGO_INCREMENTAL: 0
+  CARGO_BUILD_PIPELINING: "false"
 jobs:
-  check:
-    name: check
-    runs-on: 'ubuntu-18.04'
+  style:
+    name: style
+    runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: bash scripts/ci-env.sh
+      - run: bash scripts/ci-env.sh
+      - name: check rust code formatting
+        run: cargo jjs-check --no-default --rustfmt
+      - name: run shellcheck
+        run: cargo jjs-check --no-default --shellcheck
+  clippy:
+    name: clippy
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: actions/checkout@v1
+      - run: bash scripts/ci-env.sh
+      - name: run clippy
+        run: cargo jjs-check --no-default --clippy
+  cpp:
+    name: cpp
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: actions/checkout@v1
+      - run: bash scripts/ci-env.sh
         env:
           SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
           PVS_NAME: ${{ secrets.PVS_NAME }}
           PVS_LICENSE_KEY: ${{ secrets.PVS_LICENSE_KEY }}
-      - name: cargo jjs-check
-        run: cargo jjs-check
+      - name: compile testlib
+        run: cargo jjs-check --no-default --testlib
+      - name: compile minion C example
+        run: cargo jjs-check --no-default --minion-ffi-example
+      - name: Run PVS
+        run: cargo jjs-check --no-default --pvs
         env:
           SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
-
   unit-tests:
     name: unit-tests
-    runs-on: 'ubuntu-18.04'
+    runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: bash scripts/ci-env.sh
+      - run: bash scripts/ci-env.sh
       - name: cargo jjs-test
         run: cargo jjs-test
-
   build:
     name: build
-    runs-on: 'ubuntu-18.04'
+    runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: bash scripts/ci-env.sh
+      - run: bash scripts/ci-env.sh
       - name: cargo jjs-build
         run: cargo jjs-build
   udeps:
     name: udeps
-    runs-on: 'ubuntu-18.04'
+    runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: |
+      - run: |
           bash scripts/ci-env.sh
           cargo install cargo-udeps
       - name: cargo-udeps
@@ -58,9 +76,9 @@ jobs:
 
   e2e:
     name: e2e
-    runs-on: 'ubuntu-18.04'
+    runs-on: "ubuntu-18.04"
     needs: build
-    if: false # TODO
+    if: "false" # TODO
     steps:
       - uses: actions/checkout@v1
       - name: download jjs artifacts

@@ -4,52 +4,45 @@
 #include <iterator>
 #include <utility>
 #include <algorithm>
+#include <random>
 
 namespace testgen {
-using Seed = uint8_t[32];
-
-using Word = int64_t;
-
 class Generator {
-void* impl;
-
-explicit Generator(void* impl) : impl(impl) {}
-
-Generator(Generator&& oth) noexcept : impl(oth.impl) {
-    oth.impl = nullptr;
-}
+std::mt19937_64 gen;
 
 public:
-Generator(const Generator& gen) = delete;
+// disallow implicit copies
+Generator(const Generator& gen) noexcept = default;
 
-explicit Generator(Seed seed);
+explicit Generator(uint64_t seed);
 
-Word next_u64();
+uint64_t next_u64();
+
+size_t next_usize();
 
 /// generates number in [lo; hi)
-Word next_range(Word lo, Word hi);
+uint64_t next_range(uint64_t lo, uint64_t hi);
 
 template<typename T, typename RAIter>
 T choose_uniform(RAIter begin, RAIter end) {
-    Word n = (Word) std::distance(begin, end);
-    Word k = next_range(0, n);
-    *std::advance(begin, (size_t) k);
+    size_t const item_count = std::distance(begin, end);
+    auto const selected_pos = (size_t) next_range(0, (uint64_t) item_count);
+    *std::advance(begin, selected_pos);
 }
 
 /// returns new generator, which state is initially same with this
 Generator clone();
-
-/// returns pointer to global generator. It is automatically initialized, and should be used in most cases
-static Generator* open_global();
 };
 
-struct Input {
+struct TestgenSession {
     FILE* out_file = nullptr;
     int test_id = 0;
-    Seed random_seed = {};
+    Generator gen;
     int64_t fd_out_file = -1;
+
+    TestgenSession(uint64_t _seed);
 };
 
 /// Call this first in test generator
-Input init(bool open_files = true);
+TestgenSession init(bool open_files = true);
 }

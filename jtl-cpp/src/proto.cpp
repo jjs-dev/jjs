@@ -61,7 +61,7 @@ BinString decode_hex(char* data) {
     return bs;
 }
 
-void BinString::dealloc() {
+BinString::~BinString() {
     delete[] head;
 }
 

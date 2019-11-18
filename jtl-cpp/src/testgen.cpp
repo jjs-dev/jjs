@@ -1,61 +1,58 @@
 #include "testgen.h"
-#include "rand-ffi.h"
 #include "proto.h"
 #include <mutex>
 #include <cstdio>
 #include <cstring>
+#include <cassert>
 
-testgen::Generator::Generator(uint8_t seed[32]) {
-    impl = random_init(seed);
+testgen::Generator::Generator(uint64_t seed) : gen(seed) {}
+
+uint64_t testgen::Generator::next_u64() {
+    return gen();
 }
 
-testgen::Word testgen::Generator::next_u64() {
-    return random_gen64((Random*) impl);
-}
-
-testgen::Word testgen::Generator::next_range(testgen::Word lo, testgen::Word hi) {
-    return random_gen_range((Random*) impl, lo, hi);
-}
-
-testgen::Generator testgen::Generator::clone() {
-    auto new_impl = random_clone((Random*) impl);
-    return Generator(new_impl);
-}
-
-static testgen::Generator* GLOBAL_RND;
-
-testgen::Generator* testgen::Generator::open_global() {
-    if (!GLOBAL_RND) {
-        fprintf(stderr, "fatal error: Generator is requested, but is is not initialized yet. Was testgen::init() called?\n");
-        exit(1);
+/// Returns random number in [0; n)
+static uint64_t get_rand(uint64_t n, std::mt19937_64& gen) {
+    assert(n != 0);
+    uint64_t bits = n;
+    // step one: we want `bits` to contain highest bit of n, and all smaller
+    bits |= (bits >> 1u);
+    bits |= (bits >> 2u);
+    bits |= (bits >> 4u);
+    bits |= (bits >> 8u);
+    bits |= (bits >> 16u);
+    bits |= (bits >> 32u);
+    while (true) {
+        uint64_t s = gen();
+        s &= bits;
+        // why is it fast: bits is smaller than 2*n, so probability that this iteration succeed is at least 0.5
+        if (s < n) {
+            return s;
+        }
     }
-    return GLOBAL_RND;
 }
 
-static void init_global_gen(testgen::Seed seed) {
-    if (GLOBAL_RND) {
-        fprintf(stderr, "fatal error: Global generator is constructed twice");
-        exit(1);
-    }
-    GLOBAL_RND = new testgen::Generator(seed);
+uint64_t testgen::Generator::next_range(uint64_t lo, uint64_t hi) {
+    assert(lo < hi);
+    return lo + get_rand(hi - lo, gen);
 }
+testgen::TestgenSession::TestgenSession(uint64_t _seed): gen(_seed) {
 
-testgen::Input testgen::init(bool open_files) {
-    testgen::Input ti;
-    ti.test_id = get_env_int("JJS_TEST_ID");
-    if (open_files) {
-        ti.out_file = get_env_file("JJS_TEST", "w");
-    } else {
-        ti.fd_out_file = get_env_int("JJS_TEST");
-    }
+}
+testgen::TestgenSession testgen::init(bool open_files) {
     auto rand_seed = get_env_hex("JJS_RANDOM_SEED");
-    if (rand_seed.len != 32) {
-        fprintf(stderr, "rand_seed has incorrect length (%zu instead of 32)\n", rand_seed.len);
+    if (rand_seed.len != 8) {
+        fprintf(stderr, "rand_seed has incorrect length (%zu instead of 8)\n", rand_seed.len);
         exit(1);
     }
-    memcpy(ti.random_seed, rand_seed.head, 32);
-    init_global_gen(ti.random_seed);
-    rand_seed.dealloc();
-    //testgen::in
-    return ti;
+    uint64_t random_seed;
+    memcpy(&random_seed, rand_seed.head, 8);
+    testgen::TestgenSession sess {random_seed};
+    sess.test_id = get_env_int("JJS_TEST_ID");
+    if (open_files) {
+        sess.out_file = get_env_file("JJS_TEST", "w");
+    } else {
+        sess.fd_out_file = get_env_int("JJS_TEST");
+    }
+    return sess;
 }

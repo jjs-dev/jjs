@@ -12,7 +12,7 @@ FILE* get_env_file(const char* var_name, const char* mode);
 struct BinString {
     uint8_t* head = nullptr;
     size_t len = 0;
-    void dealloc();
+    ~BinString();
 };
 
 BinString get_env_hex(const char* var_name);

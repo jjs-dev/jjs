@@ -1,8 +1,11 @@
 //! Ranker is library, responsible for generating monitor
 //! Is is used in both frontend and invoker
 
+#[cfg(test)]
+mod tests;
+
 use serde::Serialize;
-use std::{cmp::Ordering, collections::HashMap, num::NonZeroU32};
+use std::{cmp::Ordering, collections::BTreeMap, num::NonZeroU32};
 
 #[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Serialize, Copy, Clone)]
 pub struct SubtaskId(pub NonZeroU32);
@@ -20,13 +23,13 @@ pub type Score = i32;
 
 #[derive(Debug)]
 pub struct Run {
-    pub subtasks: HashMap<SubtaskId, Score>,
+    pub subtasks: BTreeMap<SubtaskId, Score>,
     pub party: PartyId,
     pub problem: ProblemId,
 }
 
 /// Represents one cell in monitor
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct Cell {
     /// True if party haven't attempted to solve problem
     pub empty: bool,
@@ -44,7 +47,7 @@ pub struct Cell {
 }
 
 /// Represents some properties of row, describing party
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PartyStats {
     /// This is used to distinguish groups of parties
     ///
@@ -55,23 +58,23 @@ pub struct PartyStats {
     pub color: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PartyRow {
     stats: PartyStats,
-    problems: HashMap<ProblemId, Cell>,
+    problems: BTreeMap<ProblemId, Cell>,
 }
 
 /// Represents some statistics of problem
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct ProblemStats {
     pub total_runs: u32,
     pub accepted_runs: u32,
     pub max_score: Score,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct StatsRow {
-    pub problems: HashMap<ProblemId, ProblemStats>,
+    pub problems: BTreeMap<ProblemId, ProblemStats>,
 }
 
 /// Determines which runs will be used to calculate total score for problem
@@ -79,13 +82,13 @@ pub struct StatsRow {
 /// Note that exact way of calculating score depends on [`RunScoreAggregation`](RunScoreAggregation)
 #[derive(Debug)]
 pub enum RunScoreAggregationTarget {
+    /// All runs will be used
+    All,
     /// `k` latest (later = id is greater) will be used
     Latest(u32),
     /// Run with max score will be used
     /// If there are several runs with max score, run with greatest id will be used
     Best,
-    /// All runs will be used
-    All,
 }
 
 /// Determines how total score for problem is calculated
@@ -124,9 +127,9 @@ pub struct Config {
     pub score_problems: ProblemScoreAggregationTarget,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct Monitor {
-    pub parties: HashMap<PartyId, PartyRow>,
+    pub parties: BTreeMap<PartyId, PartyRow>,
     pub stats: StatsRow,
 }
 
@@ -138,8 +141,8 @@ pub fn build_monitor(
     parties: &[PartyId],
     _config: &Config,
 ) -> Monitor {
-    let mut party_info = HashMap::new();
-    let mut runs_by_party_and_problem = HashMap::new();
+    let mut party_info = BTreeMap::new();
+    let mut runs_by_party_and_problem = BTreeMap::new();
     for (i, run) in runs.iter().enumerate() {
         let k = (run.party, run.problem);
         runs_by_party_and_problem
@@ -147,10 +150,10 @@ pub fn build_monitor(
             .or_insert_with(Vec::new)
             .push(i);
     }
-    let mut cell_by_party_and_problem = HashMap::new();
+    let mut cell_by_party_and_problem = BTreeMap::new();
 
     let mut stats = StatsRow {
-        problems: HashMap::new(),
+        problems: BTreeMap::new(),
     };
     for problem in problems {
         stats.problems.insert(
@@ -210,7 +213,7 @@ pub fn build_monitor(
         let stats = PartyStats { color: 0 };
         let mut row = PartyRow {
             stats,
-            problems: HashMap::new(),
+            problems: BTreeMap::new(),
         };
         for problem in problems {
             row.problems.insert(

@@ -1,5 +1,6 @@
 #include "testgen.h"
 #include "proto.h"
+#include "jtl.h"
 #include <mutex>
 #include <cstdio>
 #include <cstring>
@@ -42,11 +43,10 @@ testgen::TestgenSession::TestgenSession(uint64_t _seed): gen(_seed) {
 testgen::TestgenSession testgen::init(bool open_files) {
     auto rand_seed = get_env_hex("JJS_RANDOM_SEED");
     if (rand_seed.len != 8) {
-        fprintf(stderr, "rand_seed has incorrect length (%zu instead of 8)\n", rand_seed.len);
-        exit(1);
+        die("rand_seed has incorrect length (%zu instead of 8)\n", rand_seed.len);
     }
     uint64_t random_seed;
-    memcpy(&random_seed, rand_seed.head, 8);
+    memcpy(&random_seed, rand_seed.head.get(), 8);
     testgen::TestgenSession sess {random_seed};
     sess.test_id = get_env_int("JJS_TEST_ID");
     if (open_files) {

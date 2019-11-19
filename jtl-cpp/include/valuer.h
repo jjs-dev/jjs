@@ -25,7 +25,7 @@ static void to_string(StatusKind kind, char buf[STATUS_KIND_MAX_LEN]);
 static bool is_passed(StatusKind kind);
 };
 
-struct VisibleComponents {
+struct TestVisibleComponents {
     static const uint32_t TEST_DATA = 1;
     static const uint32_t OUTPUT = 2;
     static const uint32_t ANSWER = 4;
@@ -42,40 +42,75 @@ struct VisibleComponents {
 
 using TestId = uint32_t;
 
-struct JudgeLogEntry {
+struct JudgeLogTestEntry {
     TestId test_id;
     std::string status_code;
     StatusKind status_kind;
+    TestVisibleComponents components;
+};
+
+using SubtaskId = uint32_t;
+
+struct SubtaskVisibleComponents {
+    static const uint32_t SCORE = 1;
+
+    uint32_t flags;
+
+    void expose_score();
+};
+
+struct JudgeLogSubtaskEntry {
+    SubtaskId subtask_id;
     uint32_t score;
-    VisibleComponents components;
+    SubtaskVisibleComponents components;
 };
 
 struct JudgeLog {
     std::string name;
-    std::vector<JudgeLogEntry> entries;
+    std::vector<JudgeLogTestEntry> tests;
+    std::vector<JudgeLogSubtaskEntry> subtasks;
+
+    void add_test_entry(JudgeLogTestEntry const& test);
+
+    void add_subtask_entry(JudgeLogSubtaskEntry const& entry);
 };
 
-struct ValuerContext {
-    void* data = nullptr;
-
-    int problem_test_count = -1;
-
-    void select_next_test(TestId next_test);
-
-    void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
-};
+class ValuerSession;
 
 struct ValuerCallbacks {
-    void (* init)(ValuerContext* ctx) = nullptr;
+    void (* init)(ValuerSession* sess) = nullptr;
 
-    void (* begin)(ValuerContext* ctx) = nullptr;
+    void (* begin)(ValuerSession* sess) = nullptr;
 
-    void (* on_test_end)(ValuerContext* ctx, TestId test, StatusKind status_kind, const char* status_code) = nullptr;
+    void (* on_test_end)(ValuerSession* sess, JudgeLogTestEntry test_info) = nullptr;
 };
 
-void run_valuer(ValuerCallbacks callbacks);
 
-void comment_public(const char* format, ...) PRINT_FORMAT_FN(1);
+class ValuerSession {
+void* data = nullptr;
 
-void comment_private(const char* format, ...) PRINT_FORMAT_FN(1);
+uint32_t problem_test_count = -1;
+
+JudgeLog log;
+FILE* pub_comments_file = nullptr;
+FILE* priv_comments_file = nullptr;
+public:
+void* get_data();
+
+[[nodiscard]] void const* get_data() const;
+
+void set_data(void* data);
+
+uint32_t get_problem_test_count();
+
+void select_next_test(TestId next_test);
+
+void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
+
+void comment_public(const char* format, ...) PRINT_FORMAT_FN(2);
+
+void comment_private(const char* format, ...) PRINT_FORMAT_FN(2);
+
+static void run_valuer(ValuerCallbacks callbacks, void* user_data = nullptr);
+};
 }

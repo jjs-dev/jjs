@@ -211,8 +211,8 @@ impl RawProblem {
 
         let random_seed = match self.random_seed.take() {
             Some(s) => {
-                if s.len() != 64 {
-                    return Err("random-seed must have length of 64".to_string());
+                if s.len() != 16 {
+                    return Err("random-seed must have length of 16".to_string());
                 }
                 if s.chars().all(|c| c.is_ascii_hexdigit()) {
                     s.to_lowercase()
@@ -222,7 +222,7 @@ impl RawProblem {
             }
             None => {
                 warnings.push("random-seed not present, hardcoded seed is used".to_string());
-                "1f56fd326365e6184b133b04e330b456004a1c852f2a9cf26a2c1750a93b8184".to_string()
+                "6a2c1750a93b8184".to_string()
             }
         };
 

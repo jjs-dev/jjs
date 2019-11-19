@@ -1,7 +1,7 @@
 check-type = "custom"
 name = "array-sum"
 title = "Finding Maximal Flow in Highly Parallel Networks"
-random-seed = "2024f9ff0d28cf6321176054da58ac3fee52406b5b9a82a7c4142a74815ae779"
+random-seed = "c4142a74815ae779"
 valuer = "icpc"
 
 [custom-check]

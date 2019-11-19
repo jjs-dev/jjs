@@ -145,7 +145,7 @@ impl<'a> ProblemBuilder<'a> {
                         exit(1);
                     });
 
-                    let mut entropy_buf = [0; 64];
+                    let mut entropy_buf = [0; 16];
                     get_entropy_hex(&mut entropy_buf);
                     let entropy = String::from_utf8(entropy_buf.to_vec()).unwrap(); // only ASCII can be here
 

@@ -52,6 +52,10 @@ impl BuildInfo {
     pub fn is_not_ci(&self) -> bool {
         self.ty == BuildType::NotCi
     }
+
+    pub fn is_ci(&self) -> bool {
+        !self.is_not_ci()
+    }
 }
 
 fn extract_branch_name(commit_ref: &str) -> Option<&str> {

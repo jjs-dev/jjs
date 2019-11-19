@@ -37,3 +37,10 @@ void* check_oom(void* ptr) {
         oom();
     }
 }
+
+void die(char const* message, ...) {
+    va_list v;
+    va_start(v, message);
+    vfprintf(stderr, message, v);
+    exit(1);
+}

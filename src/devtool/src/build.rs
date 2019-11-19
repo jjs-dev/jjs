@@ -7,6 +7,12 @@ pub(crate) struct RawBuildOpts {
     /// enable things that are not required for running tests
     #[structopt(long)]
     full: bool,
+    /// Enable docker
+    #[structopt(long)]
+    docker: bool,
+    /// Setup (useful for development)
+    #[structopt(long)]
+    setup: bool,
 }
 
 struct BuildOpts(RawBuildOpts);
@@ -20,6 +26,14 @@ impl BuildOpts {
     fn should_build_man(&self) -> bool {
         let bt = crate::ci::detect_build_type();
         bt.deploy_info().contains(&crate::ci::DeployKind::Man) || bt.is_not_ci()
+    }
+
+    fn should_build_docker(&self) -> bool {
+        self.0.docker || crate::ci::detect_build_type().is_ci()
+    }
+
+    fn raw(&self) -> &RawBuildOpts {
+        &self.0
     }
 }
 
@@ -36,7 +50,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     }
     // useful for easily starting up & shutting down
     // required for docker compose
-    cmd.arg("--enable-docker");
+    if opts.should_build_docker() {
+        cmd.arg("--enable-docker");
+    }
     if opts.full() {
         cmd.arg("--enable-archive");
     }
@@ -48,4 +64,18 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     }
 
     Command::new("make").current_dir("target").run_on(runner);
+
+    if opts.raw().setup {
+        println!("running setup");
+        Command::new("/opt/jjs/bin/jjs-setup")
+            .arg("--data-dir=/tmp/jjs")
+            .arg("--install-dir=/opt/jjs")
+            .arg("--db-url=postgres://jjs:internal@localhost:5432/jjs")
+            .arg("--force")
+            .arg("--sample-contest")
+            .arg("--symlink-config")
+            .arg("--setup-config")
+            .arg("--toolchains")
+            .run_on(runner);
+    }
 }

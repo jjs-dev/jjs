@@ -191,7 +191,7 @@ impl<'a> Invoker<'a> {
     }
 
     fn update_judge_log(&self, log: &mut crate::judge_log::JudgeLog) -> anyhow::Result<()> {
-        use crate::judge_log::VisibleComponents;
+        use crate::judge_log::TestVisibleComponents;
         use std::io::Read;
         // now fill compile_stdout and compile_stderr in judge_log
         {
@@ -226,14 +226,14 @@ impl<'a> Invoker<'a> {
                     .work_dir
                     .path()
                     .join(format!("s-{}", item.test_id.0.get()));
-                if item.components.contains(VisibleComponents::TEST_DATA) {
+                if item.components.contains(TestVisibleComponents::TEST_DATA) {
                     let test_file = &self.ctx.problem_data.tests[item.test_id].path;
                     let test_file = self.ctx.get_asset_path(&test_file);
                     let test_data = std::fs::read(test_file).context("failed to read test data")?;
                     let test_data = base64::encode(&test_data);
                     item.test_stdin = Some(test_data);
                 }
-                if item.components.contains(VisibleComponents::OUTPUT) {
+                if item.components.contains(TestVisibleComponents::OUTPUT) {
                     let stdout_file = test_local_dir.join("stdout.txt");
                     let stderr_file = test_local_dir.join("stderr.txt");
                     //println!("DEBUG: stdout_file={}", stdout_file.display());
@@ -246,7 +246,7 @@ impl<'a> Invoker<'a> {
                     item.test_stdout = Some(sol_stdout);
                     item.test_stderr = Some(sol_stderr);
                 }
-                if item.components.contains(VisibleComponents::ANSWER) {
+                if item.components.contains(TestVisibleComponents::ANSWER) {
                     let answer_ref = &self.ctx.problem_data.tests[item.test_id].correct;
                     if let Some(answer_ref) = answer_ref {
                         let answer_file = self.ctx.get_asset_path(answer_ref);
@@ -258,6 +258,8 @@ impl<'a> Invoker<'a> {
                 }
             }
         }
+        // note that we do not filter anything about subtasks,
+        // because such filtering is done by Valuer.
 
         Ok(())
     }
@@ -306,6 +308,7 @@ impl<'a> Invoker<'a> {
             judge_log = JudgeLog {
                 name: "".to_string(),
                 tests: vec![],
+                subtasks: vec![],
                 compile_stdout: "".to_string(),
                 compile_stderr: "".to_string(),
             };

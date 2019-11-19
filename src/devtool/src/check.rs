@@ -21,7 +21,6 @@ fn clippy(runner: &Runner) {
             "clippy",
             "--all",
             "--tests",
-            "--frozen",
             "--",
             "-D",
             "clippy::all",
@@ -202,7 +201,8 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
         udeps(runner);
     }
     let force_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_ok();
-    if opts.pvs || force_pvs {
+    let force_not_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_err();
+    if (opts.pvs || force_pvs) && !force_not_pvs {
         pvs(runner);
     }
 }

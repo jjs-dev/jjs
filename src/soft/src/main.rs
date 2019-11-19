@@ -47,7 +47,7 @@ fn run_under_trace(script_path: &Path, data_path: &Path) -> anyhow::Result<Vec<u
     let log_out_file = current_dir.path().join("__jjs_trace.json");
     let data_path = data_path.canonicalize().context("data dir not exists")?;
     println!("script will use data from {}", data_path.display());
-    let status = Command::new("ktrace")
+    let status = Command::new("lxtrace")
         .current_dir(current_dir.path())
         // machine-readable
         .arg("--json")

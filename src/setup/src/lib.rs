@@ -1,3 +1,4 @@
+use anyhow::Context;
 use log::{error, info};
 use std::{
     fs,
@@ -34,8 +35,8 @@ fn add(data_dir: &Path, name: &str) -> anyhow::Result<()> {
 
 fn create_dirs(params: &SetupParams) -> anyhow::Result<()> {
     if let Some(data_dir) = &params.data_dir {
-        if params.force {
-            std::fs::remove_dir_all(&data_dir).ok();
+        if params.force && data_dir.exists() {
+            std::fs::remove_dir_all(&data_dir).context("failed to remove existing data_dir")?;
         }
         std::fs::create_dir(&data_dir).ok();
         {
@@ -95,6 +96,7 @@ fn setup_db(
             .arg(conn_url.path().trim_start_matches('/')) // TODO: take from params
             .arg(format!("--host={}", &host))
             .arg(format!("--port={}", &port))
+            .arg("--no-password")
             .status()?;
     }
     let psql = || {
@@ -106,6 +108,7 @@ fn setup_db(
     {
         let mut cmd = psql();
         cmd.arg(format!("--file={}", migrate_script_path.display()));
+        cmd.arg("--no-password");
         cmd.run_on(runner);
     }
     info!("Creating user");

@@ -29,3 +29,5 @@ bool is_file_eof(FILE* f);
 void oom() ATTR_NORETURN;
 
 void* check_oom(void* ptr) ATTR_RET_NONNULL;
+
+void die(char const* message, ...) ATTR_NORETURN PRINT_FORMAT_FN(1);

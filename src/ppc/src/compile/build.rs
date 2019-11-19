@@ -77,7 +77,6 @@ impl<'a> BuildBackend for Pibs<'a> {
             .arg("-o")
             .arg(&dest_file)
             .arg("-ljtl")
-            .arg("-ljtlrs")
             .arg("-lpthread")
             .arg("-ldl")
             .run()?;

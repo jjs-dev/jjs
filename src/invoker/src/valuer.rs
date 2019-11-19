@@ -74,14 +74,11 @@ impl<'a> Valuer<'a> {
                 ValuerResponse::Test { test_id }
             }
             "DONE" => {
-                if items.len() != 4 {
+                if items.len() != 3 {
                     bail!("DONE: expected 4 items, got {}", items.len() - 1);
                 }
                 let score: u16 = items[1].parse().context("DONE: score is not u16")?;
                 let is_full: i8 = items[2].parse().context("DONE: is_full is not flag")?;
-                let num_judge_log_rows: usize = items[3]
-                    .parse()
-                    .context("Done: num_judge_log_rows is not uint")?;
 
                 if score > 100 {
                     bail!("score is bigger than 100");
@@ -89,20 +86,47 @@ impl<'a> Valuer<'a> {
                 if is_full < 0 || is_full > 1 {
                     bail!("DONE: is_full must be 0 or 1");
                 }
-
-                let mut tests = Vec::new();
-                for _ in 0..num_judge_log_rows {
+                line.clear();
+                self.stdout
+                    .read_line(&mut line)
+                    .context("failed to read test entries count")?;
+                let num_test_rows: usize = line
+                    .trim()
+                    .parse()
+                    .context("DONE: num_test_rows is not uint")?;
+                let mut tests = Vec::with_capacity(num_test_rows);
+                for _ in 0..num_test_rows {
                     line.clear();
                     self.stdout
                         .read_line(&mut line)
-                        .context("failed to read judge log row")?;
-                    tests.push(line.parse().context("failed to parse judge log row")?);
+                        .context("failed to read judge log test row")?;
+                    tests.push(line.parse().context("failed to parse judge log test row")?);
+                }
+                line.clear();
+                self.stdout
+                    .read_line(&mut line)
+                    .context("failed to read subtask entries count")?;
+                let num_subtask_rows: usize = line
+                    .trim()
+                    .parse()
+                    .context("DONE: num_subtask_rows is not uint")?;
+                let mut subtasks = Vec::with_capacity(num_subtask_rows);
+                for _ in 0..num_subtask_rows {
+                    line.clear();
+                    self.stdout
+                        .read_line(&mut line)
+                        .context("failed to read judge log subtask row")?;
+                    subtasks.push(
+                        line.parse()
+                            .context("failed to parse judge log subtask row")?,
+                    );
                 }
                 ValuerResponse::Finish {
                     score: score.into(),
                     treat_as_full: is_full == 1,
                     judge_log: crate::judge_log::JudgeLog {
                         tests,
+                        subtasks,
                         compile_stdout: String::new(),
                         name: "main".to_string(),
                         compile_stderr: String::new(),

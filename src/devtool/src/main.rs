@@ -92,6 +92,9 @@ fn task_ci_clean() {
 }
 
 fn main() {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).unwrap();
     let args = CliArgs::from_args();

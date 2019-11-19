@@ -74,16 +74,27 @@ pub struct StatsRow {
     pub problems: HashMap<ProblemId, ProblemStats>,
 }
 
+/// Determines which runs will be used to calculate total score for problem
+///
+/// Note that exact way of calculating score depends on [`RunScoreAggregation`](RunScoreAggregation)
 #[derive(Debug)]
 pub enum RunScoreAggregationTarget {
+    /// `k` latest (later = id is greater) will be used
     Latest(u32),
+    /// Run with max score will be used
+    /// If there are several runs with max score, run with greatest id will be used
     Best,
+    /// All runs will be used
     All,
 }
 
+/// Determines how total score for problem is calculated
 #[derive(Debug)]
 pub enum RunScoreAggregation {
+    /// Score for problem maximum run score on this problem
     Max,
+    /// Score for problem is sum of subtask score for all subtasks
+    /// Subtask score is maximum run score on this subtask
     MergeSubtasks,
 }
 

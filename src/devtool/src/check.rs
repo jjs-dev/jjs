@@ -22,10 +22,8 @@ fn clippy(runner: &Runner) {
             "--all",
             "--tests",
             "--",
-            "-D",
-            "clippy::all",
-            "-D",
-            "warnings",
+            "-Dclippy::all",
+            "-Dwarnings",
         ])
         .run_on(runner);
 }

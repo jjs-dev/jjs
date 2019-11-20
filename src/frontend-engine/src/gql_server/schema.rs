@@ -1,29 +1,15 @@
-mod contest;
-mod run;
+pub(super) mod contest;
 
-use juniper::{GraphQLInputObject, GraphQLObject};
+use juniper::GraphQLObject;
 use uuid::Uuid;
 
-pub(crate) use contest::{Contest, Problem};
-pub(crate) use run::Run;
+pub(crate) use contest::Contest;
 
 pub type ToolchainId = String;
 pub type RunId = i32;
 pub type ProblemId = String;
 pub type ContestId = String;
 pub type UserId = Uuid;
-
-#[derive(GraphQLInputObject)]
-pub(crate) struct InvokeStatusIn {
-    pub kind: String,
-    pub code: String,
-}
-
-#[derive(GraphQLObject)]
-pub(crate) struct InvokeStatusOut {
-    pub kind: String,
-    pub code: String,
-}
 
 #[derive(GraphQLObject)]
 pub(crate) struct User {

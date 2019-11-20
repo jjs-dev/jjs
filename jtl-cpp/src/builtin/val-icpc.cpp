@@ -38,7 +38,7 @@ static Params read_config(ValuerSession* sess) {
 
 void init(ValuerSession* const sess) {
     auto const cfg = read_config(sess);
-    auto* const params  = new Params;
+    auto* const params = new Params;
     *params = cfg;
     sess->set_data(params);
 }
@@ -49,10 +49,11 @@ Params const& get_params(ValuerSession const* const sess) {
 
 void begin(ValuerSession* const sess) {
     assert(sess->get_problem_test_count() >= 1);
-    sess->select_next_test(1);
+    sess->select_next_test(1, true);
 }
 
 void on_test_end(ValuerSession* sess, JudgeLogTestEntry finished_test) {
+    bool next_test_is_sample = (finished_test.test_id + 1) <= get_params(sess).open_test_count;
     if (finished_test.test_id <= get_params(sess).open_test_count) {
         finished_test.components.expose_output();
         finished_test.components.expose_test_data();
@@ -68,10 +69,14 @@ void on_test_end(ValuerSession* sess, JudgeLogTestEntry finished_test) {
             sess->comment_public("ok, all tests passed");
         } else {
             sess->finish(0, false, judge_log);
-            sess->comment_public("solution failed on test %d: (status %s)", finished_test.test_id, finished_test.status_code.c_str());
+            sess->comment_public("solution failed on test %d: (status %s)", finished_test.test_id,
+                                 finished_test.status_code.c_str());
         }
     } else {
-        sess->select_next_test(finished_test.test_id + 1);
+        sess->select_next_test(finished_test.test_id + 1, true);
+        if (next_test_is_sample) {
+            sess->set_live_score(50);
+        }
     }
 }
 

@@ -7,7 +7,7 @@ db:
     dropdb jjs
     createdb jjs
     echo "running migrations"
-    cd db
+    cd src/db
     diesel migration run
     echo "re-running migrations"
     diesel migration redo

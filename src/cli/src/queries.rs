@@ -8,3 +8,4 @@ q!(ListToolchains);
 q!(ListContests);
 q!(Submit);
 q!(ApiVersion);
+q!(ViewRun);

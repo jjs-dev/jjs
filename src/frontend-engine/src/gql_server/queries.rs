@@ -30,8 +30,13 @@ impl Query {
         ctx: &Context,
         id: Option<schema::RunId>,
         limit: Option<i32>,
-    ) -> ApiResult<Vec<schema::Run>> {
+    ) -> ApiResult<Vec<runs::Run>> {
         runs::list(ctx, id, limit)
+    }
+
+    /// Loads run by id
+    fn find_run(ctx: &Context, id: schema::RunId) -> ApiResult<Option<runs::Run>> {
+        runs::load(ctx, id)
     }
 
     /// List toolchains
@@ -65,7 +70,7 @@ impl Mutation {
         run_code: String,
         problem: schema::ProblemId,
         contest: schema::ContestId,
-    ) -> ApiResult<schema::Run> {
+    ) -> ApiResult<runs::Run> {
         runs::submit_simple(ctx, toolchain, run_code, problem, contest)
     }
 
@@ -104,7 +109,7 @@ impl Mutation {
     fn modify_run(
         ctx: &Context,
         id: schema::RunId,
-        status: Option<schema::InvokeStatusIn>,
+        status: Option<runs::InvokeStatusIn>,
         rejudge: Option<bool>,
         delete: Option<bool>,
     ) -> ApiResult<i32> {

@@ -8,15 +8,15 @@ use slog_scope::warn;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 
 pub(crate) struct Valuer<'a> {
-    ctx: InvokeContext<'a>,
+    ctx: &'a dyn InvokeContext,
     child: std::process::Child,
     stdin: BufWriter<std::process::ChildStdin>,
     stdout: BufReader<std::process::ChildStdout>,
 }
 
 impl<'a> Valuer<'a> {
-    pub(crate) fn new(ctx: InvokeContext<'a>) -> anyhow::Result<Valuer> {
-        let valuer_exe = ctx.get_asset_path(&ctx.problem_data.valuer_exe);
+    pub(crate) fn new(ctx: &'a dyn InvokeContext) -> anyhow::Result<Valuer> {
+        let valuer_exe = ctx.resolve_asset(&ctx.env().problem_data.valuer_exe);
         let mut cmd = std::process::Command::new(&valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
@@ -25,7 +25,7 @@ impl<'a> Valuer<'a> {
         let private_comments = make_anon_file("PrivateValuerComments");
         cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
-        let work_dir = ctx.get_asset_path(&ctx.problem_data.valuer_cfg);
+        let work_dir = ctx.resolve_asset(&ctx.env().problem_data.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);
         } else {
@@ -53,25 +53,32 @@ impl<'a> Valuer<'a> {
         Ok(val)
     }
 
-    fn write_problem_data(&mut self) -> anyhow::Result<()> {
-        let problem_info = &self.ctx.problem_data;
+    pub(crate) fn write_problem_data(&mut self) -> anyhow::Result<()> {
+        let problem_info = self.ctx.env().problem_data;
         writeln!(self.stdin, "{} ", problem_info.tests.len())?;
         self.stdin.flush()?;
         Ok(())
     }
 
-    fn read_response(&mut self) -> anyhow::Result<ValuerResponse> {
+    pub(crate) fn poll(&mut self) -> anyhow::Result<ValuerResponse> {
         let mut line = String::new();
         self.stdout.read_line(&mut line).context("early eof")?;
 
         let items: Vec<_> = line.split_whitespace().collect();
         let res = match items[0] {
             "RUN" => {
-                if items.len() != 2 {
+                if items.len() != 3 {
                     bail!("RUN: expected 1 item, got {}", items.len() - 1);
                 }
                 let test_id: u32 = items[1].parse().context("RUN: test_id is not u32")?;
-                ValuerResponse::Test { test_id }
+                let flag_live: u8 = items[2].parse().context("RUN: live is not u8")?;
+                if flag_live > 1 {
+                    bail!("RUN: live is not in {0, 1}");
+                }
+                ValuerResponse::Test {
+                    test_id,
+                    live: flag_live == 1,
+                }
             }
             "DONE" => {
                 if items.len() != 3 {
@@ -133,6 +140,13 @@ impl<'a> Valuer<'a> {
                     },
                 }
             }
+            "LIVE-SCORE" => {
+                if items.len() != 2 {
+                    bail!("LIVE-SCORE: expected 2 items, got {}", items.len());
+                }
+                let score = items[1].parse().context("LIVE-SCORE: score is not u32")?;
+                ValuerResponse::LiveScore { score }
+            }
             _ => {
                 bail!("unknown message {}", items[0]);
             }
@@ -140,22 +154,17 @@ impl<'a> Valuer<'a> {
         Ok(res)
     }
 
-    pub(crate) fn initial_test(&mut self) -> anyhow::Result<ValuerResponse> {
-        self.write_problem_data()?;
-        self.read_response()
-    }
-
     pub(crate) fn notify_test_done(
         &mut self,
         notification: ValuerNotification,
-    ) -> anyhow::Result<ValuerResponse> {
+    ) -> anyhow::Result<()> {
         writeln!(
             self.stdin,
             "{} {} {}",
             notification.test_id, notification.test_status.kind, notification.test_status.code
         )?;
         self.stdin.flush()?;
-        self.read_response()
+        Ok(())
     }
 }
 

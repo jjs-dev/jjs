@@ -3,8 +3,7 @@ table! {
 
     invocation_requests (id) {
         id -> Int4,
-        run_id -> Int4,
-        invoke_revision -> Int4,
+        invoke_task -> Bytea,
     }
 }
 
@@ -34,7 +33,6 @@ table! {
     }
 }
 
-joinable!(invocation_requests -> runs (run_id));
 joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(

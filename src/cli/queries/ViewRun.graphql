@@ -1,0 +1,14 @@
+query ViewRun($runId: Int!) {
+    findRun(id: $runId) {
+        liveStatusUpdate {
+            finish,
+            currentTest,
+            liveScore
+        },
+        status {
+            kind,
+            code
+        },
+        score
+    }
+}

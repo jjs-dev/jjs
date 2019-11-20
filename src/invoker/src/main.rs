@@ -1,16 +1,20 @@
 mod compiler;
 mod inter_api;
 mod invoke_context;
+mod invoke_env;
+mod invoke_util;
 mod invoker;
 mod judge;
 mod judge_log;
 mod os_util;
 mod valuer;
 
+use crate::{invoke_context::MainInvokeContext, invoke_env::InvokeEnv};
 use anyhow::{bail, Context};
 use cfg_if::cfg_if;
 use db::schema::InvocationRequest;
-use invoker::{InvokeContext, Invoker};
+use invoker::Invoker;
+use invoker_api::InvokeTask;
 use slog_scope::{debug, error};
 use std::{
     collections::HashMap,
@@ -22,29 +26,30 @@ use std::{
 
 /// Secondary information, used for various interpolations
 #[derive(Debug)]
-pub(crate) struct SubmissionProps {
+pub(crate) struct RunProps {
     pub metadata: HashMap<String, String>,
     pub id: i32,
 }
 
 /// Submission information, sufficient for judging
 #[derive(Debug)]
-pub(crate) struct SubmissionInfo {
+pub(crate) struct RunInfo {
     pub toolchain_cfg: cfg::Toolchain,
     pub problem_cfg: cfg::Problem,
     pub problem_data: pom::Problem,
     /// Directory for general files (source, build, invlog)
     pub root_dir: PathBuf,
-    pub props: SubmissionProps,
+    pub props: RunProps,
 }
 
 #[derive(Debug)]
 /// All invoker-related data, that will be passed to Invoker
 pub(crate) struct InvokeRequest {
-    pub submission: SubmissionInfo,
+    pub run: RunInfo,
     /// Temporary directory
     pub work_dir: tempfile::TempDir,
-    pub id: i32,
+    pub revision: u32,
+    pub live_webhook: Option<String>,
 }
 
 cfg_if! {
@@ -62,20 +67,20 @@ if #[cfg(target_os="linux")] {
 }
 }
 
-fn submission_set_judge_outcome(
+fn set_run_judge_outcome(
     conn: &dyn db::DbConn,
-    submission_id: i32,
+    run_id: i32,
     outcome: invoker::InvokeOutcome,
-    request: &InvocationRequest,
+    request: &InvokeTask,
 ) -> anyhow::Result<()> {
     let run_patch = db::schema::RunPatch {
         status_code: Some(outcome.status.code.to_string()),
         status_kind: Some(outcome.status.kind.to_string()),
         score: Some(outcome.score as i32),
-        rejudge_id: Some(request.invoke_revision as i32),
+        rejudge_id: Some(request.revision as i32),
     };
 
-    conn.run_update(submission_id, run_patch)
+    conn.run_update(run_id, run_patch)
         .context("failed to update run in db")?;
     Ok(())
 }
@@ -101,14 +106,14 @@ impl Server {
         Ok(())
     }
 
-    fn try_get_task(&self) -> Option<InvocationRequest> {
+    fn try_get_task(&self) -> Option<InvokeTask> {
         let res: Option<InvocationRequest> = self
             .db_conn
             .inv_req_pop() // TODO handle error
             .ok()
             .flatten();
 
-        res
+        res.map(|t| t.invoke_task)
     }
 
     /// called by every thread
@@ -118,32 +123,32 @@ impl Server {
                 break;
             }
 
-            let inv_req = match self.try_get_task() {
-                Some(s) => s,
+            let invoke_task = match self.try_get_task() {
+                Some(it) => it,
                 None => {
                     std::thread::sleep(std::time::Duration::from_millis(2000));
                     continue;
                 }
             };
-            let run_id = inv_req.run_id;
-            match self.process_task(inv_req) {
+            let run_id = invoke_task.run_id;
+            match self.process_task(invoke_task) {
                 Ok(_) => (),
                 Err(err) => {
-                    error!("Invokation fault"; "submission" => run_id, "message" => %err, "message-detailed" => ?err);
+                    error!("Invocation fault"; "run" => run_id, "message" => %err, "message-detailed" => ?err);
                 }
             }
         }
     }
 
-    fn process_task(&self, inv_req: InvocationRequest) -> anyhow::Result<()> {
+    fn process_task(&self, invoke_task: InvokeTask) -> anyhow::Result<()> {
         let req = self
-            .fetch_submission_info(&inv_req)
-            .context("failed to fetch submission information")?;
-        let submission_id = req.submission.props.id;
+            .fetch_run_info(&invoke_task)
+            .context("failed to fetch run information")?;
+        let run_id = req.run.props.id;
         let outcome = self.process_invoke_request(&req);
-        submission_set_judge_outcome(&*self.db_conn, submission_id, outcome, &inv_req)
+        set_run_judge_outcome(&*self.db_conn, run_id, outcome, &invoke_task)
             .context("failed to save judge outcome")?;
-        self.copy_invocation_data_dir_to_shared_fs(&req.work_dir.path(), submission_id, req.id)
+        self.copy_invocation_data_dir_to_shared_fs(&req.work_dir.path(), run_id, req.revision)
             .context("failed to update shared fs")?;
         Ok(())
     }
@@ -152,14 +157,14 @@ impl Server {
         &self,
         temp_path: &Path,
         run_id: i32,
-        inv_id: i32,
+        revision: u32,
     ) -> anyhow::Result<()> {
         let target_dir = self
             .config
             .sysroot
             .join("var/submissions")
             .join(format!("s-{}", run_id))
-            .join(format!("i-{}", inv_id));
+            .join(format!("i-{}", revision));
         std::fs::create_dir_all(&target_dir).context("failed to create target dir")?;
         let from: Result<Vec<_>, _> = std::fs::read_dir(temp_path)
             .context("failed to list source directory")?
@@ -172,16 +177,18 @@ impl Server {
     }
 
     fn process_invoke_request(&self, request: &InvokeRequest) -> invoker::InvokeOutcome {
-        let invoke_ctx = InvokeContext {
+        let invoke_data = InvokeEnv {
             minion_backend: &*self.backend,
             cfg: &self.config,
-            problem_cfg: &request.submission.problem_cfg,
-            toolchain_cfg: &request.submission.toolchain_cfg,
-            problem_data: &request.submission.problem_data,
-            submission_props: &request.submission.props,
+            problem_cfg: &request.run.problem_cfg,
+            toolchain_cfg: &request.run.toolchain_cfg,
+            problem_data: &request.run.problem_data,
+            run_props: &request.run.props,
         };
-        let invoker = Invoker::new(invoke_ctx, request);
-        debug!("Executing invoker request"; "request" => ?request, "submission" => ?request.submission.props.id, "workdir" => ?request.work_dir.path().display());
+
+        let invoke_ctx = MainInvokeContext { env: invoke_data };
+        let invoker = Invoker::new(&invoke_ctx, request);
+        debug!("Executing invoker request"; "request" => ?request, "run" => ?request.run.props.id, "workdir" => ?request.work_dir.path().display());
         let status = invoker.invoke().unwrap_or_else(|err| {
             error!("Judge fault: {:?}", err);
             let st = invoker_api::Status {
@@ -194,28 +201,30 @@ impl Server {
             }
         });
 
-        debug!("Judging finished"; "outcome" => ?status, "submission" => ?request.submission.props.id);
+        debug!("Judging finished"; "outcome" => ?status, "run-id" => ?request.run.props.id);
         status
     }
 
-    /// This functions queries all related data about submission and returns JudgeRequest
-    fn fetch_submission_info(
-        &self,
-        db_inv_req: &InvocationRequest,
-    ) -> anyhow::Result<InvokeRequest> {
-        let db_submission = self.db_conn.run_load(db_inv_req.run_id)?;
+    /// This functions queries all related data about run and returns InvokeRequest
+    ///
+    /// InvokeTask is not single source of trust, and some information needs to be taken from
+    /// database.
+    /// But InvokeRequest **is** SSoT, and invoker engine is completely isolated from other
+    /// components.
+    fn fetch_run_info(&self, invoke_task: &InvokeTask) -> anyhow::Result<InvokeRequest> {
+        let db_run = self.db_conn.run_load(invoke_task.run_id as i32)?;
 
-        let submission_root = self.config.sysroot.join("var/submissions");
-        let submission_root = submission_root.join(&format!("s-{}", db_submission.id));
+        let run_root = self.config.sysroot.join("var/submissions");
+        let run_root = run_root.join(&format!("s-{}", db_run.id));
 
-        let mut submission_metadata = HashMap::new();
+        let mut run_metadata = HashMap::new();
         let judge_time = {
             let time = chrono::prelude::Utc::now();
             time.format("%Y-%m-%d %H:%M:%S").to_string()
         };
-        submission_metadata.insert("JudgeTimeUtc".to_string(), judge_time);
+        run_metadata.insert("JudgeTimeUtc".to_string(), judge_time);
 
-        let prob_name = &db_submission.problem_id;
+        let prob_name = &db_run.problem_id;
 
         let problem_manifest_path = self
             .config
@@ -233,33 +242,32 @@ impl Server {
 
         let toolchain_cfg = self
             .config
-            .find_toolchain(&db_submission.toolchain_id)
-            .ok_or_else(|| {
-                anyhow::anyhow!("toolchain {} not found", &db_submission.toolchain_id)
-            })?;
+            .find_toolchain(&db_run.toolchain_id)
+            .ok_or_else(|| anyhow::anyhow!("toolchain {} not found", &db_run.toolchain_id))?;
 
         let problem_cfg = self
             .config
-            .find_problem(&db_submission.problem_id)
-            .ok_or_else(|| anyhow::anyhow!("problem {} not found", &db_submission.problem_id))?;
+            .find_problem(&db_run.problem_id)
+            .ok_or_else(|| anyhow::anyhow!("problem {} not found", &db_run.problem_id))?;
 
-        let submission_props = SubmissionProps {
-            metadata: submission_metadata,
-            id: db_submission.id,
+        let run_props = RunProps {
+            metadata: run_metadata,
+            id: db_run.id,
         };
 
-        let submission = SubmissionInfo {
-            root_dir: submission_root,
-            props: submission_props,
+        let run = RunInfo {
+            root_dir: run_root,
+            props: run_props,
             toolchain_cfg: toolchain_cfg.clone(),
             problem_data,
             problem_cfg: problem_cfg.clone(),
         };
 
         let req = InvokeRequest {
-            submission,
+            run,
             work_dir: tempfile::TempDir::new().context("failed to get temp dir")?,
-            id: db_inv_req.invoke_revision,
+            revision: invoke_task.revision,
+            live_webhook: invoke_task.status_update_callback.clone(),
         };
         Ok(req)
     }

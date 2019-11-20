@@ -65,6 +65,8 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
 
     Command::new("make").current_dir("target").run_on(runner);
 
+    runner.exit_if_errors();
+
     if opts.raw().setup {
         println!("running setup");
         Command::new("/opt/jjs/bin/jjs-setup")

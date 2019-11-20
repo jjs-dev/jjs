@@ -103,7 +103,9 @@ void set_data(void* data);
 
 uint32_t get_problem_test_count();
 
-void select_next_test(TestId next_test);
+void select_next_test(TestId next_test, bool live);
+
+void set_live_score(int live_score);
 
 void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
 

@@ -1,6 +1,6 @@
 use frontend_api::Client;
 use graphql_client::GraphQLQuery;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -84,6 +84,51 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
         ))
         .expect("network error")
         .into_result();
-    let resp = resp.expect("submit failed");
-    json!({ "id": resp })
+    let run_id = resp.expect("submit failed").submit_simple.id;
+    println!("submitted: id={}", run_id);
+
+    let mut current_score = 0;
+    let mut current_test = 0;
+    let final_results = loop {
+        let poll_lsu_vars = crate::queries::view_run::Variables { run_id };
+        let resp = params
+            .client
+            .query::<_, crate::queries::view_run::ResponseData>(
+                &crate::queries::ViewRun::build_query(poll_lsu_vars),
+            )
+            .expect("network error")
+            .into_result();
+        let resp = resp
+            .expect("poll LSU failed")
+            .find_run
+            .expect("run not found");
+        let lsu = &resp.live_status_update;
+        if let Some(ct) = &lsu.current_test {
+            current_test = *ct;
+        }
+        if let Some(ls) = &lsu.live_score {
+            current_score = *ls;
+        }
+        println!(
+            "score = {}, running on test {}",
+            current_score, current_test
+        );
+        if lsu.finish {
+            println!("judging finished");
+            break resp;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    };
+
+    println!(
+        "status: {}({}), score: {}",
+        final_results.status.kind,
+        final_results.status.code,
+        final_results
+            .score
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| "<missing>".to_string())
+    );
+
+    serde_json::Value::Null
 }

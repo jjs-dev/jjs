@@ -43,13 +43,13 @@ impl ErrorExtension {
 struct ApiError {
     visible: bool,
     extension: ErrorExtension,
-    source: Option<Box<dyn std::error::Error>>,
+    source: Option<anyhow::Error>,
     ctx: Context,
 }
 
 impl ApiError {
     fn dev_backtrace(&mut self) {
-        if self.ctx.env.is_dev() {
+        if self.ctx.fr_cfg.env.is_dev() {
             self.extension.set_backtrace();
         }
     }
@@ -69,6 +69,10 @@ impl ApiError {
 
     pub fn access_denied(ctx: &Context) -> Self {
         Self::new(ctx, "AccessDenied")
+    }
+
+    pub fn unimplemented(ctx: &Context) -> Self {
+        Self::new(ctx, "Unimplemented")
     }
 }
 
@@ -113,7 +117,7 @@ impl std::error::Error for EmptyError {}
 
 impl juniper::IntoFieldError for ApiError {
     fn into_field_error(self) -> juniper::FieldError {
-        let is_visible = self.visible || self.ctx.env.is_dev();
+        let is_visible = self.visible || self.ctx.fr_cfg.env.is_dev();
         let data: &dyn std::error::Error = match &self.source {
             Some(err) if is_visible => &**err,
             _ => {
@@ -151,12 +155,12 @@ trait ResultToApiUtil<T, E> {
     ) -> Result<T, ApiError>;
 }
 
-impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
+impl<T, E: Into<anyhow::Error>> ResultToApiUtil<T, E> for Result<T, E> {
     fn internal(self, ctx: &Context) -> Result<T, ApiError> {
         self.map_err(|err| ApiError {
             visible: false,
             extension: ErrorExtension::new(),
-            source: Some(Box::new(err)),
+            source: Some(err.into()),
             ctx: ctx.clone(),
         })
         .map_err(|mut err| {
@@ -181,7 +185,7 @@ impl<T, E: std::error::Error + 'static> ResultToApiUtil<T, E> for Result<T, E> {
         self.map_err(|err| ApiError {
             visible: true,
             extension: make_ext(&err),
-            source: Some(Box::new(err)),
+            source: Some(err.into()),
             ctx: ctx.clone(),
         })
         .map_err(|mut err| {
@@ -200,7 +204,7 @@ impl StrErrorMsgUtil for str {
         Err(ApiError {
             visible: true,
             extension: ErrorExtension::new(),
-            source: Some(self.into()),
+            source: Some(anyhow::anyhow!("{}", self)),
             ctx: ctx.clone(),
         })
     }

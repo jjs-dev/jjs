@@ -10,9 +10,9 @@
 
 static bool should_run;
 
-void valuer::ValuerSession::select_next_test(valuer::TestId next_test) {
+void valuer::ValuerSession::select_next_test(valuer::TestId next_test, bool live) {
     assert(1 <= next_test && next_test <= problem_test_count);
-    printf("RUN %u\n", next_test);
+    printf("RUN %u %u\n", next_test, live ? 1 : 0);
     fflush(stdout);
 }
 
@@ -96,6 +96,10 @@ void valuer::ValuerSession::set_data(void* p) {
 
 uint32_t valuer::ValuerSession::get_problem_test_count() {
     return problem_test_count;
+}
+
+void valuer::ValuerSession::set_live_score(int score) {
+    printf("LIVE-SCORE %d\n", score);
 }
 
 void valuer::JudgeLog::add_test_entry(valuer::JudgeLogTestEntry const& test) {

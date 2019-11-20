@@ -120,7 +120,7 @@ fn test_simple() {
                          ok: true,
                          score: 100,
                          marked: false,
-                         attempts: 1
+                         attempts: 0
                     },
                     prob_hard => EMPTY_CELL,
                 }
@@ -156,7 +156,7 @@ fn test_simple() {
                          ok: true,
                          score: 100,
                          marked: false,
-                         attempts: 1
+                         attempts: 0
                      },
                      prob_hard => Cell {
                          empty: false,

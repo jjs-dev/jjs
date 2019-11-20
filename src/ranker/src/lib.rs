@@ -5,7 +5,7 @@
 mod tests;
 
 use serde::Serialize;
-use std::{cmp::Ordering, collections::BTreeMap, num::NonZeroU32, cmp};
+use std::{cmp, cmp::Ordering, collections::BTreeMap, num::NonZeroU32};
 
 #[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Serialize, Copy, Clone)]
 pub struct SubtaskId(pub NonZeroU32);
@@ -182,7 +182,7 @@ pub fn build_monitor(
                 Some(ids) => ids,
                 None => &empty_run_ids,
             };
-            let runs = run_ids.into_iter().map(|&run_id| &runs[run_id]);
+            let runs = run_ids.iter().map(|&run_id| &runs[run_id]);
             let problem_stats = stats.problems.get_mut(&problem.0).unwrap();
 
             let cell = build_cell(runs, &problem.1, problem_stats);
@@ -214,7 +214,11 @@ pub fn build_monitor(
     mon
 }
 
-fn build_cell<'a>(runs: impl Iterator<Item=&'a Run>, problem: &ProblemConfig, problem_stats: &mut ProblemStats) -> Cell {
+fn build_cell<'a>(
+    runs: impl Iterator<Item = &'a Run>,
+    problem: &ProblemConfig,
+    problem_stats: &mut ProblemStats,
+) -> Cell {
     let mut cell = Cell {
         empty: true,
         ok: false,
@@ -246,16 +250,14 @@ fn build_cell<'a>(runs: impl Iterator<Item=&'a Run>, problem: &ProblemConfig, pr
                 cell.ok = true;
                 problem_stats.accepted_runs += 1;
             }
-            Ordering::Greater => {
-                panic!("run's score is more than total possible")
-            }
+            Ordering::Greater => panic!("run's score is more than total possible"),
         }
     }
     cell.score = match problem.aggregation {
         RunScoreAggregation::Max => max_based_score,
-        RunScoreAggregation::MergeSubtasks => merge_subtask_based_score.into_iter()
-            .map(|(_k, v)| v)
-            .sum()
+        RunScoreAggregation::MergeSubtasks => {
+            merge_subtask_based_score.into_iter().map(|(_k, v)| v).sum()
+        }
     };
     problem_stats.max_score = std::cmp::max(problem_stats.max_score, cell.score);
     cell
@@ -277,12 +279,18 @@ fn build_party_stats(mon: &mut Monitor, parties: &[PartyId]) {
     for &party in parties {
         coloring_key.insert(party, mon.parties[&party].stats.score / 100);
     }
-    let mut distinct_color_keys: Vec<_> = coloring_key.values().copied().map(|k| std::cmp::Reverse(k)).collect();
+    let mut distinct_color_keys: Vec<_> = coloring_key
+        .values()
+        .copied()
+        .map(std::cmp::Reverse)
+        .collect();
     distinct_color_keys.sort_unstable();
     distinct_color_keys.dedup_by_key(|x| *x);
     // and now, color of party is position of it's coloring key in `distinct_color_keys`
     for &party in parties {
-        let color = distinct_color_keys.binary_search(&std::cmp::Reverse(coloring_key[&party])).expect("distinct_color_keys is incorrect");
+        let color = distinct_color_keys
+            .binary_search(&std::cmp::Reverse(coloring_key[&party]))
+            .expect("distinct_color_keys is incorrect");
         mon.parties.get_mut(&party).unwrap().stats.color = color as u32;
     }
 }

@@ -285,6 +285,4 @@ fn build_party_stats(mon: &mut Monitor, parties: &[PartyId]) {
         let color = distinct_color_keys.binary_search(&std::cmp::Reverse(coloring_key[&party])).expect("distinct_color_keys is incorrect");
         mon.parties.get_mut(&party).unwrap().stats.color = color as u32;
     }
-    //let mut parties = parties.to_vec();
-    //parties.sort_by_key()
 }

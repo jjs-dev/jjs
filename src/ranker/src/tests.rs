@@ -112,7 +112,8 @@ fn test_simple() {
         parties: map! {
             user1 => PartyRow {
                 stats: PartyStats {
-                   color: 1
+                   color: 0,
+                   score: 100
                 },
                 problems: map! {
                     prob_easy => Cell {
@@ -127,7 +128,8 @@ fn test_simple() {
             },
             user2 => PartyRow {
                 stats: PartyStats {
-                    color: 1
+                    color: 1,
+                    score: 85
                 },
                 problems: map! {
                     prob_easy => Cell {
@@ -148,7 +150,8 @@ fn test_simple() {
             },
             korotkevich => PartyRow {
                 stats: PartyStats {
-                    color: 0
+                    color: 0,
+                    score: 191
                 },
                  problems: map! {
                      prob_easy => Cell {

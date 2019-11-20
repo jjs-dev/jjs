@@ -56,6 +56,8 @@ pub struct PartyStats {
     ///
     /// Probably, you will want to use not color, but `color % 2`.
     pub color: u32,
+    /// Total score gained by party in contest
+    pub score: Score,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -189,7 +191,7 @@ pub fn build_monitor(
         }
     }
     for &party in parties {
-        let stats = PartyStats { color: 0 };
+        let stats = PartyStats { color: 0, score: 0 };
         let mut row = PartyRow {
             stats,
             problems: BTreeMap::new(),
@@ -204,10 +206,12 @@ pub fn build_monitor(
         }
         party_info.insert(party, row);
     }
-    Monitor {
+    let mut mon = Monitor {
         parties: party_info,
         stats,
-    }
+    };
+    build_party_stats(&mut mon, parties);
+    mon
 }
 
 fn build_cell<'a>(runs: impl Iterator<Item=&'a Run>, problem: &ProblemConfig, problem_stats: &mut ProblemStats) -> Cell {
@@ -237,7 +241,7 @@ fn build_cell<'a>(runs: impl Iterator<Item=&'a Run>, problem: &ProblemConfig, pr
         match run_score.cmp(&problem.accepted_score) {
             Ordering::Less => {
                 cell.attempts += 1;
-            },
+            }
             Ordering::Equal => {
                 cell.ok = true;
                 problem_stats.accepted_runs += 1;
@@ -255,4 +259,32 @@ fn build_cell<'a>(runs: impl Iterator<Item=&'a Run>, problem: &ProblemConfig, pr
     };
     problem_stats.max_score = std::cmp::max(problem_stats.max_score, cell.score);
     cell
+}
+
+fn build_party_stats(mon: &mut Monitor, parties: &[PartyId]) {
+    // step 1: calculate PartyStats.score
+    for party in parties {
+        let mut score = 0;
+        for cell in mon.parties[party].problems.values() {
+            score += cell.score;
+        }
+        mon.parties.get_mut(party).unwrap().stats.score = score;
+    }
+    // step 2: calculate PartyStats.color
+    // at first, we want to calculate coloring key
+    // TODO: it is hardcoded as score / 100
+    let mut coloring_key = BTreeMap::new();
+    for &party in parties {
+        coloring_key.insert(party, mon.parties[&party].stats.score / 100);
+    }
+    let mut distinct_color_keys: Vec<_> = coloring_key.values().copied().map(|k| std::cmp::Reverse(k)).collect();
+    distinct_color_keys.sort_unstable();
+    distinct_color_keys.dedup_by_key(|x| *x);
+    // and now, color of party is position of it's coloring key in `distinct_color_keys`
+    for &party in parties {
+        let color = distinct_color_keys.binary_search(&std::cmp::Reverse(coloring_key[&party])).expect("distinct_color_keys is incorrect");
+        mon.parties.get_mut(&party).unwrap().stats.color = color as u32;
+    }
+    //let mut parties = parties.to_vec();
+    //parties.sort_by_key()
 }

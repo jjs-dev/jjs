@@ -54,7 +54,7 @@ fn create_registry() -> Registry {
     {
         let mut minion_cli =
             packages::BinPackage::new("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
-        minion_cli.feature("dist");
+        minion_cli.feature("human_panic");
 
         reg.add(minion_cli);
     }

@@ -6,3 +6,7 @@ edition = "2018"
 
 [dependencies]
 serde = { version = "1.0.101", features = ["derive"] }
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
+maplit = "1.0.2"

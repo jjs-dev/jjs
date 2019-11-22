@@ -1,8 +1,8 @@
 use super::prelude::*;
-use std::{collections::HashMap, convert::TryInto, num::NonZeroU32};
+use std::{collections::BTreeMap, convert::TryInto, num::NonZeroU32};
 
 fn lower_run(r: &db::schema::Run) -> ranker::Run {
-    let mut subtasks = HashMap::new();
+    let mut subtasks = BTreeMap::new();
     subtasks.insert(ranker::SubtaskId(NonZeroU32::new(1).unwrap()), r.score);
     // TODO: properly support subtasks
     // TODO: keep party info for runs

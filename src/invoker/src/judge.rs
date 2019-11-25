@@ -2,6 +2,7 @@ mod checker_proto;
 
 use crate::{
     inter_api::{JudgeOutcome, JudgeRequest},
+    invoke_util,
     invoker::{interpolate_command, InvokeContext},
     os_util,
 };
@@ -13,7 +14,7 @@ use std::{fs, path::PathBuf, time::Duration};
 /// Runs Artifact on one test and produces output
 pub(crate) struct Judge<'a> {
     pub(crate) req: JudgeRequest<'a>,
-    pub(crate) ctx: InvokeContext<'a>,
+    pub(crate) ctx: &'a dyn InvokeContext,
 }
 
 enum RunOutcome {
@@ -23,17 +24,25 @@ enum RunOutcome {
 
 impl<'a> Judge<'a> {
     fn run_solution(&self, test_data: &[u8]) -> anyhow::Result<RunOutcome> {
-        let limits = &self.ctx.problem_cfg.limits;
+        let limits = &self.ctx.env().problem_cfg.limits;
 
-        let sandbox = self.ctx.create_sandbox(limits, self.req.paths)?;
+        let sandbox = invoke_util::create_sandbox(
+            self.ctx.env().cfg,
+            limits,
+            self.req.paths,
+            self.ctx.env().minion_backend,
+        )?;
 
         fs::copy(
-            self.req.paths.submission.join("build"),
+            self.req.paths.build(),
             self.req.paths.share_dir().join("build"),
         )
         .context("failed to copy build artifact to share dir")?;
 
-        let mut dict = self.ctx.get_common_interpolation_dict();
+        let mut dict = invoke_util::get_common_interpolation_dict(
+            self.ctx.env().run_props,
+            self.ctx.env().toolchain_cfg,
+        );
         dict.insert("Test.Id".to_string(), self.req.test_id.to_string().into());
 
         let stdout_path = self.req.paths.step.join("stdout.txt");
@@ -44,21 +53,19 @@ impl<'a> Judge<'a> {
                 anyhow::Error::new(e).context("Config specifies incorrect execute command")
             })?;
 
-        self.ctx.log_execute_command(&command_interp);
+        invoke_util::log_execute_command(&command_interp);
 
         let mut native_command = minion::Command::new();
 
-        self.ctx
-            .command_builder_set_from_command(&mut native_command, command_interp);
-        self.ctx
-            .command_builder_set_stdio(&mut native_command, &stdout_path, &stderr_path);
+        invoke_util::command_set_from_interp(&mut native_command, &command_interp);
+        invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
         native_command.dominion(sandbox);
 
-        // capture child output
+        // capture child input
         native_command.stdin(minion::InputSpecification::pipe());
 
-        let mut child = match native_command.spawn(self.ctx.minion_backend) {
+        let mut child = match native_command.spawn(self.ctx.env().minion_backend) {
             Ok(child) => child,
             Err(err) => {
                 if err.is_system() {
@@ -114,7 +121,7 @@ impl<'a> Judge<'a> {
         fs::create_dir(&self.req.paths.share_dir()).context("failed to create share dir")?;
         fs::create_dir(&self.req.paths.chroot_dir()).context("failed to create chroot dir")?;
 
-        let input_file = self.ctx.get_asset_path(&self.req.test.path);
+        let input_file = self.ctx.resolve_asset(&self.req.test.path);
         let test_data = std::fs::read(input_file).context("failed to read test")?;
 
         let sol_file_path = match self.run_solution(&test_data)? {
@@ -124,19 +131,21 @@ impl<'a> Judge<'a> {
         // run checker
         let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-        let full_checker_path = self.ctx.get_asset_path(&self.ctx.problem_data.checker_exe);
+        let full_checker_path = self
+            .ctx
+            .resolve_asset(&self.ctx.env().problem_data.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
 
-        cmd.current_dir(self.ctx.get_problem_root());
+        cmd.current_dir(self.ctx.env().problem_root());
 
-        for arg in &self.ctx.problem_data.checker_cmd {
+        for arg in &self.ctx.env().problem_data.checker_cmd {
             cmd.arg(arg);
         }
 
         let test_cfg = self.req.test;
 
         let corr_handle = if let Some(corr_path) = &test_cfg.correct {
-            let full_path = self.ctx.get_asset_path(corr_path);
+            let full_path = self.ctx.resolve_asset(corr_path);
             let data = fs::read(full_path).context("failed to read correct answer")?;
             os_util::buffer_to_file(&data, "invoker-correct-data")
         } else {

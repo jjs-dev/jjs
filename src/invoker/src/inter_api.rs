@@ -2,42 +2,53 @@ use crate::judge_log;
 use invoker_api::Status;
 use std::path::{Path, PathBuf};
 
+/// This is useful abstractions, because both `Compiler` and `Judge` work with paths in similar way
 #[derive(Debug, Clone)]
 pub(crate) struct Paths {
     /// Problem dir
     pub(crate) problem: PathBuf,
-    /// Submission persistent dir
-    pub(crate) submission: PathBuf,
-    /// Invokation temprorary dir
+    /// Run persistent dir
+    pub(crate) run: PathBuf,
+    /// Invocation temprorary dir
     pub(crate) inv: PathBuf,
     /// Step dir
     pub(crate) step: PathBuf,
 }
 
 impl Paths {
-    /// external directory child will have RW-access to
+    /// External directory child will have RW-access to.
     pub(crate) fn share_dir(&self) -> PathBuf {
         self.step.join("share")
     }
 
-    /// Root directory for child
+    /// Root directory for child.
     pub(crate) fn chroot_dir(&self) -> PathBuf {
         self.step.join("chroot")
+    }
+
+    /// Run source
+    pub(crate) fn source(&self) -> PathBuf {
+        self.run.join("source")
+    }
+
+    /// Run artifact
+    pub(crate) fn build(&self) -> PathBuf {
+        self.run.join("build")
     }
 }
 
 impl Paths {
     pub(crate) fn new(
-        submission_root: &Path,
-        invokation_data_root: &Path,
+        run_root: &Path,
+        invocation_data_root: &Path,
         step_id: u32,
         problem: &Path,
     ) -> Paths {
-        let submission = submission_root.to_path_buf();
-        let step = invokation_data_root.join(&format!("s-{}", step_id));
+        let run = run_root.to_path_buf();
+        let step = invocation_data_root.join(&format!("s-{}", step_id));
         Paths {
-            submission,
-            inv: invokation_data_root.to_path_buf(),
+            run,
+            inv: invocation_data_root.to_path_buf(),
             step,
             problem: problem.to_path_buf(),
         }
@@ -78,10 +89,14 @@ pub(crate) struct ValuerNotification {
 pub(crate) enum ValuerResponse {
     Test {
         test_id: u32,
+        live: bool,
     },
     Finish {
         score: u32,
         treat_as_full: bool,
         judge_log: judge_log::JudgeLog,
+    },
+    LiveScore {
+        score: u32,
     },
 }

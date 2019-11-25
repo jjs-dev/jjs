@@ -4,6 +4,7 @@ use rocket::{catch, catchers, get, post, routes, Rocket};
 use slog_scope::debug;
 
 pub mod config;
+mod global;
 mod gql_server;
 mod password;
 pub mod root_auth;
@@ -16,7 +17,7 @@ use security::TokenMgrError;
 
 use gql_server::Context;
 use rocket::{fairing::AdHoc, State};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 type DbPool = Arc<dyn db::DbConn>;
 
@@ -104,9 +105,22 @@ fn route_post_graphql(
 #[derive(Clone)]
 struct GqlApiSchema(String);
 
-#[rocket::get("/graphql/schema")]
+#[get("/graphql/schema")]
 fn route_get_graphql_schema(schema: State<GqlApiSchema>) -> String {
     schema.clone().0
+}
+
+#[post("/internal/lsu-webhook?<token>", data = "<lsu>")]
+fn route_lsu_webhook(
+    global_state: State<Arc<Mutex<global::GlobalState>>>,
+    lsu: rocket_contrib::json::Json<invoker_api::LiveStatusUpdate>,
+    token: String,
+) {
+    global_state
+        .lock()
+        .unwrap()
+        .live_status_updates
+        .webhook_handler(lsu.into_inner(), token);
 }
 
 pub struct ApiServer {}
@@ -132,6 +146,7 @@ impl ApiServer {
         let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret);
         let frontend_config = config::FrontendConfig {
             port: 0,
+            addr: Some("127.0.0.1".to_string()),
             host: "127.0.0.1".to_string(),
             unix_socket_path: "".to_string(),
             env: config::Env::Dev,
@@ -172,7 +187,8 @@ impl ApiServer {
 
         let graphql_context_factory = gql_server::ContextFactory {
             pool: Arc::clone(&pool),
-            cfg: std::sync::Arc::new(config.clone()),
+            cfg: Arc::new(config.clone()),
+            fr_cfg: Arc::new(frontend_config.clone()),
         };
 
         let graphql_schema = gql_server::Schema::new(gql_server::Query, gql_server::Mutation);
@@ -190,17 +206,15 @@ impl ApiServer {
         let introspection_json = serde_json::to_string(&intro_data).unwrap();
 
         let cfg1 = frontend_config.clone();
-        let cfg2 = frontend_config;
 
         rocket::custom(rocket_config)
             .manage(graphql_context_factory)
             .manage(graphql_schema)
             .manage(GqlApiSchema(introspection_json))
+            .manage(Arc::new(Mutex::new(global::GlobalState::new())))
+            .manage(Arc::new(frontend_config))
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(security::SecretKey(cfg1.token_mgr.secret_key().into())))
-            }))
-            .attach(AdHoc::on_attach("RegisterEnvironmentKind", move |rocket| {
-                Ok(rocket.manage(cfg2.env))
             }))
             .mount(
                 "/",
@@ -210,6 +224,7 @@ impl ApiServer {
                     route_get_graphql,
                     route_post_graphql,
                     route_ping,
+                    route_lsu_webhook
                 ],
             )
             .register(catchers![catch_bad_request])

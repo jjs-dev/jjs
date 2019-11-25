@@ -1,5 +1,5 @@
 use crate::security::{AccessChecker, Token, TokenMgr, TokenMgrError};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) type DbPool = Arc<dyn db::DbConn>;
 
@@ -7,9 +7,10 @@ pub(crate) type DbPool = Arc<dyn db::DbConn>;
 pub(crate) struct ContextData {
     pub(crate) db: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
-    pub(crate) env: crate::config::Env,
+    pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
     pub(crate) token_mgr: TokenMgr,
     pub(crate) token: Token,
+    global: Arc<Mutex<crate::global::GlobalState>>,
 }
 
 impl ContextData {
@@ -19,6 +20,10 @@ impl ContextData {
             cfg: &self.cfg,
             db: &*self.db,
         }
+    }
+
+    pub(crate) fn global(&self) -> std::sync::MutexGuard<crate::global::GlobalState> {
+        self.global.lock().unwrap()
     }
 }
 
@@ -43,9 +48,9 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .guard::<rocket::State<ContextFactory>>()
             .expect("State<ContextFactory> missing");
 
-        let env = request
-            .guard::<rocket::State<crate::config::Env>>()
-            .expect("State<Env> missing");
+        let frontend_config = request
+            .guard::<rocket::State<Arc<crate::config::FrontendConfig>>>()
+            .expect("State<Arc<FrontendConfig>> missing");
 
         let secret_key = request
             .guard::<rocket::State<crate::security::SecretKey>>()
@@ -57,10 +62,16 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .next()
             .ok_or(TokenMgrError::TokenMissing);
 
+        let global = request
+            .guard::<rocket::State<Arc<Mutex<crate::global::GlobalState>>>>()
+            .expect("State<Arc<Mutex<Global>>> missing");
+
         let secret_key = Arc::clone(&(*secret_key).0);
         let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key);
 
-        let token = token.and_then(|header| token_mgr.deserialize(header.as_bytes(), env.is_dev()));
+        let token = token.and_then(|header| {
+            token_mgr.deserialize(header.as_bytes(), frontend_config.env.is_dev())
+        });
         let token = match token {
             Ok(tok) => Ok(tok),
             Err(e) => match e {
@@ -74,9 +85,10 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
         rocket::Outcome::Success(ContextData {
             db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
-            env: *env,
+            fr_cfg: frontend_config.clone(),
             token_mgr,
             token,
+            global: (*global).clone(),
         })
     }
 }
@@ -96,6 +108,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
 pub(crate) struct ContextFactory {
     pub(crate) pool: DbPool,
     pub(crate) cfg: Arc<cfg::Config>,
+    pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
 }
 
 impl ContextFactory {
@@ -110,9 +123,10 @@ impl ContextFactory {
         ContextData {
             db: self.pool.clone(),
             cfg: self.cfg.clone(),
-            env: crate::config::Env::Dev,
             token_mgr,
             token,
+            global: Arc::new(Mutex::new(crate::global::GlobalState::new())),
+            fr_cfg: self.fr_cfg.clone(),
         }
     }
 }

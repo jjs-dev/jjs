@@ -46,6 +46,8 @@ pub struct FrontendConfig {
     pub db_conn: Arc<dyn db::DbConn>,
     pub unix_socket_path: String,
     pub env: Env,
+    /// Public address of frontend (must be visible to invoker)
+    pub addr: Option<String>,
 }
 
 impl FrontendConfig {
@@ -85,6 +87,17 @@ impl FrontendConfig {
 
         let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.into());
 
+        let addr = std::env::var("JJS_SELF_ADDR")
+            .or_else(|_| my_internet_ip::get().map(|addr| addr.to_string()))
+            .map_err(|err| {
+                eprintln!(
+                    "Warning: failed to determine machine IP ({:?}), and JJS_SELF_ADDR is missing.
+            Some features will be unavailable",
+                    err
+                );
+            })
+            .ok();
+
         FrontendConfig {
             port,
             host,
@@ -92,6 +105,7 @@ impl FrontendConfig {
             unix_socket_path,
             env: environ,
             token_mgr,
+            addr,
         }
     }
 }

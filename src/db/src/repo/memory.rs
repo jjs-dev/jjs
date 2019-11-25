@@ -1,5 +1,6 @@
 use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
-use crate::{schema::*, Error};
+use crate::schema::*;
+use anyhow::{bail, Result};
 use std::{convert::TryFrom, sync::Mutex};
 
 #[derive(Debug, Default)]
@@ -36,7 +37,7 @@ impl MemoryRepo {
 }
 
 impl RunsRepo for MemoryRepo {
-    fn run_new(&self, run_data: NewRun) -> Result<Run, Error> {
+    fn run_new(&self, run_data: NewRun) -> Result<Run> {
         let mut data = self.conn.lock().unwrap();
         let run_id = data.runs.len() as RunId;
         let run = Run {
@@ -53,18 +54,18 @@ impl RunsRepo for MemoryRepo {
         Ok(run)
     }
 
-    fn run_try_load(&self, run_id: i32) -> Result<Option<Run>, Error> {
+    fn run_try_load(&self, run_id: i32) -> Result<Option<Run>> {
         let data = self.conn.lock().unwrap();
         let idx = run_id as usize;
         Ok(data.runs.get(idx).cloned().unwrap_or(None))
     }
 
-    fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<(), Error> {
+    fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         let idx = run_id as usize;
         let cur = match data.runs.get_mut(idx) {
             Some(Some(x)) => x,
-            None | Some(None) => return Err(Error::string("run_update@memory: unknown run id")),
+            None | Some(None) => bail!("run_update@memory: unknown run id"),
         };
         if let Some(new_status_code) = patch.status_code {
             cur.status_code = new_status_code;
@@ -82,24 +83,20 @@ impl RunsRepo for MemoryRepo {
         Ok(())
     }
 
-    fn run_delete(&self, run_id: i32) -> Result<(), Error> {
+    fn run_delete(&self, run_id: i32) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         let cur = match data.runs.get_mut(run_id as usize) {
             Some(x) => x,
-            None => return Err(Error::string("run_delete@memory: unknown run id")),
+            None => bail!("run_delete@memory: unknown run id"),
         };
         if cur.take().is_some() {
             Ok(())
         } else {
-            Err(Error::string("run_delete@memory: run already deleted"))
+            bail!("run_delete@memory: run already deleted")
         }
     }
 
-    fn run_select(
-        &self,
-        with_run_id: Option<RunId>,
-        limit: Option<u32>,
-    ) -> Result<Vec<Run>, Error> {
+    fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
         let lim = limit
             .map(|x| usize::try_from(x).unwrap())
             .unwrap_or(usize::max_value());
@@ -122,26 +119,25 @@ impl RunsRepo for MemoryRepo {
 }
 
 impl InvocationRequestsRepo for MemoryRepo {
-    fn inv_req_new(&self, inv_req_data: NewInvocationRequest) -> Result<InvocationRequest, Error> {
+    fn inv_req_new(&self, inv_req_data: NewInvocationRequest) -> Result<InvocationRequest> {
         let mut data = self.conn.lock().unwrap();
         let inv_req_id = data.inv_reqs.len() as InvocationRequestId;
         let inv_req = InvocationRequest {
             id: inv_req_id,
-            run_id: inv_req_data.run_id,
-            invoke_revision: inv_req_data.invoke_revision,
+            invoke_task: inv_req_data.invoke_task,
         };
         data.inv_reqs.push(inv_req.clone());
         Ok(inv_req)
     }
 
-    fn inv_req_pop(&self) -> Result<Option<InvocationRequest>, Error> {
+    fn inv_req_pop(&self) -> Result<Option<InvocationRequest>> {
         let mut data = self.conn.lock().unwrap();
         Ok(data.inv_reqs.pop())
     }
 }
 
 impl UsersRepo for MemoryRepo {
-    fn user_new(&self, user_data: NewUser) -> Result<User, Error> {
+    fn user_new(&self, user_data: NewUser) -> Result<User> {
         let mut data = self.conn.lock().unwrap();
         let user_id = data.users.len();
         let user_id = uuid::Uuid::from_fields(user_id as u32, 0, 0, &[0; 8]).unwrap();
@@ -155,7 +151,7 @@ impl UsersRepo for MemoryRepo {
         Ok(user)
     }
 
-    fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>, Error> {
+    fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>> {
         let data = self.conn.lock().unwrap();
         let res = data
             .users

@@ -13,8 +13,12 @@ use crate::{
 use anyhow::{bail, Context};
 use cfg::Command;
 use invoker_api::{status_codes, Status, StatusKind};
-use slog_scope::debug;
-use std::{collections::HashMap, ffi::OsString, path::PathBuf};
+use slog_scope::{debug, warn};
+use std::{
+    collections::HashMap,
+    ffi::OsString,
+    time::{Duration, Instant},
+};
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub(crate) enum InterpolateError {
@@ -98,9 +102,70 @@ pub(crate) fn interpolate_command(
     Ok(res)
 }
 
+struct Notifier {
+    score: Option<u32>,
+    test: Option<u32>,
+    endpoint: Option<String>,
+    throttled_until: Instant,
+    errored: bool,
+}
+
+impl Notifier {
+    fn set_score(&mut self, score: u32) {
+        self.score = Some(score);
+        self.maybe_drain();
+    }
+
+    fn set_test(&mut self, test: u32) {
+        self.test = Some(test);
+        self.maybe_drain();
+    }
+
+    fn maybe_drain(&mut self) {
+        let mut has_something = false;
+        has_something = has_something || self.score.is_some();
+        has_something = has_something || self.test.is_some();
+        if !has_something {
+            return;
+        }
+        if self.errored {
+            return;
+        }
+        if self.throttled_until > Instant::now() {
+            return;
+        }
+        self.drain();
+    }
+
+    fn drain(&mut self) {
+        let endpoint = match self.endpoint.as_ref() {
+            Some(ep) => ep,
+            None => return,
+        };
+        let event = invoker_api::LiveStatusUpdate {
+            score: self.score.take().map(|x| x as i32),
+            current_test: self.test.take(),
+        };
+        let client = reqwest::ClientBuilder::new()
+            .timeout(Some(std::time::Duration::from_secs(3)))
+            .build()
+            .expect("failed to initialize reqwest client");
+        debug!("Sending request to {}", &endpoint);
+        if let Err(err) = client.post(endpoint).json(&event).send() {
+            warn!("Failed to send live status update: {}", err);
+            warn!("Disabling live status update for this run");
+            self.errored = true;
+        }
+        self.throttled_until = Instant::now() + LIVE_STATUS_UPDATE_THROTTLE;
+    }
+}
+
+const LIVE_STATUS_UPDATE_THROTTLE: Duration = Duration::from_nanos(1); //Duration::from_secs(1);
+
 pub struct Invoker<'a> {
-    ctx: InvokeContext<'a>,
+    ctx: &'a dyn InvokeContext,
     req: &'a InvokeRequest,
+    notifier: Notifier,
 }
 
 #[derive(Debug, Clone)]
@@ -110,35 +175,40 @@ pub struct InvokeOutcome {
 }
 
 impl<'a> Invoker<'a> {
-    pub(crate) fn new(ctx: InvokeContext<'a>, req: &'a InvokeRequest) -> Invoker<'a> {
-        Invoker { ctx, req }
+    pub(crate) fn new(ctx: &'a dyn InvokeContext, req: &'a InvokeRequest) -> Invoker<'a> {
+        Invoker {
+            ctx,
+            req,
+            notifier: Notifier {
+                score: None,
+                test: None,
+                endpoint: req.live_webhook.clone(),
+                throttled_until: Instant::now(),
+                errored: false,
+            },
+        }
     }
 
-    fn problem_path(&self) -> PathBuf {
-        self.ctx
-            .cfg
-            .sysroot
-            .join("var/problems")
-            .join(&self.ctx.problem_cfg.name)
-    }
-
-    fn run_tests(&self, artifact: &Artifact) -> anyhow::Result<(InvokeOutcome, JudgeLog)> {
+    fn run_tests(&mut self, artifact: &Artifact) -> anyhow::Result<(InvokeOutcome, JudgeLog)> {
         let mut test_results = vec![];
 
-        let mut valuer = Valuer::new(self.ctx.clone()).context("failed to init valuer")?;
-        let mut resp = valuer
-            .initial_test()
+        let mut valuer = Valuer::new(self.ctx).context("failed to init valuer")?;
+        valuer
+            .write_problem_data()
             .context("failed to get initial test")?;
 
         let (score, treat_as_full, judge_log) = loop {
-            match resp {
-                ValuerResponse::Test { test_id: tid } => {
-                    let test = &self.ctx.problem_data.tests[(tid - 1) as usize];
+            match valuer.poll()? {
+                ValuerResponse::Test { test_id: tid, live } => {
+                    if live {
+                        self.notifier.set_test(tid);
+                    }
+                    let test = &self.ctx.env().problem_data.tests[(tid - 1) as usize];
                     let run_paths = Paths::new(
-                        &self.req.submission.root_dir,
+                        &self.req.run.root_dir,
                         self.req.work_dir.path(),
                         tid,
-                        &self.problem_path(),
+                        &self.ctx.env().problem_root(),
                     );
                     let judge_request = JudgeRequest {
                         paths: &run_paths,
@@ -149,14 +219,14 @@ impl<'a> Invoker<'a> {
 
                     let judge = Judge {
                         req: judge_request,
-                        ctx: self.ctx.clone(),
+                        ctx: self.ctx,
                     };
 
                     let judge_response = judge
                         .judge()
                         .with_context(|| format!("failed to judge solution on test {}", tid))?;
                     test_results.push((tid, judge_response.clone()));
-                    resp = valuer
+                    valuer
                         .notify_test_done(ValuerNotification {
                             test_id: tid,
                             test_status: judge_response.status,
@@ -171,6 +241,9 @@ impl<'a> Invoker<'a> {
                     judge_log,
                 } => {
                     break (score, treat_as_full, judge_log);
+                }
+                ValuerResponse::LiveScore { score } => {
+                    self.notifier.set_score(score);
                 }
             }
         };
@@ -227,8 +300,8 @@ impl<'a> Invoker<'a> {
                     .path()
                     .join(format!("s-{}", item.test_id.0.get()));
                 if item.components.contains(TestVisibleComponents::TEST_DATA) {
-                    let test_file = &self.ctx.problem_data.tests[item.test_id].path;
-                    let test_file = self.ctx.get_asset_path(&test_file);
+                    let test_file = &self.ctx.env().problem_data.tests[item.test_id].path;
+                    let test_file = self.ctx.resolve_asset(&test_file);
                     let test_data = std::fs::read(test_file).context("failed to read test data")?;
                     let test_data = base64::encode(&test_data);
                     item.test_stdin = Some(test_data);
@@ -247,9 +320,9 @@ impl<'a> Invoker<'a> {
                     item.test_stderr = Some(sol_stderr);
                 }
                 if item.components.contains(TestVisibleComponents::ANSWER) {
-                    let answer_ref = &self.ctx.problem_data.tests[item.test_id].correct;
+                    let answer_ref = &self.ctx.env().problem_data.tests[item.test_id].correct;
                     if let Some(answer_ref) = answer_ref {
-                        let answer_file = self.ctx.get_asset_path(answer_ref);
+                        let answer_file = self.ctx.resolve_asset(answer_ref);
                         let answer =
                             std::fs::read(answer_file).context("failed to read correct answer")?;
                         let answer = base64::encode(&answer);
@@ -258,25 +331,23 @@ impl<'a> Invoker<'a> {
                 }
             }
         }
-        // note that we do not filter anything about subtasks,
+        // note that we do not filter subtasks connected staff,
         // because such filtering is done by Valuer.
 
         Ok(())
     }
 
-    pub(crate) fn invoke(&self) -> anyhow::Result<InvokeOutcome> {
-        let compiler = Compiler {
-            ctx: self.ctx.clone(),
-        };
+    pub(crate) fn invoke(mut self) -> anyhow::Result<InvokeOutcome> {
+        let compiler = Compiler { ctx: self.ctx };
 
         let build_paths = Paths::new(
-            &self.req.submission.root_dir,
+            &self.req.run.root_dir,
             self.req.work_dir.path(),
             0,
-            &self.problem_path(),
+            &self.ctx.env().problem_root(),
         );
 
-        if !self.req.submission.root_dir.exists() {
+        if !self.req.run.root_dir.exists() {
             bail!("Submission root dir not exists");
         }
         let compiler_request = BuildRequest {

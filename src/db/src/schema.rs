@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub type RunId = i32;
@@ -41,17 +42,44 @@ pub struct RunPatch {
 }
 
 #[derive(Queryable, Debug, Clone, Serialize, Deserialize)]
-pub struct InvocationRequest {
-    pub id: InvocationRequestId,
-    pub run_id: i32,
-    pub invoke_revision: i32,
+pub(crate) struct RawInvocationRequest {
+    pub(crate) id: InvocationRequestId,
+    pub(crate) invoke_task: Vec<u8>,
 }
 
 #[derive(Insertable)]
 #[table_name = "invocation_requests"]
+pub(crate) struct RawNewInvocationRequest {
+    pub(crate) invoke_task: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InvocationRequest {
+    pub id: InvocationRequestId,
+    pub invoke_task: invoker_api::InvokeTask,
+}
+
+impl InvocationRequest {
+    pub(crate) fn from_raw(raw: &RawInvocationRequest) -> Result<Self> {
+        Ok(Self {
+            id: raw.id,
+            invoke_task: bincode::deserialize(&raw.invoke_task)
+                .context("failed to deserialize InvokeTask")?,
+        })
+    }
+}
+
+impl NewInvocationRequest {
+    pub(crate) fn to_raw(&self) -> Result<RawNewInvocationRequest> {
+        Ok(RawNewInvocationRequest {
+            invoke_task: bincode::serialize(&self.invoke_task)
+                .context("failed to serialize InvokeTask")?,
+        })
+    }
+}
+
 pub struct NewInvocationRequest {
-    pub run_id: RunId,
-    pub invoke_revision: i32,
+    pub invoke_task: invoker_api::InvokeTask,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable, Insertable)]

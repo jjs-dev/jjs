@@ -67,6 +67,7 @@ impl TokenMgr {
                 groups: user_data.groups,
                 id: user_data.id,
             },
+            session_id: uuid::Uuid::new_v4(),
         })
     }
 

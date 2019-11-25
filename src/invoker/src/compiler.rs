@@ -1,5 +1,6 @@
 use crate::{
     inter_api::{Artifact, BuildOutcome, BuildRequest},
+    invoke_util,
     invoker::{interpolate_command, InvokeContext},
 };
 use anyhow::Context;
@@ -8,7 +9,7 @@ use std::{fs, time::Duration};
 
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
-    pub(crate) ctx: InvokeContext<'a>,
+    pub(crate) ctx: &'a dyn InvokeContext,
 }
 
 impl<'a> Compiler<'a> {
@@ -17,40 +18,43 @@ impl<'a> Compiler<'a> {
         fs::create_dir(req.paths.chroot_dir()).context("failed to create compile chroot dir")?;
         fs::create_dir(req.paths.share_dir()).context("failed to create compile share dir")?;
 
-        let limits = &self.ctx.toolchain_cfg.limits;
+        let toolchain = self.ctx.env().toolchain_cfg;
+        let limits = &toolchain.limits;
 
-        let toolchain = &self.ctx.toolchain_cfg;
-
-        let sandbox = self
-            .ctx
-            .create_sandbox(limits, req.paths)
-            .context("failed to create sandbox")?;
+        let sandbox = crate::invoke_util::create_sandbox(
+            self.ctx.env().cfg,
+            limits,
+            req.paths,
+            self.ctx.env().minion_backend,
+        )
+        .context("failed to create sandbox")?;
 
         fs::copy(
-            req.paths.submission.join("source"),
+            req.paths.source(),
             req.paths.share_dir().join(&toolchain.filename),
         )
         .context("failed to copy source")?;
 
         for (i, command_template) in toolchain.build_commands.iter().enumerate() {
-            let dict = self.ctx.get_common_interpolation_dict();
+            let dict = invoke_util::get_common_interpolation_dict(
+                self.ctx.env().run_props,
+                self.ctx.env().toolchain_cfg,
+            );
             let stdout_path = req.paths.step.join(&format!("stdout-{}.txt", i));
             let stderr_path = req.paths.step.join(&format!("stderr-{}.txt", i));
 
             let command_interp = interpolate_command(command_template, &dict)
                 .context("invalid compiler command template")?;
 
-            self.ctx.log_execute_command(&command_interp);
+            invoke_util::log_execute_command(&command_interp);
 
             let mut native_command = minion::Command::new();
-            self.ctx
-                .command_builder_set_from_command(&mut native_command, command_interp);
-            self.ctx
-                .command_builder_set_stdio(&mut native_command, &stdout_path, &stderr_path);
+            invoke_util::command_set_from_interp(&mut native_command, &command_interp);
+            invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
             native_command.dominion(sandbox.clone());
 
-            let mut child = match native_command.spawn(self.ctx.minion_backend) {
+            let mut child = match native_command.spawn(self.ctx.env().minion_backend) {
                 Ok(child) => child,
                 Err(err) => {
                     if err.is_system() {
@@ -91,11 +95,8 @@ impl<'a> Compiler<'a> {
                 }
             };
         }
-        fs::copy(
-            req.paths.share_dir().join("build"),
-            req.paths.submission.join("build"),
-        )
-        .context("failed to copy artifact to run dir")?;
+        fs::copy(req.paths.share_dir().join("build"), req.paths.build())
+            .context("failed to copy artifact to run dir")?;
         Ok(BuildOutcome::Success(Artifact {
             execute_command: toolchain.run_command.clone(),
         }))

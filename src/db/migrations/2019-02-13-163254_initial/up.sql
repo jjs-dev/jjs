@@ -32,11 +32,11 @@ CREATE TABLE runs
     id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
     toolchain_id VARCHAR(100)                                               NOT NULL,
     status_code  VARCHAR(100)                                               NOT NULL,
-    status_kind  VARCHAR(100)                                                NOT NULL,
+    status_kind  VARCHAR(100)                                               NOT NULL,
     problem_id   VARCHAR(100)                                               NOT NULL,
-    score        INTEGER                                                                  NOT NULL,
-    rejudge_id   unsigned_integer                                            NOT NULL,
-    user_id UUID REFERENCES users(id) NOT NULL
+    score        INTEGER                                                    NOT NULL,
+    rejudge_id   unsigned_integer                                           NOT NULL,
+    user_id      UUID REFERENCES users (id)                                 NOT NULL
 );
 
 CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);
@@ -47,7 +47,7 @@ CREATE SEQUENCE inv_req_id_seq START WITH 0 MINVALUE 0;
 
 CREATE table invocation_requests
 (
-    id              unsigned_integer DEFAULT nextval('inv_req_id_seq') UNIQUE PRIMARY KEY NOT NULL,
-    run_id          unsigned_integer REFERENCES runs (id)                                 NOT NULL,
-    invoke_revision unsigned_integer                                                      NOT NULL
+    id          unsigned_integer DEFAULT nextval('inv_req_id_seq') UNIQUE PRIMARY KEY NOT NULL,
+    -- This is serialized `InvokeTask`. See `invoker-api` for its definition
+    invoke_task bytea                                                                 NOT NULL
 );

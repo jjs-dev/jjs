@@ -1,7 +1,5 @@
-use crate::{
-    repo::{DieselRepo, MemoryRepo, Repo},
-    Error,
-};
+use crate::repo::{DieselRepo, MemoryRepo, Repo};
+use anyhow::{Context, Result};
 use std::env;
 
 pub struct ConnectOptions {
@@ -20,15 +18,17 @@ impl ConnectOptions {
     }
 }
 
-pub fn connect(options: ConnectOptions) -> Result<Box<dyn Repo>, Error> {
+pub fn connect(options: ConnectOptions) -> Result<Box<dyn Repo>> {
     if let Some(pg_conn_str) = options.pg {
-        Ok(Box::new(DieselRepo::new(&pg_conn_str)?))
+        Ok(Box::new(
+            DieselRepo::new(&pg_conn_str).context("failed to connect to postgres")?,
+        ))
     } else {
         Ok(Box::new(MemoryRepo::new()))
     }
 }
 
-pub fn connect_env() -> Result<Box<dyn Repo>, Error> {
+pub fn connect_env() -> Result<Box<dyn Repo>> {
     let opts = ConnectOptions {
         pg: env::var("DATABASE_URL").ok(),
     };
@@ -36,7 +36,7 @@ pub fn connect_env() -> Result<Box<dyn Repo>, Error> {
     connect(opts)
 }
 
-pub fn connect_memory() -> Result<Box<dyn Repo>, Error> {
+pub fn connect_memory() -> Result<Box<dyn Repo>> {
     let opts = ConnectOptions { pg: None };
     connect(opts)
 }

@@ -82,6 +82,7 @@ impl EnvBuilder {
             env: config::Env::Dev,
             db_conn: db_conn.clone(),
             token_mgr: frontend_engine::security::TokenMgr::new(db_conn.clone(), secret.into()),
+            addr: Some("127.0.0.1".to_string()),
         };
 
         let rock = ApiServer::create(frontend_config, &config, db_conn);

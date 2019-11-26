@@ -1,9 +1,9 @@
+#include "checker.h"
 #include "jtl.h"
 #include "proto.h"
-#include "checker.h"
-#include <cstdarg>
 #include <cassert>
 #include <cmath>
+#include <cstdarg>
 
 struct CheckerData {
     checker::CheckerInput inp;
@@ -34,18 +34,18 @@ void checker::finish(Outcome outcome) {
     FILE* proto_file = CHECKER.out_file;
     fprintf(proto_file, "outcome=");
     switch (outcome) {
-        case Outcome::WRONG_ANSWER:
-            fprintf(proto_file, "WrongAnswer");
-            break;
-        case Outcome::CHECKER_LOGIC_ERROR:
-            fprintf(proto_file, "CheckerLogicError");
-            break;
-        case Outcome::OK:
-            fprintf(proto_file, "Ok");
-            break;
-        case Outcome::PRESENTATION_ERROR:
-            fprintf(proto_file, "PresentationError");
-            break;
+    case Outcome::WRONG_ANSWER:
+        fprintf(proto_file, "WrongAnswer");
+        break;
+    case Outcome::CHECKER_LOGIC_ERROR:
+        fprintf(proto_file, "CheckerLogicError");
+        break;
+    case Outcome::OK:
+        fprintf(proto_file, "Ok");
+        break;
+    case Outcome::PRESENTATION_ERROR:
+        fprintf(proto_file, "PresentationError");
+        break;
     }
 
     exit(0);
@@ -58,7 +58,8 @@ char COMMENT_OUT_BUF[COMMENT_OUT_BUF_LEN];
 void checker::comment(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    int num_written = vsnprintf(COMMENT_OUT_BUF, COMMENT_OUT_BUF_LEN, format, args);
+    int num_written =
+        vsnprintf(COMMENT_OUT_BUF, COMMENT_OUT_BUF_LEN, format, args);
     va_end(args);
     FILE* f = CHECKER.comment_file;
     fprintf(f, "%s", COMMENT_OUT_BUF);
@@ -66,7 +67,6 @@ void checker::comment(const char* format, ...) {
         fprintf(f, "... (comment was truncated)");
     }
     fprintf(f, "\n");
-
 }
 
 void checker::corr_scanf(const char* format, ...) {
@@ -164,7 +164,8 @@ char* checker::next_token(FILE* f) {
     return out;
 }
 
-bool checker::compare_epsilon(long double expected, long double actual, long double epsilon) {
+bool checker::compare_epsilon(long double expected, long double actual,
+                              long double epsilon) {
     assert(std::isfinite(expected));
     if (!std::isfinite(actual)) {
         return false;

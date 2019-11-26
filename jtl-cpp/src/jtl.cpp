@@ -1,10 +1,10 @@
 #include "jtl.h"
 #include "proto.h"
-#include <cstdlib>
-#include <cstdio>
-#include <cstdarg>
-#include <cctype>
 #include <cassert>
+#include <cctype>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 
 static bool is_char_whitespace(char c) {
     return c == ' ' || c == '\n' || c == '\t';
@@ -20,7 +20,9 @@ bool is_file_eof(FILE* f) {
                 return false;
             }
         }
-        if (nread == 0) break;
+        if (nread == 0) {
+            break;
+        }
     }
     return true;
 }

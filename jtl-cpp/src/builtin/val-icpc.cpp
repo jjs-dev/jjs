@@ -2,9 +2,9 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
-#include <unistd.h>
-#include <inipp.h>
 #include <fstream>
+#include <inipp.h>
+#include <unistd.h>
 
 using namespace valuer;
 
@@ -23,7 +23,8 @@ static Params read_config(ValuerSession* sess) {
     cfg.open("./cfg.ini");
     if (cfg.fail()) {
         char const* const err_buf = strerror(errno);
-        sess->comment_private("warning: failed open config file: %s\n", err_buf);
+        sess->comment_private("warning: failed open config file: %s\n",
+                              err_buf);
         sess->comment_private("note: will use defaults\n");
         return p;
     }
@@ -53,7 +54,8 @@ void begin(ValuerSession* const sess) {
 }
 
 void on_test_end(ValuerSession* sess, JudgeLogTestEntry finished_test) {
-    bool next_test_is_sample = (finished_test.test_id + 1) <= get_params(sess).open_test_count;
+    bool next_test_is_sample =
+        (finished_test.test_id + 1) <= get_params(sess).open_test_count;
     if (finished_test.test_id <= get_params(sess).open_test_count) {
         finished_test.components.expose_output();
         finished_test.components.expose_test_data();
@@ -61,15 +63,18 @@ void on_test_end(ValuerSession* sess, JudgeLogTestEntry finished_test) {
     }
     judge_log.add_test_entry(finished_test);
 
-    const bool test_passed = StatusKindOps::is_passed(finished_test.status_kind);
-    const bool should_stop = !test_passed || (finished_test.test_id == sess->get_problem_test_count());
+    const bool test_passed =
+        StatusKindOps::is_passed(finished_test.status_kind);
+    const bool should_stop = !test_passed || (finished_test.test_id ==
+                                              sess->get_problem_test_count());
     if (should_stop) {
         if (test_passed) {
             sess->finish(100, true, judge_log);
             sess->comment_public("ok, all tests passed");
         } else {
             sess->finish(0, false, judge_log);
-            sess->comment_public("solution failed on test %d: (status %s)", finished_test.test_id,
+            sess->comment_public("solution failed on test %d: (status %s)",
+                                 finished_test.test_id,
                                  finished_test.status_code.c_str());
         }
     } else {
@@ -79,7 +84,6 @@ void on_test_end(ValuerSession* sess, JudgeLogTestEntry finished_test) {
         }
     }
 }
-
 
 int main() {
     ValuerCallbacks cbs;

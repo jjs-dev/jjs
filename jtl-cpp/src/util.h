@@ -8,4 +8,4 @@ struct FileInfo {
     char* path;
     FILE* file;
 };
-}
+} // namespace jtl

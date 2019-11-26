@@ -1,24 +1,24 @@
 #pragma once
 
-#include <cstdio>
 #include "testgen.h"
+#include <cstdio>
 
 #ifdef __GNUC__
-#define SCAN_FORMAT_FN(x) __attribute__ (( format( scanf, x, x+1 ) ))
-#define PRINT_FORMAT_FN(x) __attribute__ (( format( printf, x, x+1 ) ))
+#define SCAN_FORMAT_FN(x) __attribute__((format(scanf, x, x + 1)))
+#define PRINT_FORMAT_FN(x) __attribute__((format(printf, x, x + 1)))
 #else
 #define SCAN_FORMAT_FN(x)
 #define PRINT_FORMAT_FN(x)
 #endif
 
 #ifdef __GNUC__
-#define ATTR_NORETURN __attribute__ ((noreturn))
+#define ATTR_NORETURN __attribute__((noreturn))
 #else
 #define ATTR_NORETURN
 #endif
 
 #ifdef __GNUC__
-#define ATTR_RET_NONNULL __attribute__ ((returns_nonnull))
+#define ATTR_RET_NONNULL __attribute__((returns_nonnull))
 #else
 #define ATTR_RET_NONNULL
 #endif

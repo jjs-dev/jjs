@@ -1,39 +1,42 @@
-#include <cstdio>
-#include <cassert>
-#include <cstdarg>
-#include <cstdlib>
-#include <cstring>
 #include "valuer.h"
 #include "proto.h"
 #include "util.h"
-
+#include <cassert>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 static bool should_run;
 
-void valuer::ValuerSession::select_next_test(valuer::TestId next_test, bool live) {
+void valuer::ValuerSession::select_next_test(valuer::TestId next_test,
+                                             bool live) {
     assert(1 <= next_test && next_test <= problem_test_count);
     printf("RUN %u %u\n", next_test, live ? 1 : 0);
     fflush(stdout);
 }
 
-void valuer::ValuerSession::finish(int score, bool treat_as_full, const JudgeLog& judge_log) {
+void valuer::ValuerSession::finish(int score, bool treat_as_full,
+                                   const JudgeLog& judge_log) {
     printf("DONE %d %d\n", score, (int) treat_as_full);
     printf("%zu\n", judge_log.tests.size());
     char format_buf[STATUS_KIND_MAX_LEN];
     for (const JudgeLogTestEntry& entry : judge_log.tests) {
         StatusKindOps::to_string(entry.status_kind, format_buf);
-        printf("%u %s %s %u\n", entry.test_id, format_buf, entry.status_code.c_str(),
-               entry.components.flags);
+        printf("%u %s %s %u\n", entry.test_id, format_buf,
+               entry.status_code.c_str(), entry.components.flags);
     }
     printf("%zu\n", judge_log.subtasks.size());
     for (const JudgeLogSubtaskEntry& entry : judge_log.subtasks) {
-        printf("%u %u %u\n", entry.subtask_id, entry.score, entry.components.flags);
+        printf("%u %u %u\n", entry.subtask_id, entry.score,
+               entry.components.flags);
     }
     fflush(stdout);
     should_run = false;
 }
 
-void valuer::ValuerSession::run_valuer(valuer::ValuerCallbacks callbacks, void* user_data) {
+void valuer::ValuerSession::run_valuer(valuer::ValuerCallbacks callbacks,
+                                       void* user_data) {
     assert(callbacks.begin != nullptr);
     assert(callbacks.on_test_end != nullptr);
     assert(jtl::check_pointer((void*) callbacks.on_test_end));
@@ -82,17 +85,11 @@ void valuer::ValuerSession::comment_private(const char* format, ...) {
     va_end(args);
 }
 
-void* valuer::ValuerSession::get_data() {
-    return data;
-}
+void* valuer::ValuerSession::get_data() { return data; }
 
-void const* valuer::ValuerSession::get_data() const {
-    return data;
-}
+void const* valuer::ValuerSession::get_data() const { return data; }
 
-void valuer::ValuerSession::set_data(void* p) {
-    data = p;
-}
+void valuer::ValuerSession::set_data(void* p) { data = p; }
 
 uint32_t valuer::ValuerSession::get_problem_test_count() {
     return problem_test_count;
@@ -106,7 +103,8 @@ void valuer::JudgeLog::add_test_entry(valuer::JudgeLogTestEntry const& test) {
     tests.push_back(test);
 }
 
-void valuer::JudgeLog::add_subtask_entry(valuer::JudgeLogSubtaskEntry const& subtask) {
+void valuer::JudgeLog::add_subtask_entry(
+    valuer::JudgeLogSubtaskEntry const& subtask) {
     subtasks.push_back(subtask);
 }
 
@@ -123,20 +121,21 @@ valuer::StatusKind valuer::StatusKindOps::parse(const char* s) {
     die("in valuer::status_kind_parse: unknown status kind: %s", s);
 }
 
-void valuer::StatusKindOps::to_string(const valuer::StatusKind kind, char* buf) {
+void valuer::StatusKindOps::to_string(const valuer::StatusKind kind,
+                                      char* buf) {
     switch (kind) {
-        case StatusKind::ACCEPTED:
-            strcpy(buf, "Accepted");
-            break;
-        case StatusKind::INTERNAL_ERROR:
-            strcpy(buf, "InternalError");
-            break;
-        case StatusKind::REJECTED:
-            strcpy(buf, "Rejected");
-            break;
-        case StatusKind::SKIPPED:
-            strcpy(buf, "Skipped");
-            break;
+    case StatusKind::ACCEPTED:
+        strcpy(buf, "Accepted");
+        break;
+    case StatusKind::INTERNAL_ERROR:
+        strcpy(buf, "InternalError");
+        break;
+    case StatusKind::REJECTED:
+        strcpy(buf, "Rejected");
+        break;
+    case StatusKind::SKIPPED:
+        strcpy(buf, "Skipped");
+        break;
     }
 }
 
@@ -144,18 +143,10 @@ bool valuer::StatusKindOps::is_passed(const valuer::StatusKind kind) {
     return kind == StatusKind::ACCEPTED;
 }
 
-void valuer::TestVisibleComponents::expose_test_data() {
-    flags |= TEST_DATA;
-}
+void valuer::TestVisibleComponents::expose_test_data() { flags |= TEST_DATA; }
 
-void valuer::TestVisibleComponents::expose_output() {
-    flags |= OUTPUT;
-}
+void valuer::TestVisibleComponents::expose_output() { flags |= OUTPUT; }
 
-void valuer::TestVisibleComponents::expose_answer() {
-    flags |= ANSWER;
-}
+void valuer::TestVisibleComponents::expose_answer() { flags |= ANSWER; }
 
-void valuer::SubtaskVisibleComponents::expose_score() {
-    flags |= SCORE;
-}
+void valuer::SubtaskVisibleComponents::expose_score() { flags |= SCORE; }

@@ -1,35 +1,29 @@
 #pragma once
 
 #include "jtl.h"
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <vector>
 
 namespace valuer {
 const size_t STATUS_KIND_MAX_LEN = 20;
 // note: this struct represents only those kinds that make sense in this context
-enum class StatusKind {
-REJECTED,
-ACCEPTED,
-INTERNAL_ERROR,
-SKIPPED
-};
+enum class StatusKind { REJECTED, ACCEPTED, INTERNAL_ERROR, SKIPPED };
 
 class StatusKindOps {
-public:
-static StatusKind parse(const char* s);
+  public:
+    static StatusKind parse(const char* s);
 
-static void to_string(StatusKind kind, char buf[STATUS_KIND_MAX_LEN]);
+    static void to_string(StatusKind kind, char buf[STATUS_KIND_MAX_LEN]);
 
-static bool is_passed(StatusKind kind);
+    static bool is_passed(StatusKind kind);
 };
 
 struct TestVisibleComponents {
     static const uint32_t TEST_DATA = 1;
     static const uint32_t OUTPUT = 2;
     static const uint32_t ANSWER = 4;
-
 
     uint32_t flags = 0;
 
@@ -78,41 +72,43 @@ struct JudgeLog {
 class ValuerSession;
 
 struct ValuerCallbacks {
-    void (* init)(ValuerSession* sess) = nullptr;
+    void (*init)(ValuerSession* sess) = nullptr;
 
-    void (* begin)(ValuerSession* sess) = nullptr;
+    void (*begin)(ValuerSession* sess) = nullptr;
 
-    void (* on_test_end)(ValuerSession* sess, JudgeLogTestEntry test_info) = nullptr;
+    void (*on_test_end)(ValuerSession* sess,
+                        JudgeLogTestEntry test_info) = nullptr;
 };
-
 
 class ValuerSession {
-void* data = nullptr;
+    void* data = nullptr;
 
-uint32_t problem_test_count = -1;
+    uint32_t problem_test_count = -1;
 
-JudgeLog log;
-FILE* pub_comments_file = nullptr;
-FILE* priv_comments_file = nullptr;
-public:
-void* get_data();
+    JudgeLog log;
+    FILE* pub_comments_file = nullptr;
+    FILE* priv_comments_file = nullptr;
 
-[[nodiscard]] void const* get_data() const;
+  public:
+    void* get_data();
 
-void set_data(void* data);
+    [[nodiscard]] void const* get_data() const;
 
-uint32_t get_problem_test_count();
+    void set_data(void* data);
 
-void select_next_test(TestId next_test, bool live);
+    uint32_t get_problem_test_count();
 
-void set_live_score(int live_score);
+    void select_next_test(TestId next_test, bool live);
 
-void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
+    void set_live_score(int live_score);
 
-void comment_public(const char* format, ...) PRINT_FORMAT_FN(2);
+    void finish(int score, bool treat_as_full, const JudgeLog& judge_log);
 
-void comment_private(const char* format, ...) PRINT_FORMAT_FN(2);
+    void comment_public(const char* format, ...) PRINT_FORMAT_FN(2);
 
-static void run_valuer(ValuerCallbacks callbacks, void* user_data = nullptr);
+    void comment_private(const char* format, ...) PRINT_FORMAT_FN(2);
+
+    static void run_valuer(ValuerCallbacks callbacks,
+                           void* user_data = nullptr);
 };
-}
+} // namespace valuer

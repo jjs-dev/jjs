@@ -50,7 +50,8 @@ int main(int argc, char** argv) {
             char* endptr;
             long double eps = strtold(argv[i + 1], &endptr);
             if (endptr == argv[i + 1]) {
-                fprintf(stderr, "Error: %s is not valid long double value", argv[i + 1]);
+                fprintf(stderr, "Error: %s is not valid long double value",
+                        argv[i + 1]);
                 finish(Outcome::CHECKER_LOGIC_ERROR);
             }
             args.enable_epsilon = true;
@@ -69,7 +70,9 @@ int main(int argc, char** argv) {
             finish(Outcome::WRONG_ANSWER);
         }
         if (expected && !actual) {
-            comment("error: actual answer contains additional tokens, starting from %zu", i);
+            comment("error: actual answer contains additional tokens, starting "
+                    "from %zu",
+                    i);
             comment("note: next actual token was %s", actual);
             finish(Outcome::WRONG_ANSWER);
         }
@@ -88,5 +91,4 @@ int main(int argc, char** argv) {
 
     comment("success: %zu tokens", i);
     finish(Outcome::OK);
-
 }

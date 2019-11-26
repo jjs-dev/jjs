@@ -21,11 +21,11 @@ jobs:
       - name: upload docker images
         run: |
           docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
-          docker tag jjs-frontend:dev docker.pkg.github.com/mikailbag/jjs/frontend:master
+          docker tag jjs-frontend:latest docker.pkg.github.com/mikailbag/jjs/frontend:master
           docker push docker.pkg.github.com/mikailbag/jjs/frontend:master
-          docker tag jjs-invoker:dev docker.pkg.github.com/mikailbag/jjs/invoker:master
+          docker tag jjs-invoker:latest docker.pkg.github.com/mikailbag/jjs/invoker:master
           docker push docker.pkg.github.com/mikailbag/jjs/invoker:master
-          docker tag jjs-tools:dev docker.pkg.github.com/mikailbag/jjs/tools:master
+          docker tag jjs-tools:latest docker.pkg.github.com/mikailbag/jjs/tools:master
           docker push docker.pkg.github.com/mikailbag/jjs/tools:master
   man:
     name: man

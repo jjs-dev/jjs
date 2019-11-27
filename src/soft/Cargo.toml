@@ -5,11 +5,11 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.3.3"
-serde_json = "1.0.41"
-serde = {version = "1.0.101", features = ["derive"]}
-anyhow = "1.0.12"
+structopt = "0.3.5"
+serde_json = "1.0.42"
+serde = { version = "1.0.103", features = ["derive"] }
+anyhow = "1.0.23"
 util = {path = "../util"}
-toml = "0.5.3"
+toml = "0.5.5"
 copy-ln = { git = "https://github.com/mikailbag/copy-ln", branch = "master" }
 tempfile = "3.1.0"

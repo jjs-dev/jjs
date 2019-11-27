@@ -6,10 +6,10 @@ edition = "2018"
 
 [dependencies]
 minion = {path = "../minion"}
-structopt = "0.3.3"
+structopt = "0.3.5"
 human-panic = { version = "1.0.1", optional = true }
 cfg-if = "0.1.10"
-chrono = { version = "0.4.9", features = ["serde"] }
+chrono = { version = "0.4.10", features = ["serde"] }
 
 [features]
 human_panic = ["human-panic"]

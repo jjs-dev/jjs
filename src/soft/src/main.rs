@@ -97,6 +97,13 @@ fn process_toolchain(
                 serde_json::to_writer(&mut wr, &val).ok();
                 writeln!(&mut wr).ok();
             }
+            if val
+                .pointer("/payload/data/decoded")
+                .map(|val| val.is_null())
+                .unwrap_or(false)
+            {
+                continue;
+            }
             cnt += match collector.process_log_item(&val).with_context(|| {
                 format!(
                     "failed to process output item: {}",
@@ -184,6 +191,10 @@ fn main_inner() -> anyhow::Result<()> {
         })
     };
     for file in collector {
+        if std::fs::canonicalize(&file).is_err() {
+            // ignore file if it does not exist.
+            continue;
+        }
         if file.starts_with("/tmp") || file.starts_with("/dev") || file.starts_with("/home") {
             continue;
         }

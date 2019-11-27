@@ -11,4 +11,4 @@ crate-type = ["cdylib", "staticlib"]
 minion = {path = "../minion"}
 
 [build-dependencies]
-cbindgen = { version = "0.9.1", default-features = false }
+cbindgen = { version = "0.10.0", default-features = false }

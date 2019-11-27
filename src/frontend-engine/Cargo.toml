@@ -16,14 +16,14 @@ serde = "1.0.103"
 sha3 = "0.8.2"
 rand_chacha = "0.2.1"
 cfg = {path = "../cfg"}
-base64 = "0.10.1"
+base64 = "0.11.0"
 constant_time_eq = "0.1.4"
 libc = "0.2.65"
 serde_json = "1.0.42"
 branca = "0.9.0"
 juniper_rocket = "0.5.1"
 backtrace = "0.3.40"
-snafu = "0.5.0"
+snafu = "0.6.0"
 ranker = {path = "../ranker"}
 util = {path = "../util"}
 slog-scope = "4.3.0"

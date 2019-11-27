@@ -10,7 +10,7 @@ pub fn check() -> Option<String> {
         return Some(format!("Running with uid={} instead of 0", uid));
     }
 
-    let cap_info = match procfs::Process::myself()
+    let cap_info = match procfs::process::Process::myself()
         .and_then(|p| p.status())
         .map(|st| st.capeff)
     {

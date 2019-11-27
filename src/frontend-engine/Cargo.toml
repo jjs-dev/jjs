@@ -9,29 +9,29 @@ digest = "0.8.1"
 db = {path = "../db"}
 rand = "0.7.2"
 slog = "2.5.2"
-juniper = "0.14.0"
+juniper = "0.14.1"
 uuid = "0.7.4"
 rocket = "0.4.2"
-serde = "1.0.101"
+serde = "1.0.103"
 sha3 = "0.8.2"
 rand_chacha = "0.2.1"
 cfg = {path = "../cfg"}
 base64 = "0.10.1"
 constant_time_eq = "0.1.4"
 libc = "0.2.65"
-serde_json = "1.0.41"
+serde_json = "1.0.42"
 branca = "0.9.0"
-juniper_rocket = "0.5.0"
+juniper_rocket = "0.5.1"
 backtrace = "0.3.40"
 snafu = "0.5.0"
 ranker = {path = "../ranker"}
 util = {path = "../util"}
-slog-scope = "4.2.0"
-anyhow = "1.0.22"
+slog-scope = "4.3.0"
+anyhow = "1.0.23"
 invoker-api = {path = "../invoker-api"}
 rocket_contrib = "0.4.2"
 my_internet_ip = "0.1.1"
 
 [dev-dependencies]
-toml = "0.5.3"
+toml = "0.5.5"
 setup = {path = "../setup"}

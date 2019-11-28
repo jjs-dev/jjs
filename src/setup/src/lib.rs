@@ -68,7 +68,7 @@ fn copy_or_symlink_config(conf_params: &ConfigParams, params: &SetupParams) -> a
     } else {
         add(data_dir, "etc")?;
         add(data_dir, "etc/toolchains")?;
-        let cfg_dir_items = vec!["jjs.toml", "toolchains", "contest.toml"]
+        let cfg_dir_items = vec!["jjs.toml", "contest.toml"]
             .iter()
             .map(|x| cfg_dir.join(x))
             .collect();
@@ -158,7 +158,7 @@ fn setup_toolchains(params: &SetupParams) -> anyhow::Result<()> {
         None => return Ok(()),
     };
     cmd.arg(toolchain_spec_db_dir);
-    cmd.arg(target_dir.join("opt"));
+    cmd.arg(target_dir);
     cmd.arg("--trace")
         .arg(target_dir.join("configure-toolchains-log.txt"));
     let st = cmd.status()?.success();

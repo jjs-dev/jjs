@@ -31,18 +31,11 @@ sleep 5
 echo "We are: \$(id)"
 
 su jjs -c '
-export JJS_SYSROOT=/var/lib/jjs
-export JJS_PATH=/usr
-export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
-export RUST_BACKTRACE=1
-export JJS_HOST=0.0.0.0
+$(cat env.txt)
 jjs-frontend &
 '
 
-export JJS_SYSROOT=/var/lib/jjs
-export JJS_PATH=/usr
-export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
-export RUST_BACKTRACE=1
+$(cat env.txt)
 jjs-invoker &
 
 ifdown eth0

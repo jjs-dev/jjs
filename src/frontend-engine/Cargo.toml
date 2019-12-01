@@ -27,7 +27,7 @@ snafu = "0.6.0"
 ranker = {path = "../ranker"}
 util = {path = "../util"}
 slog-scope = "4.3.0"
-anyhow = "1.0.23"
+anyhow = "1.0.25"
 invoker-api = {path = "../invoker-api"}
 rocket_contrib = "0.4.2"
 my_internet_ip = "0.1.1"

@@ -19,7 +19,7 @@ aho-corasick = "0.7.6"
 invoker-api = {path = "../invoker-api"}
 cfg-if = "0.1.10"
 pom = {path = "../pom"}
-libc = "0.2.65"
+libc = "0.2.66"
 nix = "0.15.0"
 memchr = "2.2.1"
 strum = "0.16.0"

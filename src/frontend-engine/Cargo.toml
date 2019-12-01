@@ -8,7 +8,6 @@ edition = "2018"
 digest = "0.8.1"
 db = {path = "../db"}
 rand = "0.7.2"
-slog = "2.5.2"
 juniper = "0.14.1"
 uuid = "0.7.4"
 rocket = "0.4.2"

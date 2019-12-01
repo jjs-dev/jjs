@@ -36,6 +36,7 @@ export JJS_PATH=/usr
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1
 export JJS_HOST=0.0.0.0
+export JJS_SELF_ADDR=127.0.0.1
 jjs-frontend &
 '
 
@@ -43,6 +44,7 @@ export JJS_SYSROOT=/var/lib/jjs
 export JJS_PATH=/usr
 export DATABASE_URL=postgres://jjs:internal@localhost:5432/jjs
 export RUST_BACKTRACE=1
+export JJS_SELF_ADDR=127.0.0.1
 jjs-invoker &
 
 ifdown eth0

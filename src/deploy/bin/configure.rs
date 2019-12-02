@@ -65,6 +65,15 @@ struct Opt {
     docker_tag: Option<String>,
 }
 
+impl Opt {
+    fn process_deps(&mut self) {
+        use std::mem::replace;
+        if self.deb && !replace(&mut self.archive, true) {
+            log::warn!("Enabling archive because deb generation was requested");
+        }
+    }
+}
+
 static MAKE_SCRIPT_TPL: &str = include_str!("../make-tpl.sh");
 static MAKEFILE_TPL: &str = include_str!("../makefile.tpl");
 
@@ -137,6 +146,7 @@ fn check_env() {
 }
 
 fn main() {
+    util::log::setup();
     check_env();
     let jjs_path = std::env::var("JJS_CFGR_SOURCE_DIR").unwrap();
     let build_dir_path = std::env::current_dir()
@@ -146,6 +156,11 @@ fn main() {
         .to_string();
     check_build_dir(&jjs_path, &build_dir_path);
     let opt: Opt = Opt::from_args();
+    let opt = {
+        let mut opt = opt;
+        opt.process_deps();
+        opt
+    };
 
     if let Some(tag) = &opt.docker_tag {
         if !tag.contains('%') {

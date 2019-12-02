@@ -677,6 +677,7 @@ version = "0.1.0"
 dependencies = [
  "console",
  "fs_extra",
+ "log 0.4.8",
  "serde",
  "serde_json",
  "shell-escape",

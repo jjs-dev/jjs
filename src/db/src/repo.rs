@@ -21,9 +21,9 @@ pub trait RunsRepo: std::fmt::Debug + Send + Sync {
     fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>>;
 }
 
-pub trait InvocationRequestsRepo: Send + Sync {
-    fn inv_req_new(&self, inv_req_data: NewInvocationRequest) -> Result<InvocationRequest>;
-    fn inv_req_pop(&self) -> Result<Option<InvocationRequest>>;
+pub trait InvocationsRepo: Send + Sync {
+    fn inv_new(&self, inv_req_data: NewInvocation) -> Result<Invocation>;
+    fn inv_pop(&self) -> Result<Option<Invocation>>;
 }
 
 pub trait UsersRepo: Send + Sync {
@@ -31,4 +31,4 @@ pub trait UsersRepo: Send + Sync {
     fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>>;
 }
 
-pub trait Repo: RunsRepo + InvocationRequestsRepo + UsersRepo {}
+pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo {}

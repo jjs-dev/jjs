@@ -1,4 +1,4 @@
-use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{bail, Result};
 use std::{convert::TryFrom, sync::Mutex};
@@ -7,7 +7,7 @@ use std::{convert::TryFrom, sync::Mutex};
 struct Data {
     // None if run was deleted
     runs: Vec<Option<Run>>,
-    inv_reqs: Vec<InvocationRequest>,
+    invs: Vec<Invocation>,
     users: Vec<User>,
 }
 
@@ -118,21 +118,21 @@ impl RunsRepo for MemoryRepo {
     }
 }
 
-impl InvocationRequestsRepo for MemoryRepo {
-    fn inv_req_new(&self, inv_req_data: NewInvocationRequest) -> Result<InvocationRequest> {
+impl InvocationsRepo for MemoryRepo {
+    fn inv_new(&self, inv_data: NewInvocation) -> Result<Invocation> {
         let mut data = self.conn.lock().unwrap();
-        let inv_req_id = data.inv_reqs.len() as InvocationRequestId;
-        let inv_req = InvocationRequest {
-            id: inv_req_id,
-            invoke_task: inv_req_data.invoke_task,
+        let inv_id = data.invs.len() as InvocationId;
+        let inv = Invocation {
+            id: inv_id,
+            invoke_task: inv_data.invoke_task,
         };
-        data.inv_reqs.push(inv_req.clone());
-        Ok(inv_req)
+        data.invs.push(inv.clone());
+        Ok(inv)
     }
 
-    fn inv_req_pop(&self) -> Result<Option<InvocationRequest>> {
+    fn inv_pop(&self) -> Result<Option<Invocation>> {
         let mut data = self.conn.lock().unwrap();
-        Ok(data.inv_reqs.pop())
+        Ok(data.invs.pop())
     }
 }
 

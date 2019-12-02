@@ -1,7 +1,7 @@
 table! {
     use super::*;
 
-    invocation_requests (id) {
+    invocations (id) {
         id -> Int4,
         invoke_task -> Bytea,
     }
@@ -36,7 +36,7 @@ table! {
 joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
-    invocation_requests,
+    invocations,
     runs,
     users,
 );

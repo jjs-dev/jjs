@@ -41,13 +41,13 @@ CREATE TABLE runs
 
 CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);
 
-CREATE SEQUENCE inv_req_id_seq START WITH 0 MINVALUE 0;
+CREATE SEQUENCE inv_id_seq START WITH 0 MINVALUE 0;
 
 -- Invocation requests
 
-CREATE table invocation_requests
+CREATE table invocations
 (
-    id          unsigned_integer DEFAULT nextval('inv_req_id_seq') UNIQUE PRIMARY KEY NOT NULL,
+    id          unsigned_integer DEFAULT nextval('inv_id_seq') UNIQUE PRIMARY KEY NOT NULL,
     -- This is serialized `InvokeTask`. See `invoker-api` for its definition
     invoke_task bytea                                                                 NOT NULL
 );

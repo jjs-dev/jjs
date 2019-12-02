@@ -12,7 +12,7 @@ mod valuer;
 use crate::{invoke_context::MainInvokeContext, invoke_env::InvokeEnv};
 use anyhow::{bail, Context};
 use cfg_if::cfg_if;
-use db::schema::InvocationRequest;
+use db::schema::Invocation;
 use invoker::Invoker;
 use invoker_api::InvokeTask;
 use slog_scope::{debug, error};
@@ -107,9 +107,9 @@ impl Server {
     }
 
     fn try_get_task(&self) -> Option<InvokeTask> {
-        let res: Option<InvocationRequest> = self
+        let res: Option<Invocation> = self
             .db_conn
-            .inv_req_pop() // TODO handle error
+            .inv_pop() // TODO handle error
             .ok()
             .flatten();
 

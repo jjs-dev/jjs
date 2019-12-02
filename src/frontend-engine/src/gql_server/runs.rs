@@ -207,7 +207,7 @@ pub(super) fn submit_simple(
     problem: schema::ProblemId,
     contest: schema::ContestId,
 ) -> ApiResult<Run> {
-    use db::schema::NewInvocationRequest;
+    use db::schema::NewInvocation;
     let toolchain = ctx.cfg.toolchains.iter().find(|t| t.name == toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
@@ -260,9 +260,9 @@ pub(super) fn submit_simple(
         status_update_callback: get_lsu_webhook_url(ctx, run.id as u32),
     };
 
-    let new_inv_req = NewInvocationRequest { invoke_task };
+    let new_inv = NewInvocation { invoke_task };
 
-    ctx.db.inv_req_new(new_inv_req).internal(ctx)?;
+    ctx.db.inv_new(new_inv).internal(ctx)?;
 
     Ok(describe_run(&run))
 }

@@ -17,13 +17,16 @@ do
 done
 fi
 
+sudo rm -rf "$SYSROOT/var/lib/jjs/opt"
+#rm -rf tmp
+cargo run --offline -p soft ../toolchains "$SYSROOT/var/lib/jjs"
+echo 'sandbox:x:179:179:sandbox:/:/bin/sh' > "$SYSROOT/var/lib/jjs/opt/etc/passwd"
+echo 'sandbox:x:179:' > "$SYSROOT/var/lib/jjs/opt/etc/group"
+#sudo mv tmp "$SYSROOT/var/lib/jjs/opt"
+
 sudo chown -R 1:1 "$SYSROOT"/var/lib/jjs/*
 sudo chown root:root "$SYSROOT/var/lib/jjs"
 sudo chmod -R 0700 "$SYSROOT"/var/lib/jjs/*
 sudo chmod 0755 "$SYSROOT"/var/lib/jjs/var{,/submissions}
-
-sudo rm -rf "$SYSROOT/var/lib/jjs/opt"
-rm -rf tmp
-cargo run --offline -p soft ../toolchains tmp
-sudo mv tmp "$SYSROOT/var/lib/jjs/opt"
 sudo chown -R root:root "$SYSROOT/var/lib/jjs/opt"
+sudo chmod -R 755 "$SYSROOT/var/lib/jjs/opt"

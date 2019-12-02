@@ -1,4 +1,4 @@
-use super::{InvocationRequestsRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{Context, Result};
 use diesel::{prelude::*, r2d2::ConnectionManager};
@@ -64,39 +64,37 @@ mod impl_users {
     }
 }
 
-mod impl_inv_reqs {
+mod impl_invs {
     use super::*;
-    use crate::schema::invocation_requests::dsl::*;
+    use crate::schema::invocations::dsl::*;
 
-    impl InvocationRequestsRepo for DieselRepo {
-        fn inv_req_new(&self, inv_req_data: NewInvocationRequest) -> Result<InvocationRequest> {
-            diesel::insert_into(invocation_requests)
-                .values(&inv_req_data.to_raw()?)
+    impl InvocationsRepo for DieselRepo {
+        fn inv_new(&self, inv_data: NewInvocation) -> Result<Invocation> {
+            diesel::insert_into(invocations)
+                .values(&inv_data.to_raw()?)
                 .get_result(&self.conn()?)
-                .context("failed to load invocation request")
-                .and_then(|raw| InvocationRequest::from_raw(&raw))
+                .context("failed to load invocation")
+                .and_then(|raw| Invocation::from_raw(&raw))
                 .map_err(Into::into)
         }
 
-        fn inv_req_pop(&self) -> Result<Option<InvocationRequest>> {
+        fn inv_pop(&self) -> Result<Option<Invocation>> {
             let conn = self.conn()?;
             conn.transaction::<_, anyhow::Error, _>(|| {
-                let waiting_submission = invocation_requests
-                    .limit(1)
-                    .load::<RawInvocationRequest>(&conn)?;
-                let waiting_submission = waiting_submission.into_iter().next();
-                match waiting_submission {
+                let invocation = invocations.limit(1).load::<RawInvocation>(&conn)?;
+                let invocation = invocation.into_iter().next();
+                match invocation {
                     Some(s) => {
-                        diesel::delete(invocation_requests)
+                        diesel::delete(invocations)
                             .filter(id.eq(s.id))
                             .execute(&conn)?;
 
-                        Ok(Some(InvocationRequest::from_raw(&s)?))
+                        Ok(Some(Invocation::from_raw(&s)?))
                     }
                     None => Ok(None),
                 }
             })
-            .context("failed to load invocation request")
+            .context("failed to extract invocation")
         }
     }
 }

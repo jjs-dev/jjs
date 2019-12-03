@@ -43,7 +43,7 @@ CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);
 
 CREATE SEQUENCE inv_id_seq START WITH 0 MINVALUE 0;
 
--- Invocation requests
+-- Invocations
 
 CREATE table invocations
 (

@@ -42,7 +42,7 @@ pub fn derive_key_512(secret: &str) -> Vec<u8> {
 pub struct FrontendConfig {
     pub port: u16,
     pub host: String,
-    pub token_mgr: crate::security::TokenMgr,
+    pub token_mgr: crate::api::TokenMgr,
     pub db_conn: Arc<dyn db::DbConn>,
     pub unix_socket_path: String,
     pub env: Env,
@@ -85,7 +85,7 @@ impl FrontendConfig {
         let unix_socket_path =
             env::var("JJS_UNIX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/jjs-auth-sock".to_string());
 
-        let token_mgr = crate::security::TokenMgr::new(db_conn.clone(), secret.into());
+        let token_mgr = crate::api::TokenMgr::new(db_conn.clone(), secret.into());
 
         let addr = std::env::var("JJS_SELF_ADDR")
             .or_else(|_| my_internet_ip::get().map(|addr| addr.to_string()))

@@ -216,7 +216,12 @@ pub(super) fn submit_simple(
     if contest != "TODO" {
         return Err(ApiError::new(ctx, "ContestUnknown"));
     }
-    if !ctx.access().user_can_submit(&contest).internal(ctx)? {
+    if !ctx
+        .access()
+        .wrap_contest(contest)
+        .can_submit()
+        .internal(ctx)?
+    {
         return Err(ApiError::access_denied(ctx));
     }
     let problem = ctx.cfg.contests[0]
@@ -274,7 +279,7 @@ pub(super) fn modify(
     rejudge: Option<bool>,
     delete: Option<bool>,
 ) -> ApiResult<()> {
-    if !ctx.access().user_can_modify_run(id).internal(ctx)? {
+    if !ctx.access().wrap_run(id).can_modify_run().internal(ctx)? {
         return Err(ApiError::access_denied(ctx));
     }
     let should_delete = delete.unwrap_or(false);

@@ -1,4 +1,4 @@
-use crate::security::{AccessChecker, Token, TokenMgr, TokenMgrError};
+use super::security::{RawAccessChecker, Token, TokenMgr, TokenMgrError};
 use std::sync::{Arc, Mutex};
 
 pub(crate) type DbPool = Arc<dyn db::DbConn>;
@@ -14,8 +14,8 @@ pub(crate) struct ContextData {
 }
 
 impl ContextData {
-    pub(crate) fn access(&self) -> AccessChecker {
-        AccessChecker {
+    pub(crate) fn access(&self) -> RawAccessChecker {
+        RawAccessChecker {
             token: &self.token,
             cfg: &self.cfg,
             db: &*self.db,
@@ -53,7 +53,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .expect("State<Arc<FrontendConfig>> missing");
 
         let secret_key = request
-            .guard::<rocket::State<crate::security::SecretKey>>()
+            .guard::<rocket::State<crate::secret_key::SecretKey>>()
             .expect("State<SecretKey> missing");
 
         let token = request

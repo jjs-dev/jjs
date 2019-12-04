@@ -5,6 +5,7 @@ mod monitor;
 mod queries;
 mod runs;
 mod schema;
+mod security;
 mod users;
 use slog_scope::error;
 
@@ -219,6 +220,7 @@ mod prelude {
 }
 
 pub(crate) use context::{Context, ContextFactory};
+pub use security::{TokenMgr, TokenMgrError};
 
 pub(crate) struct Query;
 

@@ -81,7 +81,7 @@ impl EnvBuilder {
             unix_socket_path: "".to_string(),
             env: config::Env::Dev,
             db_conn: db_conn.clone(),
-            token_mgr: frontend_engine::security::TokenMgr::new(db_conn.clone(), secret.into()),
+            token_mgr: frontend_engine::TokenMgr::new(db_conn.clone(), secret.into()),
             addr: Some("127.0.0.1".to_string()),
         };
 

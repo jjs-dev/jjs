@@ -1,4 +1,4 @@
-use crate::security::{token::UserInfo, Token};
+use super::{token::UserInfo, Token};
 use snafu::Snafu;
 use std::sync::Arc;
 

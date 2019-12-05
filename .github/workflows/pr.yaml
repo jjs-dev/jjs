@@ -79,6 +79,7 @@ jobs:
     runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
+      - run: bash scripts/ci-env.sh
       - name: build
         run: cargo jjs-build --docker
       - name: launch jjs

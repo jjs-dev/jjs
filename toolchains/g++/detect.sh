@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-gpp_path=$( which g++ )
+gpp_path=$( command -v g++ )
 if [[ -z "$gpp_path"  ]]; then
     echo "g++ not found";
     exit 1;

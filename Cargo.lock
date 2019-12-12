@@ -262,9 +262,9 @@ dependencies = [
 
 [[package]]
 name = "cbindgen"
-version = "0.10.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea013096b5149f9cb90e6f3df69bd7889bd6dceffc5f8fb85dea6bd1c16d4f0f"
+checksum = "e9cc2c99da3dca10bed56232afbd314af93aaa3afa43a9ff0ac59090b3f2a990"
 dependencies = [
  "log 0.4.8",
  "proc-macro2 1.0.6",
@@ -331,7 +331,7 @@ name = "cleanup"
 version = "0.1.0"
 dependencies = [
  "libc",
- "nix 0.15.0",
+ "nix 0.16.0",
  "structopt 0.3.5",
 ]
 
@@ -1518,7 +1518,7 @@ dependencies = [
  "libc",
  "memchr",
  "minion",
- "nix 0.15.0",
+ "nix 0.16.0",
  "pom",
  "reqwest",
  "serde",
@@ -1781,7 +1781,7 @@ dependencies = [
  "downcast-rs",
  "errno",
  "libc",
- "nix 0.15.0",
+ "nix 0.16.0",
  "procfs",
  "rand 0.7.2",
  "serde",
@@ -1930,6 +1930,19 @@ name = "nix"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b2e0b4f3320ed72aaedb9a5ac838690a8047c7b275da22711fddff4f8a14229"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if",
+ "libc",
+ "void",
+]
+
+[[package]]
+name = "nix"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19a8300bf427d432716764070ff70d5b2b7801c958b9049686e6cbd8b06fad92"
 dependencies = [
  "bitflags",
  "cc",

@@ -77,22 +77,25 @@ jobs:
   e2e:
     name: e2e
     runs-on: "ubuntu-18.04"
-    needs: build
-    if: "false" # TODO
     steps:
       - uses: actions/checkout@v1
-      - name: download jjs artifacts
-        uses: actions/download-artifact@v1
-        with:
-          name: dist.tgz
-          path: /opt/jjs
+      - run: bash scripts/ci-env.sh
+      - name: build
+        run: cargo jjs-build --docker
       - name: launch jjs
         run: docker-compose up --detach
+      - name: wait for launch
+        run: cargo run --package util
+        env:
+          JJS_WAIT: tcp://localhost:1779
+          RUST_LOG: util::wait=debug
       - name: run tests
         run: cargo jjs-test --integration-tests --skip-unit
       - name: collect logs
         if: always()
-        run: docker-compose logs > logs.txt
+        run: |
+          docker-compose logs --tail=all
+          docker-compose logs --tail=all > logs.txt
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v1

@@ -8,7 +8,7 @@ fn submit(code: &str) -> i32 {
         .operation(
             r#"
 mutation Submit($runCode: String!) {
-  submitSimple(toolchain: "cpp", problem: "A", runCode: $runCode, contest: "TODO") {
+  submitSimple(toolchain: "g++", problem: "A", runCode: $runCode, contest: "TODO") {
     id
   }
 }

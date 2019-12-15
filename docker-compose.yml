@@ -14,7 +14,6 @@ services:
       - "--sample-contest"
       - "--db-url=postgres://db:5432/jjs"
       - "--toolchains"
-      - "--force"
       - "--touch=/var/jjs/done.txt"
     depends_on:
       - db

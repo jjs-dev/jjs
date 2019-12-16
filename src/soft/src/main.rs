@@ -5,7 +5,6 @@ mod dep_collector;
 
 use crate::dep_collector::DepCollector;
 use anyhow::{bail, Context};
-use error_chain::ChainedError;
 use std::{
     path::{Path, PathBuf},
     process::{Command, ExitCode},
@@ -227,17 +226,12 @@ fn process_toolchain_invoke_conf(
     }
     let in_file = std::fs::read_to_string(&in_file).context("failed to read invoke-conf.toml")?;
 
-    let mut render_ctx = std::collections::HashMap::new();
+    let mut render_ctx = tera::Context::new();
     for (k, v) in &detect_out.env {
         let k = format!("env_{}", k);
-        render_ctx.insert(k, v.to_string());
+        render_ctx.insert(k, v);
     }
     let output = tera::Tera::one_off(&in_file, &render_ctx, false)
-        .map_err(|tera_err| {
-            // unfortunately, tera uses error_chain for error handling, which does not have `Sync` bound on its errors
-            // to workaround it, we render error to string
-            anyhow::anyhow!("{:#}", tera_err.display_chain())
-        })
         .context("failed to render invoke config file")?;
 
     std::fs::create_dir_all(out_file.parent().unwrap()).ok();

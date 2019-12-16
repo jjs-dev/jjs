@@ -8,7 +8,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    ffi::{CString, OsStr, OsString},
+    ffi::CString,
     fmt::{self, Debug},
     fs,
     os::unix::io::AsRawFd,
@@ -22,7 +22,6 @@ pub struct LinuxDominion {
     id: String,
     options: DominionOptions,
     zygote_sock: Socket,
-    util_cgroup_path: OsString,
     zygote_pid: Pid,
 }
 
@@ -31,7 +30,6 @@ struct LinuxDominionDebugHelper<'a> {
     id: &'a str,
     options: &'a DominionOptions,
     zygote_sock: Handle,
-    util_cgroup_path: &'a OsStr,
     zygote_pid: Pid,
 }
 
@@ -41,7 +39,6 @@ impl Debug for LinuxDominion {
             id: &self.id,
             options: &self.options,
             zygote_sock: self.zygote_sock.as_raw_fd(),
-            util_cgroup_path: &self.util_cgroup_path,
             zygote_pid: self.zygote_pid,
         };
 
@@ -93,7 +90,6 @@ impl LinuxDominion {
             id: jail_id,
             options,
             zygote_sock: startup_info.socket,
-            util_cgroup_path: startup_info.wrapper_cgroup_path,
             zygote_pid: startup_info.zygote_pid,
         })
     }

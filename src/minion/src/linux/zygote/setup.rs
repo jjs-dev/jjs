@@ -109,11 +109,11 @@ unsafe fn setup_sighandler() {
 
 unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     let jail_id = jail_options.jail_id.clone();
-    //configure cpuacct subsystem
+    // configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
     fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
 
-    //configure pids subsystem
+    // configure pids subsystem
     let pids_cgroup_path = get_path_for_subsystem("pids", &jail_id);
     fs::create_dir_all(&pids_cgroup_path).unwrap();
 
@@ -138,15 +138,6 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     let my_pid: Pid = libc::getpid();
     if my_pid == -1 {
         err_exit("getpid");
-    }
-    // now we setup additional pids cgroup
-    // it will only be used for killing all the dominion
-    let add_id = format!("{}-ex", jail_id);
-    {
-        let additional_pids = get_path_for_subsystem("pids", &add_id);
-        fs::create_dir_all(&additional_pids).unwrap();
-        let add_tasks_file = format!("{}/tasks", &additional_pids);
-        fs::write(add_tasks_file, format!("{}", my_pid)).unwrap();
     }
 
     // we return handles to tasksfiles for main cgroups

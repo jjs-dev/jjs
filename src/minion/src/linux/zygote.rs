@@ -488,8 +488,6 @@ pub(crate) unsafe fn start_zygote(
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
 
-    let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
-
     let (return_allowed_r, return_allowed_w) = nix::unistd::pipe().expect("couldn't create pipe");
 
     let f = libc::fork();
@@ -513,7 +511,6 @@ pub(crate) unsafe fn start_zygote(
         nix::unistd::close(return_allowed_w).unwrap();
         let startup_info = jail_common::ZygoteStartupInfo {
             socket: sock,
-            wrapper_cgroup_path: OsString::from(ex_id),
             zygote_pid: i32::from_ne_bytes(zygote_pid_bytes),
         };
         return Ok(startup_info);

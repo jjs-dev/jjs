@@ -42,5 +42,4 @@ fn main() {
             eprintln!("Error: {}", e);
         }
     }
-
 }

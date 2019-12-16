@@ -1,6 +1,7 @@
-//! this module implements a JobServer.
-//! JobServer is a long-running process in dominion.
-//! JobServer accepts queries for spawning child process
+//! this module implements a Zygote.
+//! Jygote is a long-running process in dominion.
+//! In particular, zygote is namespace root.
+//! Zygote accepts queries for spawning child process
 
 mod setup;
 
@@ -48,7 +49,7 @@ struct JobOptions {
     pwd: OsString,
 }
 
-pub(crate) struct JobServerOptions {
+pub(crate) struct ZygoteOptions {
     jail_options: JailOptions,
     sock: Socket,
 }
@@ -260,11 +261,11 @@ const WM_CLASS_SETUP_FINISHED: &[u8] = b"WM_SETUP";
 const WM_CLASS_PID_MAP_READY_FOR_SETUP: &[u8] = b"WM_SETUP_READY";
 const WM_CLASS_PID_MAP_CREATED: &[u8] = b"WM_PIDMAP_DONE";
 
-mod jobserver_main {
+mod zygote_main {
     use crate::linux::{
         jail_common::{JobQuery, Query},
-        jobserver::{setup, spawn_job, JobOptions, JobServerOptions, SetupData, Stdio},
         util::{Handle, IpcSocketExt, Pid, StraceLogger},
+        zygote::{setup, spawn_job, JobOptions, SetupData, Stdio, ZygoteOptions},
     };
     use std::{
         ffi::{OsStr, OsString},
@@ -286,7 +287,7 @@ mod jobserver_main {
     }
 
     unsafe fn process_spawn_query(
-        arg: &mut JobServerOptions,
+        arg: &mut ZygoteOptions,
         options: &JobQuery,
         setup_data: &SetupData,
     ) -> crate::Result<()> {
@@ -326,7 +327,7 @@ mod jobserver_main {
     }
 
     unsafe fn process_poll_query(
-        arg: &mut JobServerOptions,
+        arg: &mut ZygoteOptions,
         pid: Pid,
         timeout: Duration,
     ) -> crate::Result<()> {
@@ -335,18 +336,18 @@ mod jobserver_main {
         Ok(())
     }
 
-    pub(crate) unsafe fn jobserver_entry(mut arg: JobServerOptions) -> crate::Result<i32> {
+    pub(crate) unsafe fn zygote_entry(mut arg: ZygoteOptions) -> crate::Result<i32> {
         let setup_data = setup::setup(&arg.jail_options, &mut arg.sock)?;
 
         let mut logger = StraceLogger::new();
         loop {
             let query: Query = match arg.sock.recv() {
                 Ok(q) => {
-                    write!(logger, "jobserver: new request").ok();
+                    write!(logger, "zygote: new request").ok();
                     q
                 }
                 Err(err) => {
-                    write!(logger, "jobserver: got unprocessable query: {}", err).ok();
+                    write!(logger, "zygote: got unprocessable query: {}", err).ok();
                     return Ok(23);
                 }
             };
@@ -480,14 +481,12 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
     }
 }
 
-pub(crate) unsafe fn start_jobserver(
+pub(crate) unsafe fn start_zygote(
     jail_options: JailOptions,
-) -> crate::Result<jail_common::JobServerStartupInfo> {
+) -> crate::Result<jail_common::ZygoteStartupInfo> {
     let mut logger = crate::linux::util::strace_logger();
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
     let jail_id = jail_common::gen_jail_id();
-
-    let ex_id = format!("/sys/fs/cgroup/pids/jjs/g-{}-ex", &jail_options.jail_id);
 
     let (return_allowed_r, return_allowed_w) = nix::unistd::pipe().expect("couldn't create pipe");
 
@@ -500,19 +499,20 @@ pub(crate) unsafe fn start_jobserver(
     }
 
     if f != 0 {
-        //thread A: entered start_jobserver() normally, returns from function
+        //thread A: entered start_zygote() normally, returns from function
         write!(logger, "thread A (main)").unwrap();
-        let startup_info = jail_common::JobServerStartupInfo {
-            socket: sock,
-            wrapper_cgroup_path: OsString::from(ex_id),
-        };
 
-        let mut buf = [0 as u8; 4];
+        let mut zygote_pid_bytes = [0 as u8; 4];
 
-        //wait until jobserver is ready
-        nix::unistd::read(return_allowed_r, &mut buf).expect("protocol failure");
+        // wait until zygote is ready.
+        // Zygote is ready when zygote launcher returns it's pid
+        nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol failure");
         nix::unistd::close(return_allowed_r).unwrap();
         nix::unistd::close(return_allowed_w).unwrap();
+        let startup_info = jail_common::ZygoteStartupInfo {
+            socket: sock,
+            zygote_pid: i32::from_ne_bytes(zygote_pid_bytes),
+        };
         return Ok(startup_info);
     }
     // why we use unshare(PID) here, and not in setup_namespace()? See pid_namespaces(7) and unshare(2)
@@ -524,19 +524,19 @@ pub(crate) unsafe fn start_jobserver(
         err_exit("fork");
     }
     if fret == 0 {
-        //thread C: jobserver main process
-        write!(logger, "thread C (jobserver main)").unwrap();
+        // thread C: zygote main process
+        write!(logger, "thread C (zygote main)").unwrap();
         mem::drop(sock);
-        let js_arg = JobServerOptions {
+        let js_arg = ZygoteOptions {
             jail_options,
             sock: js_sock,
         };
-        let jobserver_ret_code = jobserver_main::jobserver_entry(js_arg);
-        libc::exit(jobserver_ret_code.unwrap_or(1));
+        let zygote_ret_code = zygote_main::zygote_entry(js_arg);
+        libc::exit(zygote_ret_code.unwrap_or(1));
     }
-    //thread B: external jobserver initializer
-    //it's only task currently is pid/gid mapping
-    write!(logger, "thread B (jobserver launcher)").unwrap();
+    // thread B: external zygote initializer
+    // it's only task currently is pid/gid mapping
+    write!(logger, "thread B (zygote launcher)").unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
 
@@ -551,7 +551,6 @@ pub(crate) unsafe fn start_jobserver(
     sock.wake(WM_CLASS_PID_MAP_CREATED)?;
     sock.lock(WM_CLASS_SETUP_FINISHED)?;
     //and now thread A can return
-    let wake_buf = [179, 179, 239, 57 /* just magic number */];
-    nix::unistd::write(return_allowed_w, &wake_buf).expect("protocol failure");
+    nix::unistd::write(return_allowed_w, &child_pid.to_ne_bytes()).expect("protocol failure");
     libc::exit(0);
 }

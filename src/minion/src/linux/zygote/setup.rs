@@ -1,16 +1,16 @@
 use crate::{
     linux::{
         jail_common::{self, get_path_for_subsystem, JailOptions},
-        jobserver::{
+        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
+        zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
         },
-        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
     },
     DesiredAccess, PathExpositionOptions,
 };
 use std::{
     collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io,
-    os::unix::ffi::OsStrExt, path::Path, process, ptr, time,
+    os::unix::ffi::OsStrExt, path::Path, ptr, time,
 };
 use tiny_nix_ipc::Socket;
 
@@ -47,6 +47,10 @@ fn expose_dir(
 ) {
     let bind_target = jail_root.join(alias_path);
     fs::create_dir_all(&bind_target).unwrap();
+    if fs::metadata(&system_path).unwrap().is_file() {
+        fs::remove_dir(&bind_target).unwrap();
+        fs::write(&bind_target, &"").unwrap();
+    }
     let orig_bind_target = bind_target.clone();
     let bind_target = CString::new(bind_target.as_os_str().as_bytes()).unwrap();
     let bind_src = CString::new(system_path.as_os_str().as_bytes()).unwrap();
@@ -87,10 +91,8 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
 }
 
 fn sigterm_handler_inner() -> ! {
-    loop {
-        unsafe {
-            libc::raise(libc::SIGKILL);
-        }
+    unsafe {
+        libc::exit(9);
     }
 }
 
@@ -111,11 +113,11 @@ unsafe fn setup_sighandler() {
 
 unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     let jail_id = jail_options.jail_id.clone();
-    //configure cpuacct subsystem
+    // configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
     fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
 
-    //configure pids subsystem
+    // configure pids subsystem
     let pids_cgroup_path = get_path_for_subsystem("pids", &jail_id);
     fs::create_dir_all(&pids_cgroup_path).unwrap();
 
@@ -141,18 +143,9 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     if my_pid == -1 {
         err_exit("getpid");
     }
-    // now we setup additional pids cgroup
-    // it will only be used for killing all the dominion
-    let add_id = format!("{}-ex", jail_id);
-    {
-        let additional_pids = get_path_for_subsystem("pids", &add_id);
-        fs::create_dir_all(&additional_pids).unwrap();
-        let add_tasks_file = format!("{}/tasks", &additional_pids);
-        fs::write(add_tasks_file, format!("{}", my_pid)).unwrap();
-    }
 
     // we return handles to tasksfiles for main cgroups
-    // so, though jobserver itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
+    // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
     ["cpuacct", "pids", "memory"]
         .iter()
         .map(|subsys_name| {
@@ -290,11 +283,10 @@ unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit:
         if ok {
             continue;
         }
-        let my_pid = process::id();
-        jail_common::cgroup_kill_all(jail_id, Some(my_pid as Pid)).unwrap();
-        break;
+        // since we are inside pid ns, we can refer to zygote as pid1.
+        jail_common::dominion_kill_all(1 as Pid).unwrap();
+        // we will be killed by kernel too
     }
-    libc::exit(0)
 }
 
 unsafe fn observe_time(

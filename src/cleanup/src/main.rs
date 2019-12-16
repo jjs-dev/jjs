@@ -42,9 +42,4 @@ fn main() {
             eprintln!("Error: {}", e);
         }
     }
-    let path = format!("{}/pids/jjs/g-{}-ex", &argv.cgroupfs, &argv.jail_id);
-    println!("deleting {}", &path);
-    if let Err(e) = fs::remove_dir(path) {
-        eprintln!("Error: {}", e);
-    }
 }

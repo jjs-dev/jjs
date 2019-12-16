@@ -12,6 +12,6 @@ backtrace = "0.3.40"
 fs_extra = "1.1.0"
 structopt = "0.3.5"
 util = {path = "../util"}
-log = "0.4.8"
+log = "0.4.10"
 url = "2.1.0"
 anyhow = "1.0.25"

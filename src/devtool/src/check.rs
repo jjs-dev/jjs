@@ -1,5 +1,5 @@
 use log::{debug, error, info};
-use std::{path::PathBuf, process::Command};
+use std::process::Command;
 use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
 
@@ -28,30 +28,10 @@ fn clippy(runner: &Runner) {
         .run_on(runner);
 }
 
-fn find_scripts() -> impl Iterator<Item = PathBuf> {
-    let mut types_builder = ignore::types::TypesBuilder::new();
-    types_builder.add_defaults();
-    types_builder.negate("all");
-    types_builder.select("sh");
-    let types_matched = types_builder.build().unwrap();
-    ignore::WalkBuilder::new(".")
-        .types(types_matched)
-        .build()
-        .map(Result::unwrap)
-        .filter(|x| {
-            let ty = x.file_type();
-            match ty {
-                Some(f) => f.is_file(),
-                None => false,
-            }
-        })
-        .map(|x| x.path().to_path_buf())
-}
-
 fn shellcheck(runner: &Runner) {
     const SCRIPTS_CHECK_BATCH_SIZE: usize = 10;
     info!("checking scripts");
-    let scripts = find_scripts().collect::<Vec<_>>();
+    let scripts: Vec<_> = crate::glob_util::find_items(crate::glob_util::ItemKind::Bash).collect();
     for script_chunk in scripts.chunks(SCRIPTS_CHECK_BATCH_SIZE) {
         let mut cmd = Command::new("shellcheck");
         cmd.arg("--color=always");
@@ -65,15 +45,15 @@ fn shellcheck(runner: &Runner) {
     }
 }
 
-fn build_minion_ffi_example(runner: &Runner) {
-    info!("building minion-ffi C example");
-    std::fs::create_dir("src/minion-ffi/example-c/cmake-build-debug").ok();
+pub(crate) fn build_minion_ffi_tests(runner: &Runner) {
+    info!("building minion-ffi tests");
+    std::fs::create_dir("src/minion-ffi/tests/cmake-build-debug").ok();
     Command::new(cmake_bin())
-        .current_dir("./src/minion-ffi/example-c/cmake-build-debug")
+        .current_dir("./src/minion-ffi/tests/cmake-build-debug")
         .arg("..")
         .run_on(runner);
     Command::new(cmake_bin())
-        .current_dir("./src/minion-ffi/example-c/cmake-build-debug")
+        .current_dir("./src/minion-ffi/tests/cmake-build-debug")
         .arg("--build")
         .arg(".")
         .run_on(runner);
@@ -159,9 +139,9 @@ pub struct CheckOpts {
     /// Run shellcheck
     #[structopt(long)]
     shellcheck: bool,
-    /// Build minion-ffi C example
+    /// Build minion-ffi tests
     #[structopt(long)]
-    minion_ffi_example: bool,
+    minion_ffi: bool,
     /// Build testlib
     #[structopt(long)]
     testlib: bool,
@@ -186,8 +166,8 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     if opts.shellcheck || !opts.no_default {
         shellcheck(runner);
     }
-    if opts.minion_ffi_example || !opts.no_default {
-        build_minion_ffi_example(runner);
+    if opts.minion_ffi || !opts.no_default {
+        build_minion_ffi_tests(runner);
     }
     if opts.testlib || !opts.no_default {
         check_testlib(runner);

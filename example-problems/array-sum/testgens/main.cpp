@@ -1,5 +1,5 @@
-#include <jjs/jtl.h>
 #include <cstdlib>
+#include <jjs/jtl.h>
 
 int main() {
     testgen::TestgenSession sess = testgen::init();

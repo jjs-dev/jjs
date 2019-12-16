@@ -41,8 +41,8 @@ jobs:
           PVS_LICENSE_KEY: ${{ secrets.PVS_LICENSE_KEY }}
       - name: compile testlib
         run: cargo jjs-check --no-default --testlib
-      - name: compile minion C example
-        run: cargo jjs-check --no-default --minion-ffi-example
+      - name: compile minion-ffi tests
+        run: cargo jjs-check --no-default --minion-ffi
       - name: Run PVS
         run: cargo jjs-check --no-default --pvs
         env:
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v1
       - run: bash scripts/ci-env.sh
       - name: cargo jjs-test
-        run: cargo jjs-test
+        run: cargo jjs-test 
   build:
     name: build
     runs-on: "ubuntu-18.04"

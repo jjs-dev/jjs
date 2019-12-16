@@ -75,16 +75,22 @@ impl<'ictx> InstallCtx<'ictx> {
     }
 
     pub(crate) fn add_dylib_pkg(&self, name: &str, inst_name: &str) {
-        let dest = self.artifacts().join("lib").join(inst_name);
+        let dest = self
+            .artifacts()
+            .join("lib")
+            .join(Self::preprocess_dylib_name(inst_name));
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
         self.copy(
-            self.artifact_path(&InstallCtx::preprocess_dylib_name(name)),
+            self.artifact_path(&Self::preprocess_dylib_name(name)),
             &dest,
         );
     }
 
     pub(crate) fn add_header(&self, name: &str, inst_name: &str) {
-        let dest = self.artifacts().join("include/jjs").join(inst_name);
+        let dest = self
+            .artifacts()
+            .join("include/jjs")
+            .join(Self::preprocess_header_name(inst_name));
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
         self.copy(
             self.non_arch_out_dir()

@@ -11,7 +11,7 @@ rand = "0.7.2"
 juniper = "0.14.1"
 uuid = "0.7.4"
 rocket = "0.4.2"
-serde = "1.0.103"
+serde = "1.0.104"
 sha3 = "0.8.2"
 rand_chacha = "0.2.1"
 cfg = {path = "../cfg"}

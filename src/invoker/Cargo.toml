@@ -32,7 +32,7 @@ util = {path = "../util"}
 slog-scope = "4.3.0"
 anyhow = "1.0.25"
 thiserror = "1.0.9"
-reqwest = "0.9.22"
+reqwest = "0.9.24"
 
 [features]
 beautiful_backtrace = ["color-backtrace"]

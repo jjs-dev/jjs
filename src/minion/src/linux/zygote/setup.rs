@@ -47,6 +47,10 @@ fn expose_dir(
 ) {
     let bind_target = jail_root.join(alias_path);
     fs::create_dir_all(&bind_target).unwrap();
+    if fs::metadata(&system_path).unwrap().is_file() {
+        fs::remove_dir(&bind_target).unwrap();
+        fs::write(&bind_target, &"").unwrap();
+    }
     let orig_bind_target = bind_target.clone();
     let bind_target = CString::new(bind_target.as_os_str().as_bytes()).unwrap();
     let bind_src = CString::new(system_path.as_os_str().as_bytes()).unwrap();

@@ -55,6 +55,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     }
     if opts.full() {
         cmd.arg("--enable-archive");
+        cmd.arg("--enable-extras");
     }
     if !opts.should_build_man() {
         cmd.arg("--disable-man");

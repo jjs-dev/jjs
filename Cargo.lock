@@ -3092,7 +3092,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "copy-ln",
- "error-chain",
  "serde",
  "serde_json",
  "structopt 0.3.5",

@@ -55,7 +55,7 @@ pub(crate) struct JobStartupInfo {
     pub(crate) pid: Pid,
 }
 
-pub(crate) struct JobServerStartupInfo {
+pub(crate) struct ZygoteStartupInfo {
     pub(crate) socket: Socket,
     pub(crate) wrapper_cgroup_path: OsString,
 }

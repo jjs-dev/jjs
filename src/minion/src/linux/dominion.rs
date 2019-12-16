@@ -1,7 +1,8 @@
 use crate::{
     linux::{
-        jail_common, jobserver,
+        jail_common,
         util::{err_exit, ExitCode, Handle, IpcSocketExt, Pid},
+        zygote,
     },
     Dominion, DominionOptions,
 };
@@ -20,7 +21,7 @@ use tiny_nix_ipc::Socket;
 pub struct LinuxDominion {
     id: String,
     options: DominionOptions,
-    jobserver_sock: Socket,
+    zygote_sock: Socket,
     util_cgroup_path: OsString,
 }
 
@@ -28,7 +29,7 @@ pub struct LinuxDominion {
 struct LinuxDominionDebugHelper<'a> {
     id: &'a str,
     options: &'a DominionOptions,
-    jobserver_sock: Handle,
+    zygote_sock: Handle,
     util_cgroup_path: &'a OsStr,
 }
 
@@ -37,7 +38,7 @@ impl Debug for LinuxDominion {
         let h = LinuxDominionDebugHelper {
             id: &self.id,
             options: &self.options,
-            jobserver_sock: self.jobserver_sock.as_raw_fd(),
+            zygote_sock: self.zygote_sock.as_raw_fd(),
             util_cgroup_path: &self.util_cgroup_path,
         };
 
@@ -83,12 +84,12 @@ impl LinuxDominion {
             exposed_paths: options.exposed_paths.clone(),
             jail_id: jail_id.clone(),
         };
-        let startup_info = jobserver::start_jobserver(jail_options)?;
+        let startup_info = zygote::start_zygote(jail_options)?;
 
         Ok(LinuxDominion {
             id: jail_id,
             options,
-            jobserver_sock: startup_info.socket,
+            zygote_sock: startup_info.socket,
             util_cgroup_path: startup_info.wrapper_cgroup_path,
         })
     }
@@ -104,20 +105,20 @@ impl LinuxDominion {
     ) -> Option<jail_common::JobStartupInfo> {
         let q = jail_common::Query::Spawn(query.job_query.clone());
 
-        // note that we ignore errors, because jobserver can be already killed for some reason
-        self.jobserver_sock.send(&q).ok();
+        // note that we ignore errors, because zygote can be already killed for some reason
+        self.zygote_sock.send(&q).ok();
 
         let fds = [query.stdin, query.stdout, query.stderr];
         let empty: u64 = 0xDEAD_F00D_B17B_00B5;
-        self.jobserver_sock.send_struct(&empty, Some(&fds)).ok();
-        self.jobserver_sock.recv().ok()
+        self.zygote_sock.send_struct(&empty, Some(&fds)).ok();
+        self.zygote_sock.recv().ok()
     }
 
     pub(crate) unsafe fn poll_job(&mut self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
 
-        self.jobserver_sock.send(&q).ok();
-        let res = match self.jobserver_sock.recv::<Option<i32>>() {
+        self.zygote_sock.send(&q).ok();
+        let res = match self.zygote_sock.recv::<Option<i32>>() {
             Ok(x) => x,
             Err(_) => return None,
         };

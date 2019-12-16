@@ -1,10 +1,10 @@
 use crate::{
     linux::{
         jail_common::{self, get_path_for_subsystem, JailOptions},
-        jobserver::{
+        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
+        zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
         },
-        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
     },
     DesiredAccess, PathExpositionOptions,
 };
@@ -152,7 +152,7 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     }
 
     // we return handles to tasksfiles for main cgroups
-    // so, though jobserver itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
+    // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
     ["cpuacct", "pids", "memory"]
         .iter()
         .map(|subsys_name| {

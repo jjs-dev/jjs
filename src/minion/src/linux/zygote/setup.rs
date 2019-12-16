@@ -10,7 +10,7 @@ use crate::{
 };
 use std::{
     collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io,
-    os::unix::ffi::OsStrExt, path::Path, process, ptr, time,
+    os::unix::ffi::OsStrExt, path::Path, ptr, time,
 };
 use tiny_nix_ipc::Socket;
 
@@ -288,11 +288,10 @@ unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit:
         if ok {
             continue;
         }
-        let my_pid = process::id();
-        jail_common::cgroup_kill_all(jail_id, Some(my_pid as Pid)).unwrap();
-        break;
+        // since we are inside pid ns, we can refer to zygote as pid1.
+        jail_common::dominion_kill_all(1 as Pid).unwrap();
+        // we will be killed by kernel too
     }
-    libc::exit(0)
 }
 
 unsafe fn observe_time(

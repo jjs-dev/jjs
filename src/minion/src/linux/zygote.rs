@@ -503,17 +503,19 @@ pub(crate) unsafe fn start_zygote(
     if f != 0 {
         //thread A: entered start_zygote() normally, returns from function
         write!(logger, "thread A (main)").unwrap();
+
+        let mut zygote_pid_bytes = [0 as u8; 4];
+
+        // wait until zygote is ready.
+        // Zygote is ready when zygote launcher returns it's pid
+        nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol failure");
+        nix::unistd::close(return_allowed_r).unwrap();
+        nix::unistd::close(return_allowed_w).unwrap();
         let startup_info = jail_common::ZygoteStartupInfo {
             socket: sock,
             wrapper_cgroup_path: OsString::from(ex_id),
+            zygote_pid: i32::from_ne_bytes(zygote_pid_bytes),
         };
-
-        let mut buf = [0 as u8; 4];
-
-        //wait until zygote is ready
-        nix::unistd::read(return_allowed_r, &mut buf).expect("protocol failure");
-        nix::unistd::close(return_allowed_r).unwrap();
-        nix::unistd::close(return_allowed_w).unwrap();
         return Ok(startup_info);
     }
     // why we use unshare(PID) here, and not in setup_namespace()? See pid_namespaces(7) and unshare(2)
@@ -525,7 +527,7 @@ pub(crate) unsafe fn start_zygote(
         err_exit("fork");
     }
     if fret == 0 {
-        //thread C: zygote main process
+        // thread C: zygote main process
         write!(logger, "thread C (zygote main)").unwrap();
         mem::drop(sock);
         let js_arg = ZygoteOptions {
@@ -535,8 +537,8 @@ pub(crate) unsafe fn start_zygote(
         let zygote_ret_code = zygote_main::zygote_entry(js_arg);
         libc::exit(zygote_ret_code.unwrap_or(1));
     }
-    //thread B: external zygote initializer
-    //it's only task currently is pid/gid mapping
+    // thread B: external zygote initializer
+    // it's only task currently is pid/gid mapping
     write!(logger, "thread B (zygote launcher)").unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
@@ -552,7 +554,6 @@ pub(crate) unsafe fn start_zygote(
     sock.wake(WM_CLASS_PID_MAP_CREATED)?;
     sock.lock(WM_CLASS_SETUP_FINISHED)?;
     //and now thread A can return
-    let wake_buf = [179, 179, 239, 57 /* just magic number */];
-    nix::unistd::write(return_allowed_w, &wake_buf).expect("protocol failure");
+    nix::unistd::write(return_allowed_w, &child_pid.to_ne_bytes()).expect("protocol failure");
     libc::exit(0);
 }

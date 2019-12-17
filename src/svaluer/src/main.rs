@@ -1,5 +1,3 @@
 //! Simple valuer
 
-fn main() {
-    
-}
+fn main() {}

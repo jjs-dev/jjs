@@ -1,4 +1,3 @@
-use crate::judge_log;
 use invoker_api::Status;
 use std::path::{Path, PathBuf};
 
@@ -79,24 +78,4 @@ pub(crate) struct JudgeRequest<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct JudgeOutcome {
     pub(crate) status: Status,
-}
-
-pub(crate) struct ValuerNotification {
-    pub(crate) test_id: u32,
-    pub(crate) test_status: Status,
-}
-
-pub(crate) enum ValuerResponse {
-    Test {
-        test_id: u32,
-        live: bool,
-    },
-    Finish {
-        score: u32,
-        treat_as_full: bool,
-        judge_log: judge_log::JudgeLog,
-    },
-    LiveScore {
-        score: u32,
-    },
 }

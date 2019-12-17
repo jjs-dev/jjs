@@ -1,3 +1,5 @@
+pub mod valuer_proto;
+
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 

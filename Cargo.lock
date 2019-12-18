@@ -1548,7 +1548,6 @@ dependencies = [
 name = "invoker-api"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bitflags",
  "pom",
  "serde",

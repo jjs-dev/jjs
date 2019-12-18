@@ -46,6 +46,7 @@ fn create_registry() -> Registry {
     add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
     add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
     add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
+    add_bin("svaluer", "jjs-svaluer", PackageComponentKind::Core);
     add_bin(
         "soft",
         "jjs-configure-toolchains",

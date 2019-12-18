@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.13.4)
 project(Jtl VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 
-set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp src/valuer.cpp src/util.cpp)
-set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h include/valuer.h)
+set(SRC_FILES src/jtl.cpp src/testgen.cpp src/proto.cpp src/checker.cpp src/util.cpp)
+set(HEADER_FILES include/jtl.h include/testgen.h include/checker.h)
 
 set(TEMP_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -31,5 +31,4 @@ function(add_builtin builtin_name src_file)
             RUNTIME DESTINATION bin)
 endfunction()
 add_builtin(checker-cmp-tokens src/builtin/checker-cmp-tokens.cpp)
-add_builtin(valuer-icpc src/builtin/val-icpc.cpp)
 add_builtin(checker-polygon-compat src/builtin/checker-polygon-compat.cpp)

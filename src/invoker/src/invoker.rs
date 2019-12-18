@@ -204,19 +204,20 @@ impl<'a> Invoker<'a> {
             match valuer.poll()? {
                 ValuerResponse::Test { test_id: tid, live } => {
                     if live {
-                        self.notifier.set_test(tid);
+                        self.notifier.set_test(tid.into());
                     }
-                    let test = &self.ctx.env().problem_data.tests[(tid - 1) as usize];
+                    let tid_u32: u32 = tid.into();
+                    let test = &self.ctx.env().problem_data.tests[(tid_u32 - 1u32) as usize];
                     let run_paths = Paths::new(
                         &self.req.run.root_dir,
                         self.req.work_dir.path(),
-                        tid,
+                        tid.into(),
                         &self.ctx.env().problem_root(),
                     );
                     let judge_request = JudgeRequest {
                         paths: &run_paths,
                         test,
-                        test_id: tid,
+                        test_id: tid.into(),
                         artifact: &artifact,
                     };
 
@@ -401,8 +402,6 @@ impl<'a> Invoker<'a> {
                 name: "".to_string(),
                 tests: vec![],
                 subtasks: vec![],
-                compile_stdout: "".to_string(),
-                compile_stderr: "".to_string(),
             };
         }
 

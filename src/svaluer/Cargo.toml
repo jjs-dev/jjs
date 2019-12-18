@@ -3,3 +3,8 @@ name = "svaluer"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
+
+[dependencies]
+invoker-api = {path = "../invoker-api"}
+anyhow = "1.0.25"
+pom  = {path = "../pom"}

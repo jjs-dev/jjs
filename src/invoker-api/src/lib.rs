@@ -3,7 +3,7 @@ pub mod valuer_proto;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-#[derive(Clone, Debug, Display, EnumString, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StatusKind {
     Queue,
     /// WA, TLE, rejected by teacher, etc
@@ -15,6 +15,15 @@ pub enum StatusKind {
     NotSet,
     InternalError,
     Skipped,
+}
+
+impl StatusKind {
+    pub fn is_success(self) -> bool {
+        match self {
+            Self::Accepted => true,
+            _ => false,
+        }
+    }
 }
 
 pub mod status_codes {

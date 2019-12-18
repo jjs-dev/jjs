@@ -1,6 +1,7 @@
 //! Defines types used to interact between invoker and valuer
 use crate::Status;
 use bitflags::bitflags;
+use pom::TestId;
 use serde::{Deserialize, Serialize};
 
 bitflags! {
@@ -48,20 +49,23 @@ pub struct JudgeLog {
     pub name: String,
     pub tests: Vec<JudgeLogTestRow>,
     pub subtasks: Vec<JudgeLogSubtaskRow>,
-    pub compile_stdout: String,
-    pub compile_stderr: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProblemInfo {
+    pub test_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestDoneNotification {
-    pub test_id: u32,
+    pub test_id: TestId,
     pub test_status: Status,
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum ValuerResponse {
     Test {
-        test_id: u32,
+        test_id: TestId,
         live: bool,
     },
     Finish {

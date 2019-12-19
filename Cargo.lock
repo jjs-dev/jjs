@@ -3210,8 +3210,11 @@ name = "svaluer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "crossbeam",
  "invoker-api",
  "pom",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

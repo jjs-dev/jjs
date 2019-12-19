@@ -1,5 +1,9 @@
 //! Core valuing logic
 //! It is extracted to library to simplify testing
+
+#[cfg(test)]
+mod tests;
+
 use anyhow::{Context, Result};
 use invoker_api::valuer_proto::{self, ProblemInfo, TestDoneNotification, ValuerResponse};
 use pom::TestId;
@@ -19,6 +23,7 @@ pub struct SimpleValuer<'a> {
     driver: &'a mut dyn ValuerDriver,
     test_storage: TestStorage,
     score: u32,
+    max_score: u32,
 }
 
 impl SimpleValuer<'_> {
@@ -31,6 +36,7 @@ impl SimpleValuer<'_> {
             driver,
             test_storage,
             score: 0,
+            max_score: problem_info.test_count,
         })
     }
 
@@ -61,7 +67,7 @@ impl SimpleValuer<'_> {
         }
         self.driver.send_command(&ValuerResponse::Finish {
             score: self.score,
-            treat_as_full: false,
+            treat_as_full: self.score == self.max_score,
             judge_log: valuer_proto::JudgeLog {
                 tests: vec![],
                 subtasks: vec![],
@@ -145,21 +151,19 @@ impl TestStorage {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    mod test_storage {
-        use super::*;
-        #[test]
-        fn simple() {
-            let mut ts = TestStorage::new(3);
-            assert_eq!(ts.poll_test(), Some(TestId::make(1)));
-            assert_eq!(ts.poll_test(), None);
-            ts.mark_ok(TestId::make(1));
-            assert_eq!(ts.poll_test(), Some(TestId::make(2)));
-            ts.mark_ok(TestId::make(2));
-            assert_eq!(ts.poll_test(), Some(TestId::make(3)));
-            assert_eq!(ts.poll_test(), None);
+pub mod util {
+    pub fn make_ok_status() -> invoker_api::Status {
+        invoker_api::Status {
+            code: "OK".to_string(),
+            kind: invoker_api::StatusKind::Accepted,
+        }
+    }
+
+    pub fn make_err_status() -> invoker_api::Status {
+        invoker_api::Status {
+            code: "NOT_OK".to_string(),
+            kind: invoker_api::StatusKind::Rejected,
         }
     }
 }
+

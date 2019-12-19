@@ -26,17 +26,17 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLogTestRow {
     pub test_id: pom::TestId,
     pub status: Status,
     pub components: TestVisibleComponents,
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct SubtaskId(std::num::NonZeroU32);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLogSubtaskRow {
     pub subtask_id: SubtaskId,
     pub score: u32,
@@ -44,25 +44,25 @@ pub struct JudgeLogSubtaskRow {
 }
 
 /// Judge log from valuer POV
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLog {
     pub name: String,
     pub tests: Vec<JudgeLogTestRow>,
     pub subtasks: Vec<JudgeLogSubtaskRow>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProblemInfo {
     pub test_count: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct TestDoneNotification {
     pub test_id: TestId,
     pub test_status: Status,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub enum ValuerResponse {
     Test {
         test_id: TestId,

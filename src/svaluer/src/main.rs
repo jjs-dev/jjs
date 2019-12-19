@@ -81,15 +81,9 @@ mod term_driver {
         fn poll_notification(&mut self) -> Result<Option<valuer_proto::TestDoneNotification>> {
             fn create_status(ok: bool) -> invoker_api::Status {
                 if ok {
-                    invoker_api::Status {
-                        code: "OK".to_string(),
-                        kind: invoker_api::StatusKind::Accepted,
-                    }
+                    svaluer::util::make_ok_status()
                 } else {
-                    invoker_api::Status {
-                        code: "NOT_OK".to_string(),
-                        kind: invoker_api::StatusKind::Rejected,
-                    }
+                    svaluer::util::make_err_status()
                 }
             }
 
@@ -127,11 +121,131 @@ mod term_driver {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+use json_driver::JsonDriver;
+
+mod json_driver {
+    use anyhow::{bail, Context, Result};
+    use serde::Deserialize;
+    use std::{
+        io::Write,
+        time::{Duration, Instant},
+    };
+    use svaluer::ValuerDriver;
+    /// Json-RPC driver, used in integrating with JJS invoker
+    pub struct JsonDriver {
+        chan: crossbeam::channel::Receiver<Message>,
+    }
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Message {
+        ProblemInfo(invoker_api::valuer_proto::ProblemInfo),
+        TestDoneNotify(invoker_api::valuer_proto::TestDoneNotification),
+    }
+    fn json_driver_thread_func(chan: crossbeam::channel::Sender<Message>) {
+        let mut buf = String::new();
+        loop {
+            buf.clear();
+            if let Err(err) = std::io::stdin().read_line(&mut buf) {
+                eprintln!("svaluer: fatal: io error: {}", err);
+                break;
+            }
+            let notify = match serde_json::from_str(&buf) {
+                Ok(val) => val,
+                Err(err) => {
+                    eprintln!(
+                        "svaluer: error: failed to deserialize invoker TestDoneNotification: {}",
+                        err
+                    );
+                    continue;
+                }
+            };
+            if chan.send(notify).is_err() {
+                // we get error, if receiver is closed. It means we should stop.
+                break;
+            }
+        }
+    }
+    const WAIT_TIMEOUT: Duration = Duration::from_millis(100);
+    impl JsonDriver {
+        pub fn new() -> Self {
+            let (send, recv) = crossbeam::channel::unbounded();
+            std::thread::spawn(move || {
+                json_driver_thread_func(send);
+            });
+            Self { chan: recv }
+        }
+
+        fn poll(&mut self) -> Option<Message> {
+            match self.chan.recv_timeout(WAIT_TIMEOUT) {
+                Ok(msg) => Some(msg),
+                Err(_err) => None,
+            }
+        }
+    }
+
+    impl ValuerDriver for JsonDriver {
+        fn problem_info(&mut self) -> Result<invoker_api::valuer_proto::ProblemInfo> {
+            let begin_time = Instant::now();
+            const TIMEOUT: Duration = Duration::from_secs(1);
+            let message = loop {
+                match self.poll() {
+                    Some(msg) => break msg,
+                    None => (),
+                }
+                if Instant::now().duration_since(begin_time) > TIMEOUT {
+                    bail!("timeout");
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            };
+            let problem_info = match message {
+                Message::ProblemInfo(pi) => pi,
+                Message::TestDoneNotify(tdn) => bail!("got TestDoneNotification {:?} instead", tdn),
+            };
+            Ok(problem_info)
+        }
+
+        fn send_command(&mut self, cmd: &invoker_api::valuer_proto::ValuerResponse) -> Result<()> {
+            let cmd = serde_json::to_string(cmd).context("failed to serialize")?;
+            println!("{}", cmd);
+            std::io::stdout().flush().context("failed to flush")?;
+            Ok(())
+        }
+
+        fn poll_notification(
+            &mut self,
+        ) -> Result<Option<invoker_api::valuer_proto::TestDoneNotification>> {
+            match self.poll() {
+                None => Ok(None),
+                Some(msg) => match msg {
+                    Message::TestDoneNotify(tdn) => Ok(Some(tdn)),
+                    Message::ProblemInfo(pi) => bail!("got ProblemInfo {:?} instead", pi),
+                },
+            }
+        }
+    }
+}
+
+fn main_cli_mode() -> anyhow::Result<()> {
     let mut driver = TermDriver {
         current_tests: HashSet::new(),
     };
     let valuer = svaluer::SimpleValuer::new(&mut driver)?;
-    valuer.exec()?;
+    valuer.exec()
+}
+
+fn main_json_mode() -> anyhow::Result<()> {
+    let mut driver = JsonDriver::new();
+    let valuer = svaluer::SimpleValuer::new(&mut driver)?;
+    valuer.exec()
+}
+
+fn main() -> anyhow::Result<()> {
+    let json_mode = std::env::var("JJS_VALUER").is_ok();
+    if json_mode {
+        main_json_mode()?
+    } else {
+        main_cli_mode()?
+    }
+
     Ok(())
 }

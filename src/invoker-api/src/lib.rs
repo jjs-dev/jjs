@@ -61,7 +61,7 @@ pub mod status_codes {
     declare_code!(ACCEPTED, PARTIAL_SOLUTION, BUILD_ERROR);
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Status {
     pub kind: StatusKind,
     pub code: String,

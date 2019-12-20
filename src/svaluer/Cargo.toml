@@ -1,0 +1,13 @@
+[package]
+name = "svaluer"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+invoker-api = {path = "../invoker-api"}
+anyhow = "1.0.25"
+pom  = {path = "../pom"}
+crossbeam = "0.7.3"
+serde_json = "1.0.44"
+serde = "1.0.104"

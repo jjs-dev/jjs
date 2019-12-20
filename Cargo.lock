@@ -1548,6 +1548,8 @@ dependencies = [
 name = "invoker-api"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
+ "pom",
  "serde",
  "strum",
  "strum_macros",
@@ -3202,6 +3204,18 @@ name = "subtle"
 version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c65d530b10ccaeac294f349038a597e435b18fb456aadd0840a623f83b9e941"
+
+[[package]]
+name = "svaluer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossbeam",
+ "invoker-api",
+ "pom",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "syn"

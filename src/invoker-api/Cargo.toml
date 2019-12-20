@@ -8,3 +8,5 @@ edition = "2018"
 serde = { version = "1.0.104", features = ["derive"] }
 strum = "0.16.0"
 strum_macros = "0.16.0"
+bitflags = "1.2.1"
+pom = {path = "../pom"}

@@ -1,12 +1,11 @@
-use crate::{
-    inter_api::{ValuerNotification, ValuerResponse},
-    invoke_context::InvokeContext,
-    os_util::make_anon_file,
-};
+use crate::{invoke_context::InvokeContext, os_util::make_anon_file};
 use anyhow::{bail, Context};
+use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use slog_scope::warn;
-use std::io::{BufRead, BufReader, BufWriter, Write};
-
+use std::{
+    convert::TryInto,
+    io::{BufRead, BufReader, BufWriter, Write},
+};
 pub(crate) struct Valuer<'a> {
     ctx: &'a dyn InvokeContext,
     child: std::process::Child,
@@ -25,6 +24,7 @@ impl<'a> Valuer<'a> {
         let private_comments = make_anon_file("PrivateValuerComments");
         cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
+        cmd.env("JJS_VALUER", "1");
         let work_dir = ctx.resolve_asset(&ctx.env().problem_data.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);
@@ -53,118 +53,46 @@ impl<'a> Valuer<'a> {
         Ok(val)
     }
 
+    fn write_val(&mut self, msg: impl serde::Serialize) -> anyhow::Result<()> {
+        let mut msg = serde_json::to_string(&msg).context("failed to serialize")?;
+        if msg.contains('\n') {
+            bail!("bug: serialized message is not oneline");
+        }
+        msg.push('\n');
+        self.stdin
+            .write_all(msg.as_bytes())
+            .context("failed to write message")?;
+        self.stdin.flush().context("failed to flush valuer stdin")?;
+        Ok(())
+    }
+
     pub(crate) fn write_problem_data(&mut self) -> anyhow::Result<()> {
         let problem_info = self.ctx.env().problem_data;
-        writeln!(self.stdin, "{} ", problem_info.tests.len())?;
-        self.stdin.flush()?;
-        Ok(())
+        let proto_problem_info = ProblemInfo {
+            test_count: problem_info
+                .tests
+                .len()
+                .try_into()
+                .expect("wow such many tests"),
+        };
+        self.write_val(proto_problem_info)
     }
 
     pub(crate) fn poll(&mut self) -> anyhow::Result<ValuerResponse> {
         let mut line = String::new();
+        // TODO: timeout
         self.stdout.read_line(&mut line).context("early eof")?;
 
-        let items: Vec<_> = line.split_whitespace().collect();
-        let res = match items[0] {
-            "RUN" => {
-                if items.len() != 3 {
-                    bail!("RUN: expected 1 item, got {}", items.len() - 1);
-                }
-                let test_id: u32 = items[1].parse().context("RUN: test_id is not u32")?;
-                let flag_live: u8 = items[2].parse().context("RUN: live is not u8")?;
-                if flag_live > 1 {
-                    bail!("RUN: live is not in {0, 1}");
-                }
-                ValuerResponse::Test {
-                    test_id,
-                    live: flag_live == 1,
-                }
-            }
-            "DONE" => {
-                if items.len() != 3 {
-                    bail!("DONE: expected 4 items, got {}", items.len() - 1);
-                }
-                let score: u16 = items[1].parse().context("DONE: score is not u16")?;
-                let is_full: i8 = items[2].parse().context("DONE: is_full is not flag")?;
+        let response = serde_json::from_str(&line).context("failed to parse valuer message")?;
 
-                if score > 100 {
-                    bail!("score is bigger than 100");
-                }
-                if is_full < 0 || is_full > 1 {
-                    bail!("DONE: is_full must be 0 or 1");
-                }
-                line.clear();
-                self.stdout
-                    .read_line(&mut line)
-                    .context("failed to read test entries count")?;
-                let num_test_rows: usize = line
-                    .trim()
-                    .parse()
-                    .context("DONE: num_test_rows is not uint")?;
-                let mut tests = Vec::with_capacity(num_test_rows);
-                for _ in 0..num_test_rows {
-                    line.clear();
-                    self.stdout
-                        .read_line(&mut line)
-                        .context("failed to read judge log test row")?;
-                    tests.push(line.parse().context("failed to parse judge log test row")?);
-                }
-                line.clear();
-                self.stdout
-                    .read_line(&mut line)
-                    .context("failed to read subtask entries count")?;
-                let num_subtask_rows: usize = line
-                    .trim()
-                    .parse()
-                    .context("DONE: num_subtask_rows is not uint")?;
-                let mut subtasks = Vec::with_capacity(num_subtask_rows);
-                for _ in 0..num_subtask_rows {
-                    line.clear();
-                    self.stdout
-                        .read_line(&mut line)
-                        .context("failed to read judge log subtask row")?;
-                    subtasks.push(
-                        line.parse()
-                            .context("failed to parse judge log subtask row")?,
-                    );
-                }
-                ValuerResponse::Finish {
-                    score: score.into(),
-                    treat_as_full: is_full == 1,
-                    judge_log: crate::judge_log::JudgeLog {
-                        tests,
-                        subtasks,
-                        compile_stdout: String::new(),
-                        name: "main".to_string(),
-                        compile_stderr: String::new(),
-                    },
-                }
-            }
-            "LIVE-SCORE" => {
-                if items.len() != 2 {
-                    bail!("LIVE-SCORE: expected 2 items, got {}", items.len());
-                }
-                let score = items[1].parse().context("LIVE-SCORE: score is not u32")?;
-                ValuerResponse::LiveScore { score }
-            }
-            _ => {
-                bail!("unknown message {}", items[0]);
-            }
-        };
-        Ok(res)
+        Ok(response)
     }
 
     pub(crate) fn notify_test_done(
         &mut self,
-        notification: ValuerNotification,
+        notification: TestDoneNotification,
     ) -> anyhow::Result<()> {
-        writeln!(
-            self.stdin,
-            "{} {} {}",
-            notification.test_id, notification.test_status.kind, notification.test_status.code
-        )?;
-        self.stdin.flush()?;
-        Ok(())
+        self.write_val(notification)
     }
 }
 

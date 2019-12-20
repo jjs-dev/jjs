@@ -1,8 +1,11 @@
 use crate::{invoke_context::InvokeContext, os_util::make_anon_file};
-use anyhow::Context;
-use invoker_api::valuer_proto::{TestDoneNotification, ValuerResponse};
+use anyhow::{bail, Context};
+use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use slog_scope::warn;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::{
+    convert::TryInto,
+    io::{BufRead, BufReader, BufWriter, Write},
+};
 pub(crate) struct Valuer<'a> {
     ctx: &'a dyn InvokeContext,
     child: std::process::Child,
@@ -21,6 +24,7 @@ impl<'a> Valuer<'a> {
         let private_comments = make_anon_file("PrivateValuerComments");
         cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
         cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
+        cmd.env("JJS_VALUER", "1");
         let work_dir = ctx.resolve_asset(&ctx.env().problem_data.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);
@@ -49,15 +53,34 @@ impl<'a> Valuer<'a> {
         Ok(val)
     }
 
+    fn write_val(&mut self, msg: impl serde::Serialize) -> anyhow::Result<()> {
+        let mut msg = serde_json::to_string(&msg).context("failed to serialize")?;
+        if msg.contains('\n') {
+            bail!("bug: serialized message is not oneline");
+        }
+        msg.push('\n');
+        self.stdin
+            .write_all(msg.as_bytes())
+            .context("failed to write message")?;
+        self.stdin.flush().context("failed to flush valuer stdin")?;
+        Ok(())
+    }
+
     pub(crate) fn write_problem_data(&mut self) -> anyhow::Result<()> {
         let problem_info = self.ctx.env().problem_data;
-        writeln!(self.stdin, "{} ", problem_info.tests.len())?;
-        self.stdin.flush()?;
-        Ok(())
+        let proto_problem_info = ProblemInfo {
+            test_count: problem_info
+                .tests
+                .len()
+                .try_into()
+                .expect("wow such many tests"),
+        };
+        self.write_val(proto_problem_info)
     }
 
     pub(crate) fn poll(&mut self) -> anyhow::Result<ValuerResponse> {
         let mut line = String::new();
+        // TODO: timeout
         self.stdout.read_line(&mut line).context("early eof")?;
 
         let response = serde_json::from_str(&line).context("failed to parse valuer message")?;
@@ -69,13 +92,7 @@ impl<'a> Valuer<'a> {
         &mut self,
         notification: TestDoneNotification,
     ) -> anyhow::Result<()> {
-        writeln!(
-            self.stdin,
-            "{} {} {}",
-            notification.test_id, notification.test_status.kind, notification.test_status.code
-        )?;
-        self.stdin.flush()?;
-        Ok(())
+        self.write_val(notification)
     }
 }
 

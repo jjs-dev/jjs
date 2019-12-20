@@ -198,7 +198,7 @@ impl<'a> Invoker<'a> {
         let mut valuer = Valuer::new(self.ctx).context("failed to init valuer")?;
         valuer
             .write_problem_data()
-            .context("failed to get initial test")?;
+            .context("failed to send problem data")?;
 
         let (score, treat_as_full, judge_log) = loop {
             match valuer.poll()? {

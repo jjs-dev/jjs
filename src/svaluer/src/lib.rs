@@ -24,6 +24,7 @@ pub struct SimpleValuer<'a> {
     test_storage: TestStorage,
     score: u32,
     max_score: u32,
+    running_tests: u32,
 }
 
 impl SimpleValuer<'_> {
@@ -37,12 +38,19 @@ impl SimpleValuer<'_> {
             test_storage,
             score: 0,
             max_score: problem_info.test_count,
+            running_tests: 0,
         })
+    }
+
+    fn has_something(&self) -> bool {
+        let has_running_tests = self.running_tests != 0;
+        let has_runnable_tests = !self.test_storage.queue.is_empty();
+        has_runnable_tests || has_running_tests
     }
 
     /// Runs to valuing completion
     pub fn exec(mut self) -> anyhow::Result<()> {
-        loop {
+        while self.has_something() {
             // do we have pending notifications ?
             if let Some(notification) = self
                 .driver
@@ -58,12 +66,12 @@ impl SimpleValuer<'_> {
                     test_id: tid,
                     live: true,
                 };
+                self.running_tests += 1;
                 self.driver
                     .send_command(&resp)
                     .context("failed to send TEST command")?;
                 continue;
             }
-            break;
         }
         self.driver.send_command(&ValuerResponse::Finish {
             score: self.score,
@@ -77,6 +85,8 @@ impl SimpleValuer<'_> {
     }
 
     fn process_notification(&mut self, notification: TestDoneNotification) {
+        assert_ne!(self.running_tests, 0);
+        self.running_tests -= 1;
         if notification.test_status.kind.is_success() {
             self.score += 1;
             self.test_storage.mark_ok(notification.test_id)
@@ -166,4 +176,3 @@ pub mod util {
         }
     }
 }
-

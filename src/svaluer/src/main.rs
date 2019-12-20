@@ -188,9 +188,8 @@ mod json_driver {
             let begin_time = Instant::now();
             const TIMEOUT: Duration = Duration::from_secs(1);
             let message = loop {
-                match self.poll() {
-                    Some(msg) => break msg,
-                    None => (),
+                if let Some(msg) = self.poll() {
+                    break msg;
                 }
                 if Instant::now().duration_since(begin_time) > TIMEOUT {
                     bail!("timeout");

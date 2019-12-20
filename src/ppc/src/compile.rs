@@ -331,7 +331,7 @@ impl<'a> ProblemBuilder<'a> {
 
         let valuer_exe = FileRef {
             root: FileRefRoot::System,
-            path: format!("bin/builtin-valuer-{}", &self.cfg.valuer),
+            path: "bin/jjs-svaluer".to_string(),
         };
 
         let valuer_cfg = FileRef {

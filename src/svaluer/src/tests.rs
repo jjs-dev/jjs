@@ -90,7 +90,6 @@ mod low_level {
                 test_id: TestId::make(2),
                 test_status: make_ok_status(),
             })
-            .add_none_notify()
             .add_response(ValuerResponse::Finish {
                 score: 2,
                 treat_as_full: true,
@@ -115,7 +114,6 @@ mod low_level {
                 test_id: TestId::make(1),
                 test_status: make_err_status(),
             })
-            .add_none_notify()
             .add_response(ValuerResponse::Finish {
                 score: 0,
                 treat_as_full: false,

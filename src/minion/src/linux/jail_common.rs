@@ -1,7 +1,7 @@
 use crate::{linux::util::Pid, PathExpositionOptions};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ffi::OsString, path::PathBuf, time::Duration};
+use std::{ffi::OsString, path::PathBuf, time::Duration};
 use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -39,7 +39,7 @@ pub(crate) fn gen_jail_id() -> String {
 pub(crate) struct JobQuery {
     pub(crate) image_path: PathBuf,
     pub(crate) argv: Vec<OsString>,
-    pub(crate) environment: HashMap<String, OsString>,
+    pub(crate) environment: Vec<OsString>,
     pub(crate) pwd: PathBuf,
 }
 
@@ -60,6 +60,7 @@ pub(crate) struct ZygoteStartupInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[repr(C)]
 pub(crate) enum Query {
     Exit,
     Spawn(JobQuery),

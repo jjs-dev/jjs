@@ -18,10 +18,10 @@ use crate::{
 use nix::sys::memfd;
 use snafu::ResultExt;
 use std::{
-    ffi::CString,
+    ffi::{CString, OsString, OsStr},
     fs,
     io::{Read, Write},
-    os::unix::{ffi::OsStrExt, io::IntoRawFd},
+    os::unix::{io::IntoRawFd},
     sync::{
         atomic::{AtomicI64, Ordering},
         Arc, Mutex,
@@ -143,6 +143,19 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
     }
 }
 
+fn concat_env_item(k: &OsStr, v: &OsStr) -> OsString {
+    use std::os::unix::ffi::{OsStringExt, OsStrExt};
+    let k = k.as_bytes();
+    let v = v.as_bytes();
+    let cap = k.len() + 1 + v.len();
+
+    let mut res = vec![0; cap];
+    res[0..k.len()].copy_from_slice(k);
+    res[k.len() + 1..].copy_from_slice(v);
+    res[k.len()] = b'=';
+    OsString::from_vec(res)
+}
+
 fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
     match spec.0 {
         OutputSpecificationData::Null => Ok((None, -1 as Handle)),
@@ -191,7 +204,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             environment: options
                 .environment
                 .iter()
-                .map(|(k, v)| (base64::encode(k.as_bytes()), v.clone()))
+                .map(|(k, v)| concat_env_item(&k, &v))
                 .collect(),
             pwd: options.pwd.clone(),
         };

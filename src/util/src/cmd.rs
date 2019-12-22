@@ -1,8 +1,8 @@
+use anyhow::{bail, Context};
 use std::{
     process::{exit, Command},
     sync::atomic::{AtomicBool, Ordering},
 };
-use anyhow::{Context, bail};
 
 #[derive(Default)]
 pub struct Runner {

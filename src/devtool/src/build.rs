@@ -37,7 +37,7 @@ impl BuildOpts {
     }
 }
 
-pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) ->anyhow::Result<()> {
+pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<()> {
     let opts = BuildOpts(opts);
     std::fs::File::create("./target/.jjsbuild").unwrap();
     let mut cmd = Command::new("../configure");

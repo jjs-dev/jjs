@@ -1,7 +1,7 @@
+use anyhow::Context;
 use std::process::Command;
 use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
-use anyhow::Context;
 
 #[derive(StructOpt)]
 pub(crate) struct TestArgs {
@@ -21,7 +21,8 @@ fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
         .current_dir("src/e2e")
         .arg("test")
         .arg("--no-run")
-        .try_exec().context("failed to compile tests")?;
+        .try_exec()
+        .context("failed to compile tests")?;
 
     println!("Running integration tests");
     // TODO: hacky. Probably it can be done better.
@@ -48,7 +49,8 @@ fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
             let test_succ = Command::new("cargo")
                 .current_dir("src/e2e")
                 .args(&["test", test_name])
-                .try_exec().is_ok();
+                .try_exec()
+                .is_ok();
             cnt_tests += 1;
             if test_succ {
                 cnt_ok += 1;

@@ -104,8 +104,7 @@ fn setup_db(
         if let Some(host_arg) = &host_arg {
             cmd.arg(host_arg);
         }
-        cmd
-            .arg(format!("--port={}", port))
+        cmd.arg(format!("--port={}", port))
             .arg("--no-password")
             .try_exec()
             .ok();

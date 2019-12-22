@@ -97,7 +97,7 @@ fn setup_db(
             .arg(format!("--host={}", &host))
             .arg(format!("--port={}", &port))
             .arg("--no-password")
-            .status()?;
+            .try_exec()?;
     }
     let psql = || {
         let mut cmd = Command::new("psql");

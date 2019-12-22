@@ -37,7 +37,7 @@ impl BuildOpts {
     }
 }
 
-pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
+pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) ->anyhow::Result<()> {
     let opts = BuildOpts(opts);
     std::fs::File::create("./target/.jjsbuild").unwrap();
     let mut cmd = Command::new("../configure");
@@ -60,11 +60,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
     if !opts.should_build_man() {
         cmd.arg("--disable-man");
     }
-    if !cmd.run_on(runner) {
-        return;
-    }
+    cmd.try_exec()?;
 
-    Command::new("make").current_dir("target").run_on(runner);
+    Command::new("make").current_dir("target").try_exec()?;
 
     runner.exit_if_errors();
 
@@ -81,4 +79,5 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) {
             .arg("--toolchains")
             .run_on(runner);
     }
+    Ok(())
 }

@@ -99,18 +99,29 @@ fn main() {
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).unwrap();
     let args = CliArgs::from_args();
     let mut runner = Runner::new();
-    match args {
+    let err = match args {
         CliArgs::Check(opts) => {
             runner.set_fail_fast(opts.fail_fast);
-            check::check(&opts, &runner)
+            check::check(&opts, &runner);
+            None
         }
         CliArgs::Test(args) => {
             runner.set_fail_fast(args.fail_fast);
-            task_test(args, &runner)
+            task_test(args, &runner).err()
         }
-        CliArgs::Clean => task_clean(),
-        CliArgs::CiClean => task_ci_clean(),
-        CliArgs::Build(opts) => build::task_build(opts, &runner),
+        CliArgs::Clean => {
+            task_clean();
+            None
+        }
+        CliArgs::CiClean => {
+            task_ci_clean();
+            None
+        }
+        CliArgs::Build(opts) => build::task_build(opts, &runner).err(),
+    };
+    if let Some(err) = err {
+        eprintln!("Error: {:?}", err);
+        runner.error();
     }
     runner.exit_if_errors();
     eprintln!("OK");

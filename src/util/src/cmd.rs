@@ -1,8 +1,8 @@
-use log::error;
 use std::{
     process::{exit, Command},
     sync::atomic::{AtomicBool, Ordering},
 };
+use anyhow::{Context, bail};
 
 #[derive(Default)]
 pub struct Runner {
@@ -38,32 +38,42 @@ impl Runner {
     }
 
     pub fn exec(&self, cmd: &mut Command) -> bool {
-        let st = cmd.status().unwrap();
-        if st.success() {
-            true
-        } else {
-            error!("child command failed");
+        let res = cmd.try_exec().is_ok();
+        if res {
             self.error();
-            false
         }
+        res
     }
 }
 
 pub trait CommandExt {
-    fn run_on(&mut self, runner: &Runner) -> bool;
+    fn run_on(&mut self, runner: &Runner);
+
+    fn try_exec(&mut self) -> Result<(), anyhow::Error>;
 
     fn cargo_color(&mut self);
 }
 
 impl CommandExt for Command {
-    fn run_on(&mut self, runner: &Runner) -> bool {
-        runner.exec(self)
+    fn run_on(&mut self, runner: &Runner) {
+        runner.exec(self);
     }
 
     fn cargo_color(&mut self) {
         if atty::is(atty::Stream::Stdout) {
             self.args(&["--color", "always"]);
             self.env("RUST_LOG_STYLE", "always");
+        }
+    }
+
+    fn try_exec(&mut self) -> anyhow::Result<()> {
+        let st = self
+            .status()
+            .with_context(|| format!("failed to start {:?}", self))?;
+        if st.success() {
+            Ok(())
+        } else {
+            bail!("child command {:?} failed", self)
         }
     }
 }

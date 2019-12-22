@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 fn main() {
+    util::log::setup();
     let build = std::env::var_os("JJS_BUILD_DIR").unwrap();
     let build = PathBuf::from(build);
     let src = std::env::var_os("JJS_SRC_DIR").unwrap();

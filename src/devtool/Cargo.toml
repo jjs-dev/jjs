@@ -14,3 +14,4 @@ toml = "0.5.5"
 atty = "0.2.13"
 util = {path = "../util"}
 lazy_static = "1.4.0"
+anyhow = "1.0.25"

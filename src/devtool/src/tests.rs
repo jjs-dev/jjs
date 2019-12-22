@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::process::Command;
 use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
@@ -14,16 +15,14 @@ pub(crate) struct TestArgs {
     skip_unit: bool,
 }
 
-fn run_integ_test(runner: &Runner) {
+fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
     println!("Compiling integration tests");
-    if !Command::new("cargo")
+    Command::new("cargo")
         .current_dir("src/e2e")
         .arg("test")
         .arg("--no-run")
-        .run_on(runner)
-    {
-        return;
-    }
+        .try_exec()
+        .context("failed to compile tests")?;
 
     println!("Running integration tests");
     // TODO: hacky. Probably it can be done better.
@@ -50,10 +49,13 @@ fn run_integ_test(runner: &Runner) {
             let test_succ = Command::new("cargo")
                 .current_dir("src/e2e")
                 .args(&["test", test_name])
-                .run_on(runner);
+                .try_exec()
+                .is_ok();
             cnt_tests += 1;
             if test_succ {
                 cnt_ok += 1;
+            } else {
+                runner.error();
             }
         }
     }
@@ -61,6 +63,7 @@ fn run_integ_test(runner: &Runner) {
         "{} integration tests runned, {} successful",
         cnt_tests, cnt_ok
     );
+    Ok(())
 }
 
 fn run_unit_tests(args: &TestArgs, runner: &Runner) {
@@ -74,11 +77,12 @@ fn run_unit_tests(args: &TestArgs, runner: &Runner) {
     cmd.run_on(runner);
 }
 
-pub(crate) fn task_test(args: TestArgs, runner: &Runner) {
+pub(crate) fn task_test(args: TestArgs, runner: &Runner) -> anyhow::Result<()> {
     if !args.skip_unit {
         run_unit_tests(&args, runner);
     }
     if args.integration_tests {
-        run_integ_test(runner);
+        run_integ_test(runner)?;
     }
+    Ok(())
 }

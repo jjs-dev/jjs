@@ -728,6 +728,7 @@ dependencies = [
 name = "devtool"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "atty",
  "env_logger",
  "ignore",
@@ -3788,6 +3789,7 @@ dependencies = [
 name = "util"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "atty",
  "libsystemd",
  "log 0.4.8",

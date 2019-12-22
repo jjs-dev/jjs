@@ -23,7 +23,7 @@ impl Runner {
 impl Runner {
     pub fn exit_if_errors(&self) {
         if self.had_errors.load(Ordering::SeqCst) {
-            eprintln!("Action was not successful: some commands returned non-zero");
+            eprintln!("Action was not successful: some commands failed");
             exit(1);
         }
     }
@@ -34,15 +34,15 @@ impl Runner {
             exit(1);
         } else {
             self.had_errors.store(true, Ordering::SeqCst);
+            log::debug!("Error reported");
         }
     }
 
-    pub fn exec(&self, cmd: &mut Command) -> bool {
-        let res = cmd.try_exec().is_ok();
-        if res {
+    pub fn exec(&self, cmd: &mut Command) {
+        let is_err = cmd.try_exec().is_err();
+        if is_err {
             self.error();
         }
-        res
     }
 }
 

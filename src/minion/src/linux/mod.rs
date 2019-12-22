@@ -22,7 +22,6 @@ use std::{
     fs,
     io::{Read, Write},
     os::unix::{ffi::OsStrExt, io::IntoRawFd},
-    ptr,
     sync::{
         atomic::{AtomicI64, Ordering},
         Arc, Mutex,
@@ -38,7 +37,7 @@ pub struct LinuxChildProcess {
     stdin: Option<Box<dyn Write + Send + Sync>>,
     stdout: Option<Box<dyn Read + Send + Sync>>,
     stderr: Option<Box<dyn Read + Send + Sync>>,
-    //in order to save dominion while CP is alive
+    // Used to save dominion while CP is alive
     _dominion_ref: DominionRef,
 
     pid: Pid,
@@ -274,28 +273,6 @@ impl Backend for LinuxBackend {
     }
 }
 
-fn empty_signal_handler(
-    _signal_code: libc::c_int,
-    _signal_info: *mut libc::siginfo_t,
-    _ptr: *mut libc::c_void,
-) {
-}
-
-fn fix_sigchild() {
-    unsafe {
-        let sa_ptr: *mut libc::sigaction = util::allocate_heap_variable();
-        let mut sa = &mut *sa_ptr;
-        sa.sa_sigaction = empty_signal_handler as *mut () as usize;
-        libc::sigemptyset(&mut sa.sa_mask as *mut _);
-        libc::sigaddset(&mut sa.sa_mask as *mut _, libc::SIGCHLD);
-        sa.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
-        if libc::sigaction(libc::SIGCHLD, sa_ptr, ptr::null_mut()) == -1 {
-            err_exit("sigaction");
-        }
-    }
-}
-
 pub fn setup_execution_manager() -> LinuxBackend {
-    fix_sigchild();
     LinuxBackend {}
 }

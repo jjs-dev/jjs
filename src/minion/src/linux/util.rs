@@ -1,9 +1,8 @@
 use libc::{self, c_char, c_int, c_void};
 use std::{
     ffi::{CString, OsStr},
-    io, mem,
+    io,
     os::unix::{ffi::OsStrExt, io::RawFd},
-    ptr,
 };
 use tiny_nix_ipc::{self, Socket};
 
@@ -146,19 +145,4 @@ impl io::Write for StraceLogger {
         // empty
         Ok(())
     }
-}
-
-pub fn allocate_memory(num: usize) -> *mut c_char {
-    unsafe {
-        let p = libc::malloc(num) as *mut c_char;
-        if p as usize == 0 {
-            panic!("OutOfMemory: malloc returned null");
-        }
-        ptr::write_bytes(p, 0xDC, num);
-        p
-    }
-}
-
-pub fn allocate_heap_variable<T>() -> *mut T {
-    allocate_memory(mem::size_of::<T>()) as *mut T
 }

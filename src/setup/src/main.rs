@@ -12,6 +12,9 @@ pub struct Opts {
     /// If not provided, db setup will be skipped
     #[structopt(long)]
     db_url: Option<String>,
+    /// Drop db if it already exists
+    #[structopt(long)]
+    drop_db: bool,
     #[structopt(long)]
     symlink_config: bool,
     #[structopt(long)]
@@ -38,7 +41,10 @@ fn main() {
         data_dir: opts.data_dir,
         install_dir: opts.install_dir,
         db: if let Some(uri) = opts.db_url {
-            Some(setup::DatabaseParams { uri })
+            Some(setup::DatabaseParams {
+                uri,
+                drop_existing: opts.drop_db,
+            })
         } else {
             None
         },

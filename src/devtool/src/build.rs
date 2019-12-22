@@ -72,6 +72,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) ->anyhow::Result<(
             .arg("--data-dir=/tmp/jjs")
             .arg("--install-dir=/opt/jjs")
             .arg("--db-url=postgres://jjs:internal@localhost:5432/jjs")
+            .arg("--drop-db")
             .arg("--force")
             .arg("--sample-contest")
             .arg("--symlink-config")

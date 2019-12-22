@@ -14,6 +14,7 @@ pub struct ConfigParams {
 
 pub struct DatabaseParams {
     pub uri: String,
+    pub drop_existing: bool,
 }
 
 pub struct SetupParams {
@@ -88,14 +89,36 @@ fn setup_db(
 ) -> anyhow::Result<()> {
     let conn_url = url::Url::parse(&db_params.uri).expect("db connection string is ill-formed");
     let migrate_script_path = params.install_dir.join("share/db-setup.sql");
-    info!("Creating DB");
+    let db_name = conn_url.path().trim_start_matches('/');
     let host = conn_url.host().expect("db hostname missing");
     let port = conn_url.port().unwrap_or(5432);
+    let host_arg = if host.to_string() == "localhost" {
+        None
+    } else {
+        Some(format!("--host={}", &host))
+    };
+    if db_params.drop_existing {
+        info!("Dropping DB {}", &db_name);
+        let mut cmd = Command::new("dropdb");
+        cmd.arg(db_name);
+        if let Some(host_arg) = &host_arg {
+            cmd.arg(host_arg);
+        }
+        cmd
+            .arg(format!("--port={}", port))
+            .arg("--no-password")
+            .try_exec()
+            .ok();
+    }
+
+    info!("Creating DB {}", &db_name);
     {
-        Command::new("createdb")
-            .arg(conn_url.path().trim_start_matches('/')) // TODO: take from params
-            .arg(format!("--host={}", &host))
-            .arg(format!("--port={}", &port))
+        let mut cmd = Command::new("createdb");
+        cmd.arg(db_name);
+        if let Some(host_arg) = &host_arg {
+            cmd.arg(host_arg);
+        }
+        cmd.arg(format!("--port={}", port))
             .arg("--no-password")
             .try_exec()?;
     }

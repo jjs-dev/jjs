@@ -9,7 +9,7 @@ pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
     linux::{
         pipe::{LinuxReadPipe, LinuxWritePipe},
-        util::{err_exit, get_last_error, Handle, IgnoreExt, Pid},
+        util::{err_exit, get_last_error, Handle, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
     InputSpecification, InputSpecificationData, OutputSpecification, OutputSpecificationData,
@@ -115,7 +115,7 @@ impl Drop for LinuxChildProcess {
         if f.is_err() || !f.unwrap() {
             return;
         }
-        self.kill().ignore();
+        self.kill().ok();
         self.wait_for_exit(time::Duration::from_millis(100))
             .unwrap();
     }

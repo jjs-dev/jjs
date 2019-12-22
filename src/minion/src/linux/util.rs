@@ -106,15 +106,6 @@ impl IpcSocketExt for Socket {
     }
 }
 
-pub trait IgnoreExt: Sized {
-    #[allow(unused_must_use)]
-    fn ignore(self) {
-        //empty
-    }
-}
-
-impl<T, E> IgnoreExt for Result<T, E> {}
-
 pub fn duplicate_string(arg: &OsStr) -> *mut c_char {
     unsafe {
         let cstr = CString::new(arg.as_bytes()).unwrap();
@@ -152,7 +143,7 @@ impl io::Write for StraceLogger {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        //empty
+        // empty
         Ok(())
     }
 }

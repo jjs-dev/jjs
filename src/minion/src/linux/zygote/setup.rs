@@ -252,7 +252,7 @@ pub(crate) unsafe fn setup(
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
     let handles = setup_cgroups(&jail_params);
-    //it's important cpu watcher will be outside of user namespace
+    // It's important cpu watcher will be outside of user namespace.
     setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);
     setup_uid_mapping(sock)?;
@@ -262,8 +262,8 @@ pub(crate) unsafe fn setup(
     Ok(res)
 }
 
-/// internal function, kills processes which used all their CPU time limit
-/// timings are given in nanoseconds
+/// Internal function, kills processes which used all their CPU time limit.
+/// Limits are given in nanoseconds
 unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit: u64) -> ! {
     let start = time::Instant::now();
     loop {

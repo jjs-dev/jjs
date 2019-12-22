@@ -29,7 +29,7 @@ unsafe fn process_spawn_query(
 ) -> crate::Result<()> {
     let mut logger = StraceLogger::new();
     write!(logger, "got Spawn request").ok();
-    //now we do some preprocessing
+    // Now we do some preprocessing.
     let env: Vec<_> = options
         .environment
         .iter()

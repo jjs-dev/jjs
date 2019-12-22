@@ -8,10 +8,10 @@ use tiny_nix_ipc::Socket;
 pub(crate) struct JailOptions {
     pub(crate) max_alive_process_count: u32,
     pub(crate) memory_limit: u64,
-    /// specifies total CPU time for whole dominion.
+    /// Specifies total CPU time for whole dominion.
     pub(crate) time_limit: Duration,
     /// Specifies wall-closk time limit for whole dominion.
-    /// Possible value: time_limit * 3
+    /// Possible value: time_limit * 3.
     pub(crate) wall_time_limit: Duration,
     pub(crate) isolation_root: PathBuf,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
@@ -66,9 +66,11 @@ pub(crate) enum Query {
     Poll(PollQuery),
 }
 
-pub(crate) unsafe fn dominion_kill_all(zygote_pid: Pid) -> crate::Result<()> {
-    // we will send SIGTERM to zygote
-    // kernel will kill all other processes by itself
-    libc::kill(zygote_pid, libc::SIGTERM);
+pub(crate) fn dominion_kill_all(zygote_pid: Pid) -> crate::Result<()> {
+    // We will send SIGTERM to zygote, and
+    // kernel will kill all other processes by itself.
+    unsafe {
+        libc::kill(zygote_pid, libc::SIGTERM);
+    }
     Ok(())
 }

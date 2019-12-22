@@ -3,6 +3,7 @@
 //! In particular, zygote is namespace root.
 //! Zygote accepts queries for spawning child process
 
+mod main_loop;
 mod setup;
 
 use crate::linux::{
@@ -55,7 +56,6 @@ pub(crate) struct ZygoteOptions {
 }
 
 struct DoExecArg {
-    //in
     path: OsString,
     arguments: Vec<OsString>,
     environment: Vec<OsString>,
@@ -80,7 +80,7 @@ fn duplicate_string_list(v: &[OsString]) -> *mut *mut c_char {
 
 const WAIT_MESSAGE_CLASS_EXECVE_PERMITTED: &[u8] = b"EXECVE";
 
-// this function is called, when execve() returned ENOENT, to provide additional information on best effort basis
+// This function is called, when execve() returned ENOENT, to provide additional information on best effort basis.
 fn print_diagnostics(path: &OsStr, out: &mut dyn Write) {
     let mut path = std::path::PathBuf::from(path);
     let existing_prefix;
@@ -121,7 +121,6 @@ fn print_diagnostics(path: &OsStr, out: &mut dyn Write) {
     }
 }
 
-#[allow(unreachable_code)]
 extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
     use std::os::unix::io::FromRawFd;
     unsafe {
@@ -132,32 +131,34 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let mut argv_with_path = vec![arg.path.clone()];
         argv_with_path.append(&mut (arg.arguments.clone()));
 
-        //duplicate argv
+        // Duplicate argv.
         let argv = duplicate_string_list(&argv_with_path);
 
-        //duplicate envp
+        // Duplicate envp.
         let environ = arg.environment.clone();
         let envp = duplicate_string_list(&environ);
 
-        // join cgroups
-        // this doesn't require any additional capablities, because we just write some stuff
-        // to preopened handle
+        // Join cgroups.
+        // This doesn't require any additional capablities, because we just write some stuff
+        // to preopened handle.
         let my_pid = std::process::id();
         let my_pid = format!("{}", my_pid);
         for h in arg.cgroups_tasks {
             nix::unistd::write(h, my_pid.as_bytes()).expect("Couldn't join cgroup");
         }
 
-        //now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
+        // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fd_list;
         {
             let fd_list_path = "/proc/self/fd".to_string();
-            fd_list = fs::read_dir(fd_list_path).unwrap();
+            fd_list = fs::read_dir(fd_list_path).expect("failed to enumerate /proc/self/fd");
         }
         for fd in fd_list {
-            let fd = fd.unwrap();
+            let fd = fd.expect("failed to get fd entry metadata");
             let fd = fd.file_name().to_string_lossy().to_string();
-            let fd: Handle = fd.parse().unwrap();
+            let fd: Handle = fd
+                .parse()
+                .expect("/proc/self/fd member file name is not fd");
             if -1 == libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) {
                 let fd_info_path = format!("/proc/self/fd/{}", fd);
                 let fd_info_path = CString::new(fd_info_path.as_str()).unwrap();
@@ -168,7 +169,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 panic!("couldn't cloexec fd: {}({})", fd, fd_info);
             }
         }
-        //now let's change our working dir to desired
+        // Now let's change our working dir to desired.
         let pwd = CString::new(arg.pwd.as_bytes()).unwrap();
         if libc::chdir(pwd.as_ptr()) == -1 {
             let code = nix::errno::errno();
@@ -179,6 +180,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 nix::errno::from_i32(code).desc()
             )
             .ok();
+            // It is not error from security PoV if chdir failed: chroot isolation works even if current dir is outside of chroot.
         }
 
         if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
@@ -188,10 +190,10 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         if libc::setuid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setuid");
         }
-        //now we pause ourselves until parent process places us into appropriate groups
+        // Now we pause ourselves until parent process places us into appropriate groups.
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
 
-        //dup2 as late as possible for all panics to write to normal stdio instead of pipes
+        // Call dup2 as late as possible for all panics to write to normal stdio instead of pipes.
         libc::dup2(arg.stdio.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stdio.stderr, libc::STDERR_FILENO);
@@ -215,7 +217,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             libc::exit(108)
         } else {
             writeln!(stderr, "couldn't execute: error code {}", err_code).ok();
-            //execve doesn't return on success
+            // Execve only returns on error.
             err_exit("execve");
         }
     }
@@ -229,7 +231,7 @@ unsafe fn spawn_job(
     child_sock
         .no_cloexec()
         .expect("Couldn't make child socket inheritable");
-    //will be passed to child process
+    // `dea` Will be passed to child process
     let dea = DoExecArg {
         path: options.exe.as_os_str().to_os_string(),
         arguments: options.argv,
@@ -245,13 +247,13 @@ unsafe fn spawn_job(
         err_exit("fork");
     }
     if res == 0 {
-        //child
+        // Child
         do_exec(dea);
     }
-    //parent
+    // Parent
     child_pid = res;
 
-    //now we can allow child to execve()
+    // Now we can allow child to execve()
     sock.wake(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED)?;
 
     Ok(jail_common::JobStartupInfo { pid: child_pid })
@@ -261,133 +263,16 @@ const WM_CLASS_SETUP_FINISHED: &[u8] = b"WM_SETUP";
 const WM_CLASS_PID_MAP_READY_FOR_SETUP: &[u8] = b"WM_SETUP_READY";
 const WM_CLASS_PID_MAP_CREATED: &[u8] = b"WM_PIDMAP_DONE";
 
-mod zygote_main {
-    use crate::linux::{
-        jail_common::{JobQuery, Query},
-        util::{Handle, IpcSocketExt, Pid, StraceLogger},
-        zygote::{setup, spawn_job, JobOptions, SetupData, Stdio, ZygoteOptions},
-    };
-    use std::{
-        ffi::{OsStr, OsString},
-        io::Write,
-        os::unix::ffi::{OsStrExt, OsStringExt},
-        time::Duration,
-    };
-
-    fn concat_env_item(k: &OsStr, v: &OsStr) -> OsString {
-        let k = k.as_bytes();
-        let v = v.as_bytes();
-        let cap = k.len() + 1 + v.len();
-
-        let mut res = vec![0; cap];
-        res[0..k.len()].copy_from_slice(k);
-        res[k.len() + 1..].copy_from_slice(v);
-        res[k.len()] = b'=';
-        OsString::from_vec(res)
-    }
-
-    unsafe fn process_spawn_query(
-        arg: &mut ZygoteOptions,
-        options: &JobQuery,
-        setup_data: &SetupData,
-    ) -> crate::Result<()> {
-        let mut logger = StraceLogger::new();
-        write!(logger, "got Spawn request").ok();
-        //now we do some preprocessing
-        let env: Vec<_> = options
-            .environment
-            .iter()
-            .map(|(k, v)| concat_env_item(OsStr::from_bytes(&base64::decode(k).unwrap()), v))
-            .collect();
-
-        let mut child_fds = arg
-            .sock
-            .recv_struct::<u64, [Handle; 3]>()
-            .unwrap()
-            .1
-            .unwrap();
-        for f in child_fds.iter_mut() {
-            *f = nix::unistd::dup(*f).unwrap();
-        }
-        let child_stdio = Stdio::from_fd_array(child_fds);
-
-        let job_options = JobOptions {
-            exe: options.image_path.clone(),
-            argv: options.argv.clone(),
-            env,
-            stdio: child_stdio,
-            pwd: options.pwd.clone().into_os_string(),
-        };
-
-        write!(logger, "JobOptions are fetched").ok();
-        let startup_info = spawn_job(job_options, setup_data)?;
-        write!(logger, "job started. Sending startup_info back").ok();
-        arg.sock.send(&startup_info)?;
-        Ok(())
-    }
-
-    unsafe fn process_poll_query(
-        arg: &mut ZygoteOptions,
-        pid: Pid,
-        timeout: Duration,
-    ) -> crate::Result<()> {
-        let res = super::timed_wait(pid, timeout)?;
-        arg.sock.send(&res)?;
-        Ok(())
-    }
-
-    pub(crate) unsafe fn zygote_entry(mut arg: ZygoteOptions) -> crate::Result<i32> {
-        let setup_data = setup::setup(&arg.jail_options, &mut arg.sock)?;
-
-        let mut logger = StraceLogger::new();
-        loop {
-            let query: Query = match arg.sock.recv() {
-                Ok(q) => {
-                    write!(logger, "zygote: new request").ok();
-                    q
-                }
-                Err(err) => {
-                    write!(logger, "zygote: got unprocessable query: {}", err).ok();
-                    return Ok(23);
-                }
-            };
-            match query {
-                Query::Spawn(ref o) => process_spawn_query(&mut arg, o, &setup_data)?,
-                Query::Exit => break,
-                Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout)?,
-            };
-        }
-        Ok(0)
-    }
-}
-
 struct WaiterArg {
     res_fd: Handle,
     pid: Pid,
 }
 
-extern "C" fn kill_me(_code: libc::c_int) {
-    unsafe {
-        libc::raise(libc::SIGKILL);
-    }
-}
-
 extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
-    use nix::sys::signal;
     unsafe {
         let arg = arg as *mut WaiterArg;
         let arg = &mut *arg;
         let mut waitstatus = 0;
-        {
-            let sigaction = signal::SigAction::new(
-                signal::SigHandler::Handler(kill_me),
-                signal::SaFlags::empty(),
-                signal::SigSet::empty(),
-            );
-            // set SIGILL handler to kill_me()
-            signal::sigaction(signal::SIGILL, &sigaction)
-                .unwrap_or_else(|_err| err_exit("sigaction"));
-        }
 
         let wcode = libc::waitpid(arg.pid, &mut waitstatus, libc::__WALL);
         if wcode == -1 {
@@ -399,7 +284,6 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
             -libc::WTERMSIG(waitstatus)
         };
         let message = format!("{}", exit_code);
-        //let message_len = message.len();
         let message = CString::new(message).unwrap();
         libc::write(
             arg.res_fd,
@@ -416,8 +300,6 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
         end_r = 0;
         end_w = 0;
         setup_pipe(&mut end_r, &mut end_w)?;
-        //let waiter_stack_layout = alloc::Layout::from_size_align(STACK_SIZE, STACK_ALIGN).unwrap();
-        //let waiter_stack = alloc::alloc(waiter_stack_layout);
         let waiter_pid;
         {
             let mut arg = WaiterArg { res_fd: end_w, pid };
@@ -434,7 +316,7 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
                 err_exit("pthread_create");
             }
         }
-        //TL&DR - select([ready_r], timeout)
+        // TL&DR - select([ready_r], timeout)
         let mut poll_fd_info: [libc::pollfd; 1];
         poll_fd_info = mem::zeroed();
         let mut poll_fd_ref = &mut poll_fd_info[0];
@@ -474,7 +356,6 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
             break ret;
         };
         libc::pthread_cancel(waiter_pid);
-        //alloc::dealloc(waiter_stack, waiter_stack_layout);
         libc::close(end_r);
         libc::close(end_w);
         Ok(ret)
@@ -499,12 +380,12 @@ pub(crate) unsafe fn start_zygote(
     }
 
     if f != 0 {
-        //thread A: entered start_zygote() normally, returns from function
+        // Thread A it is thread that entered start_zygote() normally, returns from function
         write!(logger, "thread A (main)").unwrap();
 
         let mut zygote_pid_bytes = [0 as u8; 4];
 
-        // wait until zygote is ready.
+        // Wait until zygote is ready.
         // Zygote is ready when zygote launcher returns it's pid
         nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol failure");
         nix::unistd::close(return_allowed_r).unwrap();
@@ -524,24 +405,24 @@ pub(crate) unsafe fn start_zygote(
         err_exit("fork");
     }
     if fret == 0 {
-        // thread C: zygote main process
+        // Thread C is zygote main process
         write!(logger, "thread C (zygote main)").unwrap();
         mem::drop(sock);
         let js_arg = ZygoteOptions {
             jail_options,
             sock: js_sock,
         };
-        let zygote_ret_code = zygote_main::zygote_entry(js_arg);
+        let zygote_ret_code = main_loop::zygote_entry(js_arg);
         libc::exit(zygote_ret_code.unwrap_or(1));
     }
-    // thread B: external zygote initializer
-    // it's only task currently is pid/gid mapping
+    // Thread B is external zygote initializer.
+    // It's only task currently is to setup id/gid mapping.
     write!(logger, "thread B (zygote launcher)").unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
 
     let sandbox_uid = setup::derive_user_ids(&jail_id);
-    // map 0 to 0; map sandbox uid: internal to external
+    // Map 0 to 0; map sandbox uid: internal to external.
     let mapping = format!("0 0 1\n{} {} 1", SANDBOX_INTERNAL_UID, sandbox_uid);
     let uid_map_path = format!("/proc/{}/uid_map", child_pid);
     let gid_map_path = format!("/proc/{}/gid_map", child_pid);
@@ -550,7 +431,7 @@ pub(crate) unsafe fn start_zygote(
     fs::write(&gid_map_path, mapping.as_str()).unwrap();
     sock.wake(WM_CLASS_PID_MAP_CREATED)?;
     sock.lock(WM_CLASS_SETUP_FINISHED)?;
-    //and now thread A can return
+    // And now thread A can return.
     nix::unistd::write(return_allowed_w, &child_pid.to_ne_bytes()).expect("protocol failure");
     libc::exit(0);
 }

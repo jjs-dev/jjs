@@ -3,7 +3,7 @@ use libc::*;
 /// Validate environment
 ///
 /// If some problems are present, Some(s) with returned, where s is human-readable string
-///describing these problems
+/// describing these problems
 pub fn check() -> Option<String> {
     let uid = unsafe { getuid() };
     if uid != 0 {

@@ -94,7 +94,7 @@ impl LinuxDominion {
         })
     }
 
-    pub(crate) unsafe fn exit(&self) -> crate::Result<()> {
+    pub(crate) fn exit(&self) -> crate::Result<()> {
         jail_common::dominion_kill_all(self.zygote_pid)?;
         Ok(())
     }
@@ -127,14 +127,13 @@ impl LinuxDominion {
 }
 
 impl Drop for LinuxDominion {
-    #[allow(unused_must_use)]
     fn drop(&mut self) {
         use std::os::unix::ffi::OsStrExt;
-        // kill all processes
-        unsafe { self.exit() };
-        // remove cgroups
+        // Kill all processes.
+        self.exit().ok();
+        // Remove cgroups.
         for subsys in &["pids", "memory", "cpuacct"] {
-            fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id));
+            fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id)).ok();
         }
 
         let do_umount = |inner_path: &Path| {
@@ -148,7 +147,7 @@ impl Drop for LinuxDominion {
         };
 
         do_umount(Path::new("proc"));
-        fs::remove_dir(&self.options.isolation_root.join(PathBuf::from("proc")));
+        fs::remove_dir(&self.options.isolation_root.join(PathBuf::from("proc"))).ok();
 
         for x in &self.options.exposed_paths {
             do_umount(&x.dest);

@@ -2723,9 +2723,9 @@ dependencies = [
 
 [[package]]
 name = "roxmltree"
-version = "0.7.3"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0852407257c1b696a0c66b9db3ffe7769c2744a2fa725c8050e6f3e5a823c02b"
+checksum = "27824cdacc2666f494734bd7bd0d05124f3dea3199893fd67e37277220702643"
 dependencies = [
  "xmlparser",
 ]
@@ -3971,9 +3971,9 @@ dependencies = [
 
 [[package]]
 name = "xmlparser"
-version = "0.10.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8110496c5bcc0d966b0b2da38d5a791aa139eeb0b80e7840a7463c2b806921eb"
+checksum = "28df138f96b683cde1b62df4567176166d61283d7bac220ddee4a56b6cdd278d"
 
 [[package]]
 name = "yansi"

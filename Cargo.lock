@@ -2320,9 +2320,9 @@ dependencies = [
 
 [[package]]
 name = "procfs"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "280f8596aef3877289d5586730d0b9a031218f5bea4422f3e9fdda5049c80626"
+checksum = "13a8f3e183534522128d84f7adbee1834aac1ea99171cd69d7fc93a3bc38b993"
 dependencies = [
  "bitflags",
  "byteorder",

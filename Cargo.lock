@@ -3178,9 +3178,9 @@ dependencies = [
 
 [[package]]
 name = "strum"
-version = "0.16.0"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6138f8f88a16d90134763314e3fc76fa3ed6a7db4725d6acf9a3ef95a3188d22"
+checksum = "530efb820d53b712f4e347916c5e7ed20deb76a4f0457943b3182fb889b06d2c"
 
 [[package]]
 name = "strum_macros"
@@ -3308,9 +3308,9 @@ dependencies = [
 
 [[package]]
 name = "tera"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a9e95103d0552c739058c1bf3683e7fb2a500eb0e6638116cc1571a45048293"
+checksum = "abd2e168a7b3395b5c0467227239d182255c63e35d02e549a2e376b134c89358"
 dependencies = [
  "chrono",
  "chrono-tz",

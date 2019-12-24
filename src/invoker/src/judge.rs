@@ -88,7 +88,6 @@ impl<'a> Judge<'a> {
 
         match wait_result {
             minion::WaitOutcome::Timeout => {
-                child.kill().ok();
                 return Ok(RunOutcome::Fail(Status {
                     kind: StatusKind::Rejected,
                     code: status_codes::TIME_LIMIT_EXCEEDED.to_string(),

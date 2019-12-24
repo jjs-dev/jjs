@@ -9,7 +9,7 @@ pub use crate::linux::dominion::{DesiredAccess, LinuxDominion};
 use crate::{
     linux::{
         pipe::{LinuxReadPipe, LinuxWritePipe},
-        util::{err_exit, get_last_error, Handle, Pid},
+        util::{get_last_error, Handle, Pid},
     },
     Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionRef, InputSpecification,
     InputSpecificationData, OutputSpecification, OutputSpecificationData, WaitOutcome,
@@ -22,7 +22,7 @@ use std::{
     io::{Read, Write},
     os::unix::io::IntoRawFd,
     sync::atomic::{AtomicI64, Ordering},
-    time::{self, Duration},
+    time::Duration,
 };
 
 pub type LinuxHandle = libc::c_int;
@@ -87,30 +87,6 @@ impl ChildProcess for LinuxChildProcess {
     fn is_finished(&self) -> crate::Result<bool> {
         self.poll()?;
         Ok(self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING)
-    }
-
-    fn kill(&mut self) -> crate::Result<()> {
-        unsafe {
-            if self.is_finished()? {
-                return Ok(());
-            }
-            if libc::kill(self.pid, libc::SIGKILL) == -1 {
-                err_exit("kill");
-            }
-            Ok(())
-        }
-    }
-}
-
-impl Drop for LinuxChildProcess {
-    fn drop(&mut self) {
-        let f = self.is_finished();
-        if f.is_err() || !f.unwrap() {
-            return;
-        }
-        self.kill().ok();
-        self.wait_for_exit(time::Duration::from_millis(100))
-            .unwrap();
     }
 }
 

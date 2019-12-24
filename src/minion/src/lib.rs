@@ -340,7 +340,7 @@ pub enum WaitOutcome {
 }
 
 /// Represents child process.
-pub trait ChildProcess: Drop {
+pub trait ChildProcess {
     /// Returns exit code, if process had exited by the moment of call, or None otherwise.
     fn get_exit_code(&self) -> Result<Option<i64>>;
 
@@ -378,9 +378,6 @@ pub trait ChildProcess: Drop {
     /// Returns whether child process has exited by the moment of call
     /// This function doesn't blocks on waiting (see `wait_for_exit`).
     fn is_finished(&self) -> Result<bool>;
-
-    /// Kills underlying process as soon as possible
-    fn kill(&mut self) -> Result<()>;
 }
 
 #[cfg(target_os = "linux")]

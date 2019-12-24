@@ -378,16 +378,6 @@ pub unsafe extern "C" fn minion_cp_exitcode(
     }
 }
 
-#[no_mangle]
-#[must_use]
-pub extern "C" fn minion_cp_kill(cp: &mut ChildProcess) -> ErrorCode {
-    let ans = cp.0.kill();
-    match ans {
-        Result::Ok(_) => ErrorCode::Ok,
-        Result::Err(_) => ErrorCode::Unknown,
-    }
-}
-
 /// # Safety
 /// `cp` must be valid pointer to ChildProcess object, allocated by `minion_cp_spawn`
 #[no_mangle]

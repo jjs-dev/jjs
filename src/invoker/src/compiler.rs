@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
 
             native_command.dominion(sandbox.clone());
 
-            let mut child = match native_command.spawn(self.ctx.env().minion_backend) {
+            let child = match native_command.spawn(self.ctx.env().minion_backend) {
                 Ok(child) => child,
                 Err(err) => {
                     if err.is_system() {
@@ -73,7 +73,6 @@ impl<'a> Compiler<'a> {
                 .context("failed to wait for compiler")?;
             match wait_result {
                 minion::WaitOutcome::Timeout => {
-                    child.kill().ok(); //.ok() to ignore: kill on best effort basis
                     return Ok(BuildOutcome::Error(Status {
                         kind: StatusKind::Rejected,
                         code: status_codes::COMPILATION_TIMED_OUT.to_string(),

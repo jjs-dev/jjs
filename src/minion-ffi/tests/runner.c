@@ -47,7 +47,8 @@ void run_test(const char* self, const char* dir, const char* test_name) {
     verify_ok(minion_dominion_create(
         bk,
         (struct Minion_DominionOptions) {
-            .time_limit = {1, 0},
+            .cpu_time_limit = {1, 0},
+            .real_time_limit = {2, 0},
             .process_limit = 1,
             .memory_limit = 0x40000000,
             .isolation_root = dir,

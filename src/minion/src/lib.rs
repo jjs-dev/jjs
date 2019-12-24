@@ -61,8 +61,10 @@ pub struct DominionOptions {
     pub max_alive_process_count: u32,
     /// Memory limit for all processes in cgroup, in bytes
     pub memory_limit: u64,
-    /// Specifies total CPU time for all dominion
-    pub time_limit: Duration,
+    /// Specifies total CPU time for whole dominion
+    pub cpu_time_limit: Duration,
+    /// Specifies total wall-clock timer limit for whole dominion
+    pub real_time_limit: Duration,
     pub isolation_root: PathBuf,
     pub exposed_paths: Vec<PathExpositionOptions>,
 }
@@ -340,7 +342,7 @@ pub enum WaitOutcome {
 }
 
 /// Represents child process.
-pub trait ChildProcess: Drop {
+pub trait ChildProcess {
     /// Returns exit code, if process had exited by the moment of call, or None otherwise.
     fn get_exit_code(&self) -> Result<Option<i64>>;
 
@@ -378,9 +380,6 @@ pub trait ChildProcess: Drop {
     /// Returns whether child process has exited by the moment of call
     /// This function doesn't blocks on waiting (see `wait_for_exit`).
     fn is_finished(&self) -> Result<bool>;
-
-    /// Kills underlying process as soon as possible
-    fn kill(&mut self) -> Result<()>;
 }
 
 #[cfg(target_os = "linux")]

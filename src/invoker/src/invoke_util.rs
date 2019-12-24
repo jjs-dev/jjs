@@ -42,15 +42,16 @@ pub(crate) fn create_sandbox(
         dest: PathBuf::from("/jjs"),
         access: minion::DesiredAccess::Full,
     });
-    let time_limit = Duration::from_millis(limits.time as u64);
-
+    let cpu_time_limit = Duration::from_millis(limits.time as u64);
+    let real_time_limit = Duration::from_millis(limits.time * 3 as u64);
     // TODO adjust integer types
     let dominion_options = minion::DominionOptions {
         max_alive_process_count: limits.process_count as _,
         memory_limit: limits.memory as _,
         exposed_paths,
         isolation_root: paths.chroot_dir(),
-        time_limit,
+        cpu_time_limit,
+        real_time_limit,
     };
 
     backend

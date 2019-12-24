@@ -210,7 +210,12 @@ unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
 unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     let cpu_tl = jail_options.time_limit.as_nanos() as u64;
     let real_tl = jail_options.wall_time_limit.as_nanos() as u64;
-    observe_time(&jail_options.jail_id, cpu_tl, real_tl, jail_options.watchdog_chan)
+    observe_time(
+        &jail_options.jail_id,
+        cpu_tl,
+        real_tl,
+        jail_options.watchdog_chan,
+    )
 }
 
 unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
@@ -303,7 +308,7 @@ unsafe fn observe_time(
     jail_id: &str,
     cpu_time_limit: u64,
     real_time_limit: u64,
-    chan: crate::linux::util::Handle
+    chan: crate::linux::util::Handle,
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {

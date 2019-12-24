@@ -14,8 +14,10 @@ use std::{
     fs,
     os::unix::io::AsRawFd,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, Ordering::SeqCst},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering::SeqCst},
+        Mutex,
+    },
     time::Duration,
 };
 use tiny_nix_ipc::Socket;
@@ -47,7 +49,7 @@ impl DominionState {
     fn clone(&self) -> Self {
         DominionState {
             was_cpu_tle: AtomicBool::new(self.was_cpu_tle.load(SeqCst)),
-            was_wall_tle: AtomicBool::new(self.was_wall_tle.load(SeqCst))
+            was_wall_tle: AtomicBool::new(self.was_wall_tle.load(SeqCst)),
         }
     }
 }
@@ -79,7 +81,7 @@ impl Debug for LinuxDominion {
             zygote_sock: self.zygote_sock.lock().unwrap().as_raw_fd(),
             zygote_pid: self.zygote_pid,
             watchdog_chan: self.watchdog_chan,
-            state: self.state.clone()
+            state: self.state.clone(),
         };
 
         h.fmt(f)
@@ -181,7 +183,7 @@ impl LinuxDominion {
     }
 
     pub(crate) unsafe fn spawn_job(
-        & self,
+        &self,
         query: ExtendedJobQuery,
     ) -> Option<jail_common::JobStartupInfo> {
         let q = jail_common::Query::Spawn(query.job_query.clone());
@@ -191,11 +193,15 @@ impl LinuxDominion {
 
         let fds = [query.stdin, query.stdout, query.stderr];
         let empty: u64 = 0xDEAD_F00D_B17B_00B5;
-        self.zygote_sock.lock().unwrap().send_struct(&empty, Some(&fds)).ok();
+        self.zygote_sock
+            .lock()
+            .unwrap()
+            .send_struct(&empty, Some(&fds))
+            .ok();
         self.zygote_sock.lock().unwrap().recv().ok()
     }
 
-    pub(crate) unsafe fn poll_job(& self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
+    pub(crate) unsafe fn poll_job(&self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
 
         self.zygote_sock.lock().unwrap().send(&q).ok();

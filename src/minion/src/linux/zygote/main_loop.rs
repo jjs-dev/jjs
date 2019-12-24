@@ -3,12 +3,7 @@ use crate::linux::{
     util::{Handle, IpcSocketExt, Pid, StraceLogger},
     zygote::{setup, spawn_job, JobOptions, SetupData, Stdio, ZygoteOptions},
 };
-use std::{
-    io::Write,
-    time::Duration,
-};
-
-
+use std::{io::Write, time::Duration};
 
 unsafe fn process_spawn_query(
     arg: &mut ZygoteOptions,

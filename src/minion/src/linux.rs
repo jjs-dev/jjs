@@ -21,9 +21,7 @@ use std::{
     fs,
     io::{Read, Write},
     os::unix::io::IntoRawFd,
-    sync::{
-        atomic::{AtomicI64, Ordering},
-    },
+    sync::atomic::{AtomicI64, Ordering},
     time::{self, Duration},
 };
 
@@ -266,7 +264,7 @@ pub struct LinuxBackend {}
 impl Backend for LinuxBackend {
     fn new_dominion(&self, mut options: DominionOptions) -> crate::Result<DominionRef> {
         options.postprocess();
-        let dmn =unsafe { LinuxDominion::create(options)? };
+        let dmn = unsafe { LinuxDominion::create(options)? };
         Ok(DominionRef::from(dmn))
     }
 

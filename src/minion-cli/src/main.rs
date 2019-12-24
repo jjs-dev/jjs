@@ -147,15 +147,9 @@ fn main() {
             .collect(),
         dominion: dominion.clone(),
         stdio: minion::StdioSpecification {
-            stdin: unsafe {
-                minion::InputSpecification::handle(stdin_fd)
-            },
-            stdout: unsafe {
-                minion::OutputSpecification::handle(stdout_fd)
-            },
-            stderr: unsafe {
-                minion::OutputSpecification::handle(stderr_fd)
-            },
+            stdin: unsafe { minion::InputSpecification::handle(stdin_fd) },
+            stdout: unsafe { minion::OutputSpecification::handle(stdout_fd) },
+            stderr: unsafe { minion::OutputSpecification::handle(stderr_fd) },
         },
         pwd: options.pwd.into(),
     };

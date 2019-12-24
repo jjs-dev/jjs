@@ -390,6 +390,7 @@ pub(crate) unsafe fn start_zygote(
         nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol failure");
         nix::unistd::close(return_allowed_r).unwrap();
         nix::unistd::close(return_allowed_w).unwrap();
+        nix::unistd::close(jail_options.watchdog_chan).unwrap();
         let startup_info = jail_common::ZygoteStartupInfo {
             socket: sock,
             zygote_pid: i32::from_ne_bytes(zygote_pid_bytes),

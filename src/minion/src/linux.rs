@@ -11,21 +11,17 @@ use crate::{
         pipe::{LinuxReadPipe, LinuxWritePipe},
         util::{err_exit, get_last_error, Handle, Pid},
     },
-    Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionPointerOwner, DominionRef,
-    InputSpecification, InputSpecificationData, OutputSpecification, OutputSpecificationData,
-    WaitOutcome,
+    Backend, ChildProcess, ChildProcessOptions, DominionOptions, DominionRef, InputSpecification,
+    InputSpecificationData, OutputSpecification, OutputSpecificationData, WaitOutcome,
 };
 use nix::sys::memfd;
 use snafu::ResultExt;
 use std::{
-    ffi::CString,
+    ffi::{CString, OsStr, OsString},
     fs,
     io::{Read, Write},
-    os::unix::{ffi::OsStrExt, io::IntoRawFd},
-    sync::{
-        atomic::{AtomicI64, Ordering},
-        Arc, Mutex,
-    },
+    os::unix::io::IntoRawFd,
+    sync::atomic::{AtomicI64, Ordering},
     time::{self, Duration},
 };
 
@@ -37,8 +33,7 @@ pub struct LinuxChildProcess {
     stdin: Option<Box<dyn Write + Send + Sync>>,
     stdout: Option<Box<dyn Read + Send + Sync>>,
     stderr: Option<Box<dyn Read + Send + Sync>>,
-    // Used to save dominion while CP is alive
-    _dominion_ref: DominionRef,
+    dominion_ref: DominionRef,
 
     pid: Pid,
 }
@@ -74,8 +69,7 @@ impl ChildProcess for LinuxChildProcess {
         if self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING {
             return Ok(WaitOutcome::AlreadyFinished);
         }
-        let mut d = self._dominion_ref.d.lock().unwrap();
-        let d = (*d).b.downcast_mut::<LinuxDominion>().unwrap();
+        let d = self.dominion_ref.downcast_linux();
         let wait_result = unsafe { d.poll_job(self.pid, timeout) };
         match wait_result {
             None => Ok(WaitOutcome::Timeout),
@@ -143,6 +137,19 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
     }
 }
 
+fn concat_env_item(k: &OsStr, v: &OsStr) -> OsString {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    let k = k.as_bytes();
+    let v = v.as_bytes();
+    let cap = k.len() + 1 + v.len();
+
+    let mut res = vec![0; cap];
+    res[0..k.len()].copy_from_slice(k);
+    res[k.len() + 1..].copy_from_slice(v);
+    res[k.len()] = b'=';
+    OsString::from_vec(res)
+}
+
 fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
     match spec.0 {
         OutputSpecificationData::Null => Ok((None, -1 as Handle)),
@@ -191,7 +198,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             environment: options
                 .environment
                 .iter()
-                .map(|(k, v)| (base64::encode(k.as_bytes()), v.clone()))
+                .map(|(k, v)| concat_env_item(&k, &v))
                 .collect(),
             pwd: options.pwd.clone(),
         };
@@ -207,8 +214,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             stdout: out_w,
             stderr: err_w,
         };
-        let mut d = options.dominion.d.lock().unwrap();
-        let d = d.b.downcast_mut::<LinuxDominion>().unwrap();
+        let d = options.dominion.downcast_linux();
 
         let spawn_result = d.spawn_job(q);
 
@@ -246,7 +252,7 @@ fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
             stdin,
             stdout,
             stderr,
-            _dominion_ref: options.dominion.clone(),
+            dominion_ref: options.dominion.clone(),
             pid: ret.pid,
         })
     }
@@ -258,10 +264,8 @@ pub struct LinuxBackend {}
 impl Backend for LinuxBackend {
     fn new_dominion(&self, mut options: DominionOptions) -> crate::Result<DominionRef> {
         options.postprocess();
-        let pd = Box::new(unsafe { LinuxDominion::create(options)? });
-        Ok(DominionRef {
-            d: Arc::new(Mutex::new(DominionPointerOwner { b: pd })),
-        })
+        let dmn = unsafe { LinuxDominion::create(options)? };
+        Ok(DominionRef::from(dmn))
     }
 
     fn spawn(&self, options: ChildProcessOptions) -> crate::Result<Box<dyn ChildProcess>> {

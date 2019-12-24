@@ -1,5 +1,5 @@
 use cfg_if::cfg_if;
-use minion;
+use minion::{self, Dominion};
 use std::time::Duration;
 use structopt::StructOpt;
 
@@ -112,6 +112,8 @@ if #[cfg(feature="human_panic")] {
 }
 
 fn main() {
+    // TODO
+    std::env::set_var("RUST_BACKTRACE", "1");
     setup_human_panic();
     let options: ExecOpt = ExecOpt::from_args();
     if options.dump_argv {
@@ -129,6 +131,12 @@ fn main() {
 
     let dominion = dominion.unwrap();
 
+    let (stdin_fd, stdout_fd, stderr_fd);
+    unsafe {
+        stdin_fd = libc::dup(0) as u64;
+        stdout_fd = libc::dup(1) as u64;
+        stderr_fd = libc::dup(2) as u64;
+    }
     let args = minion::ChildProcessOptions {
         path: options.executable.into(),
         arguments: options.argv.iter().map(|x| x.into()).collect(),
@@ -137,17 +145,11 @@ fn main() {
             .iter()
             .map(|v| (v.name.clone().into(), v.value.clone().into()))
             .collect(),
-        dominion,
+        dominion: dominion.clone(),
         stdio: minion::StdioSpecification {
-            stdin: unsafe {
-                minion::InputSpecification::handle(0 /* our stdin handle */)
-            },
-            stdout: unsafe {
-                minion::OutputSpecification::handle(1 /* our stdout handle */)
-            },
-            stderr: unsafe {
-                minion::OutputSpecification::handle(2 /* our stderr handle */)
-            },
+            stdin: unsafe { minion::InputSpecification::handle(stdin_fd) },
+            stdout: unsafe { minion::OutputSpecification::handle(stdout_fd) },
+            stderr: unsafe { minion::OutputSpecification::handle(stderr_fd) },
         },
         pwd: options.pwd.into(),
     };
@@ -157,6 +159,12 @@ fn main() {
     let cp = execution_manager.spawn(args).unwrap();
     let timeout = Duration::from_secs(3600);
     cp.wait_for_exit(timeout).unwrap();
-    let exit_code = cp.get_exit_code().unwrap().unwrap();
-    println!("---> Child process exited with code {} <---", exit_code);
+    let exit_code = cp.get_exit_code().unwrap();
+    println!("---> Child process exited with code {:?} <---", exit_code);
+    if dominion.check_cpu_tle().unwrap() {
+        println!("Note: CPU time limit was exceeded");
+    }
+    if dominion.check_real_tle().unwrap() {
+        println!("Note: wall-clock time limit was exceeded");
+    }
 }

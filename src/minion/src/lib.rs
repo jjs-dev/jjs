@@ -18,12 +18,11 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "linux")]
 pub use crate::linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
-use downcast_rs::impl_downcast;
 use std::{
     collections::HashMap,
     fmt::Debug,
     io::{Read, Write},
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -87,26 +86,71 @@ impl DominionOptions {
 }
 
 /// Represents highly-isolated sandbox
-pub trait Dominion: Debug + downcast_rs::Downcast {
+pub trait Dominion: Debug + std::any::Any + 'static {
+    fn as_any(&self) -> &(dyn std::any::Any + 'static)
+    where
+        Self: Sized,
+    {
+        self
+    }
+
     fn id(&self) -> String;
+
+    /// Returns true if dominion exceeded CPU time limit
+    fn check_cpu_tle(&self) -> Result<bool>;
+
+    /// Returns true if dominion exceeded wall-clock time limit
+    fn check_real_tle(&self) -> Result<bool>;
 }
-impl_downcast!(Dominion);
 
 #[derive(Debug)]
-struct DominionPointerOwner {
-    b: Box<dyn Dominion>,
+enum DominionRefInner {
+    Linux(LinuxDominion),
 }
 
-//unsafe impl Send for DominionPointerOwner {}
-
+/// Type-erased dominion
 #[derive(Clone, Debug)]
-pub struct DominionRef {
-    d: Arc<Mutex<DominionPointerOwner>>,
-}
+pub struct DominionRef(Arc<DominionRefInner>);
 
 impl DominionRef {
-    pub fn id(&self) -> String {
-        self.d.lock().unwrap().b.id()
+    // Private downcasting support
+
+    /// Downcast to LinuxDominion.
+    /// If `self` contains some other, this function will panic.
+    pub(crate) fn downcast_linux(&self) -> &LinuxDominion {
+        match &*self.0 {
+            DominionRefInner::Linux(lx) => lx,
+        }
+    }
+}
+
+impl From<LinuxDominion> for DominionRef {
+    fn from(lx: LinuxDominion) -> Self {
+        DominionRef(Arc::new(DominionRefInner::Linux(lx)))
+    }
+}
+
+impl std::ops::Deref for DominionRefInner {
+    type Target = dyn Dominion;
+
+    fn deref(&self) -> &dyn Dominion {
+        match self {
+            DominionRefInner::Linux(lx) => lx,
+        }
+    }
+}
+
+impl Dominion for DominionRef {
+    fn id(&self) -> String {
+        self.0.id()
+    }
+
+    fn check_cpu_tle(&self) -> Result<bool> {
+        self.0.check_cpu_tle()
+    }
+
+    fn check_real_tle(&self) -> Result<bool> {
+        self.0.check_real_tle()
     }
 }
 
@@ -261,6 +305,16 @@ mod errors {
 
         pub fn is_sandbox(&self) -> bool {
             self.kind() == ErrorKind::Sandbox
+        }
+    }
+
+    impl From<nix::Error> for Error {
+        fn from(err: nix::Error) -> Self {
+            if let Some(errno) = err.as_errno() {
+                Error::System { code: errno as i32 }
+            } else {
+                Error::Unknown
+            }
         }
     }
 }

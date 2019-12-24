@@ -3,24 +3,7 @@ use crate::linux::{
     util::{Handle, IpcSocketExt, Pid, StraceLogger},
     zygote::{setup, spawn_job, JobOptions, SetupData, Stdio, ZygoteOptions},
 };
-use std::{
-    ffi::{OsStr, OsString},
-    io::Write,
-    os::unix::ffi::{OsStrExt, OsStringExt},
-    time::Duration,
-};
-
-fn concat_env_item(k: &OsStr, v: &OsStr) -> OsString {
-    let k = k.as_bytes();
-    let v = v.as_bytes();
-    let cap = k.len() + 1 + v.len();
-
-    let mut res = vec![0; cap];
-    res[0..k.len()].copy_from_slice(k);
-    res[k.len() + 1..].copy_from_slice(v);
-    res[k.len()] = b'=';
-    OsString::from_vec(res)
-}
+use std::{io::Write, time::Duration};
 
 unsafe fn process_spawn_query(
     arg: &mut ZygoteOptions,
@@ -30,11 +13,7 @@ unsafe fn process_spawn_query(
     let mut logger = StraceLogger::new();
     write!(logger, "got Spawn request").ok();
     // Now we do some preprocessing.
-    let env: Vec<_> = options
-        .environment
-        .iter()
-        .map(|(k, v)| concat_env_item(OsStr::from_bytes(&base64::decode(k).unwrap()), v))
-        .collect();
+    let env: Vec<_> = options.environment.clone();
 
     let mut child_fds = arg
         .sock

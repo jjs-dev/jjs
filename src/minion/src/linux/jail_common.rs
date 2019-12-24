@@ -1,7 +1,10 @@
-use crate::{linux::util::Pid, PathExpositionOptions};
+use crate::{
+    linux::util::{Handle, Pid},
+    PathExpositionOptions,
+};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ffi::OsString, path::PathBuf, time::Duration};
+use std::{ffi::OsString, path::PathBuf, time::Duration};
 use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -16,6 +19,7 @@ pub(crate) struct JailOptions {
     pub(crate) isolation_root: PathBuf,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
     pub(crate) jail_id: String,
+    pub(crate) watchdog_chan: Handle,
 }
 
 pub(crate) fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {
@@ -39,7 +43,7 @@ pub(crate) fn gen_jail_id() -> String {
 pub(crate) struct JobQuery {
     pub(crate) image_path: PathBuf,
     pub(crate) argv: Vec<OsString>,
-    pub(crate) environment: HashMap<String, OsString>,
+    pub(crate) environment: Vec<OsString>,
     pub(crate) pwd: PathBuf,
 }
 
@@ -60,6 +64,7 @@ pub(crate) struct ZygoteStartupInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[repr(C)]
 pub(crate) enum Query {
     Exit,
     Spawn(JobQuery),

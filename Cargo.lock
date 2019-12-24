@@ -815,12 +815,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
-name = "downcast-rs"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52ba6eb47c2131e784a38b726eb54c1e1484904f013e576a25354d0124161af6"
-
-[[package]]
 name = "dtoa"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1792,9 +1786,7 @@ name = "minion"
 version = "0.1.0"
 dependencies = [
  "backtrace",
- "base64 0.11.0",
  "cfg-if",
- "downcast-rs",
  "errno",
  "libc",
  "nix 0.16.0",

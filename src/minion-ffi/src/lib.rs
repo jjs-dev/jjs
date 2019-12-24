@@ -113,7 +113,8 @@ pub struct TimeSpec {
 
 #[repr(C)]
 pub struct DominionOptions {
-    pub time_limit: TimeSpec,
+    pub cpu_time_limit: TimeSpec,
+    pub real_time_limit: TimeSpec,
     pub process_limit: u32,
     pub memory_limit: u32,
     pub isolation_root: *const c_char,
@@ -183,9 +184,13 @@ pub unsafe extern "C" fn minion_dominion_create(
     let opts = minion::DominionOptions {
         max_alive_process_count: options.process_limit as _,
         memory_limit: u64::from(options.memory_limit),
-        time_limit: std::time::Duration::new(
-            options.time_limit.seconds.into(),
-            options.time_limit.nanoseconds,
+        cpu_time_limit: std::time::Duration::new(
+            options.cpu_time_limit.seconds.into(),
+            options.cpu_time_limit.nanoseconds,
+        ),
+        real_time_limit: std::time::Duration::new(
+            options.real_time_limit.seconds.into(),
+            options.real_time_limit.nanoseconds,
         ),
         isolation_root: get_string(options.isolation_root).into(),
         exposed_paths,

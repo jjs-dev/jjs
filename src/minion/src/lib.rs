@@ -61,8 +61,10 @@ pub struct DominionOptions {
     pub max_alive_process_count: u32,
     /// Memory limit for all processes in cgroup, in bytes
     pub memory_limit: u64,
-    /// Specifies total CPU time for all dominion
-    pub time_limit: Duration,
+    /// Specifies total CPU time for whole dominion
+    pub cpu_time_limit: Duration,
+    /// Specifies total wall-clock timer limit for whole dominion
+    pub real_time_limit: Duration,
     pub isolation_root: PathBuf,
     pub exposed_paths: Vec<PathExpositionOptions>,
 }

@@ -126,7 +126,8 @@ fn main() {
         memory_limit: options.memory_limit as u64,
         isolation_root: options.isolation_root.into(),
         exposed_paths: options.exposed_paths,
-        time_limit: Duration::from_millis(u64::from(options.time_limit)),
+        cpu_time_limit: Duration::from_millis(u64::from(options.time_limit)),
+        real_time_limit: Duration::from_millis(u64::from(options.time_limit * 3)),
     });
 
     let dominion = dominion.unwrap();

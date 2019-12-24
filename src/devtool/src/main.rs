@@ -3,12 +3,13 @@
 mod build;
 mod check;
 mod ci;
+mod glob_util;
 mod tests;
 
-use std::{env::set_current_dir, path::Path};
+use std::{env::set_current_dir, path::Path, process::Command};
 use structopt::StructOpt;
 use tests::{task_test, TestArgs};
-use util::cmd::Runner;
+use util::cmd::{CommandExt, Runner};
 
 #[derive(StructOpt)]
 enum CliArgs {
@@ -22,6 +23,8 @@ enum CliArgs {
     Build(build::RawBuildOpts),
     /// remove target files, related to JJS. This should prevent cache invalidation
     CiClean,
+    /// Format C++ code
+    FmtCpp,
 }
 
 fn task_clean() {
@@ -91,6 +94,17 @@ fn task_ci_clean() {
     process_dir(Path::new("target/debug/incremental"));
 }
 
+fn task_cpp_fmt(runner: &Runner) {
+    let items = crate::glob_util::find_items(crate::glob_util::ItemKind::Cpp);
+    let mut cmd = Command::new("clang-format");
+    // edit files in place
+    cmd.arg("-i");
+    for item in items {
+        cmd.arg(item);
+    }
+    cmd.run_on(runner);
+}
+
 fn main() {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
@@ -118,6 +132,10 @@ fn main() {
             None
         }
         CliArgs::Build(opts) => build::task_build(opts, &runner).err(),
+        CliArgs::FmtCpp => {
+            task_cpp_fmt(&runner);
+            None
+        }
     };
     if let Some(err) = err {
         eprintln!("Error: {:?}", err);

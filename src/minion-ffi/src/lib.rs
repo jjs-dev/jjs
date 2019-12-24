@@ -1,10 +1,10 @@
 #![feature(try_trait)]
 
-use minion;
+use minion::{self, Dominion as _};
 use std::{
     collections::HashMap,
     ffi::{CStr, OsStr, OsString},
-    mem,
+    mem::{self},
     os::raw::c_char,
 };
 
@@ -20,6 +20,25 @@ pub enum ErrorCode {
     InvalidInput,
     /// unknown error
     Unknown,
+}
+
+/// Get string description of given `error_code`, returned by minion-ffi previously.
+/// Returns char const* pointer with static lifetime. This pointer must not be freed.
+/// Description is guaranteed to be null-terminated ASCII string
+#[no_mangle]
+pub extern "C" fn minion_describe_status(error_code: ErrorCode) -> *const u8 {
+    match error_code {
+        ErrorCode::Ok => b"ok\0".as_ptr(),
+        ErrorCode::InvalidInput => b"invalid input\0".as_ptr(),
+        ErrorCode::Unknown => b"unknown error\0".as_ptr(),
+    }
+}
+
+#[repr(i32)]
+pub enum WaitOutcome {
+    Exited,
+    AlreadyFinished,
+    Timeout,
 }
 
 unsafe fn get_string(buf: *const c_char) -> OsString {
@@ -98,11 +117,43 @@ pub struct DominionOptions {
     pub process_limit: u32,
     pub memory_limit: u32,
     pub isolation_root: *const c_char,
-    pub shared_directories: *mut SharedDirectoryAccess,
+    pub shared_directories: *const SharedDirectoryAccess,
 }
 
 #[derive(Clone)]
 pub struct Dominion(minion::DominionRef);
+
+/// # Safety
+/// `out` must be valid
+#[no_mangle]
+pub unsafe extern "C" fn minion_dominion_check_cpu_tle(
+    dominion: &Dominion,
+    out: *mut bool,
+) -> ErrorCode {
+    match dominion.0.check_cpu_tle() {
+        Ok(st) => {
+            out.write(st);
+            ErrorCode::Ok
+        }
+        Err(_) => ErrorCode::Unknown,
+    }
+}
+
+/// # Safety
+/// `out` must be valid
+#[no_mangle]
+pub unsafe extern "C" fn minion_dominion_check_real_tle(
+    dominion: &Dominion,
+    out: *mut bool,
+) -> ErrorCode {
+    match dominion.0.check_real_tle() {
+        Ok(st) => {
+            out.write(st);
+            ErrorCode::Ok
+        }
+        Err(_) => ErrorCode::Unknown,
+    }
+}
 
 /// # Safety
 /// Provided arguments must be well-formed
@@ -188,12 +239,12 @@ pub struct StdioHandleSet {
 
 #[repr(C)]
 pub struct ChildProcessOptions {
-    pub image_path: *mut c_char,
-    pub argv: *mut *mut c_char,
-    pub envp: *mut EnvItem,
+    pub image_path: *const c_char,
+    pub argv: *const *const c_char,
+    pub envp: *const EnvItem,
     pub stdio: StdioHandleSet,
     pub dominion: *mut Dominion,
-    pub workdir: *mut c_char,
+    pub workdir: *const c_char,
 }
 
 #[repr(C)]
@@ -232,14 +283,15 @@ pub unsafe extern "C" fn minion_cp_spawn(
 ) -> ErrorCode {
     let mut arguments = Vec::new();
     {
-        let p = options.argv;
+        let mut p = options.argv;
         while !(*p).is_null() {
             arguments.push(get_string(*p));
+            p = p.offset(1);
         }
     }
     let mut environment = HashMap::new();
     {
-        let p = options.envp;
+        let mut p = options.envp;
         while !(*p).name.is_null() {
             let name = get_string((*p).name);
             let value = get_string((*p).value);
@@ -247,6 +299,7 @@ pub unsafe extern "C" fn minion_cp_spawn(
                 return ErrorCode::InvalidInput;
             }
             environment.insert(name, value);
+            p = p.offset(1);
         }
     }
     let stdio = minion::StdioSpecification {
@@ -266,5 +319,80 @@ pub unsafe extern "C" fn minion_cp_spawn(
     let cp = ChildProcess(cp);
     let cp = Box::new(cp);
     *out = Box::into_raw(cp);
+    ErrorCode::Ok
+}
+
+/// Wait for process exit, with timeout.
+/// # Safety
+/// Provided pointers must be valid
+#[no_mangle]
+#[must_use]
+pub unsafe extern "C" fn minion_cp_wait(
+    cp: &mut ChildProcess,
+    timeout: &TimeSpec,
+    out: *mut WaitOutcome,
+) -> ErrorCode {
+    let ans = cp.0.wait_for_exit(std::time::Duration::new(
+        timeout.seconds.into(),
+        timeout.nanoseconds,
+    ));
+    match ans {
+        Result::Ok(ans) => {
+            let outcome = match ans {
+                minion::WaitOutcome::Exited => WaitOutcome::Exited,
+                minion::WaitOutcome::AlreadyFinished => WaitOutcome::AlreadyFinished,
+                minion::WaitOutcome::Timeout => WaitOutcome::Timeout,
+            };
+            out.write(outcome);
+            ErrorCode::Ok
+        }
+        Result::Err(_) => ErrorCode::Unknown,
+    }
+}
+
+#[no_mangle]
+pub static EXIT_CODE_STILL_RUNNING: i64 = 1234_4321;
+
+/// # Safety
+/// Provided pointers must be valid
+#[no_mangle]
+#[must_use]
+pub unsafe extern "C" fn minion_cp_exitcode(
+    cp: &mut ChildProcess,
+    out: *mut i64,
+    finish_flag: *mut bool,
+) -> ErrorCode {
+    match cp.0.get_exit_code() {
+        Result::Ok(exit_code) => {
+            if let Some(code) = exit_code {
+                out.write(code);
+            } else {
+                out.write(EXIT_CODE_STILL_RUNNING)
+            }
+            if !finish_flag.is_null() {
+                finish_flag.write(exit_code.is_some());
+            }
+            ErrorCode::Ok
+        }
+        Result::Err(_) => ErrorCode::Unknown,
+    }
+}
+
+#[no_mangle]
+#[must_use]
+pub extern "C" fn minion_cp_kill(cp: &mut ChildProcess) -> ErrorCode {
+    let ans = cp.0.kill();
+    match ans {
+        Result::Ok(_) => ErrorCode::Ok,
+        Result::Err(_) => ErrorCode::Unknown,
+    }
+}
+
+/// # Safety
+/// `cp` must be valid pointer to ChildProcess object, allocated by `minion_cp_spawn`
+#[no_mangle]
+#[must_use]
+pub unsafe extern "C" fn minion_cp_free(cp: *mut ChildProcess) -> ErrorCode {
+    mem::drop(Box::from_raw(cp));
     ErrorCode::Ok
 }

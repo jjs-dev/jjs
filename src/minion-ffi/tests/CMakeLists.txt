@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(JjsMinionFfiExample)
+project(JjsMinionFfiTests)
 
 set(MINION_HEADER ${CMAKE_CURRENT_BINARY_DIR}/minion-ffi.h)
 set(CRATE ${CMAKE_SOURCE_DIR}/..)
@@ -11,7 +11,7 @@ add_custom_target(minion_ffi_headers
 add_custom_target(minion_ffi
         COMMAND cargo build WORKING_DIRECTORY ${CRATE})
 add_dependencies(minion_ffi_headers minion_ffi)
-add_executable(example main.c)
-target_include_directories(example PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(example PUBLIC ${JJS_TARGET_DIR}/debug/libminion_ffi.a pthread rt dl m)
-add_dependencies(example minion_ffi minion_ffi_headers)
+add_executable(mft tests.c runner.c)
+target_include_directories(mft PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(mft PUBLIC ${JJS_TARGET_DIR}/debug/libminion_ffi.a pthread rt dl m)
+add_dependencies(mft minion_ffi minion_ffi_headers)

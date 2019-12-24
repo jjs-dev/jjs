@@ -1,4 +1,7 @@
-use crate::{linux::util::Pid, PathExpositionOptions};
+use crate::{
+    linux::util::{Handle, Pid},
+    PathExpositionOptions,
+};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, path::PathBuf, time::Duration};
@@ -16,6 +19,7 @@ pub(crate) struct JailOptions {
     pub(crate) isolation_root: PathBuf,
     pub(crate) exposed_paths: Vec<PathExpositionOptions>,
     pub(crate) jail_id: String,
+    pub(crate) watchdog_chan: Handle,
 }
 
 pub(crate) fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {

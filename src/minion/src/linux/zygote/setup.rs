@@ -210,7 +210,7 @@ unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
 unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     let cpu_tl = jail_options.time_limit.as_nanos() as u64;
     let real_tl = jail_options.wall_time_limit.as_nanos() as u64;
-    observe_time(&jail_options.jail_id, cpu_tl, real_tl)
+    observe_time(&jail_options.jail_id, cpu_tl, real_tl, jail_options.watchdog_chan)
 }
 
 unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
@@ -264,7 +264,12 @@ pub(crate) unsafe fn setup(
 
 /// Internal function, kills processes which used all their CPU time limit.
 /// Limits are given in nanoseconds
-unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit: u64) -> ! {
+unsafe fn cpu_time_observer(
+    jail_id: &str,
+    cpu_time_limit: u64,
+    real_time_limit: u64,
+    chan: std::os::unix::io::RawFd,
+) -> ! {
     let start = time::Instant::now();
     loop {
         libc::sleep(1);
@@ -283,6 +288,11 @@ unsafe fn cpu_time_observer(jail_id: &str, cpu_time_limit: u64, real_time_limit:
         if ok {
             continue;
         }
+        if was_cpu_tle {
+            nix::unistd::write(chan, b"c").ok();
+        } else if was_real_tle {
+            nix::unistd::write(chan, b"r").ok();
+        }
         // since we are inside pid ns, we can refer to zygote as pid1.
         jail_common::dominion_kill_all(1 as Pid).unwrap();
         // we will be killed by kernel too
@@ -293,6 +303,7 @@ unsafe fn observe_time(
     jail_id: &str,
     cpu_time_limit: u64,
     real_time_limit: u64,
+    chan: crate::linux::util::Handle
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {
@@ -302,7 +313,7 @@ unsafe fn observe_time(
         .fail()?;
     }
     if fret == 0 {
-        cpu_time_observer(jail_id, cpu_time_limit, real_time_limit)
+        cpu_time_observer(jail_id, cpu_time_limit, real_time_limit, chan)
     } else {
         Ok(())
     }

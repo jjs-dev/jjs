@@ -1,5 +1,5 @@
 //! Judge log stored in FS
-use invoker_api::valuer_proto::SubtaskId;
+use invoker_api::valuer_proto::{JudgeLogKind, SubtaskId};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct JudgeLogTestRow {
@@ -19,7 +19,7 @@ pub(crate) struct JudgeLogSubtaskRow {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct JudgeLog {
-    pub(crate) name: String,
+    pub(crate) kind: JudgeLogKind,
     pub(crate) tests: Vec<JudgeLogTestRow>,
     pub(crate) subtasks: Vec<JudgeLogSubtaskRow>,
     pub(crate) compile_stdout: String,
@@ -29,7 +29,7 @@ pub(crate) struct JudgeLog {
 impl Default for JudgeLog {
     fn default() -> Self {
         Self {
-            name: "<default judge log>".to_string(),
+            kind: JudgeLogKind::Contestant,
             tests: vec![],
             subtasks: vec![],
             compile_stdout: String::new(),

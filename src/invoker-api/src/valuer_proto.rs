@@ -43,10 +43,20 @@ pub struct JudgeLogSubtaskRow {
     pub components: SubtaskVisibleComponents,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub enum JudgeLogKind {
+    /// Contains all tests.
+    /// Test can be omitted, if staring it was speculation.
+    Full,
+    /// Contains judge log for contestant
+    /// Valuer should respect various restrictions specified in config.
+    Contestant,
+}
+
 /// Judge log from valuer POV
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLog {
-    pub name: String,
+    pub kind: JudgeLogKind,
     pub tests: Vec<JudgeLogTestRow>,
     pub subtasks: Vec<JudgeLogSubtaskRow>,
 }

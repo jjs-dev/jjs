@@ -100,7 +100,7 @@ impl<'a> SimpleValuer<'a> {
             judge_log: valuer_proto::JudgeLog {
                 tests: vec![],
                 subtasks: vec![],
-                name: "todo".to_string(),
+                kind: valuer_proto::JudgeLogKind::Contestant,
             },
         })
     }

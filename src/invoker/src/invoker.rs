@@ -275,7 +275,7 @@ impl<'a> Invoker<'a> {
         use invoker_api::valuer_proto::TestVisibleComponents;
         use std::io::Read;
         let mut persistent_judge_log = crate::judge_log::JudgeLog::default();
-        persistent_judge_log.name = valuer_log.name.clone();
+        persistent_judge_log.kind = valuer_log.kind.clone();
         // now fill compile_stdout and compile_stderr in judge_log
         {
             let mut compile_stdout = Vec::new();
@@ -399,7 +399,7 @@ impl<'a> Invoker<'a> {
             outcome = Some(tests_outcome);
         } else {
             valuer_judge_log = invoker_api::valuer_proto::JudgeLog {
-                name: "".to_string(),
+                kind: invoker_api::valuer_proto::JudgeLogKind::Contestant,
                 tests: vec![],
                 subtasks: vec![],
             };

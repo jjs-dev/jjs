@@ -40,7 +40,7 @@ impl MockDriver {
     }
 
     fn exec(&mut self) {
-        let val = SimpleValuer::new(self).unwrap();
+        let val = SimpleValuer::new(self, &crate::cfg::Config { open_test_count: 1 }).unwrap();
         val.exec().unwrap();
     }
 }
@@ -84,7 +84,7 @@ mod low_level {
             .add_none_notify()
             .add_response(ValuerResponse::Test {
                 test_id: TestId::make(2),
-                live: true,
+                live: false,
             })
             .add_notify(TestDoneNotification {
                 test_id: TestId::make(2),

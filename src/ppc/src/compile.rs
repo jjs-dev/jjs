@@ -270,7 +270,7 @@ impl<'a> ProblemBuilder<'a> {
         if let Some(valuer_cfg) = &self.cfg.valuer_cfg {
             println!("Valuer config");
             let src = self.problem_dir.join(valuer_cfg.trim_start_matches('/'));
-            let dest = valuer_cfg_dir.join("cfg.ini");
+            let dest = valuer_cfg_dir.join("cfg.toml");
             std::fs::create_dir(&valuer_cfg_dir)?;
             if src.is_file() {
                 std::fs::copy(&src, &dest)?;

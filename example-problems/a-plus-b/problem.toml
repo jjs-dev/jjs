@@ -4,7 +4,7 @@ name = "a-plus-b"
 title = "P == NP?" # Clickbait :)
 random-seed = "09c5d2237e9b0e60"
 valuer = "icpc"
-valuer-cfg = "valuer.ini"
+valuer-cfg = "valuer.toml"
 
 [builtin-check]
 name = "cmp-tokens"

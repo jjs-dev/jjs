@@ -199,8 +199,8 @@ impl<'a> Invoker<'a> {
         valuer
             .write_problem_data()
             .context("failed to send problem data")?;
-
-        let (score, treat_as_full, judge_log) = loop {
+        let mut judge_logs = Vec::new();
+        let (score, treat_as_full) = loop {
             match valuer.poll()? {
                 ValuerResponse::Test { test_id: tid, live } => {
                     if live {
@@ -242,13 +242,13 @@ impl<'a> Invoker<'a> {
                 ValuerResponse::Finish {
                     score,
                     treat_as_full,
-                    judge_log,
                 } => {
-                    break (score, treat_as_full, judge_log);
+                    break (score, treat_as_full);
                 }
                 ValuerResponse::LiveScore { score } => {
                     self.notifier.set_score(score);
                 }
+                ValuerResponse::JudgeLog { judge_log } => judge_logs.push(judge_log),
             }
         };
 
@@ -264,7 +264,7 @@ impl<'a> Invoker<'a> {
             }
         };
         let outcome = InvokeOutcome { status, score };
-        Ok((outcome, judge_log))
+        Ok((outcome, judge_logs.pop().unwrap_or_else(|| todo!())))
     }
 
     /// Go from valuer judge log to invoker judge log

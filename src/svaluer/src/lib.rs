@@ -7,7 +7,7 @@ mod tests;
 pub mod cfg;
 
 use anyhow::{Context, Result};
-use invoker_api::valuer_proto::{self, ProblemInfo, TestDoneNotification, ValuerResponse};
+use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use pom::TestId;
 use std::collections::{HashMap, HashSet, VecDeque};
 /// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting with environment, such as JJS invoker.
@@ -97,11 +97,6 @@ impl<'a> SimpleValuer<'a> {
         self.driver.send_command(&ValuerResponse::Finish {
             score: self.score,
             treat_as_full: self.score == self.max_score,
-            judge_log: valuer_proto::JudgeLog {
-                tests: vec![],
-                subtasks: vec![],
-                kind: valuer_proto::JudgeLogKind::Contestant,
-            },
         })
     }
 

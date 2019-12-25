@@ -51,7 +51,6 @@ mod term_driver {
             match resp {
                 valuer_proto::ValuerResponse::Finish {
                     score,
-                    judge_log,
                     treat_as_full,
                 } => {
                     println!("Judging finished");
@@ -61,8 +60,6 @@ mod term_driver {
                     } else {
                         println!("Partial solution");
                     }
-                    // TODO print judge log too
-                    let _ = judge_log;
                 }
                 valuer_proto::ValuerResponse::LiveScore { score } => {
                     println!("Current score: {}", *score);
@@ -74,6 +71,9 @@ mod term_driver {
                     }
                     let not_dup = self.current_tests.insert(*test_id);
                     assert!(not_dup);
+                }
+                valuer_proto::ValuerResponse::JudgeLog { .. } => {
+                    // TODO print judge log
                 }
             }
             Ok(())

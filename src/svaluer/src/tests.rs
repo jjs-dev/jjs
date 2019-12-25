@@ -93,11 +93,6 @@ mod low_level {
             .add_response(ValuerResponse::Finish {
                 score: 2,
                 treat_as_full: true,
-                judge_log: invoker_api::valuer_proto::JudgeLog {
-                    kind: invoker_api::valuer_proto::JudgeLogKind::Contestant,
-                    tests: vec![],
-                    subtasks: vec![],
-                },
             })
             .exec();
     }
@@ -117,11 +112,6 @@ mod low_level {
             .add_response(ValuerResponse::Finish {
                 score: 0,
                 treat_as_full: false,
-                judge_log: invoker_api::valuer_proto::JudgeLog {
-                    kind: invoker_api::valuer_proto::JudgeLogKind::Contestant,
-                    tests: vec![],
-                    subtasks: vec![],
-                },
             })
             .exec();
     }

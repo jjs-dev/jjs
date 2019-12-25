@@ -78,10 +78,14 @@ pub enum ValuerResponse {
         test_id: TestId,
         live: bool,
     },
+    /// Sent when judge log ready
+    /// Judge log of each kind must be sent at most once
+    JudgeLog {
+        judge_log: JudgeLog,
+    },
     Finish {
         score: u32,
         treat_as_full: bool,
-        judge_log: JudgeLog,
     },
     LiveScore {
         score: u32,

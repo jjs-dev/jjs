@@ -113,7 +113,7 @@ pub fn wait() {
                             .next()
                             .expect("empty socket addrs resolved"),
                         Err(err) => {
-                            eprintln!("resolution failed: {}", err);
+                            eprintln!("failed to resolve {}: {}", item_url, err);
                             std::process::exit(1);
                         }
                     };

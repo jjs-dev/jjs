@@ -6,6 +6,7 @@ use std::collections::HashSet;
 /// CLI-based driver, useful for manual testing valuer config
 struct TermDriver {
     current_tests: HashSet<TestId>,
+    full_judge_log: Option<invoker_api::valuer_proto::JudgeLog>,
 }
 
 mod term_driver {
@@ -40,6 +41,7 @@ mod term_driver {
             }
         }
     }
+
     impl svaluer::ValuerDriver for TermDriver {
         fn problem_info(&mut self) -> Result<valuer_proto::ProblemInfo> {
             let test_count = read_value("test count")?;
@@ -49,13 +51,12 @@ mod term_driver {
 
         fn send_command(&mut self, resp: &valuer_proto::ValuerResponse) -> Result<()> {
             match resp {
-                valuer_proto::ValuerResponse::Finish {
-                    score,
-                    treat_as_full,
-                } => {
+                valuer_proto::ValuerResponse::Finish => {
+                    let judge_log = self.full_judge_log.take().expect("full judge log missing");
+
                     println!("Judging finished");
-                    println!("Score: {}", *score);
-                    if *treat_as_full {
+                    println!("Score: {}", judge_log.score);
+                    if judge_log.is_full {
                         println!("Full solution");
                     } else {
                         println!("Partial solution");
@@ -234,6 +235,7 @@ fn parse_config() -> anyhow::Result<svaluer::cfg::Config> {
 fn main_cli_mode() -> anyhow::Result<()> {
     let mut driver = TermDriver {
         current_tests: HashSet::new(),
+        full_judge_log: None,
     };
     let cfg = parse_config()?;
     let valuer = svaluer::SimpleValuer::new(&mut driver, &cfg)?;

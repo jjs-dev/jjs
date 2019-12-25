@@ -59,6 +59,8 @@ pub struct JudgeLog {
     pub kind: JudgeLogKind,
     pub tests: Vec<JudgeLogTestRow>,
     pub subtasks: Vec<JudgeLogSubtaskRow>,
+    pub score: u32,
+    pub is_full: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,13 +82,8 @@ pub enum ValuerResponse {
     },
     /// Sent when judge log ready
     /// Judge log of each kind must be sent at most once
-    JudgeLog {
-        judge_log: JudgeLog,
-    },
-    Finish {
-        score: u32,
-        treat_as_full: bool,
-    },
+    JudgeLog(JudgeLog),
+    Finish,
     LiveScore {
         score: u32,
     },

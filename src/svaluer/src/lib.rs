@@ -94,10 +94,7 @@ impl<'a> SimpleValuer<'a> {
                 continue;
             }
         }
-        self.driver.send_command(&ValuerResponse::Finish {
-            score: self.score,
-            treat_as_full: self.score == self.max_score,
-        })
+        self.driver.send_command(&ValuerResponse::Finish)
     }
 
     fn process_notification(&mut self, notification: TestDoneNotification) {

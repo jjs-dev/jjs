@@ -30,7 +30,7 @@ base64 = "0.11.0"
 bitflags = "1.2.1"
 util = {path = "../util"}
 slog-scope = "4.3.0"
-anyhow = "1.0.25"
+anyhow = "1.0.26"
 thiserror = "1.0.9"
 reqwest = "0.9.24"
 

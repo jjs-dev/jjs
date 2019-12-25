@@ -1,4 +1,5 @@
 //! Simple valuer
+use anyhow::Context;
 use pom::TestId;
 use std::collections::HashSet;
 
@@ -224,17 +225,25 @@ mod json_driver {
     }
 }
 
+fn parse_config() -> anyhow::Result<svaluer::cfg::Config> {
+    let path = std::path::Path::new("cfg.toml");
+    let data = std::fs::read_to_string(path).context("failed to read cfg.toml")?;
+    Ok(toml::from_str(&data).context("failed to parse config")?)
+}
+
 fn main_cli_mode() -> anyhow::Result<()> {
     let mut driver = TermDriver {
         current_tests: HashSet::new(),
     };
-    let valuer = svaluer::SimpleValuer::new(&mut driver)?;
+    let cfg = parse_config()?;
+    let valuer = svaluer::SimpleValuer::new(&mut driver, &cfg)?;
     valuer.exec()
 }
 
 fn main_json_mode() -> anyhow::Result<()> {
     let mut driver = JsonDriver::new();
-    let valuer = svaluer::SimpleValuer::new(&mut driver)?;
+    let cfg = parse_config()?;
+    let valuer = svaluer::SimpleValuer::new(&mut driver, &cfg)?;
     valuer.exec()
 }
 

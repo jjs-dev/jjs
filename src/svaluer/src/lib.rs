@@ -4,6 +4,8 @@
 #[cfg(test)]
 mod tests;
 
+pub mod cfg;
+
 use anyhow::{Context, Result};
 use invoker_api::valuer_proto::{self, ProblemInfo, TestDoneNotification, ValuerResponse};
 use pom::TestId;
@@ -20,6 +22,7 @@ pub trait ValuerDriver {
 
 /// SValuer itself
 pub struct SimpleValuer<'a> {
+    cfg: &'a cfg::Config,
     driver: &'a mut dyn ValuerDriver,
     test_storage: TestStorage,
     score: u32,
@@ -27,8 +30,15 @@ pub struct SimpleValuer<'a> {
     running_tests: u32,
 }
 
-impl SimpleValuer<'_> {
-    pub fn new(driver: &mut dyn ValuerDriver) -> anyhow::Result<SimpleValuer> {
+struct TestInfo {
+    live: bool,
+}
+
+impl<'a> SimpleValuer<'a> {
+    pub fn new(
+        driver: &'a mut dyn ValuerDriver,
+        cfg: &'a cfg::Config,
+    ) -> anyhow::Result<SimpleValuer<'a>> {
         let problem_info = driver
             .problem_info()
             .context("failed to query problem info")?;
@@ -39,6 +49,7 @@ impl SimpleValuer<'_> {
             score: 0,
             max_score: problem_info.test_count,
             running_tests: 0,
+            cfg,
         })
     }
 
@@ -46,6 +57,19 @@ impl SimpleValuer<'_> {
         let has_running_tests = self.running_tests != 0;
         let has_runnable_tests = !self.test_storage.queue.is_empty();
         has_runnable_tests || has_running_tests
+    }
+
+    fn describe_test(&self, test: TestId) -> TestInfo {
+        let live = test.get() <= self.cfg.open_test_count;
+        TestInfo { live }
+    }
+
+    fn create_run_on_test_query(&self, test_id: TestId) -> ValuerResponse {
+        let test_info = self.describe_test(test_id);
+        ValuerResponse::Test {
+            test_id,
+            live: test_info.live,
+        }
     }
 
     /// Runs to valuing completion
@@ -62,10 +86,7 @@ impl SimpleValuer<'_> {
             }
             // do we have tests to run ?
             if let Some(tid) = self.test_storage.poll_test() {
-                let resp = ValuerResponse::Test {
-                    test_id: tid,
-                    live: true,
-                };
+                let resp = self.create_run_on_test_query(tid);
                 self.running_tests += 1;
                 self.driver
                     .send_command(&resp)

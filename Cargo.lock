@@ -3209,6 +3209,7 @@ dependencies = [
  "pom",
  "serde",
  "serde_json",
+ "toml 0.5.5",
 ]
 
 [[package]]

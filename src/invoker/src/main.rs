@@ -9,7 +9,7 @@ mod judge_log;
 mod os_util;
 mod valuer;
 
-use crate::{invoke_context::MainInvokeContext, invoke_env::InvokeEnv};
+use crate::{inter_api::InvokeOutcome, invoke_context::MainInvokeContext, invoke_env::InvokeEnv};
 use anyhow::{bail, Context};
 use cfg_if::cfg_if;
 use db::schema::Invocation;
@@ -66,17 +66,17 @@ if #[cfg(target_os="linux")] {
     }
 }
 }
-
+// TODO: status_kind, status_code and score should be removed from `run` table.
 fn set_run_judge_outcome(
     conn: &dyn db::DbConn,
     run_id: i32,
-    outcome: invoker::InvokeOutcome,
+    outcome: InvokeOutcome,
     request: &InvokeTask,
 ) -> anyhow::Result<()> {
     let run_patch = db::schema::RunPatch {
-        status_code: Some(outcome.status.code.to_string()),
-        status_kind: Some(outcome.status.kind.to_string()),
-        score: Some(outcome.score as i32),
+        status_code: outcome.status().map(|s| s.code.to_string()),
+        status_kind: outcome.status().map(|s| s.kind.to_string()),
+        score: Some(outcome.score() as i32),
         rejudge_id: Some(request.revision as i32),
     };
 
@@ -176,7 +176,7 @@ impl Server {
         Ok(())
     }
 
-    fn process_invoke_request(&self, request: &InvokeRequest) -> invoker::InvokeOutcome {
+    fn process_invoke_request(&self, request: &InvokeRequest) -> InvokeOutcome {
         let invoke_data = InvokeEnv {
             minion_backend: &*self.backend,
             cfg: &self.config,
@@ -189,20 +189,13 @@ impl Server {
         let invoke_ctx = MainInvokeContext { env: invoke_data };
         let invoker = Invoker::new(&invoke_ctx, request);
         debug!("Executing invoker request"; "request" => ?request, "run" => ?request.run.props.id, "workdir" => ?request.work_dir.path().display());
-        let status = invoker.invoke().unwrap_or_else(|err| {
+        let invoke_outcome = invoker.invoke().unwrap_or_else(|err| {
             error!("Judge fault: {:?}", err);
-            let st = invoker_api::Status {
-                kind: invoker_api::StatusKind::InternalError,
-                code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
-            };
-            invoker::InvokeOutcome {
-                status: st,
-                score: 0,
-            }
+            InvokeOutcome::Fault
         });
 
-        debug!("Judging finished"; "outcome" => ?status, "run-id" => ?request.run.props.id);
-        status
+        debug!("Judging finished"; "outcome" => ?invoke_outcome.status(), "run-id" => ?request.run.props.id);
+        invoke_outcome
     }
 
     /// This functions queries all related data about run and returns InvokeRequest

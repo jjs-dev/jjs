@@ -102,6 +102,11 @@ impl Dominion for LinuxDominion {
         self.poll_state()?;
         Ok(self.state.was_wall_tle.load(SeqCst))
     }
+
+    fn kill(&self) -> crate::Result<()> {
+        jail_common::dominion_kill_all(self.zygote_pid)?;
+        Ok(())
+    }
 }
 
 /// Mount options.
@@ -177,11 +182,6 @@ impl LinuxDominion {
         })
     }
 
-    pub(crate) fn exit(&self) -> crate::Result<()> {
-        jail_common::dominion_kill_all(self.zygote_pid)?;
-        Ok(())
-    }
-
     pub(crate) unsafe fn spawn_job(
         &self,
         query: ExtendedJobQuery,
@@ -217,7 +217,7 @@ impl Drop for LinuxDominion {
     fn drop(&mut self) {
         use std::os::unix::ffi::OsStrExt;
         // Kill all processes.
-        self.exit().ok();
+        self.kill().ok();
         // Remove cgroups.
         for subsys in &["pids", "memory", "cpuacct"] {
             fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id)).ok();

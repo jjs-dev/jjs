@@ -18,6 +18,8 @@ struct test {
     const char* name;
     void (*func)(void);
     const char* expected_output;
+    int tl;
+    int il;
 };
 
 const extern struct test tests[];

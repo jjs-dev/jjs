@@ -158,6 +158,9 @@ impl LinuxDominion {
         let mut read_end = 0;
         let mut write_end = 0;
         setup_pipe(&mut read_end, &mut write_end)?;
+        if -1 == libc::fcntl(read_end, libc::F_SETFL, libc::O_NONBLOCK) {
+            err_exit("fcntl");
+        }
         let jail_options = jail_common::JailOptions {
             max_alive_process_count: options.max_alive_process_count,
             memory_limit: options.memory_limit,

@@ -89,13 +89,6 @@ impl DominionOptions {
 
 /// Represents highly-isolated sandbox
 pub trait Dominion: Debug + std::any::Any + 'static {
-    fn as_any(&self) -> &(dyn std::any::Any + 'static)
-    where
-        Self: Sized,
-    {
-        self
-    }
-
     fn id(&self) -> String;
 
     /// Returns true if dominion exceeded CPU time limit

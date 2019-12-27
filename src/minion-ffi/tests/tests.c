@@ -40,11 +40,12 @@ void test_consume_memory() {
 }
 
 const struct test tests[] = {
-    {"tl", test_tl, "TL\n"},
-    {"tl_fork", test_tl_fork, "TL\n"},
-    {"il", test_il, "ILE\n"},
-    {"abort", test_abort, "exit code -6\n"},
-    {"return1", test_return_1, "exit code 1\n"},
-    {"ok", test_ok, "exit code 0\n"},
-    {"consume_memory", test_consume_memory, "exit code -9\n"},
+    {"tl", test_tl, "TL\n", 1, 2},
+    {"tl_fork", test_tl_fork, "TL\n", 1, 2},
+    {"il", test_il, "ILE\n", 1, 2},
+    {"abort", test_abort, "exit code -6\n", 1, 2},
+    {"return1", test_return_1, "exit code 1\n", 1, 2},
+    {"ok", test_ok, "exit code 0\n", 1, 2},
+    {"consume_memory", test_consume_memory, "exit code -9\n", 1, 2},
+    {"wait_timeout", test_il, "Wait timed out\n", 1, 10},
     {NULL, NULL, NULL}};

@@ -38,7 +38,9 @@ static inline void assert_write(char const* where, int fd, char const* buf,
 
 #define assert_write(...) call_where(assert_write, __VA_ARGS__)
 
-void run_test(const char* self, const char* dir, const char* test_name) {
+#include "tests.h"
+
+void run_test(const char* self, const char* dir, const char* test_name, const struct test* test) {
     int devnull_fd = open("/dev/null", O_RDWR);
     verify_ok(minion_lib_init());
     struct Minion_Backend* bk;
@@ -47,8 +49,8 @@ void run_test(const char* self, const char* dir, const char* test_name) {
     verify_ok(minion_dominion_create(
         bk,
         (struct Minion_DominionOptions) {
-            .cpu_time_limit = {1, 0},
-            .real_time_limit = {2, 0},
+            .cpu_time_limit = {test->tl, 0},
+            .real_time_limit = {test->il, 0},
             .process_limit = 1,
             .memory_limit = 0x40000000,
             .isolation_root = dir,
@@ -74,7 +76,7 @@ void run_test(const char* self, const char* dir, const char* test_name) {
                             .workdir = "/"},
                         &proc));
     Minion_WaitOutcome outcome;
-    verify_ok(minion_cp_wait(proc, &(const struct Minion_TimeSpec) {1000, 0},
+    verify_ok(minion_cp_wait(proc, &(const struct Minion_TimeSpec) {5, 0},
                              &outcome));
     if (outcome == WAIT_OUTCOME_TIMEOUT) {
         bool is_tl, is_il;
@@ -85,7 +87,7 @@ void run_test(const char* self, const char* dir, const char* test_name) {
         } else if (is_il) {
             assert_write(1, "ILE\n", 4);
         } else {
-            assert_write(1, "Timeout, but not TL or IL, WTF?\n", 32);
+            assert_write(1, "Wait timed out\n", 15);
         }
     } else if (outcome == WAIT_OUTCOME_ALREADY_FINISHED)
         assert_write(1, "Already finished, WTF?\n", 23);
@@ -102,8 +104,6 @@ void run_test(const char* self, const char* dir, const char* test_name) {
     verify_ok(minion_backend_free(bk));
     exit(0);
 }
-
-#include "tests.h"
 
 int test_main(int argc, char const* const* argv) {
     if (argc != 2)
@@ -172,7 +172,7 @@ int main(int argc, const char** argv) {
             assert(dup2(devnullfd, 0) == 0);
             assert(dup2(comm_pipe[1], 1) == 1);
             assert(dup2(comm_pipe[1], 2) == 2);
-            run_test(self, tempdir, tests[i].name);
+            run_test(self, tempdir, tests[i].name, &tests[i]);
             die("program has not exited during run_test");
         }
         close(comm_pipe[1]);

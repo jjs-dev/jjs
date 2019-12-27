@@ -71,11 +71,10 @@ pub(crate) enum Query {
     Poll(PollQuery),
 }
 
-pub(crate) fn dominion_kill_all(zygote_pid: Pid) -> crate::Result<()> {
+pub(crate) fn dominion_kill_all(zygote_pid: Pid) {
     // We will send SIGTERM to zygote, and
     // kernel will kill all other processes by itself.
     unsafe {
         libc::kill(zygote_pid, libc::SIGTERM);
     }
-    Ok(())
 }

@@ -103,8 +103,9 @@ impl Dominion for LinuxDominion {
         Ok(self.state.was_wall_tle.load(SeqCst))
     }
 
+    /// For linux dominion `kill` never fails.
     fn kill(&self) -> crate::Result<()> {
-        jail_common::dominion_kill_all(self.zygote_pid)?;
+        jail_common::dominion_kill_all(self.zygote_pid);
         Ok(())
     }
 }

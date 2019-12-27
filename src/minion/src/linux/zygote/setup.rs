@@ -302,7 +302,7 @@ unsafe fn cpu_time_observer(
             nix::unistd::write(chan, b"r").ok();
         }
         // since we are inside pid ns, we can refer to zygote as pid1.
-        jail_common::dominion_kill_all(1 as Pid).unwrap();
+        jail_common::dominion_kill_all(1 as Pid);
         // we will be killed by kernel too
     }
 }

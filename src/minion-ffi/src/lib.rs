@@ -156,6 +156,14 @@ pub unsafe extern "C" fn minion_dominion_check_real_tle(
     }
 }
 
+#[no_mangle]
+pub extern "C" fn minion_dominion_kill(dominion: &Dominion) -> ErrorCode {
+    match dominion.0.kill() {
+        Ok(_) => ErrorCode::Ok,
+        Err(_) => ErrorCode::Unknown,
+    }
+}
+
 /// # Safety
 /// Provided arguments must be well-formed
 #[no_mangle]

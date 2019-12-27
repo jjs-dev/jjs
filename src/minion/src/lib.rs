@@ -89,13 +89,6 @@ impl DominionOptions {
 
 /// Represents highly-isolated sandbox
 pub trait Dominion: Debug + std::any::Any + 'static {
-    fn as_any(&self) -> &(dyn std::any::Any + 'static)
-    where
-        Self: Sized,
-    {
-        self
-    }
-
     fn id(&self) -> String;
 
     /// Returns true if dominion exceeded CPU time limit
@@ -103,6 +96,10 @@ pub trait Dominion: Debug + std::any::Any + 'static {
 
     /// Returns true if dominion exceeded wall-clock time limit
     fn check_real_tle(&self) -> Result<bool>;
+
+    /// Kills all processed in dominion.
+    /// Probably, subsequent `spawn` requests will fail.
+    fn kill(&self) -> Result<()>;
 }
 
 #[derive(Debug)]
@@ -153,6 +150,10 @@ impl Dominion for DominionRef {
 
     fn check_real_tle(&self) -> Result<bool> {
         self.0.check_real_tle()
+    }
+
+    fn kill(&self) -> Result<()> {
+        self.0.kill()
     }
 }
 

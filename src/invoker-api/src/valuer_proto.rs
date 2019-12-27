@@ -34,7 +34,13 @@ pub struct JudgeLogTestRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
-pub struct SubtaskId(std::num::NonZeroU32);
+pub struct SubtaskId(pub std::num::NonZeroU32);
+
+impl SubtaskId {
+    pub fn make(n: u32) -> SubtaskId {
+        SubtaskId(std::num::NonZeroU32::new(n).expect("SubtaskId cannot be maked from 0"))
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLogSubtaskRow {
@@ -43,7 +49,7 @@ pub struct JudgeLogSubtaskRow {
     pub components: SubtaskVisibleComponents,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
 pub enum JudgeLogKind {
     /// Contains all tests.
     /// Test can be omitted, if staring it was speculation.
@@ -61,6 +67,18 @@ pub struct JudgeLog {
     pub subtasks: Vec<JudgeLogSubtaskRow>,
     pub score: u32,
     pub is_full: bool,
+}
+
+impl Default for JudgeLog {
+    fn default() -> JudgeLog {
+        JudgeLog {
+            kind: JudgeLogKind::Contestant,
+            tests: Vec::new(),
+            subtasks: Vec::new(),
+            score: 0,
+            is_full: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,3 +1,4 @@
+#![feature(drain_filter)]
 //! Core valuing logic
 //! It is extracted to library to simplify testing
 
@@ -5,11 +6,14 @@
 mod tests;
 
 pub mod cfg;
+mod fiber;
 
 use anyhow::{Context, Result};
-use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
+use fiber::{Fiber, FiberReply};
+use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};
+use log::debug;
 use pom::TestId;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 /// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting with environment, such as JJS invoker.
 pub trait ValuerDriver {
     /// Retrieves `ProblemInfo`. Will be called once.
@@ -22,16 +26,15 @@ pub trait ValuerDriver {
 
 /// SValuer itself
 pub struct SimpleValuer<'a> {
-    cfg: &'a cfg::Config,
     driver: &'a mut dyn ValuerDriver,
-    test_storage: TestStorage,
-    score: u32,
-    max_score: u32,
+    /// Amount of tests that are currently running.
     running_tests: u32,
-}
-
-struct TestInfo {
-    live: bool,
+    /// How many fibers did not emit judge log yet
+    running_fibers: usize,
+    /// Amount of tests that were requested to run.
+    /// It is used for caching purposes.
+    used_tests: HashSet<TestId>,
+    fibers: Vec<Fiber>,
 }
 
 impl<'a> SimpleValuer<'a> {
@@ -42,56 +45,110 @@ impl<'a> SimpleValuer<'a> {
         let problem_info = driver
             .problem_info()
             .context("failed to query problem info")?;
-        let test_storage = TestStorage::new(problem_info.test_count);
+        let mut fibers = Vec::new();
+
+        fibers.push(Fiber::new(cfg, &problem_info, JudgeLogKind::Full));
+        fibers.push(Fiber::new(cfg, &problem_info, JudgeLogKind::Contestant));
+
+        let fibers_cnt = fibers.len();
         Ok(SimpleValuer {
             driver,
-            test_storage,
-            score: 0,
-            max_score: problem_info.test_count,
             running_tests: 0,
-            cfg,
+            used_tests: HashSet::new(),
+            fibers,
+            running_fibers: fibers_cnt,
         })
     }
 
-    fn has_something(&self) -> bool {
-        let has_running_tests = self.running_tests != 0;
-        let has_runnable_tests = !self.test_storage.queue.is_empty();
-        has_runnable_tests || has_running_tests
-    }
-
-    fn describe_test(&self, test: TestId) -> TestInfo {
-        let live = test.get() <= self.cfg.open_test_count;
-        TestInfo { live }
-    }
-
-    fn create_run_on_test_query(&self, test_id: TestId) -> ValuerResponse {
-        let test_info = self.describe_test(test_id);
-        ValuerResponse::Test {
-            test_id,
-            live: test_info.live,
+    /// Creates ValuerResponse for executing test `test_id`.
+    /// Returns early if this test was already requested.
+    fn send_run_on_test_query(&mut self, test_id: TestId, live: bool) -> anyhow::Result<()> {
+        if !self.used_tests.insert(test_id) {
+            return Ok(());
         }
+        let cmd = ValuerResponse::Test { test_id, live };
+        self.running_tests += 1;
+
+        self.driver
+            .send_command(&cmd)
+            .context("failed to send TEST command")?;
+        Ok(())
+    }
+
+    /// Executes one iteration.
+    /// Returns false when valuing finishes.
+    fn step(&mut self) -> anyhow::Result<bool> {
+        debug!("Running next step");
+
+        debug!("Polling fibers");
+        // do we have something new from fibers?
+        for fiber in &mut self.fibers {
+            debug!("Polling fiber {:?}", fiber.kind());
+            let reply = fiber.poll();
+            match reply {
+                FiberReply::LiveScore { score } => {
+                    if fiber.kind() == JudgeLogKind::Contestant {
+                        debug!("Step done: sending live score");
+                        let live_score = ValuerResponse::LiveScore { score };
+                        self.driver
+                            .send_command(&live_score)
+                            .context("failed to send new live score")?;
+                        return Ok(true);
+                    } else {
+                        debug!("Ignoring live score: kind mismatch");
+                    }
+                }
+                FiberReply::Test { test_id } => {
+                    let is_live = self.fibers.iter().any(|fib| fib.test_is_live(test_id));
+                    self.send_run_on_test_query(test_id, is_live)?;
+                    debug!("Step done: test execution requested");
+                    return Ok(true);
+                }
+                FiberReply::Finish(judge_log) => {
+                    debug!("Step done: new judge log {:?} emitted", judge_log.kind);
+                    let resp = ValuerResponse::JudgeLog(judge_log);
+                    self.running_fibers -= 1;
+                    self.driver
+                        .send_command(&resp)
+                        .context("failed to submit judge log")?;
+                    return Ok(true);
+                }
+                FiberReply::None => {
+                    debug!("No updates from this fiber");
+                    continue;
+                }
+            }
+        }
+        // do we have pending notifications?
+        if let Some(notification) = self
+            .driver
+            .poll_notification()
+            .context("failed to poll for notification")?
+        {
+            debug!("Step done: got notification");
+            self.process_notification(notification);
+            return Ok(true);
+        }
+
+        // do we have running tests?
+        if self.running_tests != 0 {
+            debug!("Step done: waiting for running tests complition");
+            return Ok(true);
+        }
+        if self.running_fibers != 0 {
+            debug!("Step done: waiting for running fibers completion");
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 
     /// Runs to valuing completion
     pub fn exec(mut self) -> anyhow::Result<()> {
-        while self.has_something() {
-            // do we have pending notifications ?
-            if let Some(notification) = self
-                .driver
-                .poll_notification()
-                .context("failed to poll for notification")?
-            {
-                self.process_notification(notification);
-                continue;
-            }
-            // do we have tests to run ?
-            if let Some(tid) = self.test_storage.poll_test() {
-                let resp = self.create_run_on_test_query(tid);
-                self.running_tests += 1;
-                self.driver
-                    .send_command(&resp)
-                    .context("failed to send TEST command")?;
-                continue;
+        loop {
+            let should_run = self.step()?;
+            if !should_run {
+                break;
             }
         }
         self.driver.send_command(&ValuerResponse::Finish)
@@ -100,81 +157,13 @@ impl<'a> SimpleValuer<'a> {
     fn process_notification(&mut self, notification: TestDoneNotification) {
         assert_ne!(self.running_tests, 0);
         self.running_tests -= 1;
-        if notification.test_status.kind.is_success() {
-            self.score += 1;
-            self.test_storage.mark_ok(notification.test_id)
+        for fiber in self.fibers.iter_mut() {
+            fiber.add(&notification);
         }
     }
 }
 
-/// Utility struct which works with tests, groups, dependencies etc
-struct TestStorage {
-    tests: HashSet<TestId>,
-    deps: HashMap<TestId, HashSet<TestId>>,
-    deps_rev: HashMap<TestId, Vec<TestId>>,
-    queue: VecDeque<TestId>,
-}
-
-impl TestStorage {
-    /// Initializes some fields to meaningful values
-    fn init(&mut self) {
-        // calc deps_rev
-        for &v in &self.tests {
-            if !self.deps.contains_key(&v) {
-                continue;
-            }
-            for &w in &self.deps[&v] {
-                self.deps_rev.entry(w).or_default().push(v);
-            }
-        }
-        // calc queue
-        for &v in &self.tests {
-            if !self.deps.contains_key(&v) || self.deps[&v].is_empty() {
-                self.queue.push_back(v);
-            }
-        }
-    }
-
-    fn new(cnt: u32) -> Self {
-        let mut ts = TestStorage {
-            tests: HashSet::new(),
-            deps: HashMap::new(),
-            deps_rev: HashMap::new(),
-            queue: VecDeque::new(),
-        };
-        for test_id in 1..=cnt {
-            ts.tests.insert(TestId::make(test_id));
-        }
-        for test_id in 2..=cnt {
-            ts.deps
-                .entry(TestId::make(test_id))
-                .or_default()
-                .insert(TestId::make(test_id - 1));
-        }
-        ts.init();
-        ts
-    }
-
-    fn mark_ok(&mut self, test: TestId) {
-        if !self.deps_rev.contains_key(&test) {
-            return;
-        }
-        let dependants = self.deps_rev[&test].iter().copied();
-        let deps = &mut self.deps;
-        for dependant in dependants {
-            deps.get_mut(&dependant).unwrap().remove(&test);
-            if deps[&dependant].is_empty() {
-                self.queue.push_back(dependant);
-            }
-        }
-    }
-
-    fn poll_test(&mut self) -> Option<TestId> {
-        self.queue.pop_front()
-    }
-}
-
-pub mod util {
+pub mod status_util {
     pub fn make_ok_status() -> invoker_api::Status {
         invoker_api::Status {
             code: "OK".to_string(),

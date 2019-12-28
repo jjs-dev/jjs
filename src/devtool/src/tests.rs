@@ -48,10 +48,15 @@ fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
                 .next()
                 .expect("line is empty")
                 .trim_end_matches(':');
-            println!("Running: {}", test_name);
+            println!("----- Running: {} -----", test_name);
             let test_succ = Command::new("cargo")
                 .current_dir("src/e2e")
                 .args(&["test", test_name])
+                .arg("--")
+                .arg("-Zunstable-options")
+                .arg("--ensure-time")
+                .arg("--report-time")
+                .env("RUST_TEST_TIME_INTEGRATION", "45000,75000")
                 .try_exec()
                 .is_ok();
             cnt_tests += 1;

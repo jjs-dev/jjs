@@ -53,7 +53,11 @@ query GetRuns {
 
 fn send_check_status(run_code: &str, correct_status: &str) {
     let id = submit(run_code);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
     loop {
+        if std::time::Instant::now() > deadline {
+            panic!("Timeout");
+        }
         let status = poll_status(id);
         if status == "QUEUE_JUDGE" {
             continue;

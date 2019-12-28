@@ -24,7 +24,7 @@ enum BuildType {
     /// regular PR or push build
     Pr(PrJobType),
     /// `bors try` or `bors r+`
-    Bors,
+    Bors(PrJobType),
     /// we are on master, want to build something special
     Deploy(DeployKind),
 }
@@ -63,7 +63,7 @@ impl BuildInfo {
 
     pub fn is_pr_e2e(&self) -> bool {
         match self.ty {
-            BuildType::Pr(PrJobType::EndToEnd) => true,
+            BuildType::Pr(PrJobType::EndToEnd) | BuildType::Bors(PrJobType::EndToEnd) => true,
             _ => false,
         }
     }
@@ -141,8 +141,10 @@ fn do_detect_build_type() -> BuildType {
         return BuildType::Deploy(DeployKind::detect());
     }
     match branch_name {
-        "trying" | "staging" => BuildType::Bors,
-        _ => BuildType::Pr(PrJobType::detect().expect("failed to detect job")),
+        "trying" | "staging" => {
+            BuildType::Bors(PrJobType::detect().expect("failed to detect Bors job"))
+        }
+        _ => BuildType::Pr(PrJobType::detect().expect("failed to detect PR job")),
     }
 }
 

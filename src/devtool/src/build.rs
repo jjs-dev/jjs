@@ -27,8 +27,8 @@ impl BuildOpts {
     }
 
     fn should_build_deb(&self) -> bool {
-        let bt = detect_build_type();
-        bt.is_pr_e2e() || bt.deploy_info().contains(&DeployKind::Deb) || self.0.deb
+        let bt = crate::ci::detect_build_type();
+        bt.is_pr_e2e() || bt.is_deploy() || self.0.deb
     }
 
     fn should_build_man(&self) -> bool {
@@ -38,9 +38,6 @@ impl BuildOpts {
 
     fn should_build_docker(&self) -> bool {
         self.0.docker
-            || detect_build_type()
-                .deploy_info()
-                .contains(&DeployKind::Docker)
     }
 
     fn raw(&self) -> &RawBuildOpts {

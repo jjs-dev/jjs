@@ -56,17 +56,6 @@ jobs:
       - run: bash scripts/ci-env.sh
       - name: cargo jjs-test
         run: cargo jjs-test 
-  build:
-    name: build
-    runs-on: "ubuntu-18.04"
-    steps:
-      - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
-      - name: cargo jjs-build
-        run: cargo jjs-build
-        env:
-          # does not matter, will be deleted soon
-          JOB: e2e
   udeps:
     name: udeps
     runs-on: "ubuntu-18.04"
@@ -82,13 +71,16 @@ jobs:
     runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
+      - run: |
+          bash scripts/ci-env.sh
+          sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev
+          sudo -u postgres createuser runner --superuser
+          cargo install lxtrace
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
-          
       - name: Cache cargo index
         uses: actions/cache@v1
         with:
@@ -100,11 +92,14 @@ jobs:
           path: target
           key: ${{ runner.os }}-e2e-${{ hashFiles('Cargo.lock') }}
       - name: build
-        run: cargo jjs-build --docker
+        run: cargo jjs-build
         env:
           JOB: e2e
       - name: launch jjs
-        run: docker-compose up --detach
+        run: |
+          # TODO: finer grained --force. Maybe --force-depends?
+          sudo dpkg --force-all -i /opt/jjs/pkg/jjs.deb
+          sudo jjs-oneclick
       - name: wait for launch
         run: cargo run --package util
         env:
@@ -115,11 +110,13 @@ jobs:
       - name: collect logs
         if: always()
         run: |
-          docker-compose logs --tail=all
-          docker-compose logs --tail=all > logs.txt
+          mkdir logs
+          sudo journalctl -u jjs-frontend.service > logs/frontend.txt
+          sudo journalctl -u jjs-backend.service > logs/invoker.txt
+          cat logs/*
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v1
         with:
-          name: docker-compose-logs.txt
-          path: ./logs.txt
+          name: logs
+          path: ./logs

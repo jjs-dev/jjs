@@ -13,7 +13,6 @@ pub(crate) struct BinPackage {
     package_name: String,
     install_name: String,
     component_kind: PackageComponentKind,
-    features: Vec<String>,
     selected: Option<bool>,
     path: Option<PathBuf>,
 }
@@ -24,45 +23,73 @@ impl BinPackage {
             package_name: pkg_name.to_string(),
             install_name: inst_name.to_string(),
             component_kind: comp,
-            features: vec![],
             selected: None,
             path: None,
         }
     }
+}
 
-    pub(crate) fn feature(&mut self, feat: &str) {
-        self.features.push(feat.to_string());
+#[derive(Debug)]
+pub(crate) struct BinPackages {
+    pkgs: Vec<BinPackage>,
+    selected: Vec<bool>,
+}
+
+impl BinPackages {
+    pub(crate) fn new(pkgs: Vec<BinPackage>) -> Self {
+        let n = pkgs.len();
+        BinPackages {
+            pkgs,
+            selected: vec![false; n],
+        }
     }
 }
 
-impl Package for BinPackage {
+impl Package for BinPackages {
     fn check_selected(&mut self, sctx: &SelCtx) {
-        let res = match &self.component_kind {
-            PackageComponentKind::Core => sctx.components_cfg().core,
-            PackageComponentKind::Extra => sctx.components_cfg().extras,
-            PackageComponentKind::Tools => sctx.components_cfg().tools,
-        };
-        self.selected = Some(res);
+        for i in 0..self.pkgs.len() {
+            let res = match self.pkgs[i].component_kind {
+                PackageComponentKind::Core => sctx.components_cfg().core,
+                PackageComponentKind::Extra => sctx.components_cfg().extras,
+                PackageComponentKind::Tools => sctx.components_cfg().tools,
+            };
+            self.selected[i] = res;
+        }
     }
 
     fn selected(&self) -> bool {
-        self.selected.unwrap()
+        true
     }
 
     fn build(&self, bctx: &BuildCtx) {
-        print_section(&format!("Building {}", &self.package_name));
-        let mut cmd = bctx.cargo_build(&self.package_name);
-
-        if !self.features.is_empty() {
-            cmd.arg("--features");
-            let feat = self.features.join(",");
-            cmd.arg(&feat);
+        let mut section_title = "Building".to_string();
+        let mut is_first_pkg = true;
+        let mut cmd = bctx.cargo_build();
+        for i in 0..self.pkgs.len() {
+            if !self.selected[i] {
+                continue;
+            }
+            if is_first_pkg {
+                section_title += " ";
+                is_first_pkg = false;
+            } else {
+                section_title += ", ";
+            }
+            section_title += &self.pkgs[i].package_name;
+            cmd.arg("--package").arg(&self.pkgs[i].package_name);
         }
+        print_section(&section_title);
+        dbg!(&cmd);
         cmd.run_on(bctx.runner());
     }
 
     fn install(&self, ictx: &InstallCtx) {
-        ictx.add_bin_pkg(&self.package_name, &self.install_name);
+        for i in 0..self.pkgs.len() {
+            if !self.selected[i] {
+                continue;
+            }
+            ictx.add_bin_pkg(&self.pkgs[i].package_name, &self.pkgs[i].install_name);
+        }
     }
 }
 
@@ -82,7 +109,12 @@ impl Package for MinionFfiPackage {
     }
 
     fn build(&self, bctx: &BuildCtx) {
-        let st = bctx.cargo_build("minion-ffi").status().unwrap().success();
+        let st = bctx
+            .cargo_build()
+            .args(&["-p", "minion-ffi"])
+            .status()
+            .unwrap()
+            .success();
         assert_eq!(st, true);
     }
 

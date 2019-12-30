@@ -11,8 +11,14 @@ mod systemd;
 pub mod util;
 
 use crate::{
-    build_ctx::BuildCtx, cfg::BuildProfile, inst_ctx::InstallCtx, packages::BinPackage,
-    pkg::PackageComponentKind, registry::Registry, sel_ctx::SelCtx, util::print_section,
+    build_ctx::BuildCtx,
+    cfg::BuildProfile,
+    inst_ctx::InstallCtx,
+    packages::{BinPackage, BinPackages},
+    pkg::PackageComponentKind,
+    registry::Registry,
+    sel_ctx::SelCtx,
+    util::print_section,
 };
 use ::util::cmd::Runner;
 use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
@@ -32,10 +38,10 @@ pub struct Params {
 
 fn create_registry() -> Registry {
     let mut reg = Registry::new();
-
+    let mut bin_pkgs = Vec::new();
     let mut add_bin = |pkg_name, inst_name, comp| {
         let pkg = BinPackage::new(pkg_name, inst_name, comp);
-        reg.add(pkg);
+        bin_pkgs.push(pkg);
     };
 
     add_bin("cleanup", "jjs-cleanup", PackageComponentKind::Tools);
@@ -52,17 +58,12 @@ fn create_registry() -> Registry {
         "jjs-configure-toolchains",
         PackageComponentKind::Tools,
     );
-    {
-        let mut minion_cli =
-            packages::BinPackage::new("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
-        minion_cli.feature("human_panic");
-
-        reg.add(minion_cli);
-    }
+    add_bin("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
     {
         let minion_ffi = packages::MinionFfiPackage::new();
         reg.add(minion_ffi);
     }
+    reg.add(BinPackages::new(bin_pkgs));
 
     reg
 }

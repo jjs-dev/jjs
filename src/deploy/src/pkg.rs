@@ -1,7 +1,7 @@
 //! Abstractions for package
 use crate::{build_ctx::BuildCtx, inst_ctx::InstallCtx, sel_ctx::SelCtx};
 
-pub(crate) trait Package: std::fmt::Debug {
+pub(crate) trait Package {
     fn check_selected(&mut self, sctx: &SelCtx);
 
     fn selected(&self) -> bool;

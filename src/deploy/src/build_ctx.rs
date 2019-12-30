@@ -24,13 +24,9 @@ impl<'bctx> BuildCtx<'bctx> {
         cmd
     }
 
-    pub(crate) fn cargo_build(&self, pkg_name: &str) -> Command {
+    pub(crate) fn cargo_build(&self) -> Command {
         let mut cmd = self.cargo();
-        let cwd = format!("src/{}", pkg_name);
         cmd.arg("build");
-        cmd.args(&["--package", pkg_name]);
-        cmd.arg("--no-default-features");
-        cmd.current_dir(cwd);
         cmd.args(&["--target", &self.params.cfg.build.target]);
         let profile = self.params.cfg.build.profile;
         if let BuildProfile::Release | BuildProfile::RelWithDebInfo = profile {

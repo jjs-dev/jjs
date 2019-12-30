@@ -4,6 +4,8 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 pub struct Opt {
+    /// Show detailed information
+    #[structopt(long)]
     detailed: bool,
 }
 

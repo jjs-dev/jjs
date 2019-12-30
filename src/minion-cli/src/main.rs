@@ -75,6 +75,7 @@ struct ExecOpt {
     time_limit: u32,
 
     /// Print parsed argv
+    #[structopt(long)]
     dump_argv: bool,
 
     /// Print libminion parameters

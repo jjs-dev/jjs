@@ -341,7 +341,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "nix 0.16.1",
- "structopt 0.3.7",
+ "structopt",
 ]
 
 [[package]]
@@ -358,7 +358,7 @@ dependencies = [
  "slog-scope",
  "slog-stdlog",
  "slog-term",
- "structopt 0.3.7",
+ "structopt",
 ]
 
 [[package]]
@@ -471,11 +471,11 @@ dependencies = [
 [[package]]
 name = "copy-ln"
 version = "0.1.0"
-source = "git+https://github.com/mikailbag/copy-ln#a886e41a8fadf50b9cde26b3ba72230b39d27561"
+source = "git+https://github.com/mikailbag/copy-ln#533ccf747b504b7ce5f3a980b906c4c7df91b7b1"
 dependencies = [
  "anyhow",
  "fs_extra",
- "structopt 0.2.18",
+ "structopt",
 ]
 
 [[package]]
@@ -680,7 +680,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shell-escape",
- "structopt 0.3.7",
+ "structopt",
  "tar",
  "tera",
  "util",
@@ -735,7 +735,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.8",
  "serde",
- "structopt 0.3.7",
+ "structopt",
  "toml 0.5.5",
  "util",
 ]
@@ -1788,7 +1788,7 @@ dependencies = [
  "chrono",
  "libc",
  "minion",
- "structopt 0.3.7",
+ "structopt",
 ]
 
 [[package]]
@@ -2223,7 +2223,7 @@ dependencies = [
  "serde",
  "serde_json",
  "snafu",
- "structopt 0.3.7",
+ "structopt",
  "toml 0.5.5",
 ]
 
@@ -2888,7 +2888,7 @@ dependencies = [
  "backtrace",
  "fs_extra",
  "log 0.4.8",
- "structopt 0.3.7",
+ "structopt",
  "url 2.1.0",
  "util",
 ]
@@ -3075,7 +3075,7 @@ dependencies = [
  "copy-ln",
  "serde",
  "serde_json",
- "structopt 0.3.7",
+ "structopt",
  "tempfile",
  "tera",
  "toml 0.5.5",
@@ -3111,34 +3111,12 @@ checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
 name = "structopt"
-version = "0.2.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16c2cdbf9cc375f15d1b4141bc48aeef444806655cd0e904207edc8d68d86ed7"
-dependencies = [
- "clap",
- "structopt-derive 0.2.18",
-]
-
-[[package]]
-name = "structopt"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "884ae79d6aad1e738f4a70dff314203fd498490a63ebc4d03ea83323c40b7b72"
 dependencies = [
  "clap",
- "structopt-derive 0.4.0",
-]
-
-[[package]]
-name = "structopt-derive"
-version = "0.2.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53010261a84b37689f9ed7d395165029f9cc7abb9f56bbfe86bee2597ed25107"
-dependencies = [
- "heck",
- "proc-macro2 0.4.30",
- "quote 0.6.13",
- "syn 0.15.44",
+ "structopt-derive",
 ]
 
 [[package]]
@@ -3752,7 +3730,7 @@ dependencies = [
  "reqwest",
  "serde",
  "snafu",
- "structopt 0.3.7",
+ "structopt",
  "uuid",
 ]
 

@@ -79,7 +79,6 @@ impl Package for BinPackages {
             cmd.arg("--package").arg(&self.pkgs[i].package_name);
         }
         print_section(&section_title);
-        dbg!(&cmd);
         cmd.run_on(bctx.runner());
     }
 

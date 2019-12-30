@@ -1,4 +1,3 @@
-use cfg_if::cfg_if;
 use minion::{self, Dominion};
 use std::time::Duration;
 use structopt::StructOpt;
@@ -99,22 +98,9 @@ struct ExecOpt {
     pwd: String,
 }
 
-cfg_if! {
-if #[cfg(feature="human_panic")] {
-    fn setup_human_panic() {
-        human_panic::setup_panic!();
-    }
-} else {
-    fn setup_human_panic() {
-
-    }
-}
-}
-
 fn main() {
     // TODO
     std::env::set_var("RUST_BACKTRACE", "1");
-    setup_human_panic();
     let options: ExecOpt = ExecOpt::from_args();
     if options.dump_argv {
         println!("{:#?}", options);

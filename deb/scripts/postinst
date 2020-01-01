@@ -1,8 +1,12 @@
 #!/bin/bash
 
-addgroup jjs
+systemctl --system daemon-reload
+
+addgroup --system jjs
 adduser --system --ingroup jjs --home /var/lib/jjs --disabled-login jjs
+chown -R jjs:jjs /var/lib/jjs
+chown -R jjs:jjs /usr/share/jjs
+chown -R jjs:jjs /opt/jjs/example-{config,problems} /opt/jjs/share/db-setup.sql
+echo 'Note: you can run `jjs-oneclick` to set up JJS with the default settings'
 
-su -c 'jjs-mkroot /var/lib/jjs /usr/share/jjs/example-config' -s "$SHELL" jjs
-
-# TODO: proper systemd unit for jjs
+exit 0

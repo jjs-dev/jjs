@@ -72,19 +72,64 @@ mkdir "$BUILD"
 cd "$BUILD"
 
 tar -xvf "$JJS_TGZ"
-mv jjs pkg
 
 mkdir data
+mkdir data/opt
+mv jjs data/opt/jjs
+
+mkdir -p data/lib/systemd/system
+(
+cd data/opt/jjs
+for i in lib/systemd/system/*
+do
+    ln -s /opt/jjs/"$i" ../../"$i"
+    sed -i 's/\/var\/jjs\/etc/\/var\/lib\/jjs\/etc/g' "$i"
+done
+)
+
 mkdir data/usr
-mv pkg/bin data/usr/bin
-mv pkg/lib data/usr/lib
+mkdir data/usr/bin
+(
+cd data/opt/jjs
+for i in bin/*
+do cat > ../../usr/"$i" << EOF
+#!/bin/bash
+
+set -a
+if [ -f /var/lib/jjs/etc/env.txt ]
+then . /var/lib/jjs/etc/env.txt
+else . /usr/share/jjs/env.txt
+fi
+set +a
+exec /opt/jjs/$i "\$@"
+EOF
+chmod 755 ../../usr/"$i"
+done
+)
+cp "$DIRNAME/jjs-oneclick" data/usr/bin
+
+mkdir data/usr/lib
+(
+cd data/opt/jjs
+for i in lib/*.{a,so}
+do ln -s /opt/jjs/"$i" ../../usr/"$i"
+done
+)
+
+mkdir data/usr/include
+ln -s /opt/jjs/include/jjs data/usr/include/jjs
+
 mkdir -p data/usr/share/jjs
-mv pkg/example-config data/usr/share/jjs
+ln -s /opt/jjs/example-config data/usr/share/jjs/example-config
+ln -s /opt/jjs/example-problems data/usr/share/jjs/example-problems
+ln -s /opt/jjs/share/db-setup.sql data/usr/share/jjs/db-setup.sql
+cp "$DIRNAME/env.txt" data/opt/jjs
+ln -s /opt/jjs/env.txt data/usr/share/jjs/env.txt
 cd data; tar --owner=root -cvJf ../data.tar.xz .; cd ..
 
 mkdir control
 cp "$DIRNAME/manifest.txt" control/control
-sed -i 's/^Version:.*$/Version: '"$(cat "$DIRNAME/Version.txt")"'/g' control/control
+sed -i 's/^Version:.*$/Version: '"$(cat "$DIRNAME/../Version.txt")"'/g' control/control
 sed -i 's/^Architecture:.*$/Architecture: '"$(dpkg --print-architecture)"'/g' control/control
 cp ../scripts/* control/ || true
 cd control; tar --owner=root -cvJf ../control.tar.xz .; cd ..

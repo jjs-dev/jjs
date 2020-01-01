@@ -1,7 +1,7 @@
 pub struct RequestBuilder {
     builder: frontend_engine::test_util::RequestBuilder,
     auth_token: Option<String>,
-    client: reqwest::Client,
+    client: reqwest::blocking::Client,
 }
 
 impl RequestBuilder {
@@ -9,7 +9,7 @@ impl RequestBuilder {
         Self {
             builder: frontend_engine::test_util::RequestBuilder::new(),
             auth_token: None,
-            client: reqwest::Client::new(),
+            client: reqwest::blocking::Client::new(),
         }
     }
 
@@ -42,7 +42,7 @@ impl RequestBuilder {
             )
             .header("Content-Type", "application/json");
 
-        let mut response = request.send().unwrap();
+        let response = request.send().unwrap();
         if response.status() != 200 {
             eprintln!("Frontend returned non-200: {:?}", response.status());
             eprintln!("Response: {}", response.text().unwrap_or_default());

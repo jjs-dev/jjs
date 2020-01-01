@@ -138,6 +138,11 @@ pub fn package(params: &Params, runner: &Runner) {
         generate_man(params);
     }
     runner.exit_if_errors();
+
+    generate_envscript(params);
+    if params.cfg.components.archive {
+        generate_archive(params);
+    }
     if params.cfg.packaging.deb {
         print_section("Generating Debian package");
         deb::create(params, runner);
@@ -149,11 +154,6 @@ pub fn package(params: &Params, runner: &Runner) {
     if params.cfg.packaging.docker {
         print_section("Building docker images");
         docker::build_docker_image(params, runner);
-    }
-
-    generate_envscript(params);
-    if params.cfg.components.archive {
-        generate_archive(params);
     }
 }
 

@@ -146,8 +146,8 @@ impl Notifier {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };
-        let client = reqwest::ClientBuilder::new()
-            .timeout(Some(std::time::Duration::from_secs(3)))
+        let client = reqwest::blocking::ClientBuilder::new()
+            .timeout(std::time::Duration::from_secs(3))
             .build()
             .expect("failed to initialize reqwest client");
         debug!("Sending request to {}", &endpoint);

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+systemctl --system daemon-reload
+
+if [ "$1" == purge ]
+then
+    rm -rf /var/lib/jjs
+    su postgres -c 'psql -U postgres -c "drop database jjs;"'
+    su postgres -c 'psql -U postgres -c "drop role jjs;"'
+    deluser jjs
+    delgroup jjs
+fi
+
+exit 0

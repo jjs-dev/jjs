@@ -142,14 +142,14 @@ impl Client {
     where
         TResBody: serde::de::DeserializeOwned,
     {
-        let cl = reqwest::Client::new();
+        let cl = reqwest::blocking::Client::new();
         let url = format!("{}:{}/{}", &self.host, &self.port, &self.endpoint);
         let query_logger = self.interact_logger.as_ref().map(InteractLogger::per_query);
         let req = serde_json::to_string(req)?;
         if let Some(ql) = &query_logger {
             ql.log_request(req.as_bytes())
         }
-        let mut resp_data = cl
+        let resp_data = cl
             .post(&url)
             .body(req)
             .header("Content-Type", "application/json")

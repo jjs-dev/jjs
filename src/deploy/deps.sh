@@ -18,5 +18,5 @@ fi
 if [ "x$apt" != x ]
 then $sudo $apt update
 # shellcheck disable=SC2086
-$sudo $apt install $packages
+$sudo $apt install --no-install-recommends $packages
 fi

@@ -27,6 +27,22 @@ jobs:
           docker push docker.pkg.github.com/mikailbag/jjs/invoker:master
           docker tag jjs-tools:latest docker.pkg.github.com/mikailbag/jjs/tools:master
           docker push docker.pkg.github.com/mikailbag/jjs/tools:master
+  deb:
+    name: deb
+    runs-on: 'ubuntu-18.04'
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup env
+        run: bash scripts/ci-env.sh
+      - name: Build debian package
+        run: cargo jjs-build --deb
+        env:
+          JJS_DT_DEPLOY: deb
+      - name: Publish debian package artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: jjs-amd64.deb
+          path: /opt/jjs/pkg/jjs.deb
   man:
     name: man
     if: false # TODO

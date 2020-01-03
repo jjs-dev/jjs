@@ -1,11 +1,28 @@
 use std::env::var;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
+enum PrJobType {
+    EndToEnd,
+    __Other,
+}
+
+impl PrJobType {
+    fn detect() -> Option<PrJobType> {
+        std::env::var("JOB")
+            .ok()
+            .and_then(|name| match name.as_str() {
+                "e2e" => Some(PrJobType::EndToEnd),
+                _ => panic!("unknown job name: {}", name),
+            })
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
 enum BuildType {
     /// not a CI build
     NotCi,
     /// regular PR or push build
-    Pr,
+    Pr(PrJobType),
     /// `bors try` or `bors r+`
     Bors,
     /// we are on master, want to build something special
@@ -16,6 +33,7 @@ enum BuildType {
 pub enum DeployKind {
     Docker,
     Man,
+    Deb,
 }
 
 impl DeployKind {
@@ -24,6 +42,7 @@ impl DeployKind {
         match e.as_str() {
             "docker" => DeployKind::Docker,
             "man" => DeployKind::Man,
+            "deb" => DeployKind::Deb,
             _ => unreachable!("unknown deploy kind: {}", &e),
         }
     }
@@ -42,6 +61,13 @@ impl BuildInfo {
         }
     }
 
+    pub fn is_pr_e2e(&self) -> bool {
+        match self.ty {
+            BuildType::Pr(PrJobType::EndToEnd) => true,
+            _ => false,
+        }
+    }
+
     pub fn deploy_info(&self) -> Option<DeployKind> {
         match self.ty {
             BuildType::Deploy(dk) => Some(dk),
@@ -51,10 +77,6 @@ impl BuildInfo {
 
     pub fn is_not_ci(&self) -> bool {
         self.ty == BuildType::NotCi
-    }
-
-    pub fn is_ci(&self) -> bool {
-        !self.is_not_ci()
     }
 }
 
@@ -109,14 +131,18 @@ fn do_detect_build_type() -> BuildType {
     }
     let commit_ref = var("GITHUB_REF").expect("GITHUB_REF not exists");
 
+    let workflow_name = var("GITHUB_WORKFLOW").expect("GITHUB_WORKFLOW not exists");
+
     let branch_name = match extract_branch_name(&commit_ref) {
         Some(nam) => nam,
         None => panic!("Failed to parse commit ref: {}", &commit_ref),
     };
+    if branch_name == "master" || workflow_name == "deploy" {
+        return BuildType::Deploy(DeployKind::detect());
+    }
     match branch_name {
         "trying" | "staging" => BuildType::Bors,
-        "master" => BuildType::Deploy(DeployKind::detect()),
-        _ => BuildType::Pr,
+        _ => BuildType::Pr(PrJobType::detect().expect("failed to detect job")),
     }
 }
 

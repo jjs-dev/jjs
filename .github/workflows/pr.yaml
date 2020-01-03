@@ -63,6 +63,9 @@ jobs:
       - run: bash scripts/ci-env.sh
       - name: cargo jjs-build
         run: cargo jjs-build
+        env:
+          # does not matter, will be deleted soon
+          JOB: e2e
   udeps:
     name: udeps
     runs-on: "ubuntu-18.04"
@@ -82,6 +85,8 @@ jobs:
       - run: bash scripts/ci-env.sh
       - name: build
         run: cargo jjs-build --docker
+        env:
+          JOB: e2e
       - name: launch jjs
         run: docker-compose up --detach
       - name: wait for launch

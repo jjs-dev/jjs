@@ -20,6 +20,5 @@ pub fn create(params: &Params, runner: &util::cmd::Runner) {
 
     let out_path = params.artifacts.join("pkg/jjs.deb");
     cmd.arg("--out").arg(out_path);
-    dbg!(&cmd);
     cmd.run_on(runner);
 }

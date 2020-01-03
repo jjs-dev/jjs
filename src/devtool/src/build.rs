@@ -13,6 +13,9 @@ pub(crate) struct RawBuildOpts {
     /// Setup (useful for development)
     #[structopt(long)]
     setup: bool,
+    /// Debian packages
+    #[structopt(long)]
+    deb: bool,
 }
 
 struct BuildOpts(RawBuildOpts);
@@ -23,13 +26,18 @@ impl BuildOpts {
         bt.is_deploy() || self.0.full
     }
 
+    fn should_build_deb(&self) -> bool {
+        let bt = crate::ci::detect_build_type();
+        bt.is_pr_e2e() || bt.deploy_info().contains(&crate::ci::DeployKind::Deb) || self.0.deb
+    }
+
     fn should_build_man(&self) -> bool {
         let bt = crate::ci::detect_build_type();
         bt.deploy_info().contains(&crate::ci::DeployKind::Man) || bt.is_not_ci()
     }
 
     fn should_build_docker(&self) -> bool {
-        self.0.docker || crate::ci::detect_build_type().is_ci()
+        self.0.docker
     }
 
     fn raw(&self) -> &RawBuildOpts {
@@ -44,9 +52,8 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
     cmd.current_dir("target");
     cmd.arg("--out=/opt/jjs");
 
-    if opts.full() {
-        // TODO: enable when deb support is OK
-        // cmd.arg("--enable-deb");
+    if opts.full() || opts.should_build_deb() {
+        cmd.arg("--enable-deb");
     }
     // useful for easily starting up & shutting down
     // required for docker compose

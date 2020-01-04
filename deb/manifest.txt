@@ -2,7 +2,7 @@ Package: jjs
 Version:
 Architecture:
 Maintainer: Mikail Bagishov <bagishov.mikail@yandex.ru>
-Depends: xxd lxtrace
-Recommends: postgresql build-essential
+Depends: xxd, lxtrace
+Recommends: postgresql, build-essential
 Description: JJS testing system
  JJS testing system (see https://github.com/MikailBag/jjs)

@@ -41,9 +41,19 @@ fn create_dirs(params: &SetupParams) -> anyhow::Result<()> {
         }
         std::fs::create_dir(&data_dir).ok();
         {
-            let mut dir = fs::read_dir(&data_dir)?;
-            if dir.next().is_some() {
+            let mut dir = fs::read_dir(&data_dir)?.peekable();
+            if dir.peek().is_some() {
                 error!("Specified dir is not empty");
+                for item in dir.by_ref().take(10) {
+                    let item_path = item
+                        .map(|it| it.path().display().to_string())
+                        .unwrap_or_else(|err| format!("<{}>", err));
+                    error!("- {}", item_path);
+                }
+                let rem = dir.count();
+                if rem > 0 {
+                    error!("- And {} more", rem);
+                }
                 process::exit(1);
             }
         }

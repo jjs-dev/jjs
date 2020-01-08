@@ -16,7 +16,7 @@ glob = "0.3.0"
 libc = "0.2.66"
 pom = {path = "../pom"}
 serde_json = "1.0.44"
-getrandom = "0.1.13"
+getrandom = "0.1.14"
 hex = "0.4.0"
 formatf = { git = "https://github.com/mikailbag/formatf" }
 roxmltree = "0.8.0"

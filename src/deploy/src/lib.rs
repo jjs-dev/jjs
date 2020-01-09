@@ -140,16 +140,16 @@ pub fn package(params: &Params, runner: &Runner) {
     runner.exit_if_errors();
 
     generate_envscript(params);
+    if params.cfg.packaging.systemd {
+        print_section("Generating SystemD unit files");
+        systemd::build(params);
+    }
     if params.cfg.components.archive {
         generate_archive(params);
     }
     if params.cfg.packaging.deb {
         print_section("Generating Debian package");
         deb::create(params, runner);
-    }
-    if params.cfg.packaging.systemd {
-        print_section("Generating SystemD unit files");
-        systemd::build(params);
     }
     if params.cfg.packaging.docker {
         print_section("Building docker images");

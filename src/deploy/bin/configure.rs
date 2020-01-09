@@ -71,6 +71,9 @@ impl Opt {
         if self.deb && !replace(&mut self.archive, true) {
             log::warn!("Enabling archive because deb generation was requested");
         }
+        if self.deb && !replace(&mut self.systemd, true) {
+            log::warn!("Enabling systemd because deb generation was requested");
+        }
     }
 }
 

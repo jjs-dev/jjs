@@ -93,7 +93,7 @@ mkdir data/usr/bin
 cd data/opt/jjs
 for i in bin/*
 do cat > ../../usr/"$i" << EOF
-#!/bin/bash
+#!/bin/sh
 
 set -a
 if [ -f /var/lib/jjs/etc/env.txt ]
@@ -131,7 +131,7 @@ mkdir control
 cp "$DIRNAME/manifest.txt" control/control
 sed -i 's/^Version:.*$/Version: '"$(cat "$DIRNAME/../Version.txt")"'/g' control/control
 sed -i 's/^Architecture:.*$/Architecture: '"$(dpkg --print-architecture)"'/g' control/control
-cp ../scripts/* control/ || true
+cp "$DIRNAME"/scripts/* control/ || true
 cd control; tar --owner=root -cvJf ../control.tar.xz .; cd ..
 
 echo '2.0' > debian-binary

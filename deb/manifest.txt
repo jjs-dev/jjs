@@ -3,6 +3,6 @@ Version:
 Architecture:
 Maintainer: Mikail Bagishov <bagishov.mikail@yandex.ru>
 Depends: lxtrace
-Suggests: postgresql build-essential
+Suggests: postgresql, build-essential
 Description: JJS testing system
  JJS testing system (see https://github.com/MikailBag/jjs)

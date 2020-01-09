@@ -5,6 +5,7 @@ on:
     branches:
       - staging
       - trying
+      - master
 env:
   CI: 1
   RUST_BACKTRACE: full

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-packages="libpq-dev libssl-dev cmake"
+packages="libpq-dev libssl-dev cmake libsystemd-dev"
 
 if command -v sudo >/dev/null
 then sudo=sudo

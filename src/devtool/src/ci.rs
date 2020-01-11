@@ -1,17 +1,17 @@
 use std::env::var;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-enum PrJobType {
+enum CheckJobType {
     EndToEnd,
     __Other,
 }
 
-impl PrJobType {
-    fn detect() -> Option<PrJobType> {
+impl CheckJobType {
+    fn detect() -> Option<CheckJobType> {
         std::env::var("JOB")
             .ok()
             .and_then(|name| match name.as_str() {
-                "e2e" => Some(PrJobType::EndToEnd),
+                "e2e" => Some(CheckJobType::EndToEnd),
                 _ => panic!("unknown job name: {}", name),
             })
     }
@@ -21,10 +21,8 @@ impl PrJobType {
 enum BuildType {
     /// not a CI build
     NotCi,
-    /// regular PR or push build
-    Pr(PrJobType),
-    /// `bors try` or `bors r+`
-    Bors(PrJobType),
+    /// PR build,`bors try` or `bors r+`
+    Check { ty: CheckJobType, privileged: bool },
     /// we are on master, want to build something special
     Deploy(DeployKind),
 }
@@ -63,7 +61,10 @@ impl BuildInfo {
 
     pub fn is_pr_e2e(&self) -> bool {
         match self.ty {
-            BuildType::Pr(PrJobType::EndToEnd) | BuildType::Bors(PrJobType::EndToEnd) => true,
+            BuildType::Check {
+                ty: CheckJobType::EndToEnd,
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -137,14 +138,17 @@ fn do_detect_build_type() -> BuildType {
         Some(nam) => nam,
         None => panic!("Failed to parse commit ref: {}", &commit_ref),
     };
-    if branch_name == "master" || workflow_name == "deploy" {
+    if workflow_name == "deploy" {
         return BuildType::Deploy(DeployKind::detect());
     }
-    match branch_name {
-        "trying" | "staging" => {
-            BuildType::Bors(PrJobType::detect().expect("failed to detect Bors job"))
-        }
-        _ => BuildType::Pr(PrJobType::detect().expect("failed to detect PR job")),
+    let job_ty = CheckJobType::detect().expect("failed to detech check job");
+    let privileged = match branch_name {
+        "trying" | "staging" | "master" => true,
+        _ => false,
+    };
+    BuildType::Check {
+        ty: job_ty,
+        privileged,
     }
 }
 

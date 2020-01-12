@@ -35,7 +35,7 @@ jobs:
       - name: Setup env
         run: bash scripts/ci-env.sh
       - name: Build debian package
-        run: cargo jjs-build --deb
+        run: cargo jjs-build
         env:
           JJS_DT_DEPLOY: deb
       - name: Publish debian package artifact

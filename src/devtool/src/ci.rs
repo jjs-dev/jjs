@@ -46,6 +46,23 @@ impl DeployKind {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Workflow {
+    Pr,
+    Deploy,
+}
+
+impl Workflow {
+    fn detect() -> Workflow {
+        let workflow_name = var("GITHUB_WORKFLOW").expect("GITHUB_WORKFLOW not exists");
+        match workflow_name.as_str() {
+            "deploy" => Workflow::Deploy,
+            "ci" => Workflow::Pr,
+            other => panic!("Unknown workflow name: {}", other),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct BuildInfo {
     ty: BuildType,
@@ -131,16 +148,15 @@ fn do_detect_build_type() -> BuildType {
         return BuildType::NotCi;
     }
     let commit_ref = var("GITHUB_REF").expect("GITHUB_REF not exists");
-
-    let workflow_name = var("GITHUB_WORKFLOW").expect("GITHUB_WORKFLOW not exists");
-
+    let workflow = Workflow::detect();
+    if workflow == Workflow::Deploy {
+        return BuildType::Deploy(DeployKind::detect());
+    }
     let branch_name = match extract_branch_name(&commit_ref) {
         Some(nam) => nam,
         None => panic!("Failed to parse commit ref: {}", &commit_ref),
     };
-    if workflow_name == "deploy" {
-        return BuildType::Deploy(DeployKind::detect());
-    }
+
     let job_ty = CheckJobType::detect().expect("failed to detech check job");
     let privileged = match branch_name {
         "trying" | "staging" | "master" => true,

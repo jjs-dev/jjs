@@ -41,7 +41,8 @@ pub struct SystemdConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackagingConfig {
-    pub deb: bool,
+    /// Contains additional options for deb/build.sh
+    pub deb: Option<Vec<String>>,
     pub systemd: bool,
     pub docker: bool,
 }

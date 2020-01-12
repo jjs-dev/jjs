@@ -48,6 +48,9 @@ struct Opt {
     /// Build deb packages
     #[structopt(long = "enable-deb")]
     deb: bool,
+    /// Pass given option to deb generator
+    #[structopt(long = "with-deb-opt")]
+    deb_opt: Vec<String>,
     /// Generate SystemD unit files
     #[structopt(long = "enable-systemd")]
     systemd: bool,
@@ -207,7 +210,11 @@ fn main() {
         extras: opt.extras,
     };
     let packaging = cfg::PackagingConfig {
-        deb: opt.deb,
+        deb: if opt.deb {
+            Some(opt.deb_opt.clone())
+        } else {
+            None
+        },
         systemd: opt.systemd,
         docker: opt.docker,
     };

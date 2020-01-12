@@ -13,5 +13,5 @@ fs_extra = "1.1.0"
 structopt = "0.3.7"
 util = {path = "../util"}
 log = "0.4.8"
-url = "2.1.0"
+url = "2.1.1"
 anyhow = "1.0.26"

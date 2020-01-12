@@ -1545,7 +1545,7 @@ dependencies = [
  "juniper_codegen",
  "serde",
  "serde_derive",
- "url 2.1.0",
+ "url 2.1.1",
  "uuid",
 ]
 
@@ -2562,9 +2562,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03c6cbd2bc1c1cb7052dbe30f4a70cf65811967c800f2dfbb2e6036dc9ee2553"
+checksum = "c0e798e19e258bf6c30a304622e3e9ac820e483b06a1857a026e1f109b113fe4"
 dependencies = [
  "base64 0.11.0",
  "bytes",
@@ -2589,7 +2589,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tls",
- "url 2.1.0",
+ "url 2.1.1",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2868,7 +2868,7 @@ dependencies = [
  "dtoa",
  "itoa",
  "serde",
- "url 2.1.0",
+ "url 2.1.1",
 ]
 
 [[package]]
@@ -2880,7 +2880,7 @@ dependencies = [
  "fs_extra",
  "log 0.4.8",
  "structopt",
- "url 2.1.0",
+ "url 2.1.1",
  "util",
 ]
 
@@ -3613,9 +3613,9 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.1.0"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75b414f6c464c879d7f9babf951f23bc3743fb7313c081b2e6ca719067ea9d61"
+checksum = "829d4a8476c35c9bf0bbce5a3b23f4106f79728039b726d292bb93bc106787cb"
 dependencies = [
  "idna 0.2.0",
  "matches",
@@ -3651,7 +3651,7 @@ dependencies = [
  "slog-scope",
  "slog-stdlog",
  "slog-term",
- "url 2.1.0",
+ "url 2.1.1",
 ]
 
 [[package]]

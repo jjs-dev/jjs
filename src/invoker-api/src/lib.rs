@@ -3,7 +3,20 @@ pub mod valuer_proto;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-#[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumString,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Hash,
+)]
 pub enum StatusKind {
     Queue,
     /// WA, TLE, rejected by teacher, etc
@@ -61,7 +74,7 @@ pub mod status_codes {
     declare_code!(ACCEPTED, PARTIAL_SOLUTION, BUILD_ERROR);
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub struct Status {
     pub kind: StatusKind,
     pub code: String,

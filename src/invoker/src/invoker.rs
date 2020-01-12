@@ -1,8 +1,9 @@
 pub(crate) use crate::invoke_context::InvokeContext;
 use crate::{
     compiler::Compiler,
-    inter_api::{Artifact, BuildOutcome, BuildRequest, JudgeRequest, Paths},
+    inter_api::{Artifact, BuildOutcome, BuildRequest, InvokeOutcome, JudgeRequest, Paths},
     judge::Judge,
+    judge_log::JudgeLogs,
     valuer::Valuer,
     InvokeRequest,
 };
@@ -168,12 +169,6 @@ pub struct Invoker<'a> {
     notifier: Notifier,
 }
 
-#[derive(Debug, Clone)]
-pub struct InvokeOutcome {
-    pub status: Status,
-    pub score: u32,
-}
-
 impl<'a> Invoker<'a> {
     pub(crate) fn new(ctx: &'a dyn InvokeContext, req: &'a InvokeRequest) -> Invoker<'a> {
         Invoker {
@@ -189,18 +184,15 @@ impl<'a> Invoker<'a> {
         }
     }
 
-    fn run_tests(
-        &mut self,
-        artifact: &Artifact,
-    ) -> anyhow::Result<(InvokeOutcome, invoker_api::valuer_proto::JudgeLog)> {
+    fn run_tests(&mut self, artifact: &Artifact) -> anyhow::Result<JudgeLogs> {
         let mut test_results = vec![];
 
         let mut valuer = Valuer::new(self.ctx).context("failed to init valuer")?;
         valuer
             .write_problem_data()
             .context("failed to send problem data")?;
-
-        let (score, treat_as_full, judge_log) = loop {
+        let mut judge_logs = Vec::new();
+        loop {
             match valuer.poll()? {
                 ValuerResponse::Test { test_id: tid, live } => {
                     if live {
@@ -239,32 +231,20 @@ impl<'a> Invoker<'a> {
                             format!("failed to notify valuer that test {} is done", tid)
                         })?;
                 }
-                ValuerResponse::Finish {
-                    score,
-                    treat_as_full,
-                    judge_log,
-                } => {
-                    break (score, treat_as_full, judge_log);
+                ValuerResponse::Finish => {
+                    break;
                 }
                 ValuerResponse::LiveScore { score } => {
                     self.notifier.set_score(score);
                 }
+                ValuerResponse::JudgeLog(judge_log) => judge_logs.push(
+                    self.process_judge_log(&judge_log)
+                        .context("failed to convert valuer judge log to invoker judge log")?,
+                ),
             }
-        };
+        }
 
-        let status = if treat_as_full {
-            Status {
-                kind: StatusKind::Accepted,
-                code: status_codes::ACCEPTED.to_string(),
-            }
-        } else {
-            Status {
-                kind: StatusKind::Rejected,
-                code: status_codes::PARTIAL_SOLUTION.to_string(),
-            }
-        };
-        let outcome = InvokeOutcome { status, score };
-        Ok((outcome, judge_log))
+        Ok(JudgeLogs(judge_logs))
     }
 
     /// Go from valuer judge log to invoker judge log
@@ -275,7 +255,19 @@ impl<'a> Invoker<'a> {
         use invoker_api::valuer_proto::TestVisibleComponents;
         use std::io::Read;
         let mut persistent_judge_log = crate::judge_log::JudgeLog::default();
-        persistent_judge_log.name = valuer_log.name.clone();
+        let status = if valuer_log.is_full {
+            Status {
+                kind: StatusKind::Accepted,
+                code: status_codes::ACCEPTED.to_string(),
+            }
+        } else {
+            Status {
+                kind: StatusKind::Rejected,
+                code: status_codes::PARTIAL_SOLUTION.to_string(),
+            }
+        };
+        persistent_judge_log.status = status;
+        persistent_judge_log.kind = valuer_log.kind;
         // now fill compile_stdout and compile_stderr in judge_log
         {
             let mut compile_stdout = Vec::new();
@@ -377,45 +369,30 @@ impl<'a> Invoker<'a> {
         };
         let compiler_response = compiler.compile(compiler_request);
 
-        let mut outcome = None;
+        let outcome;
 
-        let artifact = match compiler_response {
+        match compiler_response {
             Err(err) => return Err(err),
             Ok(BuildOutcome::Error(st)) => {
-                outcome = Some(InvokeOutcome {
-                    status: st,
-                    score: 0,
-                });
+                outcome = InvokeOutcome::CompileError(st);
                 None
             }
-            Ok(BuildOutcome::Success(artifact)) => Some(artifact),
+            Ok(BuildOutcome::Success(artifact)) => {
+                let judge_logs = self.run_tests(&artifact)?;
+
+                outcome = InvokeOutcome::Judge(judge_logs);
+                Some(artifact)
+            }
         };
-
-        let valuer_judge_log;
-
-        if let Some(art) = artifact {
-            let (tests_outcome, jlog) = self.run_tests(&art)?;
-            valuer_judge_log = jlog;
-            outcome = Some(tests_outcome);
-        } else {
-            valuer_judge_log = invoker_api::valuer_proto::JudgeLog {
-                name: "".to_string(),
-                tests: vec![],
-                subtasks: vec![],
-            };
+        if let InvokeOutcome::Judge(judge_logs) = &outcome {
+            let judge_log_path = self.req.work_dir.path().join("log.json");
+            debug!("Writing judging log to {}", judge_log_path.display());
+            let judge_log_file = std::fs::File::create(&judge_log_path)?;
+            let judge_log_file = std::io::BufWriter::new(judge_log_file);
+            serde_json::to_writer(judge_log_file, &judge_logs.0)
+                .context("failed to write judge log to file")?;
+            debug!("Invokation finished"; "status" => ?outcome.status());
         }
-
-        let invoker_judge_log = self.process_judge_log(&valuer_judge_log)?;
-
-        let judge_log_path = self.req.work_dir.path().join("log.json");
-        debug!("Writing judging log to {}", judge_log_path.display());
-        let judge_log_file = std::fs::File::create(&judge_log_path)?;
-        let judge_log_file = std::io::BufWriter::new(judge_log_file);
-        serde_json::to_writer(judge_log_file, &invoker_judge_log)
-            .context("failed to write judge log to file")?;
-        let outcome = outcome.unwrap_or_else(|| unreachable!());
-        debug!("Invokation finished"; "status" => ?outcome.status);
-
         Ok(outcome)
     }
 }

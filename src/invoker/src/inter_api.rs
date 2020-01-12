@@ -79,3 +79,31 @@ pub(crate) struct JudgeRequest<'a> {
 pub(crate) struct JudgeOutcome {
     pub(crate) status: Status,
 }
+
+#[derive(Debug, Clone)]
+pub(crate) enum InvokeOutcome {
+    CompileError(Status),
+    Judge(crate::judge_log::JudgeLogs),
+    Fault,
+}
+
+impl InvokeOutcome {
+    pub(crate) fn status(&self) -> Option<&Status> {
+        match self {
+            InvokeOutcome::CompileError(st) => Some(st),
+            InvokeOutcome::Judge(judge_logs) => judge_logs.full_status(),
+            InvokeOutcome::Fault => None,
+        }
+    }
+
+    pub(crate) fn score(&self) -> u32 {
+        match self {
+            InvokeOutcome::CompileError(_) => 0,
+            InvokeOutcome::Judge(judge_logs) => {
+                // TODO: this is wring
+                judge_logs.full_log().map(|full| full.score).unwrap_or(444)
+            }
+            InvokeOutcome::Fault => 239,
+        }
+    }
+}

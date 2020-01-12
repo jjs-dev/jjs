@@ -34,7 +34,13 @@ pub struct JudgeLogTestRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
-pub struct SubtaskId(std::num::NonZeroU32);
+pub struct SubtaskId(pub std::num::NonZeroU32);
+
+impl SubtaskId {
+    pub fn make(n: u32) -> SubtaskId {
+        SubtaskId(std::num::NonZeroU32::new(n).expect("SubtaskId cannot be maked from 0"))
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLogSubtaskRow {
@@ -43,12 +49,36 @@ pub struct JudgeLogSubtaskRow {
     pub components: SubtaskVisibleComponents,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
+pub enum JudgeLogKind {
+    /// Contains all tests.
+    /// Test can be omitted, if staring it was speculation.
+    Full,
+    /// Contains judge log for contestant
+    /// Valuer should respect various restrictions specified in config.
+    Contestant,
+}
+
 /// Judge log from valuer POV
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLog {
-    pub name: String,
+    pub kind: JudgeLogKind,
     pub tests: Vec<JudgeLogTestRow>,
     pub subtasks: Vec<JudgeLogSubtaskRow>,
+    pub score: u32,
+    pub is_full: bool,
+}
+
+impl Default for JudgeLog {
+    fn default() -> JudgeLog {
+        JudgeLog {
+            kind: JudgeLogKind::Contestant,
+            tests: Vec::new(),
+            subtasks: Vec::new(),
+            score: 0,
+            is_full: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,11 +98,10 @@ pub enum ValuerResponse {
         test_id: TestId,
         live: bool,
     },
-    Finish {
-        score: u32,
-        treat_as_full: bool,
-        judge_log: JudgeLog,
-    },
+    /// Sent when judge log ready
+    /// Judge log of each kind must be sent at most once
+    JudgeLog(JudgeLog),
+    Finish,
     LiveScore {
         score: u32,
     },

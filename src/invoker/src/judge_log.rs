@@ -1,5 +1,8 @@
 //! Judge log stored in FS
-use invoker_api::valuer_proto::SubtaskId;
+use invoker_api::{
+    valuer_proto::{JudgeLogKind, SubtaskId},
+    Status,
+};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct JudgeLogTestRow {
@@ -19,21 +22,45 @@ pub(crate) struct JudgeLogSubtaskRow {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct JudgeLog {
-    pub(crate) name: String,
+    pub(crate) kind: JudgeLogKind,
     pub(crate) tests: Vec<JudgeLogTestRow>,
     pub(crate) subtasks: Vec<JudgeLogSubtaskRow>,
     pub(crate) compile_stdout: String,
     pub(crate) compile_stderr: String,
+    pub(crate) score: u32,
+    pub(crate) is_full: bool,
+    pub(crate) status: invoker_api::Status,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct JudgeLogs(pub(crate) Vec<JudgeLog>);
+
+impl JudgeLogs {
+    pub(crate) fn full_log(&self) -> Option<&JudgeLog> {
+        self.0.iter().find(|log| log.kind == JudgeLogKind::Full)
+    }
+
+    pub(crate) fn full_status(&self) -> Option<&Status> {
+        self.full_log()
+            .or_else(|| self.0.get(0))
+            .map(|log| &log.status)
+    }
 }
 
 impl Default for JudgeLog {
     fn default() -> Self {
         Self {
-            name: "<default judge log>".to_string(),
+            kind: JudgeLogKind::Contestant,
             tests: vec![],
             subtasks: vec![],
             compile_stdout: String::new(),
             compile_stderr: String::new(),
+            score: 0,
+            is_full: false,
+            status: invoker_api::Status {
+                code: "".to_string(),
+                kind: invoker_api::StatusKind::NotSet,
+            },
         }
     }
 }

@@ -11,6 +11,8 @@ OUT="$DIRNAME/jjs.deb"
 BUILD_="$BUILD"
 JJS_TGZ_="$JJS_TGZ"
 OUT_="$OUT"
+TAR_FLAGS="cvJf"
+TAR_FILE="data.tar.xz"
 
 usage ()
 {
@@ -28,6 +30,9 @@ Options:
 
     --out <out_path>
         Place the resulting package file at \`out_path\` (instead of $OUT)
+
+    --uncompressed
+        Do not compress the rootfs archive. Useful if packaging debug binaries.
 EOF
     exit 1
 }
@@ -46,6 +51,11 @@ do
     then
         OUT_="$2"
         shift; shift
+    elif [ "x$1" == x--uncompressed ]
+    then
+        TAR_FLAGS="cvf"
+        TAR_FILE="data.tar"
+        shift
     else
         usage
     fi
@@ -125,7 +135,7 @@ ln -s /opt/jjs/example-problems data/usr/share/jjs/example-problems
 ln -s /opt/jjs/share/db-setup.sql data/usr/share/jjs/db-setup.sql
 cp "$DIRNAME/env.txt" data/opt/jjs
 ln -s /opt/jjs/env.txt data/usr/share/jjs/env.txt
-cd data; tar --owner=root -cvJf ../data.tar.xz .; cd ..
+cd data; tar --owner=root "-$TAR_FLAGS" "../$TAR_FILE" .; cd ..
 
 mkdir control
 cp "$DIRNAME/manifest.txt" control/control
@@ -135,7 +145,7 @@ cp "$DIRNAME"/scripts/* control/ || true
 cd control; tar --owner=root -cvJf ../control.tar.xz .; cd ..
 
 echo '2.0' > debian-binary
-ar -q "$OUT" debian-binary control.tar.xz data.tar.xz
+ar -q "$OUT" debian-binary control.tar.xz "$TAR_FILE"
 
 ) #cd build
 rm -rf "$BUILD"

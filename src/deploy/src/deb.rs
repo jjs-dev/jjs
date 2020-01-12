@@ -5,7 +5,7 @@ use crate::{print_section, Params};
 use std::process::Command;
 use util::cmd::CommandExt;
 
-pub fn create(params: &Params, runner: &util::cmd::Runner) {
+pub fn create(params: &Params, runner: &util::cmd::Runner, addional_opts: &[String]) {
     print_section("Creating package");
     let mut cmd = Command::new("bash");
 
@@ -20,5 +20,6 @@ pub fn create(params: &Params, runner: &util::cmd::Runner) {
 
     let out_path = params.artifacts.join("pkg/jjs.deb");
     cmd.arg("--out").arg(out_path);
+    cmd.args(addional_opts);
     cmd.run_on(runner);
 }

@@ -147,9 +147,9 @@ pub fn package(params: &Params, runner: &Runner) {
     if params.cfg.components.archive {
         generate_archive(params);
     }
-    if params.cfg.packaging.deb {
+    if let Some(opts) = &params.cfg.packaging.deb {
         print_section("Generating Debian package");
-        deb::create(params, runner);
+        deb::create(params, runner, opts);
     }
     if params.cfg.packaging.docker {
         print_section("Building docker images");

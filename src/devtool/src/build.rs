@@ -60,6 +60,10 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
 
     if opts.full() || opts.should_build_deb() {
         cmd.arg("--enable-deb");
+        let bt = crate::ci::detect_build_type();
+        if bt.is_pr_e2e() {
+            cmd.arg("--with-deb-opt=--uncompressed");
+        }
     }
     // useful for easily starting up & shutting down
     // required for docker compose

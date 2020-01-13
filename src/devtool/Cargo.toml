@@ -9,7 +9,7 @@ structopt = "0.3.7"
 serde = { version = "1.0.104", features = ["derive"] }
 log = "0.4.8"
 env_logger = "0.7.1"
-ignore = "0.4.10"
+ignore = "0.4.11"
 toml = "0.5.5"
 atty = "0.2.13"
 util = {path = "../util"}

@@ -18,7 +18,7 @@ cfg-if = "0.1.10"
 pom = {path = "../pom"}
 libc = "0.2.66"
 nix = "0.16.1"
-memchr = "2.2.1"
+memchr = "2.3.0"
 strum = "0.17.1"
 strum_macros = "0.17.1"
 chrono = "0.4.10"

@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 pub use crate::linux::{LinuxBackend, LinuxChildProcess, LinuxDominion};
 
 use std::{
-    collections::HashMap,
     fmt::Debug,
     io::{Read, Write},
     sync::Arc,
@@ -258,7 +257,7 @@ pub struct StdioSpecification {
 pub struct ChildProcessOptions {
     pub path: PathBuf,
     pub arguments: Vec<OsString>,
-    pub environment: HashMap<OsString, OsString>,
+    pub environment: Vec<OsString>,
     pub dominion: DominionRef,
     pub stdio: StdioSpecification,
     /// Child's working dir. Relative to `dominion` isolation_root
@@ -333,6 +332,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Returned by [ChildProcess::wait_for_exit]
 ///
 /// [ChildProcess::wait_fot_exit]: trait.ChildProcess.html#tymethod.wait_for_exit
+#[derive(Eq, PartialEq, Debug)]
 pub enum WaitOutcome {
     /// Child process has exited during `wait_for_exit`
     Exited,
@@ -343,7 +343,7 @@ pub enum WaitOutcome {
 }
 
 /// Represents child process.
-pub trait ChildProcess {
+pub trait ChildProcess: Debug {
     /// Returns exit code, if process had exited by the moment of call, or None otherwise.
     fn get_exit_code(&self) -> Result<Option<i64>>;
 

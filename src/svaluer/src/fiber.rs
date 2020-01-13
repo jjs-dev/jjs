@@ -3,11 +3,13 @@ mod group;
 use crate::cfg::Config;
 use group::Group;
 use invoker_api::{
-    valuer_proto::{JudgeLog, JudgeLogKind, ProblemInfo},
+    valuer_proto::{
+        JudgeLog, JudgeLogKind, ProblemInfo, SubtaskVisibleComponents, TestVisibleComponents,
+    },
     Status,
 };
-use log::{debug, info};
 use pom::TestId;
+use slog_scope::{debug, info};
 use std::{collections::HashSet, num::NonZeroU32};
 
 /// Creates single JudgeLog
@@ -33,6 +35,37 @@ pub(crate) enum FiberReply {
     LiveScore { score: u32 },
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum GroupVisPreset {
+    Samples,
+    Online,
+    Offlime,
+}
+
+impl GroupVisPreset {
+    fn subtask_flags_for(self, k: JudgeLogKind) -> SubtaskVisibleComponents {
+        let mut out = SubtaskVisibleComponents::empty();
+        if self == GroupVisPreset::Samples || k == JudgeLogKind::Full {
+            out |= SubtaskVisibleComponents::all();
+        }
+        if self == GroupVisPreset::Online || k == JudgeLogKind::Full {
+            out |= SubtaskVisibleComponents::SCORE;
+        }
+        out
+    }
+
+    fn test_flags_for(self, k: JudgeLogKind) -> TestVisibleComponents {
+        let mut out = TestVisibleComponents::empty();
+        if self == GroupVisPreset::Samples || k == JudgeLogKind::Full {
+            out |= TestVisibleComponents::all();
+        }
+        if self == GroupVisPreset::Online {
+            out |= TestVisibleComponents::STATUS;
+        }
+        out
+    }
+}
+
 impl Fiber {
     pub(crate) fn new(cfg: &Config, problem_info: &ProblemInfo, kind: JudgeLogKind) -> Fiber {
         let mut groups = Vec::new();
@@ -40,13 +73,17 @@ impl Fiber {
         let mut samples_group = Group::new();
         samples_group
             .add_tests(1..=cfg.samples_count)
-            .set_id(NonZeroU32::new(1).unwrap());
+            .set_id(NonZeroU32::new(1).unwrap())
+            .set_tests_vis(GroupVisPreset::Samples.test_flags_for(kind))
+            .set_group_vis(GroupVisPreset::Samples.subtask_flags_for(kind));
         groups.push(samples_group);
 
         let mut online_tests_group = Group::new();
         online_tests_group
             .add_dep(0)
-            .set_id(NonZeroU32::new(2).unwrap());
+            .set_id(NonZeroU32::new(2).unwrap())
+            .set_tests_vis(GroupVisPreset::Online.test_flags_for(kind))
+            .set_group_vis(GroupVisPreset::Online.subtask_flags_for(kind));
         {
             let first = cfg.samples_count + 1;
             let last = match cfg.open_tests_count {
@@ -67,6 +104,8 @@ impl Fiber {
                 let mut offline_tests_group = Group::new();
                 offline_tests_group
                     .add_dep(1)
+                    .set_group_vis(GroupVisPreset::Offlime.subtask_flags_for(kind))
+                    .set_tests_vis(GroupVisPreset::Offlime.test_flags_for(kind))
                     .set_id(NonZeroU32::new(3).unwrap());
                 let first = open_test_count + cfg.samples_count + 1;
                 let last = problem_info.test_count;
@@ -279,17 +318,17 @@ mod tests {
                 JudgeLogTestRow {
                     test_id: TestId::make(1),
                     status: crate::status_util::make_ok_status(),
-                    components: TestVisibleComponents::empty()
+                    components: TestVisibleComponents::all()
                 },
                 JudgeLogTestRow {
                     test_id: TestId::make(2),
                     status: crate::status_util::make_ok_status(),
-                    components: TestVisibleComponents::empty()
+                    components: TestVisibleComponents::all()
                 },
                 JudgeLogTestRow {
                     test_id: TestId::make(3),
                     status: crate::status_util::make_err_status(),
-                    components: TestVisibleComponents::empty()
+                    components: TestVisibleComponents::all()
                 },
             ],
         );
@@ -299,17 +338,17 @@ mod tests {
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(1),
                     score: 0,
-                    components: SubtaskVisibleComponents::empty()
+                    components: SubtaskVisibleComponents::all()
                 },
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(2),
                     score: 60,
-                    components: SubtaskVisibleComponents::empty()
+                    components: SubtaskVisibleComponents::all()
                 },
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(3),
                     score: 0,
-                    components: SubtaskVisibleComponents::empty()
+                    components: SubtaskVisibleComponents::all()
                 }
             ]
         );

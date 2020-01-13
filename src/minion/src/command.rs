@@ -3,18 +3,17 @@ use crate::{
     OutputSpecification, StdioSpecification,
 };
 use std::{
-    collections::HashMap,
     ffi::{OsStr, OsString},
     path::{Path, PathBuf},
 };
 
 /// Child process builder
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Command {
     dominion: Option<DominionRef>,
     exe: Option<PathBuf>,
     argv: Vec<OsString>,
-    env: HashMap<OsString, OsString>,
+    env: Vec<OsString>,
     stdin: Option<InputSpecification>,
     stdout: Option<OutputSpecification>,
     stderr: Option<OutputSpecification>,
@@ -78,21 +77,14 @@ impl Command {
         self
     }
 
-    pub fn env(&mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> &mut Self {
-        self.env
-            .insert(key.as_ref().to_os_string(), value.as_ref().to_os_string());
+    pub fn env(&mut self, var: impl AsRef<OsStr>) -> &mut Self {
+        self.env.push(var.as_ref().to_os_string());
         self
     }
 
-    pub fn envs(
-        &mut self,
-        items: impl IntoIterator<Item = (impl AsRef<OsStr>, impl AsRef<OsStr>)>,
-    ) -> &mut Self {
-        self.env.extend(
-            items
-                .into_iter()
-                .map(|(k, v)| (k.as_ref().to_os_string(), v.as_ref().to_os_string())),
-        );
+    pub fn envs(&mut self, items: impl IntoIterator<Item = impl AsRef<OsStr>>) -> &mut Self {
+        self.env
+            .extend(items.into_iter().map(|var| var.as_ref().to_os_string()));
         self
     }
 

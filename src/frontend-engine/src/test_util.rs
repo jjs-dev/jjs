@@ -109,5 +109,5 @@ pub fn check_error(err: &serde_json::Value, exp_code: &str) {
         .and_then(|v| v.get("errorCode"))
         .and_then(|v| v.as_str())
         .map(|x| x.to_string());
-    assert_eq!(code.as_ref().map(String::as_str), Some(exp_code));
+    assert_eq!(code.as_deref(), Some(exp_code));
 }

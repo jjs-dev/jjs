@@ -43,10 +43,7 @@ impl RunsRepo for MemoryRepo {
         let run = Run {
             id: run_id,
             toolchain_id: run_data.toolchain_id,
-            status_code: run_data.status_code,
-            status_kind: run_data.status_kind,
             problem_id: run_data.problem_id,
-            score: run_data.score,
             rejudge_id: run_data.rejudge_id,
             user_id: run_data.user_id,
         };
@@ -67,15 +64,6 @@ impl RunsRepo for MemoryRepo {
             Some(Some(x)) => x,
             None | Some(None) => bail!("run_update@memory: unknown run id"),
         };
-        if let Some(new_status_code) = patch.status_code {
-            cur.status_code = new_status_code;
-        }
-        if let Some(new_status_kind) = patch.status_kind {
-            cur.status_kind = new_status_kind;
-        }
-        if let Some(new_score) = patch.score {
-            cur.score = new_score;
-        }
         if let Some(new_rejudge_id) = patch.rejudge_id {
             cur.rejudge_id = new_rejudge_id;
         }
@@ -124,15 +112,59 @@ impl InvocationsRepo for MemoryRepo {
         let inv_id = data.invs.len() as InvocationId;
         let inv = Invocation {
             id: inv_id,
+            run_id: inv_data.run_id,
             invoke_task: inv_data.invoke_task,
+            state: inv_data.state,
+            outcome: inv_data.outcome,
         };
         data.invs.push(inv.clone());
         Ok(inv)
     }
 
-    fn inv_pop(&self) -> Result<Option<Invocation>> {
+    fn inv_find_waiting(
+        &self,
+        offset: u32,
+        count: u32,
+        predicate: &mut dyn FnMut(Invocation) -> Result<bool>,
+    ) -> Result<Vec<Invocation>> {
+        let data = self.conn.lock().unwrap();
+        let items = data.invs.iter().skip(offset as usize).take(count as usize);
+        let mut filtered = Vec::new();
+        for x in items {
+            if predicate(x.clone())? {
+                filtered.push(x.clone());
+            }
+        }
+        Ok(filtered)
+    }
+
+    fn inv_last(&self, run_id: RunId) -> Result<Invocation> {
+        let data = self.conn.lock().unwrap();
+        data.invs
+            .iter()
+            .filter(|inv| inv.run_id == run_id)
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("no invocations for run exist"))
+            .map(Clone::clone)
+    }
+
+    fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
-        Ok(data.invs.pop())
+        if inv_id >= data.invs.len() as i32 || inv_id < 0 {
+            bail!("inv_update: no such invocation");
+        }
+        let mut inv = &mut data.invs[inv_id as usize];
+        let InvocationPatch {
+            state: p_state,
+            outcome: p_outcome,
+        } = patch;
+        if let Some(p_state) = p_state {
+            inv.state = p_state;
+        }
+        if let Some(p_outcome) = p_outcome {
+            inv.outcome = p_outcome;
+        }
+        Ok(())
     }
 }
 
@@ -180,10 +212,7 @@ mod tests {
             assert!(repo.run_load(0).is_err());
             let new_run = NewRun {
                 toolchain_id: "foo".to_string(),
-                status_code: "bar".to_string(),
-                status_kind: "baz".to_string(),
                 problem_id: "quux".to_string(),
-                score: 444,
                 rejudge_id: 33,
                 user_id: john_id,
             };
@@ -198,26 +227,17 @@ mod tests {
             let repo = MemoryRepo::new();
             let new_run = NewRun {
                 toolchain_id: "0".to_string(),
-                status_code: "0".to_string(),
-                status_kind: "0".to_string(),
                 problem_id: "0".to_string(),
-                score: 0,
                 rejudge_id: 0,
                 user_id: uuid::Uuid::new_v4(),
             };
             repo.run_new(new_run).unwrap();
             let patch = RunPatch {
-                status_code: Some("1".to_string()),
-                status_kind: Some("2".to_string()),
-                score: Some(3),
                 rejudge_id: Some(4),
             };
             repo.run_update(0, patch).unwrap();
             let patched_run = repo.run_load(0).unwrap();
             // now let's check that all fields that must be updated are actually updated
-            assert_eq!(patched_run.status_code, "1");
-            assert_eq!(patched_run.status_kind, "2");
-            assert_eq!(patched_run.score, 3);
             assert_eq!(patched_run.rejudge_id, 4);
         }
     }

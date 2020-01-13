@@ -1,60 +1,43 @@
-use crate::{
-    inter_api::{Artifact, BuildOutcome, BuildRequest},
-    invoke_util,
-    invoker::{interpolate_command, InvokeContext},
-};
+use crate::worker::{invoke_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use std::{fs, time::Duration};
 
+pub(crate) enum BuildOutcome {
+    Success,
+    Error(Status),
+}
+
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
-    pub(crate) ctx: &'a dyn InvokeContext,
+    pub(crate) req: &'a InvokeRequest,
+    //pub(crate) minio
 }
 
 impl<'a> Compiler<'a> {
-    pub(crate) fn compile(&self, req: BuildRequest) -> anyhow::Result<BuildOutcome> {
-        fs::create_dir(&req.paths.step).context("failed to create compile step dir")?;
-        fs::create_dir(req.paths.chroot_dir()).context("failed to create compile chroot dir")?;
-        fs::create_dir(req.paths.share_dir()).context("failed to create compile share dir")?;
-
-        let toolchain = self.ctx.env().toolchain_cfg;
-        let limits = &toolchain.limits;
-
-        let sandbox = crate::invoke_util::create_sandbox(
-            self.ctx.env().cfg,
-            limits,
-            req.paths,
-            self.ctx.env().minion_backend,
-        )
-        .context("failed to create sandbox")?;
-
+    pub(crate) fn compile(&self) -> anyhow::Result<BuildOutcome> {
+        let sandbox = invoke_util::create_sandbox(self.req, None, &*self.req.minion)
+            .context("failed to create sandbox")?;
+        let step_dir = self.req.step_dir(None);
         fs::copy(
-            req.paths.source(),
-            req.paths.share_dir().join(&toolchain.filename),
+            &self.req.run_source,
+            step_dir.join("data").join(&self.req.source_file_name),
         )
         .context("failed to copy source")?;
 
-        for (i, command_template) in toolchain.build_commands.iter().enumerate() {
-            let dict = invoke_util::get_common_interpolation_dict(
-                self.ctx.env().run_props,
-                self.ctx.env().toolchain_cfg,
-            );
-            let stdout_path = req.paths.step.join(&format!("stdout-{}.txt", i));
-            let stderr_path = req.paths.step.join(&format!("stderr-{}.txt", i));
+        for (i, command) in self.req.compile_commands.iter().enumerate() {
+            let stdout_path = step_dir.join(&format!("stdout-{}.txt", i));
+            let stderr_path = step_dir.join(&format!("stderr-{}.txt", i));
 
-            let command_interp = interpolate_command(command_template, &dict)
-                .context("invalid compiler command template")?;
-
-            invoke_util::log_execute_command(&command_interp);
+            invoke_util::log_execute_command(&command);
 
             let mut native_command = minion::Command::new();
-            invoke_util::command_set_from_interp(&mut native_command, &command_interp);
+            invoke_util::command_set_from_inv_req(&mut native_command, &command);
             invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
             native_command.dominion(sandbox.clone());
 
-            let child = match native_command.spawn(self.ctx.env().minion_backend) {
+            let child = match native_command.spawn(&*self.req.minion) {
                 Ok(child) => child,
                 Err(err) => {
                     if err.is_system() {
@@ -69,7 +52,7 @@ impl<'a> Compiler<'a> {
             };
 
             let wait_result = child
-                .wait_for_exit(Duration::from_millis(limits.time))
+                .wait_for_exit(Duration::from_secs(1000 /* TODO */))
                 .context("failed to wait for compiler")?;
             match wait_result {
                 minion::WaitOutcome::Timeout => {
@@ -94,10 +77,8 @@ impl<'a> Compiler<'a> {
                 }
             };
         }
-        fs::copy(req.paths.share_dir().join("build"), req.paths.build())
+        fs::copy(step_dir.join("data/build"), self.req.out_dir.join("build"))
             .context("failed to copy artifact to run dir")?;
-        Ok(BuildOutcome::Success(Artifact {
-            execute_command: toolchain.run_command.clone(),
-        }))
+        Ok(BuildOutcome::Success)
     }
 }

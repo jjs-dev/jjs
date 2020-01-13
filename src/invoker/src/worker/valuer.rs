@@ -1,31 +1,27 @@
-use crate::{invoke_context::InvokeContext, os_util::make_anon_file};
+use crate::worker::InvokeRequest;
 use anyhow::{bail, Context};
 use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use slog_scope::warn;
 use std::{
     convert::TryInto,
     io::{BufRead, BufReader, BufWriter, Write},
+    os::unix::{io::IntoRawFd, process::CommandExt},
 };
-pub(crate) struct Valuer<'a> {
-    ctx: &'a dyn InvokeContext,
+pub(crate) struct Valuer {
     child: std::process::Child,
     stdin: BufWriter<std::process::ChildStdin>,
     stdout: BufReader<std::process::ChildStdout>,
 }
 
-impl<'a> Valuer<'a> {
-    pub(crate) fn new(ctx: &'a dyn InvokeContext) -> anyhow::Result<Valuer> {
-        let valuer_exe = ctx.resolve_asset(&ctx.env().problem_data.valuer_exe);
+impl Valuer {
+    pub(crate) fn new(req: &InvokeRequest) -> anyhow::Result<Valuer> {
+        let valuer_exe = req.resolve_asset(&req.problem_data.valuer_exe);
         let mut cmd = std::process::Command::new(&valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
-        let public_comments = make_anon_file("PublicValuerComments");
-        let private_comments = make_anon_file("PrivateValuerComments");
-        cmd.env("JJS_VALUER_COMMENT_PUB", public_comments.to_string());
-        cmd.env("JJS_VALUER_COMMENT_PRIV", private_comments.to_string());
         cmd.env("JJS_VALUER", "1");
-        let work_dir = ctx.resolve_asset(&ctx.env().problem_data.valuer_cfg);
+        let work_dir = req.resolve_asset(&req.problem_data.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);
         } else {
@@ -33,6 +29,16 @@ impl<'a> Valuer<'a> {
                 "Not setting current dir for valuer because path specified ({}) does not exists",
                 work_dir.display()
             );
+        }
+        let log = std::fs::File::create(req.out_dir.join("valuer-log.txt"))
+            .context("failed to create valuer log file")?
+            .into_raw_fd();
+        unsafe {
+            cmd.pre_exec(move || {
+                nix::unistd::dup3(log, libc::STDERR_FILENO, nix::fcntl::OFlag::empty())
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                Ok(())
+            });
         }
         let mut child = cmd.spawn().with_context(|| {
             format!(
@@ -44,7 +50,6 @@ impl<'a> Valuer<'a> {
         let stdin = child.stdin.take().unwrap();
         let stdout = child.stdout.take().unwrap();
         let val = Valuer {
-            ctx,
             child,
             stdin: BufWriter::new(stdin),
             stdout: BufReader::new(stdout),
@@ -66,8 +71,8 @@ impl<'a> Valuer<'a> {
         Ok(())
     }
 
-    pub(crate) fn write_problem_data(&mut self) -> anyhow::Result<()> {
-        let problem_info = self.ctx.env().problem_data;
+    pub(crate) fn write_problem_data(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
+        let problem_info = &req.problem_data;
         let proto_problem_info = ProblemInfo {
             test_count: problem_info
                 .tests
@@ -96,7 +101,7 @@ impl<'a> Valuer<'a> {
     }
 }
 
-impl Drop for Valuer<'_> {
+impl Drop for Valuer {
     fn drop(&mut self) {
         self.child.kill().ok();
         self.child.wait().ok();

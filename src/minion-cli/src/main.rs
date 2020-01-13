@@ -131,7 +131,7 @@ fn main() {
         environment: options
             .env
             .iter()
-            .map(|v| (v.name.clone().into(), v.value.clone().into()))
+            .map(|v| format!("{}={}", &v.name, &v.value).into())
             .collect(),
         dominion: dominion.clone(),
         stdio: minion::StdioSpecification {

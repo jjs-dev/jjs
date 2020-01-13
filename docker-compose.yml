@@ -34,7 +34,8 @@ services:
       JJS_PATH: /opt/jjs
       JJS_WAIT: file:///var/lib/jjs/done.txt
       JJS_HOST: "0.0.0.0"
-      RUST_LOG: debug
+      RUST_LOG: info,frontend=debug,util=debug
+      JJS_SELF_ADDR: frontend
     command: 
       - jjs-frontend
     depends_on:
@@ -49,12 +50,15 @@ services:
   invoker:
     image: jjs:latest
     privileged: true
+    command: 
+      - /bin/jjs-invoker
     environment:
       DATABASE_URL: postgres://db:5432/jjs
       JJS_SYSROOT: /var/lib/jjs
       JJS_PATH: /opt/jjs
       JJS_WAIT: file:///var/lib/jjs/done.txt
-      RUST_LOG: debug
+      RUST_LOG: info,invoker=debug,util=debug,svaluer=debug
+      RUST_BACKTRACE: full
       RUST_LIB_BACKTRACE: 1
     command: 
       - jjs-invoker

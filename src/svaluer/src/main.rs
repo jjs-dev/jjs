@@ -1,6 +1,7 @@
 //! Simple valuer
 use anyhow::Context;
 use pom::TestId;
+use slog_scope::debug;
 use std::collections::HashSet;
 
 /// CLI-based driver, useful for manual testing valuer config
@@ -233,10 +234,6 @@ fn parse_config() -> anyhow::Result<svaluer::cfg::Config> {
 }
 
 fn main_cli_mode() -> anyhow::Result<()> {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info,svaluer=debug");
-    }
-    util::log::setup();
     let mut driver = TermDriver {
         current_tests: HashSet::new(),
         full_judge_log: None,
@@ -254,10 +251,16 @@ fn main_json_mode() -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info,svaluer=debug");
+    }
+    util::log::setup();
     let json_mode = std::env::var("JJS_VALUER").is_ok();
     if json_mode {
+        debug!("Mode: JSON");
         main_json_mode()?
     } else {
+        debug!("Mode: CLI");
         main_cli_mode()?
     }
 

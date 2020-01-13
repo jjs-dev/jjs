@@ -11,8 +11,8 @@ mod fiber;
 use anyhow::{Context, Result};
 use fiber::{Fiber, FiberReply};
 use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};
-use log::debug;
 use pom::TestId;
+use slog_scope::debug;
 use std::collections::HashSet;
 /// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting with environment, such as JJS invoker.
 pub trait ValuerDriver {

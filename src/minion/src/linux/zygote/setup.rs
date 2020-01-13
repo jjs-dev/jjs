@@ -9,7 +9,7 @@ use crate::{
     DesiredAccess, PathExpositionOptions,
 };
 use std::{
-    collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io,
+    collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io, io::Write,
     os::unix::ffi::OsStrExt, path::Path, ptr, time,
 };
 use tiny_nix_ipc::Socket;
@@ -112,7 +112,7 @@ unsafe fn setup_sighandler() {
 }
 
 unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
-    let jail_id = jail_options.jail_id.clone();
+    let jail_id = &jail_options.jail_id;
     // configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
     fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
@@ -122,8 +122,11 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     fs::create_dir_all(&pids_cgroup_path).unwrap();
 
     fs::write(
-        format!("{}/pids.max", &pids_cgroup_path),
-        format!("{}", jail_options.max_alive_process_count),
+        pids_cgroup_path.join("pids.max"),
+        format!(
+            "{}",
+            jail_options.max_alive_process_count + 2 /* to account for zygote and time watcher */
+        ),
     )
     .unwrap();
 
@@ -131,10 +134,10 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
     let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
 
     fs::create_dir_all(&mem_cgroup_path).unwrap();
-    fs::write(format!("{}/memory.swappiness", &mem_cgroup_path), "0").unwrap();
+    fs::write(mem_cgroup_path.join("memory.swappiness"), "0").unwrap();
 
     fs::write(
-        format!("{}/memory.limit_in_bytes", &mem_cgroup_path),
+        mem_cgroup_path.join("memory.limit_in_bytes"),
         format!("{}", jail_options.memory_limit),
     )
     .unwrap();
@@ -146,20 +149,23 @@ unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
 
     // we return handles to tasksfiles for main cgroups
     // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
-    ["cpuacct", "pids", "memory"]
+    let mut handles = ["cpuacct", "memory", "pids"]
         .iter()
         .map(|subsys_name| {
             use std::os::unix::io::IntoRawFd;
             let p = get_path_for_subsystem(subsys_name, &jail_id);
-            let p = format!("{}/tasks", p);
+            let p = p.join("tasks");
             let h = fs::OpenOptions::new()
                 .write(true)
-                .open(p)
-                .expect("Couldn't open tasks file")
+                .open(&p)
+                .unwrap_or_else(|err| panic!("Couldn't open tasks file {}: {}", p.display(), err))
                 .into_raw_fd();
             libc::dup(h)
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+    let pids_cgroup_handle = handles.pop().expect("must have len == 3");
+    nix::unistd::write(pids_cgroup_handle, b"1").expect("failed to join pids cgroup");
+    handles
 }
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
@@ -231,7 +237,6 @@ pub fn derive_user_ids(jail_id: &str) -> Uid {
 }
 
 fn setup_panic_hook() {
-    use std::io::Write;
     std::panic::set_hook(Box::new(|info| {
         let mut logger = StraceLogger::new();
         write!(logger, "PANIC: {}", info).ok();
@@ -239,7 +244,7 @@ fn setup_panic_hook() {
         write!(logger, "{:?}", &bt).ok();
         // Now write same to stdout
         unsafe {
-            logger.set_fd(0);
+            logger.set_fd(1);
         }
         write!(logger, "PANIC: {}", info).ok();
         write!(logger, "{:?}", &bt).ok();
@@ -266,6 +271,8 @@ pub(crate) unsafe fn setup(
     setup_uid_mapping(sock)?;
     setup_chroot(&jail_params);
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
+    let mut logger = crate::linux::util::StraceLogger::new();
+    writeln!(logger, "dominion {}: setup done", &jail_params.jail_id).unwrap();
     let res = SetupData { cgroups: handles };
     Ok(res)
 }
@@ -278,11 +285,13 @@ unsafe fn cpu_time_observer(
     real_time_limit: u64,
     chan: std::os::unix::io::RawFd,
 ) -> ! {
+    let mut logger = crate::linux::util::StraceLogger::new();
+    writeln!(logger, "dominion {}: cpu time watcher", jail_id).unwrap();
     let start = time::Instant::now();
     loop {
         libc::sleep(1);
         let current_usage_file = jail_common::get_path_for_subsystem("cpuacct", jail_id);
-        let current_usage_file = format!("{}/cpuacct.usage", current_usage_file);
+        let current_usage_file = current_usage_file.join("cpuacct.usage");
         let current_usage = fs::read_to_string(current_usage_file)
             .expect("Couldn't load cpu usage")
             .trim()
@@ -302,7 +311,8 @@ unsafe fn cpu_time_observer(
             nix::unistd::write(chan, b"r").ok();
         }
         // since we are inside pid ns, we can refer to zygote as pid1.
-        jail_common::dominion_kill_all(1 as Pid);
+        let err = jail_common::dominion_kill_all(1 as Pid, None);
+        println!("{:?}", err);
         // we will be killed by kernel too
     }
 }

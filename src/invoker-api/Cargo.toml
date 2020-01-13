@@ -10,3 +10,4 @@ strum = "0.17.1"
 strum_macros = "0.17.1"
 bitflags = "1.2.1"
 pom = {path = "../pom"}
+uuid = "0.7.4"

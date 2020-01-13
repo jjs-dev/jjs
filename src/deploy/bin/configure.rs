@@ -172,18 +172,8 @@ fn main() {
     };
 
     let tool_info = cfg::ToolInfo {
-        cargo: opt
-            .cargo
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or_else(|| "cargo")
-            .to_string(),
-        cmake: opt
-            .cmake
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or_else(|| "cmake")
-            .to_string(),
+        cargo: opt.cargo.as_deref().unwrap_or_else(|| "cargo").to_string(),
+        cmake: opt.cmake.as_deref().unwrap_or_else(|| "cmake").to_string(),
     };
     let profile = match (opt.optimize, opt.dbg_sym) {
         (true, false) => cfg::BuildProfile::Release,

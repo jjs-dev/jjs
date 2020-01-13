@@ -27,7 +27,6 @@ fn launch_root_login_server(fcfg: FrontendConfig) {
 
 fn main() {
     dotenv::dotenv().ok();
-    util::daemon_startup_sleep();
     util::log::setup();
     util::wait::wait();
     let frontend_cfg = frontend_engine::config::FrontendConfig::obtain();

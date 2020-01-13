@@ -1,4 +1,6 @@
-use anyhow::{Context, Result};
+mod invocation;
+
+// use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub type RunId = i32;
@@ -10,10 +12,7 @@ pub type ProblemId = String;
 pub struct Run {
     pub id: RunId,
     pub toolchain_id: String,
-    pub status_code: String,
-    pub status_kind: String,
     pub problem_id: ProblemId,
-    pub score: i32,
     pub rejudge_id: i32,
     pub user_id: UserId,
 }
@@ -22,10 +21,7 @@ pub struct Run {
 #[table_name = "runs"]
 pub struct NewRun {
     pub toolchain_id: String,
-    pub status_code: String,
-    pub status_kind: String,
     pub problem_id: ProblemId,
-    pub score: i32,
     pub rejudge_id: i32,
     pub user_id: UserId,
 }
@@ -33,53 +29,37 @@ pub struct NewRun {
 #[derive(AsChangeset, Default)]
 #[table_name = "runs"]
 pub struct RunPatch {
-    pub status_code: Option<String>,
-    pub status_kind: Option<String>,
-    #[column_name = "score"]
-    pub score: Option<i32>,
     #[column_name = "rejudge_id"]
     pub rejudge_id: Option<i32>,
 }
+pub use invocation::InvocationState;
 
-#[derive(Queryable, Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct RawInvocation {
-    pub(crate) id: InvocationId,
+#[derive(Queryable, QueryableByName, Debug, Clone, Serialize, Deserialize)]
+#[table_name = "invocations"]
+pub struct Invocation {
+    pub id: InvocationId,
+    pub run_id: RunId,
     pub(crate) invoke_task: Vec<u8>,
+    pub(crate) state: i16,
+    pub(crate) outcome: serde_json::Value,
 }
 
 #[derive(Insertable)]
 #[table_name = "invocations"]
-pub(crate) struct RawNewInvocation {
-    pub(crate) invoke_task: Vec<u8>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Invocation {
-    pub id: InvocationId,
-    pub invoke_task: invoker_api::InvokeTask,
-}
-
-impl Invocation {
-    pub(crate) fn from_raw(raw: &RawInvocation) -> Result<Self> {
-        Ok(Self {
-            id: raw.id,
-            invoke_task: bincode::deserialize(&raw.invoke_task)
-                .context("failed to deserialize InvokeTask")?,
-        })
-    }
-}
-
-impl NewInvocation {
-    pub(crate) fn to_raw(&self) -> Result<RawNewInvocation> {
-        Ok(RawNewInvocation {
-            invoke_task: bincode::serialize(&self.invoke_task)
-                .context("failed to serialize InvokeTask")?,
-        })
-    }
-}
-
 pub struct NewInvocation {
-    pub invoke_task: invoker_api::InvokeTask,
+    pub run_id: RunId,
+    pub(crate) invoke_task: Vec<u8>,
+    pub(crate) state: i16,
+    pub(crate) outcome: serde_json::Value,
+}
+
+#[derive(AsChangeset, Default)]
+#[table_name = "invocations"]
+pub struct InvocationPatch {
+    #[column_name = "state"]
+    pub(crate) state: Option<i16>,
+    #[column_name = "outcome"]
+    pub(crate) outcome: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable, Insertable)]

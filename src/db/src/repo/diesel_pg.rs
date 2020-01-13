@@ -1,7 +1,7 @@
 use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{Context, Result};
-use diesel::{prelude::*, r2d2::ConnectionManager};
+use diesel::{dsl::*, prelude::*, r2d2::ConnectionManager};
 use r2d2::{Pool, PooledConnection};
 
 pub struct DieselRepo {
@@ -71,30 +71,67 @@ mod impl_invs {
     impl InvocationsRepo for DieselRepo {
         fn inv_new(&self, inv_data: NewInvocation) -> Result<Invocation> {
             diesel::insert_into(invocations)
-                .values(&inv_data.to_raw()?)
+                .values(&inv_data)
                 .get_result(&self.conn()?)
-                .context("failed to load invocation")
-                .and_then(|raw| Invocation::from_raw(&raw))
+                .context("failed to create invocation")
                 .map_err(Into::into)
         }
 
-        fn inv_pop(&self) -> Result<Option<Invocation>> {
+        fn inv_last(&self, r_id: RunId) -> Result<Invocation> {
+            let query = diesel::sql_query(include_str!("get_last_run_invocation.sql"))
+                .bind::<diesel::sql_types::Integer, _>(r_id);
+            let vals: Vec<Invocation> = query
+                .load(&self.conn()?)
+                .context("failed to load invocations")?;
+            vals.into_iter()
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("Run has not invocations"))
+        }
+
+        fn inv_find_waiting(
+            &self,
+            offset: u32,
+            count: u32,
+            predicate: &mut dyn FnMut(Invocation) -> Result<bool>,
+        ) -> Result<Vec<Invocation>> {
             let conn = self.conn()?;
             conn.transaction::<_, anyhow::Error, _>(|| {
-                let invocation = invocations.limit(1).load::<RawInvocation>(&conn)?;
-                let invocation = invocation.into_iter().next();
-                match invocation {
-                    Some(s) => {
-                        diesel::delete(invocations)
-                            .filter(id.eq(s.id))
-                            .execute(&conn)?;
-
-                        Ok(Some(Invocation::from_raw(&s)?))
+                let query = "
+SELECT * FROM invocations
+WHERE state = 1
+ORDER BY id
+OFFSET $1 LIMIT $2
+FOR UPDATE
+            ";
+                let invs: Vec<Invocation> = diesel::sql_query(query)
+                    .bind::<diesel::sql_types::Integer, _>(offset as i32)
+                    .bind::<diesel::sql_types::Integer, _>(count as i32)
+                    .load(&self.conn()?)
+                    .context("unable to load waiting invocations")?;
+                let mut filtered = Vec::new();
+                let mut to_del = Vec::new();
+                for inv in invs {
+                    to_del.push(inv.id);
+                    if predicate(inv.clone())? {
+                        filtered.push(inv);
                     }
-                    None => Ok(None),
                 }
+                const STATE_DONE: i16 = InvocationState::Done.as_int();
+                diesel::update(invocations)
+                    .set(state.eq(STATE_DONE))
+                    .filter(id.eq(any(&to_del)))
+                    .execute(&self.conn()?)?;
+                Ok(filtered)
             })
-            .context("failed to extract invocation")
+        }
+
+        fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()> {
+            diesel::update(invocations)
+                .filter(id.eq(inv_id))
+                .set(&patch)
+                .execute(&self.conn()?)
+                .map_err(Into::into)
+                .map(drop)
         }
     }
 }

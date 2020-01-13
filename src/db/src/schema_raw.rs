@@ -3,7 +3,10 @@ table! {
 
     invocations (id) {
         id -> Int4,
+        run_id -> Int4,
         invoke_task -> Bytea,
+        state -> Int2,
+        outcome -> Jsonb,
     }
 }
 
@@ -13,10 +16,7 @@ table! {
     runs (id) {
         id -> Int4,
         toolchain_id -> Varchar,
-        status_code -> Varchar,
-        status_kind -> Varchar,
         problem_id -> Varchar,
-        score -> Int4,
         rejudge_id -> Int4,
         user_id -> Uuid,
     }
@@ -33,6 +33,7 @@ table! {
     }
 }
 
+joinable!(invocations -> runs (run_id));
 joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(

@@ -109,12 +109,12 @@ impl Mutation {
     fn modify_run(
         ctx: &Context,
         id: schema::RunId,
-        status: Option<runs::InvokeStatusIn>,
+        score: Option<i32>,
         rejudge: Option<bool>,
         delete: Option<bool>,
     ) -> ApiResult<i32> {
         // TODO this return value (i32) is workaround for strange
-        runs::modify(ctx, id, status, rejudge, delete).map(|_| 0)
+        runs::modify(ctx, id, score, rejudge, delete).map(|_| 0)
     }
 
     /// Login using login and password

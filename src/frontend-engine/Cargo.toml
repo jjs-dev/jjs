@@ -9,7 +9,7 @@ digest = "0.8.1"
 db = {path = "../db"}
 rand = "0.7.2"
 juniper = "0.14.2"
-uuid = "0.7.4"
+uuid = "0.8.1"
 rocket = "0.4.2"
 serde = "1.0.104"
 sha3 = "0.8.2"

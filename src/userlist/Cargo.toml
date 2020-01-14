@@ -13,4 +13,4 @@ pest = "2.1.2"
 pest_derive = "2.1.0"
 graphql_client = "0.8.0"
 serde = { version = "1.0.104", features = ["derive"] }
-uuid = "0.7.4"
+uuid = "0.8.1"

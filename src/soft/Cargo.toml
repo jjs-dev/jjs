@@ -13,4 +13,4 @@ util = {path = "../util"}
 toml = "0.5.5"
 copy-ln = { git = "https://github.com/mikailbag/copy-ln", branch = "master" }
 tempfile = "3.1.0"
-tera = "1.0.1"
+tera = "1.0.2"

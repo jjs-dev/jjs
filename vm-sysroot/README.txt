@@ -17,6 +17,9 @@ The resulting image is a single partition without any bootloader/kernel/whatsoev
 ./uml-build.sh
 Executes the two previous scripts, using UML to simulate root access. Doesn't require to be launched as root.
 
+./netns-build.sh
+Executes ./build.sh in a separate network namespace, to prevent conflicting with the local PostgreSQL instance.
+
 Other files:
 
 scripts/sysroot/*.sh

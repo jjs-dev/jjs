@@ -32,10 +32,20 @@ echo "We are: \$(id)"
 
 su jjs -c '
 $(cat env.txt)
+
+if [ "x\$JJS_ENV" == xdev ]
+then echo "WARNING: jjs-frontend is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
+fi
+
 jjs-frontend &
 '
 
 $(cat env.txt)
+
+if [ "x\$JJS_ENV" == xdev ]
+then echo "WARNING: jjs-frontend is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
+fi
+
 jjs-invoker &
 
 ifdown eth0

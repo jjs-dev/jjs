@@ -8,9 +8,9 @@ fi
 which psql >/dev/null || psql || exit $?
 
 echo '# Setting up config'
-if [ -d /var/lib/jjs/etc ]
+if [ -d /var/jjs/etc ]
 then echo '* already installed, skipping'
-else su -c 'jjs-setup --data-dir /var/lib/jjs --install-dir /opt/jjs --setup-config --sample-contest --toolchains' -s /bin/sh jjs
+else su -c 'jjs-setup --data-dir /var/jjs --install-dir /opt/jjs --setup-config --sample-contest --toolchains' -s /bin/sh jjs
 fi
 
 echo '# Generating JJS_SECRET_KEY'
@@ -18,14 +18,14 @@ echo '# Generating JJS_SECRET_KEY'
     cat /usr/share/jjs/env.txt
     echo -n 'JJS_SECRET_KEY='
     dd if=/dev/urandom bs=64 count=1 | xxd -c 64 -p
-} | su jjs -s /bin/sh -c 'cat > /var/lib/jjs/etc/env.txt'
+} | su jjs -s /bin/sh -c 'cat > /var/jjs/etc/env.txt'
 
 echo '# Setting up database'
 #TODO: jjs-setup: proper support for partial database setup
-if [ -f /var/lib/jjs/db-setup.sql ]
+if [ -f /var/jjs/db-setup.sql ]
 then # upgrade
     set -e
-    dd if=/usr/share/jjs/db-setup.sql bs=$(stat -c %s /var/lib/jjs/db-setup.sql) skip=1 | su postgres -c 'cat | psql -U postgres -d jjs -a -f /dev/stdin'
+    dd if=/usr/share/jjs/db-setup.sql bs=$(stat -c %s /var/jjs/db-setup.sql) skip=1 | su postgres -c 'cat | psql -U postgres -d jjs -a -f /dev/stdin'
     set +e
 else # first install
     set -e
@@ -34,7 +34,7 @@ else # first install
     su postgres -c 'psql -U postgres -d jjs -a -f /usr/share/jjs/db-setup.sql' >/dev/null
     set +e
 fi
-su jjs -s /bin/sh -c 'cat > /var/lib/jjs/db-setup.sql' < /usr/share/jjs/db-setup.sql >/dev/null
+su jjs -s /bin/sh -c 'cat > /var/jjs/db-setup.sql' < /usr/share/jjs/db-setup.sql >/dev/null
 su postgres -c 'psql -U postgres -d jjs -c "grant all on all tables in schema public to jjs;"'
 su postgres -c 'psql -U postgres -d jjs -c "grant all on all sequences in schema public to jjs;"'
 

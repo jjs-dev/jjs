@@ -76,6 +76,11 @@ jobs:
           sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev
           sudo -u postgres createuser runner --superuser
           cargo install lxtrace
+      - name: Get Rust version
+        id: rustc_version
+        run: |
+          rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')
+          echo "##[set-output name=version;]$(echo $rust_version)"
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
@@ -90,7 +95,7 @@ jobs:
         uses: actions/cache@v1.1.0
         with:
           path: target
-          key: ${{ runner.os }}-e2e-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-e2e-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: build
         run: cargo jjs-build
         env:
@@ -111,9 +116,10 @@ jobs:
         if: always()
         run: |
           mkdir logs
-          sudo journalctl -u jjs-frontend.service > logs/frontend.txt
-          sudo journalctl -u jjs-backend.service > logs/invoker.txt
+          sudo journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
+          sudo journalctl -u jjs-backend.service -p debug > logs/invoker.txt
           cat logs/*
+          cat /var/jjs/etc/env.txt
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v1

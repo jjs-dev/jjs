@@ -71,6 +71,7 @@ fn copy_or_symlink_config(conf_params: &ConfigParams, params: &SetupParams) -> a
         Some(d) => d,
         None => return Ok(()),
     };
+    info!("writing config to {}", data_dir.join("etc").display());
     let cfg_dir = params.install_dir.join("example-config");
     if conf_params.symlink {
         let symlink_target = data_dir.join("etc");

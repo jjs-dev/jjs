@@ -36,6 +36,8 @@ fi
 
 export SYSROOT
 
+export LANG=POSIX # prevent packaging a non-English locale
+
 sudo rm -rf "$SYSROOT" 2>&1
 sudo mkdir "$SYSROOT" || exit 1
 

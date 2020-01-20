@@ -3053,9 +3053,9 @@ checksum = "4ecf3b85f68e8abaa7555aa5abdb1153079387e60b718283d732f03897fcfc86"
 
 [[package]]
 name = "snafu"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65929384f863545b67a696ce36499cd045e5dca834aca85c929401d99a920bad"
+checksum = "546db9181bce2aa22ed883c33d65603b76335b4c2533a98289f54265043de7a1"
 dependencies = [
  "doc-comment",
  "snafu-derive",
@@ -3063,9 +3063,9 @@ dependencies = [
 
 [[package]]
 name = "snafu-derive"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6d2b1d1afd31abf5e72cc8d21e51443e3eb6b24dcda99ad3c048df5524eae80"
+checksum = "bdc75da2e0323f297402fd9c8fdba709bb04e4c627cbe31d19a2c91fc8d9f0e2"
 dependencies = [
  "proc-macro2 1.0.8",
  "quote 1.0.2",

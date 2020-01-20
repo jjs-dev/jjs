@@ -25,14 +25,14 @@ chrono = "0.4.10"
 color-backtrace = { version = "0.3.0", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"
-atty = "0.2.13"
+atty = "0.2.14"
 base64 = "0.11.0"
 bitflags = "1.2.1"
 util = {path = "../util"}
 slog-scope = "4.3.0"
 anyhow = "1.0.26"
 thiserror = "1.0.9"
-reqwest = {version = "0.10.1", features = ["blocking", "json"]}
+reqwest = { version = "0.10.1", features = ["blocking", "json"] }
 
 [features]
 beautiful_backtrace = ["color-backtrace"]

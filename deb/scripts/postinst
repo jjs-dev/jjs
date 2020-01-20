@@ -4,8 +4,8 @@ systemctl --system daemon-reload
 
 addgroup --system jjs
 adduser --system --ingroup jjs --home /nonexistent --no-create-home --disabled-login jjs
-mkdir /var/lib/jjs
-chown -R jjs:jjs /var/lib/jjs
+mkdir /var/jjs
+chown -R jjs:jjs /var/jjs
 chown -R jjs:jjs /usr/share/jjs
 chown -R jjs:jjs /opt/jjs/example-{config,problems} /opt/jjs/share/db-setup.sql
 echo 'Note: you can run `jjs-oneclick` to set up JJS with the default settings'

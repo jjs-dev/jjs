@@ -9,12 +9,12 @@ services:
     command:
       - "jjs-setup"
       - "--install-dir=/opt/jjs"
-      - "--data-dir=/var/jjs"
+      - "--data-dir=/var/lib/jjs"
       - "--setup-config"
       - "--sample-contest"
       - "--db-url=postgres://db:5432/jjs"
       - "--toolchains"
-      - "--touch=/var/jjs/done.txt"
+      - "--touch=/var/lib/jjs/done.txt"
     depends_on:
       - db
     environment:
@@ -23,16 +23,16 @@ services:
     volumes:
       - type: 'volume'
         source: jjs_data
-        target: /var/jjs
+        target: /var/lib/jjs
     security_opt:
       - seccomp=unconfined
   frontend:
     image: jjs-frontend:latest
     environment:
       DATABASE_URL: postgres://db:5432/jjs
-      JJS_SYSROOT: /var/jjs
+      JJS_SYSROOT: /var/lib/jjs
       JJS_PATH: /opt/jjs
-      JJS_WAIT: file:///var/jjs/done.txt
+      JJS_WAIT: file:///var/lib/jjs/done.txt
       JJS_HOST: "0.0.0.0"
       RUST_LOG: debug
     depends_on:
@@ -41,7 +41,7 @@ services:
     volumes:
       - type: 'volume'
         source: jjs_data
-        target: /var/jjs
+        target: /var/lib/jjs
     ports:
       - "1779:1779"
   invoker:
@@ -49,9 +49,9 @@ services:
     privileged: true
     environment:
       DATABASE_URL: postgres://db:5432/jjs
-      JJS_SYSROOT: /var/jjs
+      JJS_SYSROOT: /var/lib/jjs
       JJS_PATH: /opt/jjs
-      JJS_WAIT: file:///var/jjs/done.txt
+      JJS_WAIT: file:///var/lib/jjs/done.txt
       RUST_LOG: debug
       RUST_LIB_BACKTRACE: 1
     depends_on:
@@ -60,7 +60,7 @@ services:
     volumes:
       - type: 'volume'
         source: jjs_data
-        target: /var/jjs
+        target: /var/lib/jjs
 volumes:
   jjs_data:
 

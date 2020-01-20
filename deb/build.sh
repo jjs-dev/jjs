@@ -105,8 +105,8 @@ do cat > ../../usr/"$i" << EOF
 #!/bin/sh
 
 set -a
-if [ -f /var/jjs/etc/env.txt ]
-then . /var/jjs/etc/env.txt
+if [ -f /var/lib/jjs/etc/env.txt ]
+then . /var/lib/jjs/etc/env.txt
 else . /usr/share/jjs/env.txt
 fi
 set +a

@@ -5,12 +5,12 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.3.7"
+structopt = "0.3.8"
 serde = { version = "1.0.104", features = ["derive"] }
 log = "0.4.8"
 env_logger = "0.7.1"
 ignore = "0.4.11"
-toml = "0.5.5"
+toml = "0.5.6"
 atty = "0.2.14"
 util = {path = "../util"}
 lazy_static = "1.4.0"

@@ -8,9 +8,9 @@ PPC is tool for prepararing problems and contests
 """
 
 [dependencies]
-structopt = "0.3.7"
+structopt = "0.3.8"
 serde = { version = "1.0.104", features = ["derive"] }
-toml = "0.5.5"
+toml = "0.5.6"
 snafu = "0.6.2"
 glob = "0.3.0"
 libc = "0.2.66"

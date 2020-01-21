@@ -1,5 +1,5 @@
 //! Abstracts installing to directory, deb, etc
-use crate::{cfg::BuildProfile, Params};
+use crate::Params;
 use std::{
     path::{Path, PathBuf},
     process::exit,
@@ -19,23 +19,14 @@ impl<'ictx> InstallCtx<'ictx> {
         &self.params.artifacts
     }
 
+    // TODO cleanup
     fn non_arch_out_dir(&self) -> PathBuf {
-        self.params.build.clone()
+        self.params.build.join("jjs-out")
     }
 
     /// Returns {TARGET_DIR}/{TARGET_ARCH}/{BUILD_PROFILE}
     fn out_dir(&self) -> PathBuf {
-        let mut p = self.non_arch_out_dir();
-        p.push("x86_64-unknown-linux-gnu");
-        match self.params.cfg.build.profile {
-            BuildProfile::Debug => {
-                p.push("debug");
-            }
-            BuildProfile::Release | BuildProfile::RelWithDebInfo => {
-                p.push("release");
-            }
-        };
-        p
+        self.non_arch_out_dir()
     }
 
     fn artifact_path(&self, name: &str) -> PathBuf {

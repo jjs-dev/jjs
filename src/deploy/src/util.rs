@@ -71,8 +71,3 @@ pub fn ensure_exists(path: impl AsRef<Path>) -> Result<(), std::io::Error> {
 
     Ok(())
 }
-
-pub fn get_current_target() -> String {
-    //provided by build.rs
-    env!("TARGET").to_owned()
-}

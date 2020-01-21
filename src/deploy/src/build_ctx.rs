@@ -3,7 +3,7 @@ use std::process::Command;
 use util::cmd::Runner;
 
 pub struct BuildCtx<'bctx> {
-    params: &'bctx Params,
+    pub params: &'bctx Params,
     runner: &'bctx util::cmd::Runner,
 }
 
@@ -18,7 +18,6 @@ impl<'bctx> BuildCtx<'bctx> {
 
     pub(crate) fn cargo(&self) -> Command {
         let mut cmd = Command::new("cargo");
-        cmd.args(&["-Z", "config-profile"]);
         cmd.env("CARGO_PROFILE_RELEASE_INCREMENTAL", "false");
         cmd.current_dir(&self.params.src);
         cmd
@@ -27,7 +26,10 @@ impl<'bctx> BuildCtx<'bctx> {
     pub(crate) fn cargo_build(&self) -> Command {
         let mut cmd = self.cargo();
         cmd.arg("build");
-        cmd.args(&["--target", &self.params.cfg.build.target]);
+        cmd.arg("-Zconfig-profile");
+        if let Some(target) = &self.params.cfg.build.target {
+            cmd.args(&["--target", target]);
+        }
         let profile = self.params.cfg.build.profile;
         if let BuildProfile::Release | BuildProfile::RelWithDebInfo = profile {
             cmd.arg("--release");

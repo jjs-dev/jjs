@@ -65,6 +65,8 @@ impl Package for BinPackages {
         let mut section_title = "Building".to_string();
         let mut is_first_pkg = true;
         let mut cmd = bctx.cargo_build();
+        cmd.arg("-Zunstable-options");
+        cmd.arg("--out-dir").arg(bctx.params.build.join("jjs-out"));
         for i in 0..self.pkgs.len() {
             if !self.selected[i] {
                 continue;

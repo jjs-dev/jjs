@@ -4,6 +4,7 @@ mod build;
 mod check;
 mod ci;
 mod glob_util;
+mod run;
 mod tests;
 
 use std::{env::set_current_dir, path::Path, process::Command};
@@ -25,6 +26,8 @@ enum CliArgs {
     CiClean,
     /// Format C++ code
     FmtCpp,
+    /// Launch development version of JJS
+    Run(run::Opts),
 }
 
 fn task_clean() {
@@ -136,6 +139,7 @@ fn main() {
             task_cpp_fmt(&runner);
             None
         }
+        CliArgs::Run(opts) => run::task_run(opts).err(),
     };
     if let Some(err) = err {
         eprintln!("Error: {:?}", err);

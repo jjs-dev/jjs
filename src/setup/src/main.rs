@@ -66,6 +66,7 @@ fn main() {
     }
     runner.exit_if_errors();
     if let Some(touch) = &opts.touch {
+        log::info!("Touching {}", touch.display());
         std::fs::File::create(touch).ok();
     }
 }

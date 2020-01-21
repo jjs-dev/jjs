@@ -20,7 +20,7 @@ pub struct ToolInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildConfig {
     pub profile: BuildProfile,
-    pub target: String,
+    pub target: Option<String>,
     pub tool_info: ToolInfo,
 }
 

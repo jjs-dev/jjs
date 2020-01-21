@@ -194,10 +194,7 @@ fn main() {
         _ => cfg::BuildProfile::Debug,
     };
     let build_config = cfg::BuildConfig {
-        target: match &opt.target {
-            Some(t) => t.clone(),
-            None => deploy::util::get_current_target(),
-        },
+        target: opt.target.clone(),
         profile,
         tool_info,
     };

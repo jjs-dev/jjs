@@ -1,4 +1,4 @@
-FROM ubuntu:19.04
-RUN apt-get update -y && apt-get install -y libpq-dev
+FROM jjs-env
+RUN apt-get update -y && apt-get install -y libpq-dev libcurl3-gnutls
 ADD bin/jjs-frontend /bin/jjs-frontend
 CMD /bin/jjs-frontend

@@ -3,7 +3,7 @@ use std::process::Command;
 use util::cmd::Runner;
 
 pub struct BuildCtx<'bctx> {
-    pub params: &'bctx Params,
+    params: &'bctx Params,
     runner: &'bctx util::cmd::Runner,
 }
 
@@ -37,6 +37,8 @@ impl<'bctx> BuildCtx<'bctx> {
         if let BuildProfile::RelWithDebInfo = profile {
             cmd.env("CARGO_PROFILE_RELEASE_DEBUG", "true");
         }
+        cmd.arg("-Zunstable-options");
+        cmd.arg("--out-dir").arg(self.params.build.join("jjs-out"));
         cmd
     }
 }

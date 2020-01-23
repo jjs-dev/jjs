@@ -19,20 +19,12 @@ impl<'ictx> InstallCtx<'ictx> {
         &self.params.artifacts
     }
 
-    // TODO cleanup
-    fn non_arch_out_dir(&self) -> PathBuf {
+    fn non_bin_out_dir(&self) -> &Path {
+        &self.params.build
+    }
+
+    fn bin_out_dir(&self) -> PathBuf {
         self.params.build.join("jjs-out")
-    }
-
-    /// Returns {TARGET_DIR}/{TARGET_ARCH}/{BUILD_PROFILE}
-    fn out_dir(&self) -> PathBuf {
-        self.non_arch_out_dir()
-    }
-
-    fn artifact_path(&self, name: &str) -> PathBuf {
-        let mut p = self.out_dir();
-        p.push(name);
-        p
     }
 
     fn copy(&self, src: impl AsRef<Path>, dest: impl AsRef<Path>) {
@@ -52,7 +44,7 @@ impl<'ictx> InstallCtx<'ictx> {
     pub(crate) fn add_bin_pkg(&self, name: &str, inst_name: &str) {
         let dest = self.artifacts().join("bin").join(inst_name);
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
-        self.copy(self.artifact_path(name), &dest);
+        self.copy(self.bin_out_dir().join(name), &dest);
     }
 
     fn preprocess_dylib_name(name: &str) -> String {
@@ -72,7 +64,7 @@ impl<'ictx> InstallCtx<'ictx> {
             .join(Self::preprocess_dylib_name(inst_name));
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
         self.copy(
-            self.artifact_path(&Self::preprocess_dylib_name(name)),
+            self.bin_out_dir().join(Self::preprocess_dylib_name(name)),
             &dest,
         );
     }
@@ -84,8 +76,8 @@ impl<'ictx> InstallCtx<'ictx> {
             .join(Self::preprocess_header_name(inst_name));
         crate::util::ensure_exists(&dest.parent().unwrap()).unwrap();
         self.copy(
-            self.non_arch_out_dir()
-                .join(&InstallCtx::preprocess_header_name(name)),
+            self.non_bin_out_dir()
+                .join(InstallCtx::preprocess_header_name(name)),
             &dest,
         );
     }

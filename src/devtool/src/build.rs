@@ -36,7 +36,7 @@ impl BuildOpts {
 
     fn should_build_man(&self) -> bool {
         let bt = detect_build_type();
-        bt.deploy_info().contains(&DeployKind::Man) || bt.is_not_ci()
+        bt.deploy_info().contains(&DeployKind::Man)
     }
 
     fn should_build_docker(&self) -> bool {

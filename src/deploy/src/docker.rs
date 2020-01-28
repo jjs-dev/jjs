@@ -1,24 +1,24 @@
 use std::process::Command;
 use util::cmd::CommandExt;
 
-pub fn build_docker_image(params: &crate::Params, runner: &util::cmd::Runner) {
-    let process_component = |name: &str| {
-        println!("Building docker image for {}", name);
-        let mut cmd = Command::new("docker");
-        let dockerfile_path = format!("./docker/{}.Dockerfile", name);
-        cmd.arg("build")
-            .arg(&params.artifacts)
-            .args(&["--file", &dockerfile_path]);
-        let default_tag = format!("jjs-{}", name);
-        cmd.args(&["--tag", &default_tag]);
-        if let Some(tag) = &params.cfg.docker_tag {
-            let tag = tag.replace('%', name);
-            cmd.args(&["--tag", &tag]);
-        }
-        cmd.run_on(runner);
-    };
-    process_component("env");
-    process_component("frontend");
-    process_component("invoker");
-    process_component("tools");
+pub fn build_docker_image(
+    params: &crate::Params,
+    docker_cfg: &crate::cfg::DockerConfig,
+    runner: &util::cmd::Runner,
+) {
+    println!("Building docker image");
+    let mut cmd = Command::new("docker");
+    let dockerfile_path = "./docker/Dockerfile";
+    cmd.arg("build");
+    for opt in &docker_cfg.build_options {
+        cmd.arg(opt);
+    }
+    cmd.arg(&params.artifacts)
+        .args(&["--file", &dockerfile_path]);
+    let default_tag = "jjs";
+    cmd.args(&["--tag", default_tag]);
+    for tag in &docker_cfg.tag {
+        cmd.args(&["--tag", tag]);
+    }
+    cmd.run_on(runner);
 }

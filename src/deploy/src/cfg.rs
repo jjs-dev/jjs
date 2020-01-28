@@ -44,7 +44,12 @@ pub struct PackagingConfig {
     /// Contains additional options for deb/build.sh
     pub deb: Option<Vec<String>>,
     pub systemd: bool,
-    pub docker: bool,
+    pub docker: Option<DockerConfig>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DockerConfig {
+    pub build_options: Vec<String>,
+    pub tag: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,5 +60,4 @@ pub struct Config {
     pub packaging: PackagingConfig,
     pub build: BuildConfig,
     pub components: ComponentsConfig,
-    pub docker_tag: Option<String>,
 }

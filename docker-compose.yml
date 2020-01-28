@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: root
   init-db:
-    image: jjs-tools:latest
+    image: jjs:latest
     command:
       - "jjs-setup"
       - "--install-dir=/opt/jjs"
@@ -27,7 +27,7 @@ services:
     security_opt:
       - seccomp=unconfined
   frontend:
-    image: jjs-frontend:latest
+    image: jjs:latest
     environment:
       DATABASE_URL: postgres://db:5432/jjs
       JJS_SYSROOT: /var/lib/jjs
@@ -35,6 +35,8 @@ services:
       JJS_WAIT: file:///var/lib/jjs/done.txt
       JJS_HOST: "0.0.0.0"
       RUST_LOG: debug
+    command: 
+      - jjs-frontend
     depends_on:
       - db
       - init-db
@@ -45,7 +47,7 @@ services:
     ports:
       - "1779:1779"
   invoker:
-    image: jjs-invoker:latest
+    image: jjs:latest
     privileged: true
     environment:
       DATABASE_URL: postgres://db:5432/jjs
@@ -54,6 +56,8 @@ services:
       JJS_WAIT: file:///var/lib/jjs/done.txt
       RUST_LOG: debug
       RUST_LIB_BACKTRACE: 1
+    command: 
+      - jjs-invoker
     depends_on:
       - db
       - init-db

@@ -151,9 +151,9 @@ pub fn package(params: &Params, runner: &Runner) {
         print_section("Generating Debian package");
         deb::create(params, runner, opts);
     }
-    if params.cfg.packaging.docker {
+    if let Some(opts) = &params.cfg.packaging.docker {
         print_section("Building docker images");
-        docker::build_docker_image(params, runner);
+        docker::build_docker_image(params, opts, runner);
     }
 }
 

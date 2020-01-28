@@ -7,14 +7,18 @@ pub struct Opts {
     build: bool,
     #[structopt(long, short = "t")]
     test: bool,
+    #[structopt(long)]
+    debug: bool,
 }
 pub fn task_run(opts: Opts) -> anyhow::Result<()> {
     if opts.build {
         println!("Building");
-        Command::new("cargo")
-            .arg("jjs-build")
-            .arg("--docker")
-            .try_exec()?;
+        let mut cmd = Command::new("cargo");
+        cmd.arg("jjs-build").arg("--docker");
+        if opts.debug {
+            cmd.arg("--configure-opt=--docker-build-opt=--progress=plain");
+        }
+        cmd.try_exec()?;
     }
     println!("dropping existing docker-compose");
     Command::new("docker-compose")

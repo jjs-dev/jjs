@@ -65,7 +65,10 @@ struct Opt {
     docker: bool,
     /// Docker image tag
     #[structopt(long)]
-    docker_tag: Option<String>,
+    docker_tag: Vec<String>,
+    /// Docker build additional options
+    #[structopt(long)]
+    docker_build_opt: Vec<String>,
 }
 
 impl Opt {
@@ -168,12 +171,6 @@ fn main() {
         opt
     };
 
-    if let Some(tag) = &opt.docker_tag {
-        if !tag.contains('%') {
-            eprintln!("warning: --docker-tag is not tag template. Only last image will be tagged");
-        }
-    }
-
     let tool_info = cfg::ToolInfo {
         cargo: opt
             .cargo
@@ -213,7 +210,14 @@ fn main() {
             None
         },
         systemd: opt.systemd,
-        docker: opt.docker,
+        docker: if opt.docker {
+            Some(cfg::DockerConfig {
+                build_options: opt.docker_build_opt.clone(),
+                tag: opt.docker_tag.clone(),
+            })
+        } else {
+            None
+        },
     };
     let config = cfg::Config {
         artifacts_dir: opt.out_dir.clone(),
@@ -222,7 +226,6 @@ fn main() {
         build: build_config,
         components: comps_config,
         install_prefix: opt.install_prefix.clone().or_else(|| opt.out_dir.clone()),
-        docker_tag: opt.docker_tag,
     };
     let manifest_path = format!("{}/jjs-build-config.json", &build_dir_path);
     println!("Emitting JJS build config: {}", &manifest_path);

@@ -21,12 +21,8 @@ jobs:
       - name: upload docker images
         run: |
           docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
-          docker tag jjs-frontend:latest docker.pkg.github.com/mikailbag/jjs/frontend:master
-          docker push docker.pkg.github.com/mikailbag/jjs/frontend:master
-          docker tag jjs-invoker:latest docker.pkg.github.com/mikailbag/jjs/invoker:master
-          docker push docker.pkg.github.com/mikailbag/jjs/invoker:master
-          docker tag jjs-tools:latest docker.pkg.github.com/mikailbag/jjs/tools:master
-          docker push docker.pkg.github.com/mikailbag/jjs/tools:master
+          docker tag jjs:latest docker.pkg.github.com/mikailbag/jjs/jjs:master
+          docker push docker.pkg.github.com/mikailbag/jjs/jjs:master
   deb:
     name: deb
     runs-on: 'ubuntu-18.04'

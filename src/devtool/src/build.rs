@@ -17,6 +17,9 @@ pub(crate) struct RawBuildOpts {
     /// Debian packages
     #[structopt(long)]
     deb: bool,
+    /// Additional options to pass to configure
+    #[structopt(long = "configure-opt")]
+    configure: Vec<String>,
 }
 
 struct BuildOpts(RawBuildOpts);
@@ -76,6 +79,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
     }
     if !opts.should_build_man() {
         cmd.arg("--disable-man");
+    }
+    for opt in &opts.raw().configure {
+        cmd.arg(opt);
     }
     cmd.try_exec()?;
 

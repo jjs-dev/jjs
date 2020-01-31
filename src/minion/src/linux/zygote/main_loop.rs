@@ -35,7 +35,7 @@ unsafe fn process_spawn_query(
     };
 
     write!(logger, "JobOptions are fetched").ok();
-    let startup_info = spawn_job(job_options, setup_data)?;
+    let startup_info = spawn_job(job_options, setup_data, arg.jail_options.jail_id.clone())?;
     write!(logger, "job started. Sending startup_info back").ok();
     arg.sock.send(&startup_info)?;
     Ok(())

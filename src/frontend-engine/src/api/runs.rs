@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub(crate) struct Run {
     pub id: RunId,
     pub toolchain_name: String,
-    pub status: InvokeStatusOut,
+    pub status: Option<InvokeStatusOut>,
     pub score: Option<i32>,
     pub problem_name: String,
 }
@@ -97,7 +97,7 @@ impl Run {
             .into()
     }
 
-    fn status(&self) -> &InvokeStatusOut {
+    fn status(&self) -> &Option<InvokeStatusOut> {
         &self.status
     }
 
@@ -135,6 +135,7 @@ impl Run {
         filter: RunProtocolFilterParams,
     ) -> ApiResult<Option<String>> {
         let path = self.last_invoke_dir(ctx)?.join("log.json");
+        debug!("Looking up invocation protocol at {}", path.display());
         let protocol = std::fs::read(path).ok();
         match protocol {
             Some(protocol) => {
@@ -154,17 +155,23 @@ impl Run {
     }
 }
 
-fn describe_run(run: &db::schema::Run) -> Run {
-    Run {
+fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
+    let last_inv = ctx.db.inv_last(run.id).internal(ctx)?;
+    let inv_out_header = last_inv.invoke_outcome_header().internal(ctx)?;
+    let status = match inv_out_header.status {
+        Some(s) => Some(InvokeStatusOut {
+            kind: s.kind.clone().to_string(),
+            code: s.code,
+        }),
+        None => None,
+    };
+    Ok(Run {
         id: run.id,
         toolchain_name: run.toolchain_id.clone(),
-        status: InvokeStatusOut {
-            kind: run.status_kind.clone(),
-            code: run.status_code.clone(),
-        },
-        score: Some(run.score),
+        status,
+        score: inv_out_header.score.map(|sc| sc as i32),
         problem_name: run.problem_id.clone(),
-    }
+    })
 }
 
 pub(super) fn list(ctx: &Context, id: Option<i32>, limit: Option<i32>) -> ApiResult<Vec<Run>> {
@@ -172,13 +179,15 @@ pub(super) fn list(ctx: &Context, id: Option<i32>, limit: Option<i32>) -> ApiRes
         .db
         .run_select(id, limit.map(|x| x as u32))
         .internal(ctx)?;
-    let user_runs = user_runs.iter().map(|s| describe_run(s)).collect();
-    Ok(user_runs)
+    user_runs.iter().map(|s| describe_run(ctx, s)).collect()
 }
 
 pub(super) fn load(ctx: &Context, id: i32) -> ApiResult<Option<Run>> {
     let db_run = ctx.db.run_try_load(id).internal(ctx)?;
-    Ok(db_run.map(|r| describe_run(&r)))
+    match db_run {
+        Some(db_run) => Ok(Some(describe_run(ctx, &db_run)?)),
+        None => Ok(None),
+    }
 }
 
 fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
@@ -237,11 +246,8 @@ pub(super) fn submit_simple(
 
     let new_run = db::schema::NewRun {
         toolchain_id: toolchain.name,
-        status_code: "QUEUE_JUDGE".to_string(),
-        status_kind: "QUEUE".to_string(),
         problem_id: prob_name,
-        score: 0,
-        rejudge_id: 1,
+        rejudge_id: 0,
         user_id: ctx.token.user_id(),
     };
 
@@ -259,44 +265,41 @@ pub(super) fn submit_simple(
     std::fs::write(submission_src_path, &decoded_code).internal(ctx)?;
 
     // create invocation request
-    let invoke_task = invoker_api::InvokeTask {
+    let invoke_task = invoker_api::DbInvokeTask {
         revision: 0,
         run_id: run.id as u32,
         status_update_callback: get_lsu_webhook_url(ctx, run.id as u32),
     };
 
-    let new_inv = NewInvocation { invoke_task };
+    let new_inv = NewInvocation::new(&invoke_task).internal(ctx)?;
 
     ctx.db.inv_new(new_inv).internal(ctx)?;
 
-    Ok(describe_run(&run))
+    describe_run(ctx, &run)
 }
 
 pub(super) fn modify(
     ctx: &Context,
     id: RunId,
-    status: Option<InvokeStatusIn>,
+    score: Option<i32>,
     rejudge: Option<bool>,
     delete: Option<bool>,
 ) -> ApiResult<()> {
     if !ctx.access().wrap_run(id).can_modify_run().internal(ctx)? {
         return Err(ApiError::access_denied(ctx));
     }
+    let current_run = ctx.db.run_load(id).report(ctx)?;
     let should_delete = delete.unwrap_or(false);
     if should_delete {
-        if status.is_some() || rejudge.is_some() {
+        if score.is_some() || rejudge.is_some() {
             return "both modification and delete were requested".report(ctx);
         }
         ctx.db.run_delete(id).internal(ctx)?;
     } else {
         let mut patch = db::schema::RunPatch::default();
-        if let Some(new_status) = status {
-            patch.status_kind = Some(new_status.kind);
-            patch.status_code = Some(new_status.code);
-        }
-        // TODO: handle rejudge
         if let Some(true) = rejudge {
-            return Err(ApiError::unimplemented(ctx));
+            patch.rejudge_id = Some(current_run.rejudge_id + 1);
+            // TODO enqueue
         }
         ctx.db.run_update(id, patch).internal(ctx)?;
     }
@@ -336,10 +339,10 @@ pub(super) fn poll_live_status(ctx: &Context, run_id: RunId) -> ApiResult<RunLiv
             finish: false,
         });
     }
-    let db_run = ctx.db.run_load(run_id).internal(ctx)?;
+    let invocation = ctx.db.inv_last(run_id).internal(ctx)?;
     Ok(RunLiveStatusUpdate {
         live_score: None,
         current_test: None,
-        finish: db_run.status_code != "QUEUE_JUDGE",
+        finish: invocation.state().internal(ctx)?.is_finished(),
     })
 }

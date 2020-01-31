@@ -103,9 +103,9 @@ impl Dominion for LinuxDominion {
         Ok(self.state.was_wall_tle.load(SeqCst))
     }
 
-    /// For linux dominion `kill` never fails.
     fn kill(&self) -> crate::Result<()> {
-        jail_common::dominion_kill_all(self.zygote_pid);
+        jail_common::dominion_kill_all(self.zygote_pid, Some(&self.id))
+            .map_err(|err| crate::Error::Io { source: err })?;
         Ok(())
     }
 }
@@ -221,11 +221,15 @@ impl Drop for LinuxDominion {
     fn drop(&mut self) {
         use std::os::unix::ffi::OsStrExt;
         // Kill all processes.
-        self.kill().ok();
+        if let Err(err) = self.kill() {
+            panic!("unable to kill dominion: {}", err);
+        }
         // Remove cgroups.
         for subsys in &["pids", "memory", "cpuacct"] {
             fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id)).ok();
         }
+        // Close handles
+        nix::unistd::close(self.watchdog_chan).ok();
 
         let do_umount = |inner_path: &Path| {
             let mount_path = self.options.isolation_root.join(inner_path);

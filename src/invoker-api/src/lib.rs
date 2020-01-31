@@ -90,6 +90,40 @@ pub struct InvokeTask {
     ///
     /// If None, events will not be sent.
     pub status_update_callback: Option<String>,
+    /// Toolchain id, for lookup in config
+    pub toolchain_id: String,
+    /// Problem id, for lookup in config
+    pub problem_id: String,
+    /// Invocation id (will be preserved by invoker)
+    pub invocation_id: uuid::Uuid,
+}
+
+/// Put this in database
+///
+/// See fields' description in [InvokeTask](InvokeTask)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbInvokeTask {
+    pub revision: u32,
+    pub run_id: u32,
+    pub status_update_callback: Option<String>,
+}
+
+/// Pass this to invoker running in CLI mode
+///
+/// See fields' description in [InvokeTask](InvokeTask)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CliInvokeTask {
+    pub revision: u32,
+    pub run_id: u32,
+    pub toolchain_id: String,
+    pub problem_id: String,
+    pub invocation_id: uuid::Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvokeOutcomeHeader {
+    pub score: Option<u32>,
+    pub status: Option<Status>,
 }
 
 /// Represents Live Status Update. Some fields can be None always, or only in some updates.

@@ -10,17 +10,14 @@ use std::{
     process::exit,
 };
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub struct Limits {
     /// Memory limit in bytes
-    #[serde(default = "Limits::default_memory")]
-    pub memory: u64,
+    pub memory: Option<u64>,
     /// Time limit in milliseconds
-    #[serde(default = "Limits::default_time")]
-    pub time: u64,
+    pub time: Option<u64>,
     /// Process count limit
-    #[serde(default = "Limits::default_num_procs")]
-    pub process_count: u64,
+    pub process_count: Option<u64>,
 }
 
 impl Limits {
@@ -35,14 +32,26 @@ impl Limits {
     fn default_time() -> u64 {
         3000
     }
+
+    pub fn time(self) -> u64 {
+        self.time.unwrap_or_else(Self::default_time)
+    }
+
+    pub fn memory(self) -> u64 {
+        self.memory.unwrap_or_else(Self::default_memory)
+    }
+
+    pub fn process_count(self) -> u64 {
+        self.process_count.unwrap_or_else(Self::default_num_procs)
+    }
 }
 
 impl Default for Limits {
     fn default() -> Limits {
         Limits {
-            memory: Limits::default_memory(),
-            time: Limits::default_time(),
-            process_count: Limits::default_num_procs(),
+            memory: Some(Limits::default_memory()),
+            time: Some(Limits::default_time()),
+            process_count: Some(Limits::default_num_procs()),
         }
     }
 }

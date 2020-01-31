@@ -21,9 +21,33 @@ pub trait RunsRepo: std::fmt::Debug + Send + Sync {
     fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>>;
 }
 
-pub trait InvocationsRepo: Send + Sync {
+pub trait InvocationsRepo: RunsRepo + Send + Sync {
     fn inv_new(&self, inv_req_data: NewInvocation) -> Result<Invocation>;
-    fn inv_pop(&self) -> Result<Option<Invocation>>;
+
+    fn inv_last(&self, run_id: RunId) -> Result<Invocation>;
+
+    fn inv_find_waiting(
+        &self,
+        offset: u32,
+        count: u32,
+        predicate: &mut dyn FnMut(Invocation) -> Result<bool>,
+    ) -> Result<Vec<Invocation>>;
+
+    fn load_runs_with_last_invocations(&self) -> Result<Vec<(Run, Invocation)>> {
+        let runs = self.run_select(None, None)?;
+        runs.into_iter()
+            .map(|r| {
+                let r_id = r.id;
+                (r, self.inv_last(r_id))
+            })
+            .map(|(run, maybe_invocation)| match maybe_invocation {
+                Ok(inv) => Ok((run, inv)),
+                Err(err) => Err(err),
+            })
+            .collect()
+    }
+
+    fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()>;
 }
 
 pub trait UsersRepo: Send + Sync {

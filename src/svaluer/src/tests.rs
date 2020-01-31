@@ -170,29 +170,29 @@ mod simple {
                 JudgeLogTestRow {
                     test_id: TestId::make(1),
                     status: make_ok_status(),
-                    components: TestVisibleComponents::empty(),
+                    components: TestVisibleComponents::all(),
                 },
                 JudgeLogTestRow {
                     test_id: TestId::make(2),
                     status: make_ok_status(),
-                    components: TestVisibleComponents::empty(),
+                    components: TestVisibleComponents::all(),
                 },
             ],
             subtasks: vec![
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(1),
                     score: 0,
-                    components: SubtaskVisibleComponents::empty(),
+                    components: SubtaskVisibleComponents::SCORE,
                 },
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(2),
                     score: 64,
-                    components: SubtaskVisibleComponents::empty(),
+                    components: SubtaskVisibleComponents::SCORE,
                 },
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(3),
                     score: 36,
-                    components: SubtaskVisibleComponents::empty(),
+                    components: SubtaskVisibleComponents::SCORE,
                 },
             ],
             score: 100,
@@ -201,6 +201,7 @@ mod simple {
         contestant_log.kind = JudgeLogKind::Contestant;
         contestant_log.subtasks.pop();
         contestant_log.tests.pop();
+        contestant_log.tests[0].components = TestVisibleComponents::STATUS;
         contestant_log.score = 64;
         MockDriver::new(ProblemInfo { test_count: 2 })
             .add_test(1, true, true)
@@ -223,18 +224,18 @@ mod simple {
             tests: vec![JudgeLogTestRow {
                 test_id: TestId::make(1),
                 status: make_err_status(),
-                components: TestVisibleComponents::empty(),
+                components: TestVisibleComponents::all(),
             }],
             subtasks: vec![
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(1),
                     score: 0,
-                    components: SubtaskVisibleComponents::empty(),
+                    components: SubtaskVisibleComponents::all(),
                 },
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(2),
                     score: 0,
-                    components: SubtaskVisibleComponents::empty(),
+                    components: SubtaskVisibleComponents::all(),
                 },
             ],
             score: 0,

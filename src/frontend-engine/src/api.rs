@@ -14,6 +14,7 @@ struct ErrorExtension(juniper::Object<juniper::DefaultScalarValue>);
 
 impl ErrorExtension {
     const KEY_DEV_BACKTRACE: &'static str = "trace";
+    const KEY_DEV_ERROR_BACKTRACE: &'static str = "errorTrace";
     const KEY_ERROR_CODE: &'static str = "errorCode";
 
     fn new() -> Self {
@@ -52,6 +53,13 @@ impl ApiError {
     fn dev_backtrace(&mut self) {
         if self.ctx.fr_cfg.env.is_dev() {
             self.extension.set_backtrace();
+            if let Some(err) = &self.source {
+                let backtrace = format!("{:?}", err.backtrace());
+                self.extension.0.add_field(
+                    ErrorExtension::KEY_DEV_ERROR_BACKTRACE,
+                    juniper::Value::scalar(backtrace),
+                );
+            }
         }
     }
 
@@ -71,10 +79,6 @@ impl ApiError {
     pub fn access_denied(ctx: &Context) -> Self {
         Self::new(ctx, "AccessDenied")
     }
-
-    pub fn unimplemented(ctx: &Context) -> Self {
-        Self::new(ctx, "Unimplemented")
-    }
 }
 
 mod impl_display {
@@ -93,34 +97,40 @@ mod impl_display {
             write!(f, "[{:?}]", &self.extension)?;
 
             if let Some(src) = &self.source {
-                write!(f, ": {}", src)?;
+                write!(f, ": {:#}", src)?;
             }
             Ok(())
         }
     }
 }
 
+#[derive(Debug)]
 struct EmptyError;
 
 impl std::fmt::Display for EmptyError {
-    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        Ok(())
-    }
-}
-
-impl std::fmt::Debug for EmptyError {
-    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        Ok(())
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("internal error")
     }
 }
 
 impl std::error::Error for EmptyError {}
 
+struct AnyhowAlternateWrapper<'a>(&'a anyhow::Error);
+impl std::fmt::Display for AnyhowAlternateWrapper<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:#}", &self.0)
+    }
+}
+
 impl juniper::IntoFieldError for ApiError {
     fn into_field_error(self) -> juniper::FieldError {
         let is_visible = self.visible || self.ctx.fr_cfg.env.is_dev();
-        let data: &dyn std::error::Error = match &self.source {
-            Some(err) if is_visible => &**err,
+        let wrp;
+        let data: &dyn std::fmt::Display = match &self.source {
+            Some(err) if is_visible => {
+                wrp = AnyhowAlternateWrapper(err);
+                &wrp
+            }
             _ => {
                 if let Some(err) = self.source {
                     let err_msg = err.to_string();

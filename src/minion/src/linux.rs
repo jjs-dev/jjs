@@ -17,7 +17,7 @@ use crate::{
 use nix::sys::memfd;
 use snafu::ResultExt;
 use std::{
-    ffi::{CString, OsStr, OsString},
+    ffi::CString,
     fs,
     io::{Read, Write},
     os::unix::io::IntoRawFd,
@@ -26,7 +26,6 @@ use std::{
 };
 
 pub type LinuxHandle = libc::c_int;
-
 pub struct LinuxChildProcess {
     exit_code: AtomicI64,
 
@@ -36,6 +35,15 @@ pub struct LinuxChildProcess {
     dominion_ref: DominionRef,
 
     pid: Pid,
+}
+
+impl std::fmt::Debug for LinuxChildProcess {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("LinuxChildProcess")
+            .field("exit_code", &self.exit_code.load(Ordering::Relaxed))
+            .field("pid", &self.pid)
+            .finish()
+    }
 }
 
 const EXIT_CODE_STILL_RUNNING: i64 = i64::min_value();
@@ -113,19 +121,6 @@ fn handle_input_io(spec: InputSpecification) -> crate::Result<(Option<Handle>, H
     }
 }
 
-fn concat_env_item(k: &OsStr, v: &OsStr) -> OsString {
-    use std::os::unix::ffi::{OsStrExt, OsStringExt};
-    let k = k.as_bytes();
-    let v = v.as_bytes();
-    let cap = k.len() + 1 + v.len();
-
-    let mut res = vec![0; cap];
-    res[0..k.len()].copy_from_slice(k);
-    res[k.len() + 1..].copy_from_slice(v);
-    res[k.len()] = b'=';
-    OsString::from_vec(res)
-}
-
 fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>, Handle)> {
     match spec.0 {
         OutputSpecificationData::Null => Ok((None, -1 as Handle)),
@@ -166,15 +161,13 @@ fn handle_output_io(spec: OutputSpecification) -> crate::Result<(Option<Handle>,
     }
 }
 
-fn spawn(options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
+fn spawn(mut options: ChildProcessOptions) -> crate::Result<LinuxChildProcess> {
     unsafe {
         let q = jail_common::JobQuery {
             image_path: options.path.clone(),
             argv: options.arguments.clone(),
-            environment: options
-                .environment
-                .iter()
-                .map(|(k, v)| concat_env_item(&k, &v))
+            environment: std::mem::take(&mut options.environment)
+                .into_iter()
                 .collect(),
             pwd: options.pwd.clone(),
         };

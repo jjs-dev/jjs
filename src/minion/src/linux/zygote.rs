@@ -63,6 +63,7 @@ struct DoExecArg {
     sock: Socket,
     pwd: OsString,
     cgroups_tasks: Vec<Handle>,
+    jail_id: String,
 }
 
 fn duplicate_string_list(v: &[OsString]) -> *mut *mut c_char {
@@ -198,11 +199,15 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stdio.stderr, libc::STDERR_FILENO);
 
+        let mut logger = crate::linux::util::StraceLogger::new();
+        writeln!(logger, "dominion {}: ready to execve", arg.jail_id).unwrap();
+
         libc::execve(
             path,
             argv as *const *const c_char,
             envp as *const *const c_char,
         );
+        // Execve only returns on error.
 
         let err_code = errno::errno().0;
         if err_code == libc::ENOENT {
@@ -217,7 +222,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
             libc::exit(108)
         } else {
             writeln!(stderr, "couldn't execute: error code {}", err_code).ok();
-            // Execve only returns on error.
             err_exit("execve");
         }
     }
@@ -226,12 +230,13 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
 unsafe fn spawn_job(
     options: JobOptions,
     setup_data: &SetupData,
+    jail_id: String,
 ) -> crate::Result<jail_common::JobStartupInfo> {
     let (mut sock, mut child_sock) = Socket::new_socketpair().unwrap();
     child_sock
         .no_cloexec()
         .expect("Couldn't make child socket inheritable");
-    // `dea` Will be passed to child process
+    // `dea` will be passed to child process
     let dea = DoExecArg {
         path: options.exe.as_os_str().to_os_string(),
         arguments: options.argv,
@@ -240,6 +245,7 @@ unsafe fn spawn_job(
         sock: child_sock,
         pwd: options.pwd.clone(),
         cgroups_tasks: setup_data.cgroups.clone(),
+        jail_id,
     };
     let child_pid: Pid;
     let res = libc::fork();
@@ -381,13 +387,18 @@ pub(crate) unsafe fn start_zygote(
 
     if f != 0 {
         // Thread A it is thread that entered start_zygote() normally, returns from function
-        write!(logger, "thread A (main)").unwrap();
+        write!(
+            logger,
+            "dominion {}: thread A (main)",
+            &jail_options.jail_id
+        )
+        .unwrap();
 
         let mut zygote_pid_bytes = [0 as u8; 4];
 
         // Wait until zygote is ready.
         // Zygote is ready when zygote launcher returns it's pid
-        nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol failure");
+        nix::unistd::read(return_allowed_r, &mut zygote_pid_bytes).expect("protocol violation");
         nix::unistd::close(return_allowed_r).unwrap();
         nix::unistd::close(return_allowed_w).unwrap();
         nix::unistd::close(jail_options.watchdog_chan).unwrap();
@@ -407,7 +418,12 @@ pub(crate) unsafe fn start_zygote(
     }
     if fret == 0 {
         // Thread C is zygote main process
-        write!(logger, "thread C (zygote main)").unwrap();
+        write!(
+            logger,
+            "dominion {}: thread C (zygote main)",
+            &jail_options.jail_id
+        )
+        .unwrap();
         mem::drop(sock);
         let js_arg = ZygoteOptions {
             jail_options,
@@ -417,8 +433,13 @@ pub(crate) unsafe fn start_zygote(
         libc::exit(zygote_ret_code.unwrap_or(1));
     }
     // Thread B is external zygote initializer.
-    // It's only task currently is to setup id/gid mapping.
-    write!(logger, "thread B (zygote launcher)").unwrap();
+    // It's only task currently is to setup uid/gid mapping.
+    write!(
+        logger,
+        "dominion {}: thread B (zygote launcher)",
+        &jail_options.jail_id
+    )
+    .unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
 
@@ -433,6 +454,6 @@ pub(crate) unsafe fn start_zygote(
     sock.wake(WM_CLASS_PID_MAP_CREATED)?;
     sock.lock(WM_CLASS_SETUP_FINISHED)?;
     // And now thread A can return.
-    nix::unistd::write(return_allowed_w, &child_pid.to_ne_bytes()).expect("protocol failure");
+    nix::unistd::write(return_allowed_w, &child_pid.to_ne_bytes()).expect("protocol violation");
     libc::exit(0);
 }

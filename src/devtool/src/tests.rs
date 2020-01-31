@@ -16,9 +16,12 @@ pub(crate) struct TestArgs {
     /// Run minion-ffi tests
     #[structopt(long)]
     minion_ffi: bool,
+    /// Nocapture e2e
+    #[structopt(long)]
+    nocapture: bool,
 }
 
-fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
+fn run_integ_test(runner: &Runner, nocapture: bool) -> anyhow::Result<()> {
     println!("Compiling integration tests");
     Command::new("cargo")
         .current_dir("src/e2e")
@@ -49,16 +52,18 @@ fn run_integ_test(runner: &Runner) -> anyhow::Result<()> {
                 .expect("line is empty")
                 .trim_end_matches(':');
             println!("----- Running: {} -----", test_name);
-            let test_succ = Command::new("cargo")
-                .current_dir("src/e2e")
+            let mut cmd = Command::new("cargo");
+            cmd.current_dir("src/e2e")
                 .args(&["test", test_name])
                 .arg("--")
                 .arg("-Zunstable-options")
                 .arg("--ensure-time")
                 .arg("--report-time")
-                .env("RUST_TEST_TIME_INTEGRATION", "45000,75000")
-                .try_exec()
-                .is_ok();
+                .env("RUST_TEST_TIME_INTEGRATION", "45000,120000");
+            if nocapture {
+                cmd.arg("--nocapture");
+            }
+            let test_succ = cmd.try_exec().is_ok();
             cnt_tests += 1;
             if test_succ {
                 cnt_ok += 1;
@@ -78,7 +83,7 @@ fn run_unit_tests(args: &TestArgs, runner: &Runner) {
     let mut cmd = Command::new("cargo");
     cmd.args(&["test"]);
     cmd.arg("--workspace");
-    cmd.args(&["--exclude", "all"]);
+    cmd.args(&["--exclude", "e2e"]);
     if args.verbose {
         cmd.args(&["--", "--nocapture"]);
     }
@@ -95,7 +100,7 @@ pub(crate) fn task_test(args: TestArgs, runner: &Runner) -> anyhow::Result<()> {
         run_unit_tests(&args, runner);
     }
     if args.integration_tests {
-        run_integ_test(runner)?;
+        run_integ_test(runner, args.nocapture)?;
     }
     if args.minion_ffi {
         run_minion_ffi_tests(runner);

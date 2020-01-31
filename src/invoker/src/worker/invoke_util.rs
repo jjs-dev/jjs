@@ -1,22 +1,19 @@
-use crate::{inter_api::Paths, invoker::CommandInterp, RunProps};
+use crate::worker::{Command, InvokeRequest};
 use anyhow::{bail, Context};
 use slog_scope::debug;
 use std::{
-    collections::HashMap,
-    ffi::OsString,
     fs,
     path::{Path, PathBuf},
     time::Duration,
 };
 
 pub(crate) fn create_sandbox(
-    cfg: &cfg::Config,
-    limits: &cfg::Limits,
-    paths: &Paths,
+    req: &InvokeRequest,
+    test_id: Option<u32>,
     backend: &dyn minion::Backend,
 ) -> anyhow::Result<minion::DominionRef> {
     let mut exposed_paths = vec![];
-    let toolchains_dir = cfg.sysroot.join("opt");
+    let toolchains_dir = &req.toolchains_dir;
     let opt_items = fs::read_dir(&toolchains_dir).context("failed to list toolchains sysroot")?;
     for item in opt_items {
         let item = item.context("failed to stat toolchains sysroot item")?;
@@ -37,19 +34,28 @@ pub(crate) fn create_sandbox(
         };
         exposed_paths.push(peo)
     }
+    let out_dir = req.step_dir(test_id);
+    std::fs::create_dir_all(&out_dir).context("failed to create step directory")?;
+    std::fs::create_dir_all(out_dir.join("data")).context("failed to create shared directory")?;
     exposed_paths.push(minion::PathExpositionOptions {
-        src: paths.share_dir(),
+        src: out_dir.join("data"),
         dest: PathBuf::from("/jjs"),
         access: minion::DesiredAccess::Full,
     });
-    let cpu_time_limit = Duration::from_millis(limits.time as u64);
-    let real_time_limit = Duration::from_millis(limits.time * 3 as u64);
+    let limits = if test_id.is_some() {
+        req.execute_limits
+    } else {
+        req.compile_limits
+    };
+    let cpu_time_limit = Duration::from_millis(limits.time() as u64);
+    let real_time_limit = Duration::from_millis(limits.time() * 3 as u64);
+    std::fs::create_dir(out_dir.join("root")).context("failed to create chroot dir")?;
     // TODO adjust integer types
     let dominion_options = minion::DominionOptions {
-        max_alive_process_count: limits.process_count as _,
-        memory_limit: limits.memory as _,
+        max_alive_process_count: limits.process_count() as _,
+        memory_limit: limits.memory() as _,
         exposed_paths,
-        isolation_root: paths.chroot_dir(),
+        isolation_root: out_dir.join("root"),
         cpu_time_limit,
         real_time_limit,
     };
@@ -59,35 +65,11 @@ pub(crate) fn create_sandbox(
         .context("failed to create minion dominion")
 }
 
-pub(crate) fn get_common_interpolation_dict(
-    run_props: &RunProps,
-    toolchain_cfg: &cfg::Toolchain,
-) -> HashMap<String, OsString> {
-    let mut dict = HashMap::new();
-    dict.insert("Invoker.Id".to_string(), OsString::from("inv"));
-    dict.insert(
-        "Submission.SourceFilePath".to_string(),
-        PathBuf::from("/jjs")
-            .join(&toolchain_cfg.filename)
-            .into_os_string(),
-    );
-    dict.insert("Submission.BinaryFilePath".to_string(), "/jjs/build".into());
-    dict.insert(
-        "Submission.ToolchainName".to_string(),
-        toolchain_cfg.name.clone().into(),
-    );
-    dict.insert("Submission.Id".to_string(), run_props.id.to_string().into());
-    for (k, v) in run_props.metadata.iter() {
-        dict.insert(format!("Submission.Metadata.{}", k), v.clone().into());
-    }
-    dict
-}
-
-pub(crate) fn log_execute_command(command_interp: &CommandInterp) {
+pub(crate) fn log_execute_command(command_interp: &Command) {
     debug!("executing command"; "command" => ?command_interp);
 }
 
-pub(crate) fn command_set_from_interp(cmd: &mut minion::Command, command: &CommandInterp) {
+pub(crate) fn command_set_from_inv_req(cmd: &mut minion::Command, command: &Command) {
     cmd.path(&command.argv[0]);
     cmd.args(&command.argv[1..]);
     cmd.envs(&command.env);

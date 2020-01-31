@@ -122,8 +122,16 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
 
     println!(
         "status: {}({}), score: {}",
-        final_results.status.kind,
-        final_results.status.code,
+        final_results
+            .status
+            .as_ref()
+            .map(|s| s.kind.to_string())
+            .unwrap_or_else(|| "<missing>".to_string()),
+        final_results
+            .status
+            .as_ref()
+            .map(|s| s.code.to_string())
+            .unwrap_or_else(|| "<missing>".to_string()),
         final_results
             .score
             .map(|x| x.to_string())

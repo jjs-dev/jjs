@@ -5,8 +5,8 @@ filename="source.cpp"
 time = 6000
 
 [[build]]
-argv=["{{ env_GPP }}", "$(Submission.SourceFilePath)", "-o", "$(Submission.BinaryFilePath)", "-std=c++17", "-Wall"
+argv=["{{ env_GPP }}", "$(Run.SourceFilePath)", "-o", "$(Run.BinaryFilePath)", "-std=c++17", "-Wall"
 , "-Wextra", "-Wpedantic", "-DONLINE_JUDGE"]
 
 [run]
-argv=["$(Submission.BinaryFilePath)"]
+argv=["$(Run.BinaryFilePath)"]

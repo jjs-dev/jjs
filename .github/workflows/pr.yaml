@@ -118,8 +118,8 @@ jobs:
           mkdir logs
           sudo journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
           sudo journalctl -u jjs-backend.service -p debug > logs/invoker.txt
+          sudo cat /var/log/postgresql/postgresql-10-main.log > logs/postgres.txt
           cat logs/*
-          cat /var/lib/jjs/etc/env.txt
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v1

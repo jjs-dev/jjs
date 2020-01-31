@@ -21,16 +21,6 @@ pub fn daemon_notify_ready() {
     }
 }
 
-pub fn daemon_startup_sleep() {
-    if let Ok(duration) = std::env::var("JJS_DEV_SLEEP") {
-        let duration: u8 = duration.parse().expect("invalid sleep duration");
-        let duration = std::time::Duration::from_secs(duration as _);
-        println!("Sleeping for {} seconds", duration.as_secs());
-        std::thread::sleep(duration);
-        println!("sleep done");
-    }
-}
-
 pub fn print_error(err: &dyn std::error::Error) {
     eprintln!("error: {}", err);
     let mut iter = err.source();

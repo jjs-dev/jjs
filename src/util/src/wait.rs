@@ -25,9 +25,14 @@ fn poll_tcp(addr: &std::net::SocketAddr) -> PollResult {
     }
 }
 
+fn poll_http(url: &str) -> PollResult {
+    Ok(reqwest::blocking::get(url).is_ok())
+}
+
 enum WaitItem {
     File(PathBuf),
     Tcp(std::net::SocketAddr),
+    Http(String),
 }
 
 impl WaitItem {
@@ -35,6 +40,7 @@ impl WaitItem {
         match self {
             WaitItem::File(path) => poll_file(path),
             WaitItem::Tcp(addr) => poll_tcp(addr),
+            WaitItem::Http(url) => poll_http(url),
         }
     }
 }
@@ -48,6 +54,9 @@ impl std::fmt::Display for WaitItem {
             }
             WaitItem::Tcp(addr) => {
                 write!(f, "address {} reachable", addr)?;
+            }
+            WaitItem::Http(url) => {
+                write!(f, "url {} available", url)?;
             }
         }
         write!(f, ")")
@@ -119,6 +128,7 @@ pub fn wait() {
                     };
                     WaitItem::Tcp(addr)
                 }
+                "http" | "https" => WaitItem::Http(item.to_string()),
                 other => {
                     eprintln!("Unknown URL scheme: {}", other);
                     std::process::exit(1);

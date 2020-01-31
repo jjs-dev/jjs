@@ -33,25 +33,12 @@ pub fn buffer_to_file(buf: &[u8], comment: &str) -> i64 {
     i64::from(fd)
 }
 
-pub fn make_anon_file(comment: &str) -> i64 {
-    use nix::sys::memfd;
-    memfd::memfd_create(
-        &CString::new(comment).unwrap(),
-        memfd::MemFdCreateFlag::empty(),
-    )
-    .unwrap()
-    .into()
-}
-
 pub fn handle_read_all(h: i64) -> Vec<u8> {
     use std::{io::Read, os::unix::io::FromRawFd};
     let h = h as i32;
     let mut file = unsafe { std::fs::File::from_raw_fd(h) };
     let mut out = Vec::new();
     let res = file.read_to_end(&mut out);
-    unsafe {
-        libc::close(h);
-    }
     res.unwrap();
     out
 }

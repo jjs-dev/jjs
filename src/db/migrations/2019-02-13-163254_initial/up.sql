@@ -31,10 +31,7 @@ CREATE TABLE runs
 (
     id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
     toolchain_id VARCHAR(100)                                               NOT NULL,
-    status_code  VARCHAR(100)                                               NOT NULL,
-    status_kind  VARCHAR(100)                                               NOT NULL,
     problem_id   VARCHAR(100)                                               NOT NULL,
-    score        INTEGER                                                    NOT NULL,
     rejudge_id   unsigned_integer                                           NOT NULL,
     user_id      UUID REFERENCES users (id)                                 NOT NULL
 );
@@ -48,6 +45,13 @@ CREATE SEQUENCE inv_id_seq START WITH 0 MINVALUE 0;
 CREATE table invocations
 (
     id          unsigned_integer DEFAULT nextval('inv_id_seq') UNIQUE PRIMARY KEY NOT NULL,
+    run_id unsigned_integer REFERENCES runs(id) NOT NULL,
     -- This is serialized `InvokeTask`. See `invoker-api` for its definition
-    invoke_task bytea                                                                 NOT NULL
+    invoke_task bytea                                                                 NOT NULL,
+    -- see InvocationStatus
+    state SMALLINT NOT NULL,
+    --- This is InvokeOutcomeHeader
+    -- most important invocation results. They are copied from judge log, so it can be removed from FS without problems
+    -- contains JSON document which maps judge log name to InvocationOutcome. May be partial if not all logs are emitted yet.
+    outcome JSONB NOT NULL
 );

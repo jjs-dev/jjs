@@ -9,8 +9,15 @@ pub struct Opts {
     test: bool,
     #[structopt(long)]
     debug: bool,
+    #[structopt(long)]
+    nocapture: bool,
 }
 pub fn task_run(opts: Opts) -> anyhow::Result<()> {
+    println!("dropping existing docker-compose");
+    Command::new("docker-compose")
+        .arg("down")
+        .arg("-v")
+        .try_exec()?;
     if opts.build {
         println!("Building");
         let mut cmd = Command::new("cargo");
@@ -20,11 +27,6 @@ pub fn task_run(opts: Opts) -> anyhow::Result<()> {
         }
         cmd.try_exec()?;
     }
-    println!("dropping existing docker-compose");
-    Command::new("docker-compose")
-        .arg("down")
-        .arg("-v")
-        .try_exec()?;
     println!("starting jjs");
     Command::new("docker-compose")
         .arg("up")
@@ -36,15 +38,18 @@ pub fn task_run(opts: Opts) -> anyhow::Result<()> {
             .arg("run")
             .arg("--package")
             .arg("util")
-            .env("RUST_LOG", "debug")
-            .env("JJS_WAIT", "tcp://localhost:1779")
+            .env("RUST_LOG", "info,util=debug")
+            .env("JJS_WAIT", "http://localhost:1779/")
             .try_exec()?;
         println!("Executing tests");
-        Command::new("cargo")
-            .arg("jjs-test")
+        let mut cmd = Command::new("cargo");
+        cmd.arg("jjs-test")
             .arg("--integration-tests")
-            .arg("--skip-unit")
-            .try_exec()?;
+            .arg("--skip-unit");
+        if opts.nocapture {
+            cmd.arg("--nocapture");
+        }
+        cmd.try_exec()?;
     }
     Ok(())
 }

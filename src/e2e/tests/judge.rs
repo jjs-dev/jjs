@@ -39,13 +39,13 @@ query GetRuns {
         .unwrap_ok();
     let resp = resp.pointer("/runs").unwrap().as_array().unwrap();
     for item in resp {
+        // dbg!(&item);
         if item.pointer("/id").unwrap().as_i64().unwrap() == id as i64 {
-            return item
-                .pointer("/status/code")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string();
+            let status = item.pointer("/status").unwrap();
+            return status
+                .as_object()
+                .map(|s| s.get("code").unwrap().as_str().unwrap().to_string())
+                .unwrap_or_else(|| "QUEUE".to_string());
         }
     }
     panic!("Run with id {} not found", id);
@@ -59,7 +59,7 @@ fn send_check_status(run_code: &str, correct_status: &str) {
             panic!("Timeout");
         }
         let status = poll_status(id);
-        if status == "QUEUE_JUDGE" {
+        if status == "QUEUE" {
             continue;
         }
         if status == correct_status {
@@ -144,4 +144,40 @@ mutation DeleteRun($runId: Int!) {
             .unwrap()
             .contains("AccessDenied")
     );
+}
+
+#[test]
+fn test_heavy_load() {
+    let count = 20;
+    let mut codes = Vec::new();
+    println!("making {} submits", count);
+    for _ in 0..count {
+        let id = submit(
+            r#"
+            #include <cstdio>
+            int main() {
+                int a, b;
+                scanf("%d %d", &a, &b);
+                printf("%d\n", a+b);
+            }
+            "#,
+        );
+        codes.push(id);
+    }
+    while !codes.is_empty() {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        let mut new_codes = Vec::new();
+        for i in codes {
+            let st = poll_status(i);
+            if st == "QUEUE" {
+                new_codes.push(i);
+                println!("{} still running", i);
+                continue;
+            }
+            println!("{} done", i);
+            assert_eq!(st, "ACCEPTED");
+        }
+        println!("--- now {} running ---", new_codes.len());
+        codes = new_codes;
+    }
 }

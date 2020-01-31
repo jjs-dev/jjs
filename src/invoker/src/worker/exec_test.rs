@@ -1,20 +1,24 @@
 mod checker_proto;
 
-use crate::{
-    inter_api::{JudgeOutcome, JudgeRequest},
-    invoke_util,
-    invoker::{interpolate_command, InvokeContext},
-    os_util,
-};
+use crate::worker::{invoke_util, os_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog_scope::error;
-use std::{fs, path::PathBuf, time::Duration};
+use std::{fs, io::Write, path::PathBuf, time::Duration};
+pub(crate) struct ExecRequest<'a> {
+    pub(crate) test_id: u32,
+    pub(crate) test: &'a pom::Test,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ExecOutcome {
+    pub(crate) status: Status,
+}
 
 /// Runs Artifact on one test and produces output
-pub(crate) struct Judge<'a> {
-    pub(crate) req: JudgeRequest<'a>,
-    pub(crate) ctx: &'a dyn InvokeContext,
+pub(crate) struct TestExecutor<'a> {
+    pub(crate) exec: ExecRequest<'a>,
+    pub(crate) req: &'a InvokeRequest,
 }
 
 enum RunOutcome {
@@ -22,42 +26,44 @@ enum RunOutcome {
     Fail(Status),
 }
 
-impl<'a> Judge<'a> {
-    fn run_solution(&self, test_data: &[u8]) -> anyhow::Result<RunOutcome> {
-        let limits = &self.ctx.env().problem_cfg.limits;
+fn map_checker_outcome_to_status(out: checker_proto::Output) -> Status {
+    match out.outcome {
+        checker_proto::Outcome::Ok => Status {
+            kind: StatusKind::Accepted,
+            code: status_codes::TEST_PASSED.to_string(),
+        },
+        checker_proto::Outcome::BadChecker => Status {
+            kind: StatusKind::InternalError,
+            code: status_codes::JUDGE_FAULT.to_string(),
+        },
+        checker_proto::Outcome::PresentationError => Status {
+            kind: StatusKind::Rejected,
+            code: status_codes::PRESENTATION_ERROR.to_string(),
+        },
+        checker_proto::Outcome::WrongAnswer => Status {
+            kind: StatusKind::Rejected,
+            code: status_codes::WRONG_ANSWER.to_string(),
+        },
+    }
+}
 
-        let sandbox = invoke_util::create_sandbox(
-            self.ctx.env().cfg,
-            limits,
-            self.req.paths,
-            self.ctx.env().minion_backend,
-        )?;
+impl<'a> TestExecutor<'a> {
+    fn run_solution(&self, test_data: &[u8], test_id: u32) -> anyhow::Result<RunOutcome> {
+        let step_dir = self.req.step_dir(Some(test_id));
 
-        fs::copy(
-            self.req.paths.build(),
-            self.req.paths.share_dir().join("build"),
-        )
-        .context("failed to copy build artifact to share dir")?;
+        let sandbox = invoke_util::create_sandbox(self.req, Some(test_id), &*self.req.minion)?;
 
-        let mut dict = invoke_util::get_common_interpolation_dict(
-            self.ctx.env().run_props,
-            self.ctx.env().toolchain_cfg,
-        );
-        dict.insert("Test.Id".to_string(), self.req.test_id.to_string().into());
+        fs::copy(self.req.out_dir.join("build"), step_dir.join("data/build"))
+            .context("failed to copy build artifact to share dir")?;
 
-        let stdout_path = self.req.paths.step.join("stdout.txt");
-        let stderr_path = self.req.paths.step.join("stderr.txt");
-
-        let command_interp = interpolate_command(&self.req.artifact.execute_command, &dict)
-            .map_err(|e| {
-                anyhow::Error::new(e).context("Config specifies incorrect execute command")
-            })?;
-
-        invoke_util::log_execute_command(&command_interp);
+        let stdout_path = step_dir.join("stdout.txt");
+        let stderr_path = step_dir.join("stderr.txt");
+        let command = &self.req.execute_command;
+        invoke_util::log_execute_command(command);
 
         let mut native_command = minion::Command::new();
 
-        invoke_util::command_set_from_interp(&mut native_command, &command_interp);
+        invoke_util::command_set_from_inv_req(&mut native_command, &command);
         invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
         native_command.dominion(sandbox);
@@ -65,7 +71,7 @@ impl<'a> Judge<'a> {
         // capture child input
         native_command.stdin(minion::InputSpecification::pipe());
 
-        let mut child = match native_command.spawn(self.ctx.env().minion_backend) {
+        let mut child = match native_command.spawn(&*self.req.minion) {
             Ok(child) => child,
             Err(err) => {
                 if err.is_system() {
@@ -83,7 +89,7 @@ impl<'a> Judge<'a> {
         std::mem::drop(stdin); // close pipe
 
         let wait_result = child
-            .wait_for_exit(Duration::from_millis(limits.time))
+            .wait_for_exit(Duration::from_secs(1000 /* TODO */))
             .context("failed to wait for child")?;
 
         match wait_result {
@@ -114,37 +120,31 @@ impl<'a> Judge<'a> {
         })
     }
 
-    pub fn judge(&self) -> anyhow::Result<JudgeOutcome> {
+    pub fn exec(self) -> anyhow::Result<ExecOutcome> {
         use std::os::unix::io::IntoRawFd;
-        fs::create_dir(&self.req.paths.step).context("failed to create step dir")?;
-        fs::create_dir(&self.req.paths.share_dir()).context("failed to create share dir")?;
-        fs::create_dir(&self.req.paths.chroot_dir()).context("failed to create chroot dir")?;
-
-        let input_file = self.ctx.resolve_asset(&self.req.test.path);
+        let input_file = self.req.resolve_asset(&self.exec.test.path);
         let test_data = std::fs::read(input_file).context("failed to read test")?;
 
-        let sol_file_path = match self.run_solution(&test_data)? {
+        let sol_file_path = match self.run_solution(&test_data, self.exec.test_id)? {
             RunOutcome::Success { out_data_path } => out_data_path,
-            RunOutcome::Fail(status) => return Ok(JudgeOutcome { status }),
+            RunOutcome::Fail(status) => return Ok(ExecOutcome { status }),
         };
         // run checker
+        let step_dir = self.req.step_dir(Some(self.exec.test_id));
         let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-        let full_checker_path = self
-            .ctx
-            .resolve_asset(&self.ctx.env().problem_data.checker_exe);
+        let full_checker_path = self.req.resolve_asset(&self.req.problem_data.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
+        cmd.current_dir(&self.req.problem_dir);
 
-        cmd.current_dir(self.ctx.env().problem_root());
-
-        for arg in &self.ctx.env().problem_data.checker_cmd {
+        for arg in &self.req.problem_data.checker_cmd {
             cmd.arg(arg);
         }
 
-        let test_cfg = self.req.test;
+        let test_cfg = self.exec.test;
 
         let corr_handle = if let Some(corr_path) = &test_cfg.correct {
-            let full_path = self.ctx.resolve_asset(corr_path);
+            let full_path = self.req.resolve_asset(corr_path);
             let data = fs::read(full_path).context("failed to read correct answer")?;
             os_util::buffer_to_file(&data, "invoker-correct-data")
         } else {
@@ -158,24 +158,34 @@ impl<'a> Judge<'a> {
 
         let (out_judge_side, out_checker_side) = os_util::make_pipe();
         cmd.env("JJS_CHECKER_OUT", out_checker_side.to_string());
-        let (_comments_judge_side, comments_checker_side) = os_util::make_pipe();
+        let (comments_judge_side, comments_checker_side) = os_util::make_pipe();
         cmd.env("JJS_CHECKER_COMMENT", comments_checker_side.to_string());
-        let st = cmd.status().map(|st| st.success());
+        let st = cmd.output().context("failed to execute checker")?;
         os_util::close(out_checker_side);
         os_util::close(comments_checker_side);
         os_util::close(corr_handle);
         os_util::close(test_handle);
+        os_util::close(sol_handle);
+        // TODO: capture comments
+        os_util::close(comments_judge_side);
 
-        let return_value_for_judge_fault = Ok(JudgeOutcome {
+        let checker_out = std::fs::File::create(step_dir.join("check-log.txt"))?;
+        let mut checker_out = std::io::BufWriter::new(checker_out);
+        checker_out.write_all(b" --- stdout ---\n")?;
+        checker_out.write_all(&st.stdout)?;
+        checker_out.write_all(b"--- stderr ---\n")?;
+        checker_out.write_all(&st.stderr)?;
+        let return_value_for_judge_fault = Ok(ExecOutcome {
             status: Status {
                 kind: StatusKind::InternalError,
                 code: status_codes::JUDGE_FAULT.to_string(),
             },
         });
 
-        let st = st.unwrap_or(false);
-        if !st {
-            error!("Judge fault: checker returned non-zero");
+        let succ = st.status.success();
+        if !succ {
+            error!("Judge fault: checker returned non-zero: {}", st.status);
+            os_util::close(out_judge_side);
             return return_value_for_judge_fault;
         }
         let checker_out = match String::from_utf8(os_util::handle_read_all(out_judge_side)) {
@@ -193,33 +203,8 @@ impl<'a> Judge<'a> {
             }
         };
 
-        let outcome = match parsed_out.outcome {
-            checker_proto::Outcome::Ok => JudgeOutcome {
-                status: Status {
-                    kind: StatusKind::Accepted,
-                    code: status_codes::TEST_PASSED.to_string(),
-                },
-            },
-            checker_proto::Outcome::BadChecker => JudgeOutcome {
-                status: Status {
-                    kind: StatusKind::InternalError,
-                    code: status_codes::JUDGE_FAULT.to_string(),
-                },
-            },
-            checker_proto::Outcome::PresentationError => JudgeOutcome {
-                status: Status {
-                    kind: StatusKind::Rejected,
-                    code: status_codes::PRESENTATION_ERROR.to_string(),
-                },
-            },
-            checker_proto::Outcome::WrongAnswer => JudgeOutcome {
-                status: Status {
-                    kind: StatusKind::Rejected,
-                    code: status_codes::WRONG_ANSWER.to_string(),
-                },
-            },
-        };
+        let status = map_checker_outcome_to_status(parsed_out);
 
-        Ok(outcome)
+        Ok(ExecOutcome { status })
     }
 }

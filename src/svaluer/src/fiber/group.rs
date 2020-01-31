@@ -5,8 +5,8 @@ use invoker_api::{
     },
     Status,
 };
-use log::debug;
 use pom::TestId;
+use slog_scope::debug;
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
@@ -57,6 +57,22 @@ impl Group {
 
     pub(crate) fn set_score(&mut self, score: u32) -> &mut Self {
         self.score = score;
+        self
+    }
+
+    pub(crate) fn set_tests_vis(
+        &mut self,
+        vis: invoker_api::valuer_proto::TestVisibleComponents,
+    ) -> &mut Self {
+        self.test_vis_flags = vis;
+        self
+    }
+
+    pub(crate) fn set_group_vis(
+        &mut self,
+        vis: invoker_api::valuer_proto::SubtaskVisibleComponents,
+    ) -> &mut Self {
+        self.subtask_vis_flags = vis;
         self
     }
 }

@@ -32,7 +32,7 @@ pub(crate) struct JudgeLog {
     pub(crate) status: invoker_api::Status,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct JudgeLogs(pub(crate) Vec<JudgeLog>);
 
 impl JudgeLogs {

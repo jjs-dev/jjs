@@ -4,7 +4,7 @@ use crate::{
 };
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::{ffi::OsString, path::PathBuf, time::Duration};
+use std::{ffi::OsString, io::Read, path::PathBuf, time::Duration};
 use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,8 +22,11 @@ pub(crate) struct JailOptions {
     pub(crate) watchdog_chan: Handle,
 }
 
-pub(crate) fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> String {
-    format!("/sys/fs/cgroup/{}/jjs/g-{}", subsys_name, cgroup_id)
+pub(crate) fn get_path_for_subsystem(subsys_name: &str, cgroup_id: &str) -> PathBuf {
+    std::path::Path::new("/sys/fs/cgroup")
+        .join(subsys_name)
+        .join("jjs")
+        .join(format!("g-{}", cgroup_id))
 }
 
 const ID_CHARS: &[u8] = b"qwertyuiopasdfghjklzxcvbnm1234567890";
@@ -71,10 +74,27 @@ pub(crate) enum Query {
     Poll(PollQuery),
 }
 
-pub(crate) fn dominion_kill_all(zygote_pid: Pid) {
+pub(crate) fn dominion_kill_all(zygote_pid: Pid, jail_id: Option<&str>) -> std::io::Result<()> {
     // We will send SIGTERM to zygote, and
     // kernel will kill all other processes by itself.
     unsafe {
         libc::kill(zygote_pid, libc::SIGTERM);
     }
+    let jail_id = match jail_id {
+        Some(j) => j,
+        None => return Ok(()),
+    };
+    // now let's wait until kill is done
+    let pids_tasks_file_path = get_path_for_subsystem("pids", jail_id).join("tasks");
+    let mut buf = Vec::with_capacity(8);
+    loop {
+        buf.clear();
+        let mut f = std::fs::File::open(&pids_tasks_file_path)?;
+        f.read_to_end(&mut buf)?;
+        let has_some = buf.iter().take(8).any(|c| c.is_ascii_digit());
+        if !has_some {
+            break;
+        }
+    }
+    Ok(())
 }

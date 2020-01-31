@@ -66,7 +66,7 @@ pub trait IpcSocketExt {
     unsafe fn recv<T: serde::de::DeserializeOwned>(&mut self) -> crate::Result<T>;
 }
 
-const MAX_MSG_SIZE: usize = 8192;
+const MAX_MSG_SIZE: usize = 16384;
 
 impl IpcSocketExt for Socket {
     unsafe fn lock(&mut self, expected_class: &'static [u8]) -> crate::Result<()> {

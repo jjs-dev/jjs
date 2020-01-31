@@ -28,16 +28,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "all"
-version = "0.1.0"
-dependencies = [
- "base64 0.11.0",
- "frontend-engine",
- "reqwest",
- "serde_json",
-]
-
-[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -576,16 +566,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctrlc"
-version = "3.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7dfd2d8b4c82121dfdff120f818e09fc4380b0b7e17a742081a89b94853e87f"
-dependencies = [
- "nix 0.14.1",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "curl"
 version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -625,6 +605,7 @@ dependencies = [
  "invoker-api",
  "r2d2",
  "serde",
+ "serde_json",
  "uuid",
 ]
 
@@ -709,6 +690,7 @@ dependencies = [
  "diesel_derives",
  "pq-sys",
  "r2d2",
+ "serde_json",
  "uuid",
 ]
 
@@ -777,6 +759,16 @@ name = "dtoa"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea57b42383d091c85abcc2706240b94ab2a8fa1fc81c10ff23c4de06e2a90b5e"
+
+[[package]]
+name = "e2e"
+version = "0.1.0"
+dependencies = [
+ "base64 0.11.0",
+ "frontend-engine",
+ "reqwest",
+ "serde_json",
+]
 
 [[package]]
 name = "either"
@@ -1459,28 +1451,28 @@ dependencies = [
  "base64 0.11.0",
  "bitflags",
  "cfg",
- "cfg-if",
  "chrono",
  "color-backtrace",
- "ctrlc",
+ "crossbeam-channel",
  "db",
  "dotenv",
  "fs_extra",
  "invoker-api",
  "libc",
- "memchr",
  "minion",
  "nix 0.16.1",
  "pom",
  "reqwest",
  "serde",
  "serde_json",
+ "signal-hook",
  "slog-scope",
  "strum",
  "strum_macros",
  "tempfile",
  "thiserror",
  "util",
+ "uuid",
 ]
 
 [[package]]
@@ -1492,6 +1484,7 @@ dependencies = [
  "serde",
  "strum",
  "strum_macros",
+ "uuid",
 ]
 
 [[package]]
@@ -1865,19 +1858,6 @@ name = "nix"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4dbdc256eaac2e3bd236d93ad999d3479ef775c863dbda3068c4006a92eec51b"
-dependencies = [
- "bitflags",
- "cc",
- "cfg-if",
- "libc",
- "void",
-]
-
-[[package]]
-name = "nix"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c722bee1037d430d0f8e687bbdbf222f27cc6e4e68d5caf630857bb2b6dbdce"
 dependencies = [
  "bitflags",
  "cc",
@@ -2875,6 +2855,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+
+[[package]]
 name = "sha2"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2904,6 +2890,26 @@ name = "shell-escape"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "170a13e64f2a51b77a45702ba77287f5c6829375b04a69cf2222acd17d0cfab9"
+
+[[package]]
+name = "signal-hook"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a9c17dd3ba2d36023a5c9472ecddeda07e27fd0b05436e8c1e0c8f178185652"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94f478ede9f64724c5d173d7bb56099ec3e2d9fc2774aac65d34b8b890405f41"
+dependencies = [
+ "arc-swap",
+ "libc",
+]
 
 [[package]]
 name = "simple_logger"
@@ -3160,11 +3166,11 @@ dependencies = [
  "anyhow",
  "crossbeam",
  "invoker-api",
- "log 0.4.8",
  "pom",
  "serde",
  "serde_json",
  "simple_logger",
+ "slog-scope",
  "toml 0.5.6",
  "util",
 ]
@@ -3649,6 +3655,7 @@ dependencies = [
  "atty",
  "libsystemd",
  "log 0.4.8",
+ "reqwest",
  "slog",
  "slog-envlogger",
  "slog-journald",
@@ -3666,6 +3673,7 @@ checksum = "90dbc611eb48397705a6b0f6e917da23ae517e4d127123d2cf7674206627d32a"
 dependencies = [
  "rand 0.6.5",
  "serde",
+ "sha1",
 ]
 
 [[package]]

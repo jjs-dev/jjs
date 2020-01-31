@@ -2,7 +2,6 @@
 
 use minion::{self, Dominion as _};
 use std::{
-    collections::HashMap,
     ffi::{CStr, OsStr, OsString},
     mem::{self},
     os::raw::c_char,
@@ -302,16 +301,17 @@ pub unsafe extern "C" fn minion_cp_spawn(
             p = p.offset(1);
         }
     }
-    let mut environment = HashMap::new();
+    let mut environment = Vec::new();
     {
         let mut p = options.envp;
         while !(*p).name.is_null() {
             let name = get_string((*p).name);
             let value = get_string((*p).value);
-            if environment.contains_key(&name) {
-                return ErrorCode::InvalidInput;
-            }
-            environment.insert(name, value);
+            // TODO check for duplicated names
+            let mut t = name;
+            t.push("=");
+            t.push(value);
+            environment.push(t);
             p = p.offset(1);
         }
     }

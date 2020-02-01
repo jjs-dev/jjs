@@ -1,6 +1,6 @@
-use crate::worker::{judge_log, InvokeRequest, Worker};
+use crate::worker::{InvokeRequest, Worker};
 use anyhow::Context;
-use invoker_api::{status_codes, Status, StatusKind};
+use invoker_api::{judge_log, status_codes, Status, StatusKind};
 use std::io::Read;
 
 impl Worker {

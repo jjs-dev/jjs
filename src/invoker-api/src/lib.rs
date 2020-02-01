@@ -1,3 +1,4 @@
+pub mod judge_log;
 pub mod valuer_proto;
 
 use serde::{Deserialize, Serialize};

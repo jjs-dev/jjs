@@ -1,7 +1,6 @@
 mod compiler;
 mod exec_test;
 mod invoke_util;
-pub(crate) mod judge_log;
 mod os_util;
 mod transform_judge_log;
 mod valuer;
@@ -12,10 +11,10 @@ use compiler::{BuildOutcome, Compiler};
 use crossbeam_channel::{Receiver, Sender};
 use exec_test::{ExecRequest, TestExecutor};
 use invoker_api::{
+    judge_log::JudgeLogs,
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
-use judge_log::JudgeLogs;
 use serde::Serialize;
 use slog_scope::{debug, error};
 use std::{

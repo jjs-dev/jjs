@@ -110,4 +110,14 @@ impl AccessChecker<'_, ack_subject::Contest> {
         }
         Ok(false)
     }
+
+    pub(crate) fn select_judge_log_kind(
+        &self,
+    ) -> Result<invoker_api::valuer_proto::JudgeLogKind, AccessCheckError> {
+        use invoker_api::valuer_proto::JudgeLogKind;
+        if self.is_contest_sudo()? {
+            return Ok(JudgeLogKind::Full);
+        }
+        Ok(JudgeLogKind::Contestant)
+    }
 }

@@ -401,9 +401,9 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5d540c2d34ac9dd0deb5f3b5f54c36c79efa78f6b3ad19106a554d07a7b5d9f"
+checksum = "45e0f3986890b3acbc782009e2629dfe2baa430ac091519ce3be26164a2ae6c0"
 dependencies = [
  "clicolors-control",
  "encode_unicode",

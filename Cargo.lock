@@ -376,17 +376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "colored"
-version = "1.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f930f8b286023ed451756fe2527d73484d667adf9e905e9932e81d52996a343a"
-dependencies = [
- "atty",
- "lazy_static",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "combine"
 version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2912,19 +2901,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple_logger"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "109facdf91db4b79de557313b5e031f0f8a86373e316bf01158190aa68bcc74e"
-dependencies = [
- "atty",
- "chrono",
- "colored",
- "log 0.4.8",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3169,7 +3145,6 @@ dependencies = [
  "pom",
  "serde",
  "serde_json",
- "simple_logger",
  "slog-scope",
  "toml 0.5.6",
  "util",

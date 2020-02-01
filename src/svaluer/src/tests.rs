@@ -133,7 +133,7 @@ impl MockDriver {
     }
 
     fn exec(&mut self, cfg: crate::cfg::Config) {
-        simple_logger::init().ok();
+        util::log::setup();
         let valuer = SimpleValuer::new(self, &cfg).unwrap();
         valuer.exec().unwrap();
     }

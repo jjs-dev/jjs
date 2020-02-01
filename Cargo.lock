@@ -243,9 +243,9 @@ dependencies = [
 
 [[package]]
 name = "cbindgen"
-version = "0.12.2"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1595ec41c4ad8109ad17eb2e38fa52af1244b2321c02144176b5aef0655d5f8e"
+checksum = "e21019c4afc1dd5f5ab3ce212d8ccb953f43520db79e0bb6438f3e26cc57dccf"
 dependencies = [
  "log 0.4.8",
  "proc-macro2 1.0.8",

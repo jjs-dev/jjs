@@ -9,7 +9,7 @@ reqwest = { version = "0.10.1", features = ["blocking"] }
 serde = "1.0.104"
 graphql_client = "0.8.0"
 frontend-api-derive = {path = "../frontend-api-derive"}
-serde_json = "1.0.44"
+serde_json = "1.0.45"
 snafu = "0.6.2"
 
 [build-dependencies]

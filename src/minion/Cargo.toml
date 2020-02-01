@@ -10,7 +10,7 @@ errno= "0.2.4"
 rand = "0.7.3"
 cfg-if = "0.1.10"
 serde = { version = "1.0.104", features = ["derive"] }
-serde_json = "1.0.44"
+serde_json = "1.0.45"
 tiny-nix-ipc = { git = "https://github.com/myfreeweb/tiny-nix-ipc", features = ["ser_json", "zero_copy"] }
 procfs = "0.7.7"
 nix = "0.16.1"

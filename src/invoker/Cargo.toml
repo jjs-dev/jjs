@@ -8,7 +8,7 @@ edition = "2018"
 minion = {path = "../minion"}
 cfg = {path ="../cfg"}
 serde = { version = "1.0.104", features = ["derive"] }
-serde_json = "1.0.44"
+serde_json = "1.0.45"
 db = {path = "../db"}
 dotenv = "0.15.0"
 aho-corasick = "0.7.6"

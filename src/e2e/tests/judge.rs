@@ -76,9 +76,9 @@ fn test_correct_solution_is_accepted() {
         r#"
  #include <cstdio>
  int main() {
-     int a, b;
-     scanf("%d %d", &a, &b);
-     printf("%d\n", a+b);
+     long long a, b;
+     scanf("%lld %lld", &a, &b);
+     printf("%lld\n", a+b);
  }    
      "#,
         "ACCEPTED",
@@ -91,9 +91,9 @@ fn test_wrong_solution_is_rejected() {
         r#"
  #include <cstdio>
  int main() {
-     int a,b;
-     scanf("%d %d", &a, &b);
-     printf("%d\n", a-b);
+     long long a,b;
+     scanf("%lld %lld", &a, &b);
+     printf("%lld\n", a-b);
  }       
         "#,
         "PARTIAL_SOLUTION",
@@ -155,10 +155,11 @@ fn test_heavy_load() {
         let id = submit(
             r#"
             #include <cstdio>
+            using ll = long long;
             int main() {
-                int a, b;
-                scanf("%d %d", &a, &b);
-                printf("%d\n", a+b);
+                ll a, b;
+                scanf("%lld %lld", &a, &b);
+                printf("%lld\n", a+b);
             }
             "#,
         );

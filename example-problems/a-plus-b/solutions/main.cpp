@@ -1,9 +1,9 @@
 #include <cstdio>
 
 int main() {
-    int a, b;
-    scanf("%d %d", &a, &b);
-    int res = a + b;
-    printf("%d\n", res);
+    long long a, b;
+    scanf("%lld %lld", &a, &b);
+    long long res = a + b;
+    printf("%lld\n", res);
     return 0;
 }

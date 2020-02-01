@@ -134,15 +134,25 @@ impl Run {
         ctx: &Context,
         filter: RunProtocolFilterParams,
     ) -> ApiResult<Option<String>> {
+        let access_ck = ctx.access().wrap_contest("TODO".to_string());
+        let kind = access_ck.select_judge_log_kind().internal(ctx)?;
         let path = self.last_invoke_dir(ctx)?.join("log.json");
         debug!("Looking up invocation protocol at {}", path.display());
         let protocol = std::fs::read(path).ok();
         match protocol {
             Some(protocol) => {
                 let protocol = String::from_utf8(protocol).internal(ctx)?;
-                let mut protocol = serde_json::from_str(&protocol).internal(ctx)?;
-                filter_protocol(&mut protocol, filter);
-                let protocol = serde_json::to_string(&protocol).internal(ctx)?;
+                let protocols: Vec<invoker_api::judge_log::JudgeLog> =
+                    serde_json::from_str(&protocol).internal(ctx)?;
+                let requested_protocol = protocols.into_iter().find(|p| p.kind == kind);
+                let mut requested_protocol = match requested_protocol {
+                    Some(rp) => rp,
+                    None => return Ok(None),
+                };
+                let mut requested_protocol =
+                    serde_json::to_value(&requested_protocol).internal(ctx)?;
+                filter_protocol(&mut requested_protocol, filter);
+                let protocol = serde_json::to_string(&requested_protocol).internal(ctx)?;
                 Ok(Some(protocol))
             }
             None => Ok(None),

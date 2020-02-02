@@ -47,6 +47,12 @@ pub trait InvocationsRepo: RunsRepo + Send + Sync {
             .collect()
     }
 
+    fn inv_add_outcome_header(
+        &self,
+        inv_id: InvocationId,
+        header: invoker_api::InvokeOutcomeHeader,
+    ) -> Result<()>;
+
     fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()>;
 }
 

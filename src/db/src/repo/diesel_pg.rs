@@ -116,7 +116,7 @@ FOR UPDATE
                         filtered.push(inv);
                     }
                 }
-                const STATE_DONE: i16 = InvocationState::Done.as_int();
+                const STATE_DONE: i16 = InvocationState::InWork.as_int();
                 diesel::update(invocations)
                     .set(state.eq(STATE_DONE))
                     .filter(id.eq(any(&to_del)))
@@ -132,6 +132,26 @@ FOR UPDATE
                 .execute(&self.conn()?)
                 .map_err(Into::into)
                 .map(drop)
+        }
+
+        fn inv_add_outcome_header(
+            &self,
+            inv_id: InvocationId,
+            header: invoker_api::InvokeOutcomeHeader,
+        ) -> Result<()> {
+            let query = "
+            UPDATE invocations SET
+            outcome = outcome || $1
+            WHERE id = $2
+            ";
+            diesel::sql_query(query)
+                .bind::<diesel::sql_types::Jsonb, _>(
+                    serde_json::to_value(&header)
+                        .context("failed to serialize InvokeOutcomeHeader")?,
+                )
+                .bind::<diesel::sql_types::Integer, _>(inv_id)
+                .execute(&self.conn()?)?;
+            Ok(())
         }
     }
 }

@@ -6,3 +6,6 @@ debug = 1
 
 [workspace]
 members=["src/*"]
+
+[patch.crates-io]
+diesel_derives = { git = "https://github.com/diesel-rs/diesel", rev = "8cad08f" }

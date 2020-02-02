@@ -32,21 +32,6 @@ pub struct JudgeLog {
     pub status: Status,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct JudgeLogs(pub Vec<JudgeLog>);
-
-impl JudgeLogs {
-    pub fn full_log(&self) -> Option<&JudgeLog> {
-        self.0.iter().find(|log| log.kind == JudgeLogKind::Full)
-    }
-
-    pub fn full_status(&self) -> Option<&Status> {
-        self.full_log()
-            .or_else(|| self.0.get(0))
-            .map(|log| &log.status)
-    }
-}
-
 impl Default for JudgeLog {
     fn default() -> Self {
         Self {

@@ -58,8 +58,6 @@ pub struct NewInvocation {
 pub struct InvocationPatch {
     #[column_name = "state"]
     pub(crate) state: Option<i16>,
-    #[column_name = "outcome"]
-    pub(crate) outcome: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable, Insertable)]

@@ -11,7 +11,6 @@ use compiler::{BuildOutcome, Compiler};
 use crossbeam_channel::{Receiver, Sender};
 use exec_test::{ExecRequest, TestExecutor};
 use invoker_api::{
-    judge_log::JudgeLogs,
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
@@ -82,6 +81,7 @@ pub(crate) enum Request {
 #[derive(Debug)]
 pub(crate) enum Response {
     Invoke(InvokeOutcome),
+    OutcomeHeader(invoker_api::InvokeOutcomeHeader),
     LiveTest(u32),
     LiveScore(u32),
 }
@@ -146,31 +146,44 @@ impl Worker {
                 outcome = InvokeOutcome::CompileError(st);
             }
             Ok(BuildOutcome::Success) => {
-                let judge_logs = self.run_tests(req)?;
+                self.run_tests(req)?;
 
-                outcome = InvokeOutcome::Judge(judge_logs);
+                outcome = InvokeOutcome::Judge;
             }
         };
-        if let InvokeOutcome::Judge(judge_logs) = &outcome {
-            let judge_log_path = req.out_dir.join("log.json");
-            debug!("Writing judging log to {}", judge_log_path.display());
-            let judge_log_file = std::fs::File::create(&judge_log_path)?;
-            let judge_log_file = std::io::BufWriter::new(judge_log_file);
-            serde_json::to_writer(judge_log_file, &judge_logs.0)
-                .context("failed to write judge log to file")?;
-            debug!("Invokation finished"; "status" => ?outcome.status());
-        }
         Ok(outcome)
     }
 
-    fn run_tests(&mut self, req: &InvokeRequest) -> anyhow::Result<JudgeLogs> {
+    fn put_protocol(
+        &mut self,
+        req: &InvokeRequest,
+        protocol: invoker_api::judge_log::JudgeLog,
+    ) -> anyhow::Result<()> {
+        let protocol_file_name = format!("protocol-{}.json", protocol.kind.as_str());
+        let protocol_path = req.out_dir.join(protocol_file_name);
+        debug!("Writing protocol to {}", protocol_path.display());
+        let protocol_file = std::fs::File::create(&protocol_path)?;
+        let protocol_file = std::io::BufWriter::new(protocol_file);
+        serde_json::to_writer(protocol_file, &protocol)
+            .context("failed to write judge log to file")?;
+        let header = invoker_api::InvokeOutcomeHeader {
+            score: Some(protocol.score),
+            status: Some(protocol.status),
+            kind: protocol.kind,
+        };
+        self.sender
+            .send(Response::OutcomeHeader(header))
+            .expect("failed to send sync request");
+        Ok(())
+    }
+
+    fn run_tests(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
         let mut test_results = vec![];
 
         let mut valuer = Valuer::new(req).context("failed to init valuer")?;
         valuer
             .write_problem_data(req)
             .context("failed to send problem data")?;
-        let mut judge_logs = Vec::new();
         loop {
             match valuer.poll()? {
                 ValuerResponse::Test { test_id: tid, live } => {
@@ -208,48 +221,28 @@ impl Worker {
                 ValuerResponse::LiveScore { score } => {
                     self.sender.send(Response::LiveScore(score)).ok();
                 }
-                ValuerResponse::JudgeLog(judge_log) => judge_logs.push(
-                    self.process_judge_log(&judge_log, req)
-                        .context("failed to convert valuer judge log to invoker judge log")?,
-                ),
+                ValuerResponse::JudgeLog(judge_log) => {
+                    let converted_judge_log = self
+                        .process_judge_log(&judge_log, req)
+                        .context("failed to convert valuer judge log to invoker judge log")?;
+                    self.put_protocol(req, converted_judge_log)
+                        .context("failed to save protocol")?;
+                }
             }
         }
 
-        Ok(JudgeLogs(judge_logs))
-    }
-}
-
-impl InvokeOutcome {
-    pub(crate) fn status(&self) -> Option<&Status> {
-        match self {
-            InvokeOutcome::CompileError(st) => Some(st),
-            InvokeOutcome::Judge(judge_logs) => judge_logs.full_status(),
-            InvokeOutcome::Fault => None,
-        }
-    }
-
-    pub(crate) fn score(&self) -> Option<u32> {
-        match self {
-            InvokeOutcome::CompileError(_) => None,
-            InvokeOutcome::Judge(judge_logs) => {
-                // TODO: this is wrong.
-                Some(judge_logs.full_log().map(|full| full.score).unwrap_or(444))
-            }
-            InvokeOutcome::Fault => None,
-        }
-    }
-
-    pub(crate) fn header(&self) -> invoker_api::InvokeOutcomeHeader {
-        invoker_api::InvokeOutcomeHeader {
-            status: self.status().cloned(),
-            score: self.score(),
-        }
+        Ok(())
     }
 }
 
 #[derive(Serialize, Debug, Clone)]
 pub(crate) enum InvokeOutcome {
+    /// Compilation failed
     CompileError(Status),
-    Judge(JudgeLogs),
+    /// Run was judged successfully
+    /// All protocols were sent already
+    Judge,
+    /// Run was not judged, because of invocation fault
+    /// Maybe, several protocols were emitted, but results are neither precise nor complete
     Fault,
 }

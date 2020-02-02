@@ -28,29 +28,11 @@ fn lower_problem(prob: &cfg::Problem) -> ranker::ProblemConfig {
     }
 }
 
-/*match db.diesel() {
-    Some(raw) => {
-         let query = "
-             SELECT invocations.*, runs.* FROM invocations
-INNER JOIN runs
-ON
-   invocations.run_id = runs.id
-WHERE runs.id = ?
-ORDER BY invocations.id DESC
-LIMIT 1
-             ";
-         let results = raw.sql_query(query)
-         .bind::<diesel::sql_types::Integer, _>()
-    }
-    None => {
-
-    }
-}*/
-
 pub(super) fn get_standings(ctx: &Context) -> ApiResult<String> {
     // let runs = ctx.db.run_select(None, None).internal(ctx)?;
     let runs = ctx.db.load_runs_with_last_invocations().internal(ctx)?; //; runs.iter().map(lower_run).collect::<Vec<_>>();
-    let ranker_runs: Vec<_> = runs
+    //
+    /*let ranker_runs: Vec<_> = runs
         .into_iter()
         .map(|(r, inv)| {
             Result::<ranker::Run, ApiError>::Ok(lower_run(
@@ -59,6 +41,19 @@ pub(super) fn get_standings(ctx: &Context) -> ApiResult<String> {
             ))
         })
         .collect::<Result<Vec<_>, _>>()?;
+    */
+    let mut ranker_runs = Vec::new();
+    for (db_run, db_inv) in runs {
+        let headers = db_inv.invoke_outcome_headers().internal(ctx)?;
+        let header = headers
+            .into_iter()
+            .find(|header| header.kind == invoker_api::valuer_proto::JudgeLogKind::Contestant);
+        let header = match header {
+            Some(h) => h,
+            None => continue,
+        };
+        ranker_runs.push(lower_run(&db_run, &header));
+    }
     let mut ranker_problems = ctx
         .cfg
         .problems

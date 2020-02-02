@@ -126,8 +126,7 @@ impl Controller {
         &self,
         invoke_task: &InvokeTask,
     ) -> anyhow::Result<ExtendedInvokeRequest> {
-        let run_root = self.config.sysroot.join("var/submissions");
-        let run_root = run_root.join(&format!("s-{}", invoke_task.run_id));
+        let run_root = &invoke_task.run_dir;
 
         let mut run_metadata = HashMap::new();
         let judge_time = {
@@ -205,8 +204,8 @@ impl Controller {
         let req = ExtendedInvokeRequest {
             inner: inv_req,
             revision: invoke_task.revision,
-            run_id: invoke_task.run_id,
             notifier: Notifier::new(invoke_task.status_update_callback.clone()),
+            invocation_dir: invoke_task.invocation_dir.clone(),
         };
         Ok(req)
     }

@@ -8,7 +8,7 @@ use notify::Notifier;
 use slog_scope::{debug, error, info, warn};
 use std::{
     collections::VecDeque,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 use uuid::Uuid;
@@ -50,7 +50,7 @@ struct ExtendedInvokeRequest {
     inner: InvokeRequest,
     revision: u32,
     notifier: Notifier,
-    run_id: u32,
+    invocation_dir: PathBuf,
 }
 
 struct ControllerQueues {
@@ -75,21 +75,55 @@ impl ControllerQueues {
     }
 }
 
-pub(crate) trait ControllerDriver {
+pub enum InvocationFinishReason {
+    Fault,
+    CompileError,
+    JudgeDone,
+}
+
+pub trait ControllerDriver {
     fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
 
-    fn set_run_outcome(
+    fn set_finished(
         &self,
-        run_outcome: InvokeOutcome,
         invocation_id: Uuid,
+        reason: InvocationFinishReason,
+    ) -> anyhow::Result<()>;
+
+    fn add_outcome_header(
+        &self,
+        invocation_id: Uuid,
+        header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()>;
 }
 
-pub(crate) struct Controller {
+impl<T: ControllerDriver> ControllerDriver for Arc<T> {
+    fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
+        (**self).load_tasks(cnt)
+    }
+
+    fn set_finished(
+        &self,
+        invocation_id: Uuid,
+        reason: InvocationFinishReason,
+    ) -> anyhow::Result<()> {
+        (**self).set_finished(invocation_id, reason)
+    }
+
+    fn add_outcome_header(
+        &self,
+        invocation_id: Uuid,
+        header: invoker_api::InvokeOutcomeHeader,
+    ) -> anyhow::Result<()> {
+        (**self).add_outcome_header(invocation_id, header)
+    }
+}
+
+pub struct Controller {
     workers: Vec<WorkerInfo>,
     driver: Box<dyn ControllerDriver>,
     minion: Arc<dyn minion::Backend>,
-    config: cfg::Config,
+    config: Arc<cfg::Config>,
     stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
 }
@@ -98,7 +132,7 @@ impl Controller {
     pub fn new(
         driver: Box<dyn ControllerDriver>,
         minion: Arc<dyn minion::Backend>,
-        config: cfg::Config,
+        config: Arc<cfg::Config>,
         worker_count: usize,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();
@@ -243,6 +277,14 @@ impl Controller {
                 req.notifier.set_test(test);
                 worker.state = WorkerState::Invoke(req);
             }
+            Response::OutcomeHeader(header) => {
+                self.driver
+                    .add_outcome_header(req.inner.invocation_id, header)?;
+                let dir = req.inner.out_dir.clone();
+                let invocation_dir = req.invocation_dir.clone();
+                worker.state = WorkerState::Invoke(req);
+                self.copy_invocation_data_dir_to_shared_fs(&dir, &invocation_dir)?;
+            }
         }
         debug!("Processing done");
         Ok(())
@@ -290,40 +332,36 @@ impl Controller {
             "Publising: InvokeOutcome {:?} ExtendedInvokeRequest {:?}",
             &invoke_outcome, &ext_inv_req
         );
+        let reason = match invoke_outcome {
+            InvokeOutcome::Fault => InvocationFinishReason::Fault,
+            InvokeOutcome::Judge => InvocationFinishReason::JudgeDone,
+            InvokeOutcome::CompileError(_) => InvocationFinishReason::CompileError,
+        };
         self.driver
-            .set_run_outcome(invoke_outcome, ext_inv_req.inner.invocation_id)
+            .set_finished(ext_inv_req.inner.invocation_id, reason)
             .context("failed to set run outcome in DB")?;
-        self.copy_invocation_data_dir_to_shared_fs(
-            &ext_inv_req.inner.out_dir,
-            ext_inv_req.run_id as i32,
-            ext_inv_req.revision,
-        )?;
+
         Ok(true)
     }
 
     fn copy_invocation_data_dir_to_shared_fs(
         &self,
-        temp_path: &Path,
-        run_id: i32,
-        revision: u32,
+        temp_dir: &Path,
+        invocation_dir: &Path,
     ) -> anyhow::Result<()> {
-        let target_dir = self
-            .config
-            .sysroot
-            .join("var/submissions")
-            .join(format!("s-{}", run_id))
-            .join(format!("i-{}", revision));
-        std::fs::create_dir_all(&target_dir).context("failed to create target dir")?;
-        let from: Vec<_> = std::fs::read_dir(temp_path)
+        std::fs::create_dir_all(invocation_dir).context("failed to create target dir")?;
+        let from: Vec<_> = std::fs::read_dir(temp_dir)
             .context("failed to list source directory")?
             .map(|x| x.map(|y| y.path()))
             .collect::<Result<_, _>>()?;
         debug!(
             "Copying from {} to {}",
-            temp_path.display(),
-            target_dir.display()
+            temp_dir.display(),
+            invocation_dir.display()
         );
-        fs_extra::copy_items(&from, &target_dir, &fs_extra::dir::CopyOptions::new())
+        let mut opts = fs_extra::dir::CopyOptions::new();
+        opts.overwrite = true;
+        fs_extra::copy_items(&from, invocation_dir, &opts)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
             .context("failed to copy")?;
         Ok(())

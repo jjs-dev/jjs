@@ -59,6 +59,15 @@ pub enum JudgeLogKind {
     Contestant,
 }
 
+impl JudgeLogKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            JudgeLogKind::Full => "full",
+            JudgeLogKind::Contestant => "contestant",
+        }
+    }
+}
+
 /// Judge log from valuer POV
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct JudgeLog {

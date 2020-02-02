@@ -159,7 +159,7 @@ impl Run {
         }
     }
 
-    /// Returnslast live status update
+    /// Returns last live status update
     fn live_status_update(&self, ctx: &Context) -> ApiResult<RunLiveStatusUpdate> {
         poll_live_status(ctx, self.id)
     }

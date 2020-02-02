@@ -68,6 +68,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
             cmd.arg("--with-deb-opt=--uncompressed");
         }
     }
+    if detect_build_type().is_deploy() {
+        cmd.arg("--optimize");
+    }
     // useful for easily starting up & shutting down
     // required for docker compose
     if opts.should_build_docker() {

@@ -99,6 +99,15 @@ impl Worker {
             }
             persistent_judge_log.tests.sort_by(|a, b| a.test_id.cmp(&b.test_id));
         }
+        {
+            for item in &valuer_log.subtasks {
+                persistent_judge_log.subtasks.push(judge_log::JudgeLogSubtaskRow {
+                    subtask_id: item.subtask_id,
+                    score: Some(item.score)
+                });
+            }
+            persistent_judge_log.subtasks.sort_by(|a, b| a.subtask_id.0.cmp(&b.subtask_id.0));
+        }
         // note that we do not filter subtasks connected staff,
         // because such filtering is done by Valuer.
 

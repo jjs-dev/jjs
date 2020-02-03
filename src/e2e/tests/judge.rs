@@ -1,10 +1,9 @@
-mod util;
 use std::convert::TryInto;
 
 fn submit(code: &str) -> i32 {
     let code = base64::encode(code);
 
-    let resp = util::RequestBuilder::new()
+    let resp = e2e::RequestBuilder::new()
         .operation(
             r#"
 mutation Submit($runCode: String!) {
@@ -22,7 +21,7 @@ mutation Submit($runCode: String!) {
 }
 
 fn poll_status(id: i32) -> String {
-    let resp = util::RequestBuilder::new()
+    let resp = e2e::RequestBuilder::new()
         .operation(
             r#"
 query GetRuns {
@@ -102,7 +101,7 @@ fn test_wrong_solution_is_rejected() {
 
 #[test]
 fn test_non_privileged_user_cannot_see_non_their_runs() {
-    util::RequestBuilder::new()
+    e2e::RequestBuilder::new()
         .operation(
             r#"
 mutation CreateUsrs {
@@ -120,7 +119,7 @@ mutation CreateUsrs {
     Can i have CE?
     "#,
     );
-    let err = util::RequestBuilder::new()
+    let err = e2e::RequestBuilder::new()
         .operation(
             r#"
     

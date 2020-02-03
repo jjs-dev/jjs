@@ -53,3 +53,9 @@ impl RequestBuilder {
         frontend_engine::test_util::Response(body)
     }
 }
+
+impl Default for RequestBuilder {
+    fn default() -> RequestBuilder {
+        RequestBuilder::new()
+    }
+}

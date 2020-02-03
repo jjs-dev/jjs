@@ -97,6 +97,7 @@ impl Worker {
                 }
                 persistent_judge_log.tests.push(new_item);
             }
+            persistent_judge_log.tests.sort_by(|a, b| a.test_id.cmp(&b.test_id));
         }
         // note that we do not filter subtasks connected staff,
         // because such filtering is done by Valuer.

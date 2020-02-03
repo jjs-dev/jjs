@@ -1,14 +1,16 @@
-use crate::controller::ControllerDriver;
+use crate::controller::{ControllerDriver, InvocationFinishReason};
 use anyhow::Context;
+use std::sync::Arc;
 use uuid::Uuid;
 
-pub(crate) struct DbDriver {
+pub struct DbDriver {
     db: Box<dyn db::DbConn>,
+    config: Arc<cfg::Config>,
 }
 
 impl DbDriver {
-    pub(crate) fn new(db: Box<dyn db::DbConn>) -> DbDriver {
-        DbDriver { db }
+    pub fn new(db: Box<dyn db::DbConn>, config: Arc<cfg::Config>) -> DbDriver {
+        DbDriver { db, config }
     }
 }
 
@@ -37,13 +39,17 @@ impl ControllerDriver for DbDriver {
                 let db_run = self.db.run_load(db_invoke_task.run_id as i32)?;
                 let invocation_id = Uuid::from_fields(invocation.id as u32, 0, 0, &[0; 8])
                     .expect("this call is always correct");
+                let run_dir = self.config.sysroot.join("var/submissions");
+                let run_dir = run_dir.join(&format!("s-{}", db_invoke_task.run_id));
+                let invocation_dir = run_dir.join(&format!("i-{}", db_invoke_task.revision));
                 let invoke_task = invoker_api::InvokeTask {
                     revision: db_invoke_task.revision,
-                    run_id: db_invoke_task.run_id,
                     status_update_callback: db_invoke_task.status_update_callback,
                     toolchain_id: db_run.toolchain_id,
                     problem_id: db_run.problem_id,
                     invocation_id,
+                    run_dir,
+                    invocation_dir,
                 };
                 new_tasks.push(invoke_task);
             }
@@ -55,20 +61,30 @@ impl ControllerDriver for DbDriver {
         Ok(new_tasks)
     }
 
-    fn set_run_outcome(
+    fn set_finished(
         &self,
-        invoke_outcome: crate::worker::InvokeOutcome,
         invocation_id: uuid::Uuid,
+        reason: InvocationFinishReason,
     ) -> anyhow::Result<()> {
         let mut patch = db::schema::InvocationPatch::default();
-        let header = invoke_outcome.header();
-        patch
-            .state(db::schema::InvocationState::Done)
-            .outcome(header)
-            .context("failed to set outcome")?;
+        let state = match reason {
+            InvocationFinishReason::CompileError => db::schema::InvocationState::CompileError,
+            InvocationFinishReason::Fault => db::schema::InvocationState::InvokeFailed,
+            InvocationFinishReason::JudgeDone => db::schema::InvocationState::JudgeDone,
+        };
+        patch.state(state);
         self.db
             .inv_update(invocation_id.as_fields().0 as i32, patch)
             .context("failed to store outcome")?;
         Ok(())
+    }
+
+    fn add_outcome_header(
+        &self,
+        invocation_id: uuid::Uuid,
+        header: invoker_api::InvokeOutcomeHeader,
+    ) -> anyhow::Result<()> {
+        self.db
+            .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header)
     }
 }

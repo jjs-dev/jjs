@@ -2,6 +2,7 @@ pub mod judge_log;
 pub mod valuer_proto;
 
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use strum_macros::{Display, EnumString};
 
 #[derive(
@@ -85,8 +86,10 @@ pub struct Status {
 pub struct InvokeTask {
     /// Invoker will only update run, if `revision` is bigger than in DB.
     pub revision: u32,
-    /// Id of run to invoke.
-    pub run_id: u32,
+    /// Directory containing run files
+    pub run_dir: PathBuf,
+    /// Invocation outputs directory
+    pub invocation_dir: PathBuf,
     /// URL of webhook that will receive live status update events.
     ///
     /// If None, events will not be sent.
@@ -115,16 +118,18 @@ pub struct DbInvokeTask {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliInvokeTask {
     pub revision: u32,
-    pub run_id: u32,
     pub toolchain_id: String,
     pub problem_id: String,
     pub invocation_id: uuid::Uuid,
+    pub run_dir: PathBuf,
+    pub invocation_dir: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InvokeOutcomeHeader {
     pub score: Option<u32>,
     pub status: Option<Status>,
+    pub kind: valuer_proto::JudgeLogKind,
 }
 
 /// Represents Live Status Update. Some fields can be None always, or only in some updates.

@@ -159,7 +159,7 @@ impl Run {
         }
     }
 
-    /// Returnslast live status update
+    /// Returns last live status update
     fn live_status_update(&self, ctx: &Context) -> ApiResult<RunLiveStatusUpdate> {
         poll_live_status(ctx, self.id)
     }
@@ -167,8 +167,17 @@ impl Run {
 
 fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
     let last_inv = ctx.db.inv_last(run.id).internal(ctx)?;
-    let inv_out_header = last_inv.invoke_outcome_header().internal(ctx)?;
-    let status = match inv_out_header.status {
+    let kind = ctx
+        .access()
+        .wrap_contest("TODO".to_string())
+        .select_judge_log_kind()
+        .internal(ctx)?;
+    let inv_out_header = last_inv
+        .invoke_outcome_headers()
+        .internal(ctx)?
+        .into_iter()
+        .find(|header| header.kind == kind);
+    let status = match inv_out_header.as_ref().and_then(|h| h.status.clone()) {
         Some(s) => Some(InvokeStatusOut {
             kind: s.kind.clone().to_string(),
             code: s.code,
@@ -179,7 +188,7 @@ fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
         id: run.id,
         toolchain_name: run.toolchain_id.clone(),
         status,
-        score: inv_out_header.score.map(|sc| sc as i32),
+        score: inv_out_header.and_then(|h| h.score).map(|sc| sc as i32),
         problem_name: run.problem_id.clone(),
     })
 }

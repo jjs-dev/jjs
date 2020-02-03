@@ -1,5 +1,7 @@
 mod cli_driver;
 mod db_driver;
+mod silly_driver;
 
-pub(crate) use cli_driver::CliDriver;
-pub(crate) use db_driver::DbDriver;
+pub use cli_driver::enable_cli;
+pub use db_driver::DbDriver;
+pub use silly_driver::SillyDriver;

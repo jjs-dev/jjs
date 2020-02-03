@@ -1,6 +1,6 @@
 use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::{convert::TryFrom, sync::Mutex};
 
 #[derive(Debug, Default)]
@@ -154,16 +154,30 @@ impl InvocationsRepo for MemoryRepo {
             bail!("inv_update: no such invocation");
         }
         let mut inv = &mut data.invs[inv_id as usize];
-        let InvocationPatch {
-            state: p_state,
-            outcome: p_outcome,
-        } = patch;
+        let InvocationPatch { state: p_state } = patch;
         if let Some(p_state) = p_state {
             inv.state = p_state;
         }
-        if let Some(p_outcome) = p_outcome {
-            inv.outcome = p_outcome;
-        }
+        Ok(())
+    }
+
+    fn inv_add_outcome_header(
+        &self,
+        inv_id: InvocationId,
+        header: invoker_api::InvokeOutcomeHeader,
+    ) -> Result<()> {
+        let mut data = self.conn.lock().unwrap();
+        let inv = match data.invs.get_mut(inv_id as usize) {
+            Some(inv) => inv,
+            None => bail!("inv_add_outcome_header: no such invocation"),
+        };
+        let headers = match inv.outcome.as_array_mut() {
+            Some(hs) => hs,
+            None => bail!("inb_add_outcome_header: outcome is not array"),
+        };
+        headers.push(
+            serde_json::to_value(&header).context("failed to serialize InvokeOutcomeHeader")?,
+        );
         Ok(())
     }
 }

@@ -5,19 +5,23 @@ use std::convert::{TryFrom, TryInto};
 #[repr(i16)]
 pub enum InvocationState {
     Queue = 1,
-    Execute,
+    InWork,
     Unscheduled,
-    Done,
+    JudgeDone,
+    CompileError,
+    InvokeFailed,
     __Last,
 }
 
 impl InvocationState {
     pub fn is_finished(self) -> bool {
         match self {
-            InvocationState::Queue | InvocationState::Execute | InvocationState::Unscheduled => {
+            InvocationState::Queue | InvocationState::InWork | InvocationState::Unscheduled => {
                 false
             }
-            InvocationState::Done => true,
+            InvocationState::JudgeDone
+            | InvocationState::CompileError
+            | InvocationState::InvokeFailed => true,
             InvocationState::__Last => unreachable!(),
         }
     }
@@ -61,10 +65,7 @@ impl NewInvocation {
             invoke_task: bincode::serialize(invoke_task)?,
             run_id: invoke_task.run_id as i32,
             state: InvocationState::Queue.into(),
-            outcome: serde_json::to_value(invoker_api::InvokeOutcomeHeader {
-                score: None,
-                status: None,
-            })?,
+            outcome: serde_json::Value::Array(vec![]),
         })
     }
 }
@@ -74,7 +75,7 @@ impl Invocation {
         Ok(bincode::deserialize(&self.invoke_task).context("invalid InvokeTaslk")?)
     }
 
-    pub fn invoke_outcome_header(&self) -> anyhow::Result<invoker_api::InvokeOutcomeHeader> {
+    pub fn invoke_outcome_headers(&self) -> anyhow::Result<Vec<invoker_api::InvokeOutcomeHeader>> {
         Ok(serde_json::from_value(self.outcome.clone()).context("invalid InvokeOutcomeHeader")?)
     }
 
@@ -87,13 +88,5 @@ impl InvocationPatch {
     pub fn state(&mut self, state: InvocationState) -> &mut Self {
         self.state = Some(state.into());
         self
-    }
-
-    pub fn outcome(
-        &mut self,
-        header: invoker_api::InvokeOutcomeHeader,
-    ) -> anyhow::Result<&mut Self> {
-        self.outcome = Some(serde_json::to_value(&header).context("failed to serialize header")?);
-        Ok(self)
     }
 }

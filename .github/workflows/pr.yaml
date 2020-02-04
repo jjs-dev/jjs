@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          -u postgres createuser runner --superuser
+          sudo -u postgres createuser runner --superuser
       - name: Get Rust version
         id: rustc_version
         run: |

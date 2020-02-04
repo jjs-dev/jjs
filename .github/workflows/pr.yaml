@@ -100,7 +100,7 @@ jobs:
       - run: |
           bash scripts/ci-env.sh
           #TEMP remove the pipe
-          sudo apt install -y postgresql-10 postgresql-client-10 < /dev/null
+          sudo --env DEBIAN_FRONTEND=noninteractive apt install -y postgresql-10 postgresql-client-10 
           sudo -u postgres createuser runner --superuser
       - name: Get Rust version
         id: rustc_version

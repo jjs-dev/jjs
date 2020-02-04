@@ -25,6 +25,8 @@ jobs:
   clippy:
     name: clippy
     runs-on: "ubuntu-18.04"
+    container:
+      image: mikailbag/jjs-dev:latest
     steps:
       - uses: actions/checkout@v1
       - run: bash scripts/ci-env.sh
@@ -51,6 +53,8 @@ jobs:
   unit-tests:
     name: unit-tests
     runs-on: "ubuntu-18.04"
+    container:
+      image: mikailbag/jjs-dev:latest
     steps:
       - uses: actions/checkout@v1
       - run: bash scripts/ci-env.sh
@@ -63,10 +67,7 @@ jobs:
       image: mikailbag/jjs-dev:latest
     steps:
       - uses: actions/checkout@v1
-      - run: |
-          bash scripts/ci-env.sh
-          # TODO cache it too
-          cargo install cargo-udeps
+      - run: bash scripts/ci-env.sh
       - name: Get Rust version
         id: rustc_version
         run: |
@@ -92,13 +93,14 @@ jobs:
   e2e:
     name: e2e
     runs-on: "ubuntu-18.04"
+    container:
+      image: mikailbag/jjs-dev:latest
     steps:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
           sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev
           sudo -u postgres createuser runner --superuser
-          cargo install lxtrace
       - name: Get Rust version
         id: rustc_version
         run: |

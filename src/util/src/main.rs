@@ -1,5 +1,3 @@
-use util;
-
 fn main() {
     util::log::setup();
     println!(

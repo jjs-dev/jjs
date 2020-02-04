@@ -26,7 +26,9 @@ struct BuildOpts(RawBuildOpts);
 
 impl BuildOpts {
     fn full(&self) -> bool {
-        detect_build_type().is_deploy() || self.0.full
+        let deploy_wants_full = detect_build_type().is_deploy()
+            && (detect_build_type().deploy_info() != Some(DeployKind::Man));
+        deploy_wants_full || self.0.full
     }
 
     fn should_build_deb(&self) -> bool {
@@ -80,9 +82,14 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
         cmd.arg("--enable-archive");
         cmd.arg("--enable-extras");
     }
-    if !opts.should_build_man() {
+    if opts.should_build_man() {
+        cmd.arg("--disable-core");
+        cmd.arg("--disable-tools");
+        cmd.arg("--enable-api-doc");
+    } else {
         cmd.arg("--disable-man");
     }
+
     for opt in &opts.raw().configure {
         cmd.arg(opt);
     }

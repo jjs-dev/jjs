@@ -6,7 +6,7 @@ edition = "2018"
 description = "JJS CLI client"
 
 [dependencies]
-frontend-api = {path = "../frontend-api"}
+frontend-api = {path = "../frontend-api", features = ["derive"]}
 structopt = "0.3.8"
 base64 = "0.11.0"
 slog = "2.5.2"

@@ -32,15 +32,14 @@ impl BinPackage {
 #[derive(Debug)]
 pub(crate) struct BinPackages {
     pkgs: Vec<BinPackage>,
-    selected: Vec<bool>,
+    selected: Vec<(String, Option<usize>)>,
 }
 
 impl BinPackages {
     pub(crate) fn new(pkgs: Vec<BinPackage>) -> Self {
-        let n = pkgs.len();
         BinPackages {
             pkgs,
-            selected: vec![false; n],
+            selected: vec![],
         }
     }
 }
@@ -53,7 +52,13 @@ impl Package for BinPackages {
                 PackageComponentKind::Extra => sctx.components_cfg().extras,
                 PackageComponentKind::Tools => sctx.components_cfg().tools,
             };
-            self.selected[i] = res;
+            if res {
+                self.selected
+                    .push((self.pkgs[i].package_name.clone(), Some(i)));
+            }
+        }
+        if sctx.components_cfg().api_doc {
+            self.selected.push(("frontend-api".to_string(), None));
         }
     }
 
@@ -62,32 +67,28 @@ impl Package for BinPackages {
     }
 
     fn build(&self, bctx: &BuildCtx) {
+        let mut cmd = bctx.cargo_build();
         let mut section_title = "Building".to_string();
         let mut is_first_pkg = true;
-        let mut cmd = bctx.cargo_build();
-        for i in 0..self.pkgs.len() {
-            if !self.selected[i] {
-                continue;
-            }
+        for (pkg, _) in &self.selected {
             if is_first_pkg {
                 section_title += " ";
                 is_first_pkg = false;
             } else {
                 section_title += ", ";
             }
-            section_title += &self.pkgs[i].package_name;
-            cmd.arg("--package").arg(&self.pkgs[i].package_name);
+            section_title += pkg;
+            cmd.arg("--package").arg(pkg);
         }
         print_section(&section_title);
         cmd.run_on(bctx.runner());
     }
 
     fn install(&self, ictx: &InstallCtx) {
-        for i in 0..self.pkgs.len() {
-            if !self.selected[i] {
-                continue;
+        for (_, i) in &self.selected {
+            if let Some(i) = i {
+                ictx.add_bin_pkg(&self.pkgs[*i].package_name, &self.pkgs[*i].install_name);
             }
-            ictx.add_bin_pkg(&self.pkgs[i].package_name, &self.pkgs[i].install_name);
         }
     }
 }

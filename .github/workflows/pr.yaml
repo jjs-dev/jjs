@@ -99,8 +99,8 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          export DEBIAN_FRONTEND=noninteractive #TEMP
-          sudo apt install -y postgresql-10 postgresql-client-10
+          #TEMP remove the pipe
+          sudo apt install -y postgresql-10 postgresql-client-10 < /dev/null
           sudo -u postgres createuser runner --superuser
       - name: Get Rust version
         id: rustc_version

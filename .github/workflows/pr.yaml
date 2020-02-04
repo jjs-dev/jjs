@@ -99,6 +99,7 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
+          sudo apt install postgresql-10 postgresql-client-10
           sudo -u postgres createuser runner --superuser
       - name: Get Rust version
         id: rustc_version

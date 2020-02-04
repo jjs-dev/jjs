@@ -20,7 +20,7 @@ use crate::{
     sel_ctx::SelCtx,
     util::print_section,
 };
-use ::util::cmd::Runner;
+use ::util::cmd::{CommandExt, Runner};
 use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
 
 pub struct Params {
@@ -137,6 +137,9 @@ pub fn package(params: &Params, runner: &Runner) {
     if params.cfg.components.man {
         generate_man(params);
     }
+    if params.cfg.components.api_doc {
+        generate_api_docs(params);
+    }
     runner.exit_if_errors();
 
     generate_envscript(params);
@@ -217,8 +220,26 @@ fn build_testlib(params: &Params) {
     assert!(st.success());
 }
 
+fn generate_api_docs(params: &Params) {
+    print_section("building graphql docs");
+    let mut cmd = Command::new("graphdoc");
+    let schema: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(params.src.join("src/frontend-api/src/schema-gen.json")).unwrap(),
+    )
+    .unwrap();
+    let schema =
+        serde_json::Value::Object(vec![("data".to_string(), schema)].into_iter().collect());
+    let hacked_schema_path = params.build.join("schema-gen-fixed.json");
+    let schema = serde_json::to_string(&schema).unwrap();
+    std::fs::write(&hacked_schema_path, schema).unwrap();
+    cmd.arg("--schema-file").arg(&hacked_schema_path);
+    cmd.arg("--output")
+        .arg(params.artifacts.join("share/docs/api"));
+    cmd.try_exec().unwrap();
+}
+
 fn generate_man(params: &Params) {
-    print_section("building docs");
+    print_section("building man");
     let book_dir = params.src.join("man");
     let st = Command::new("mdbook")
         .current_dir(&book_dir)
@@ -240,7 +261,7 @@ fn generate_man(params: &Params) {
         .unwrap()
         .map(|e| e.unwrap().path())
         .collect();
-    let dst = params.artifacts.join("share/docs");
+    let dst = params.artifacts.join("share/docs/man");
     fs::create_dir_all(&dst).unwrap();
     fs_extra::copy_items(&src, &dst, &opts).unwrap();
 

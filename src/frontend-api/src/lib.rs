@@ -1,5 +1,6 @@
 //! Main purpose of `frontend-api` crate is now it's build script, which exposes frontend
 //! GraphQL API schema. However, it also provides several useful abstractions
+#[cfg(feature = "derive")]
 pub use frontend_api_derive::define_query;
 use snafu::Snafu;
 use std::{

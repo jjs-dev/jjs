@@ -27,6 +27,7 @@ pub struct BuildConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentsConfig {
     pub man: bool,
+    pub api_doc: bool,
     pub testlib: bool,
     pub archive: bool,
     pub tools: bool,

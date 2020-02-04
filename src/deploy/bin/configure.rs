@@ -69,6 +69,9 @@ struct Opt {
     /// Docker build additional options
     #[structopt(long)]
     docker_build_opt: Vec<String>,
+    /// Build frontend GraphQL API documentaion. Requires `graphdoc`
+    #[structopt(long = "enable-api-doc")]
+    apidoc: bool,
 }
 
 impl Opt {
@@ -192,6 +195,7 @@ fn main() {
         archive: opt.archive,
         core: !opt.no_core,
         extras: opt.extras,
+        api_doc: opt.apidoc,
     };
     let packaging = cfg::PackagingConfig {
         deb: if opt.deb {

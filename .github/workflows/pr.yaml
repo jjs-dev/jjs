@@ -59,6 +59,8 @@ jobs:
   udeps:
     name: udeps
     runs-on: "ubuntu-18.04"
+    container:
+      image: mikailbag/jjs-dev:latest
     steps:
       - uses: actions/checkout@v1
       - run: |

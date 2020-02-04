@@ -99,8 +99,7 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev
-          sudo -u postgres createuser runner --superuser
+          -u postgres createuser runner --superuser
       - name: Get Rust version
         id: rustc_version
         run: |
@@ -128,8 +127,8 @@ jobs:
       - name: launch jjs
         run: |
           # TODO: finer grained --force. Maybe --force-depends?
-          sudo dpkg --force-all -i /opt/jjs/pkg/jjs.deb
-          sudo jjs-oneclick
+          dpkg --force-all -i /opt/jjs/pkg/jjs.deb
+          jjs-oneclick
       - name: wait for launch
         run: cargo run --package util
         env:
@@ -141,9 +140,9 @@ jobs:
         if: always()
         run: |
           mkdir logs
-          sudo journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
-          sudo journalctl -u jjs-backend.service -p debug > logs/invoker.txt
-          sudo cat /var/log/postgresql/postgresql-10-main.log > logs/postgres.txt
+          journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
+          journalctl -u jjs-backend.service -p debug > logs/invoker.txt
+          cat /var/log/postgresql/postgresql-10-main.log > logs/postgres.txt
           cat logs/*
       - name: upload logs
         if: always()

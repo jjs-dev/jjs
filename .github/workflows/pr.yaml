@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache@v1.1.0
         with:
           path: target
-          key: ${{ runner.os }}-e2e-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-e2e-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: build
         run: cargo jjs-build
         env:

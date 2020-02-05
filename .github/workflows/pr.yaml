@@ -98,11 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: |
-          # rm -rf /var/lib/postgresql/
           bash scripts/ci-env.sh
+          echo exit 0 > /usr/sbin/policy-rc.d
           apt install -y postgresql-10 postgresql-client-10
-          cp /var/lib/postgresql/10/main/postgresql.auto.conf /var/lib/postgresql/10/main/postgresql.conf
-          chown -R postgres /var/lib/postgresql
+          echo exit 101 > /usr/sbin/policy-rc.d
           sudo -u postgres /usr/lib/postgresql/10/bin/pg_ctl -D /var/lib/postgresql/10/main -l  /var/log/postgresql/postgresql-10-main.log start
           sudo -u postgres createuser runner --superuser
       - name: Get Rust version

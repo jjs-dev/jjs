@@ -142,7 +142,7 @@ jobs:
         if: always()
         run: |
           mkdir logs
-          apt install systemd
+          apt install -y systemd
           journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
           journalctl -u jjs-backend.service -p debug > logs/invoker.txt
           cat /var/log/postgresql/postgresql-10-main.log > logs/postgres.txt

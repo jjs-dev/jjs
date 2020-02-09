@@ -13,6 +13,15 @@ table! {
 table! {
     use super::*;
 
+    kv (name) {
+        name -> Varchar,
+        value -> Bytea,
+    }
+}
+
+table! {
+    use super::*;
+
     runs (id) {
         id -> Int4,
         toolchain_id -> Varchar,
@@ -39,6 +48,7 @@ joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     invocations,
+    kv,
     runs,
     users,
 );

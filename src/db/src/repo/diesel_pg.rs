@@ -1,4 +1,4 @@
-use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, KvRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{Context, Result};
 use diesel::{dsl::*, prelude::*, r2d2::ConnectionManager};
@@ -202,6 +202,31 @@ mod impl_runs {
             }
             let limit = limit.map(i64::from).unwrap_or(i64::max_value());
             Ok(query.limit(limit).load(&self.conn()?)?)
+        }
+    }
+}
+
+mod impl_kv {
+    use super::*;
+    use crate::schema::kv::dsl::*;
+
+    impl KvRepo for DieselRepo {
+        fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>> {
+            let items: Vec<KvPair> = kv.filter(name.eq(key)).load(&self.conn()?)?;
+            assert!(items.len() <= 1);
+            Ok(items.into_iter().next().map(|item| item.value))
+        }
+
+        fn kv_put_raw(&self, key: &str, val: &[u8]) -> Result<()> {
+            let item = KvPair {
+                key: key.to_string(),
+                value: val.to_vec(),
+            };
+            diesel::insert_into(kv)
+                .values(item)
+                .execute(&self.conn()?)
+                .map_err(Into::into)
+                .map(drop)
         }
     }
 }

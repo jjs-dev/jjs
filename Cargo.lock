@@ -114,9 +114,9 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
 name = "async-trait"
-version = "0.1.26"
+version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a03abb7c9b93ae229356151a083d26218c0358866a2a59d4280c856e9482e6"
+checksum = "991d0a1a3e790c835fd54ab41742a59251338d8c7577fe7d7f0170c7072be708"
 dependencies = [
  "proc-macro2 1.0.8",
  "quote 1.0.2",
@@ -455,6 +455,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "combine"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c875843236b5e2eb535fd0b696387bfb623f896479b10ed626cf442b836e8032"
+dependencies = [
+ "bytes 0.5.3",
+ "futures-util",
+ "memchr",
+ "pin-project-lite",
+ "tokio 0.2.13",
+]
+
+[[package]]
 name = "configure-toolchains"
 version = "0.1.0"
 dependencies = [
@@ -630,10 +643,13 @@ name = "db"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode",
  "diesel",
+ "futures 0.3.4",
  "invoker-api",
  "r2d2",
+ "redis",
  "serde",
  "serde_json",
  "uuid",
@@ -2475,6 +2491,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 dependencies = [
  "rand_core 0.3.1",
+]
+
+[[package]]
+name = "redis"
+version = "0.15.2-alpha.0"
+source = "git+https://github.com/mitsuhiko/redis-rs#1ea0bd0c2e7b450eb5279995142fd64e5db0fa69"
+dependencies = [
+ "async-trait",
+ "bytes 0.5.3",
+ "combine",
+ "dtoa",
+ "futures-util",
+ "itoa",
+ "percent-encoding 2.1.0",
+ "pin-project-lite",
+ "tokio 0.2.13",
+ "tokio-util 0.2.0",
+ "url 2.1.1",
 ]
 
 [[package]]

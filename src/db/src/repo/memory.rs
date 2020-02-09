@@ -1,4 +1,4 @@
-use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, KvRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{bail, Context, Result};
 use std::{convert::TryFrom, sync::Mutex};
@@ -9,6 +9,7 @@ struct Data {
     runs: Vec<Option<Run>>,
     invs: Vec<Invocation>,
     users: Vec<User>,
+    kv: std::collections::HashMap<String, Vec<u8>>,
 }
 
 #[derive(Debug, Default)]
@@ -206,6 +207,19 @@ impl UsersRepo for MemoryRepo {
             .find(|user| user.username == login)
             .cloned();
         Ok(res)
+    }
+}
+
+impl KvRepo for MemoryRepo {
+    fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        let data = self.conn.lock().unwrap();
+        Ok(data.kv.get(key).map(ToOwned::to_owned))
+    }
+
+    fn kv_put_raw(&self, key: &str, value: &[u8]) -> Result<()> {
+        let mut data = self.conn.lock().unwrap();
+        data.kv.insert(key.to_string(), value.to_vec());
+        Ok(())
     }
 }
 

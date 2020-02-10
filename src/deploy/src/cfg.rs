@@ -15,6 +15,7 @@ pub enum BuildProfile {
 pub struct ToolInfo {
     pub cargo: String,
     pub cmake: String,
+    pub docker: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

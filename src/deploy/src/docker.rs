@@ -7,7 +7,7 @@ pub fn build_docker_image(
     runner: &util::cmd::Runner,
 ) {
     println!("Building docker image");
-    let mut cmd = Command::new("docker");
+    let mut cmd = Command::new(&params.cfg.build.tool_info.docker);
     let dockerfile_path = "./docker/Dockerfile";
     cmd.arg("build");
     for opt in &docker_cfg.build_options {

@@ -14,10 +14,7 @@ pub struct Opts {
 }
 pub fn task_run(opts: Opts) -> anyhow::Result<()> {
     println!("dropping existing docker-compose");
-    Command::new("docker-compose")
-        .arg("down")
-        .arg("-v")
-        .try_exec()?;
+    Command::new("podman-compose").arg("down").try_exec()?;
     if opts.build {
         println!("Building");
         let mut cmd = Command::new("cargo");
@@ -28,7 +25,7 @@ pub fn task_run(opts: Opts) -> anyhow::Result<()> {
         cmd.try_exec()?;
     }
     println!("starting jjs");
-    Command::new("docker-compose")
+    Command::new("podman-compose")
         .arg("up")
         .arg("--detach")
         .try_exec()?;

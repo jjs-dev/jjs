@@ -72,6 +72,9 @@ struct Opt {
     /// Build frontend GraphQL API documentaion. Requires `graphdoc`
     #[structopt(long = "enable-api-doc")]
     apidoc: bool,
+    /// Name or path to Docker or other tool which can run containers (e.g. Podman)
+    #[structopt(long = "with-docker")]
+    docker_name: Option<String>,
 }
 
 impl Opt {
@@ -157,6 +160,14 @@ fn check_env() {
     }
 }
 
+fn find_docker<'a>() -> &'a str {
+    let has_podman = std::process::Command::new("podman")
+        .arg("--help")
+        .status()
+        .map_or(false, |st| st.success());
+    if has_podman { "podman" } else { "docker" }
+}
+
 fn main() {
     util::log::setup();
     check_env();
@@ -177,6 +188,11 @@ fn main() {
     let tool_info = cfg::ToolInfo {
         cargo: opt.cargo.as_deref().unwrap_or_else(|| "cargo").to_string(),
         cmake: opt.cmake.as_deref().unwrap_or_else(|| "cmake").to_string(),
+        docker: opt
+            .docker_name
+            .as_deref()
+            .unwrap_or_else(find_docker)
+            .to_string(),
     };
     let profile = match (opt.optimize, opt.dbg_sym) {
         (true, false) => cfg::BuildProfile::Release,

@@ -1,6 +1,6 @@
 use crate::{
     linux::{
-        jail_common::{self, get_path_for_subsystem, JailOptions},
+        jail_common::{self, JailOptions},
         util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
         zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
@@ -106,62 +106,6 @@ unsafe fn setup_sighandler() {
     }
 }
 
-unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
-    let jail_id = &jail_options.jail_id;
-    // configure cpuacct subsystem
-    let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
-    fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
-
-    // configure pids subsystem
-    let pids_cgroup_path = get_path_for_subsystem("pids", &jail_id);
-    fs::create_dir_all(&pids_cgroup_path).unwrap();
-
-    fs::write(
-        pids_cgroup_path.join("pids.max"),
-        format!(
-            "{}",
-            jail_options.max_alive_process_count + 2 /* to account for zygote and time watcher */
-        ),
-    )
-    .unwrap();
-
-    //configure memory subsystem
-    let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
-
-    fs::create_dir_all(&mem_cgroup_path).unwrap();
-    fs::write(mem_cgroup_path.join("memory.swappiness"), "0").unwrap();
-
-    fs::write(
-        mem_cgroup_path.join("memory.limit_in_bytes"),
-        format!("{}", jail_options.memory_limit),
-    )
-    .unwrap();
-
-    let my_pid: Pid = libc::getpid();
-    if my_pid == -1 {
-        err_exit("getpid");
-    }
-
-    // we return handles to tasksfiles for main cgroups
-    // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
-    let mut handles = ["cpuacct", "memory", "pids"]
-        .iter()
-        .map(|subsys_name| {
-            use std::os::unix::io::IntoRawFd;
-            let p = get_path_for_subsystem(subsys_name, &jail_id);
-            let p = p.join("tasks");
-            let h = fs::OpenOptions::new()
-                .write(true)
-                .open(&p)
-                .unwrap_or_else(|err| panic!("Couldn't open tasks file {}: {}", p.display(), err))
-                .into_raw_fd();
-            libc::dup(h)
-        })
-        .collect::<Vec<_>>();
-    let pids_cgroup_handle = handles.pop().expect("must have len == 3");
-    nix::unistd::write(pids_cgroup_handle, b"1").expect("failed to join pids cgroup");
-    handles
-}
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
     if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
@@ -260,7 +204,7 @@ pub(crate) unsafe fn setup(
     configure_dir(&jail_params.isolation_root, uid);
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
-    let handles = setup_cgroups(&jail_params);
+    let handles = super::cgroup::setup_cgroups(&jail_params);
     // It's important cpu watcher will be outside of user namespace.
     setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);

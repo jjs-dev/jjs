@@ -90,12 +90,6 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
     }
 }
 
-extern "C" fn exit_signal_handler(_signal: i32) {
-    unsafe {
-        libc::_exit(9);
-    }
-}
-
 unsafe fn setup_sighandler() {
     use nix::sys::signal;
     for &death in &[
@@ -105,7 +99,6 @@ unsafe fn setup_sighandler() {
         signal::Signal::SIGSEGV,
     ] {
         let handler = signal::SigHandler::SigDfl;
-        //let handler = signal::SigHandler::Handler(exit_signal_handler);
         let action =
             signal::SigAction::new(handler, signal::SaFlags::empty(), signal::SigSet::empty());
 

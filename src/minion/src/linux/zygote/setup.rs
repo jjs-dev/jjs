@@ -90,24 +90,26 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
     }
 }
 
-fn sigterm_handler_inner() -> ! {
+extern "C" fn exit_signal_handler(_signal: i32) {
     unsafe {
-        libc::exit(9);
+        libc::_exit(9);
     }
-}
-
-extern "C" fn sigterm_handler(_signal: i32) {
-    sigterm_handler_inner();
 }
 
 unsafe fn setup_sighandler() {
     use nix::sys::signal;
-    // SIGTERM
-    {
-        let handler = signal::SigHandler::Handler(sigterm_handler);
+    for &death in &[
+        signal::Signal::SIGABRT,
+        signal::Signal::SIGINT,
+        signal::Signal::SIGTERM,
+        signal::Signal::SIGSEGV,
+    ] {
+        let handler = signal::SigHandler::SigDfl;
+        //let handler = signal::SigHandler::Handler(exit_signal_handler);
         let action =
             signal::SigAction::new(handler, signal::SaFlags::empty(), signal::SigSet::empty());
-        signal::sigaction(signal::Signal::SIGTERM, &action).expect("Couldn't setup sighandler");
+
+        signal::sigaction(death, &action).expect("Couldn't setup sighandler");
     }
 }
 
@@ -244,12 +246,13 @@ fn setup_panic_hook() {
         write!(logger, "{:?}", &bt).ok();
         // Now write same to stdout
         unsafe {
-            logger.set_fd(1);
+            logger.set_fd(2);
         }
         write!(logger, "PANIC: {}", info).ok();
         write!(logger, "{:?}", &bt).ok();
+        write!(logger, "Exiting").ok();
         unsafe {
-            libc::abort();
+            libc::exit(libc::EXIT_FAILURE);
         }
     }));
 }
@@ -259,9 +262,9 @@ pub(crate) unsafe fn setup(
     sock: &mut Socket,
 ) -> crate::Result<SetupData> {
     setup_panic_hook();
+    setup_sighandler();
     let uid = derive_user_ids(&jail_params.jail_id);
     configure_dir(&jail_params.isolation_root, uid);
-    setup_sighandler();
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
     let handles = setup_cgroups(&jail_params);

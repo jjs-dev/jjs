@@ -171,7 +171,6 @@ int main(int argc, const char** argv) {
             close(comm_pipe[0]);
             assert(dup2(devnullfd, 0) == 0);
             assert(dup2(comm_pipe[1], 1) == 1);
-            assert(dup2(comm_pipe[1], 2) == 2);
             run_test(self, tempdir, tests[i].name, &tests[i]);
             die("program has not exited during run_test");
         }

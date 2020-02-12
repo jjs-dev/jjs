@@ -16,10 +16,7 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
 
     fs::write(
         pids_cgroup_path.join("pids.max"),
-        format!(
-            "{}",
-            jail_options.max_alive_process_count + 2 /* to account for zygote and time watcher */
-        ),
+        format!("{}", jail_options.max_alive_process_count),
     )
     .expect("failed to enable pids limit");
 
@@ -42,7 +39,7 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
 
     // we return handles to tasksfiles for main cgroups
     // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
-    let mut handles = ["cpuacct", "memory", "pids"]
+    ["cpuacct", "memory", "pids"]
         .iter()
         .map(|subsys_name| {
             use std::os::unix::io::IntoRawFd;
@@ -55,8 +52,5 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
                 .into_raw_fd();
             libc::dup(h)
         })
-        .collect::<Vec<_>>();
-    let pids_cgroup_handle = handles.pop().expect("must have len == 3");
-    nix::unistd::write(pids_cgroup_handle, b"1").expect("failed to join pids cgroup");
-    handles
+        .collect::<Vec<_>>()
 }

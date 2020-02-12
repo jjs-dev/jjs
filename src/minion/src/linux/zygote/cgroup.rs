@@ -2,9 +2,45 @@ use crate::linux::{
     jail_common::{get_path_for_subsystem, JailOptions},
     util::{err_exit, Handle, Pid},
 };
-use std::fs;
+use std::{
+    fs,
+    sync::atomic::{AtomicU8, Ordering},
+};
 
-pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
+enum CgroupVersion {
+    V1,
+    V2,
+}
+
+const CGROUP_VERSION_1: u8 = 1;
+const CGROUP_VERSION_2: u8 = 2;
+
+fn do_detect_cgroup_version() -> u8 {
+    let stat = nix::sys::statfs::statfs("/sys/fs/cgroup").expect("/sys/fs/cgroup is not root of cgroupfs");
+    let ty = stat.filesystem_type();
+    // TODO: this is hack. Remove as soon as possible. See https://github.com/nix-rust/nix/pull/1187 and https://github.com/rust-lang/libc/pull/1660/
+    let ty: libc::c_long = unsafe {std::mem::transmute(ty)};
+    // man 2 statfs
+    match ty {
+        0x27e0eb => CGROUP_VERSION_1,
+        0x63677270 => CGROUP_VERSION_2,
+        other_fs_magic => panic!("unknown FS magic: {:x}", other_fs_magic)   
+    }
+}
+fn detect_cgroup_version() -> CgroupVersion {
+    static CACHE: AtomicU8 = AtomicU8::new(0);
+    if CACHE.load(Ordering::Relaxed) == 0 {
+        let version = do_detect_cgroup_version();
+        CACHE.store(version, Ordering::Relaxed);
+    }
+    match CACHE.load(Ordering::Relaxed) {
+        CGROUP_VERSION_1 => CgroupVersion::V1,
+        CGROUP_VERSION_2 => CgroupVersion::V2,
+        val => unreachable!("unexpected value in cgroup version cache: {}", val)
+    }
+}
+
+unsafe fn setup_chroups_legacy(jail_options: &JailOptions) -> Vec<Handle> {
     let jail_id = &jail_options.jail_id;
     // configure cpuacct subsystem
     let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
@@ -53,4 +89,13 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
             libc::dup(h)
         })
         .collect::<Vec<_>>()
+}
+
+unsafe fn setup_cgroups_v2(jail_options: &JailOptions) -> Vec<Handle> {}
+
+pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
+    match detect_cgroup_version() {
+        CgroupVersion::V1 => setup_chroups_legacy(jail_options),
+        CgroupVersion::V2 => setup_cgroups_v2(jail_options)
+    }
 }

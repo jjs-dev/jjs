@@ -223,7 +223,7 @@ impl Drop for LinuxDominion {
             panic!("unable to kill dominion: {}", err);
         }
         // Remove cgroups.
-        zygote::cgroup::drop(&self.id, &["pids", "memory", "cpuacct"]);
+       // zygote::cgroup::drop(&self.id, &["pids", "memory", "cpuacct"]);
 
         // Close handles
         nix::unistd::close(self.watchdog_chan).ok();

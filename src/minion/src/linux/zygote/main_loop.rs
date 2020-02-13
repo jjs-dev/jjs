@@ -58,17 +58,20 @@ pub(crate) unsafe fn zygote_entry(mut arg: ZygoteOptions) -> crate::Result<i32> 
     loop {
         let query: Query = match arg.sock.recv() {
             Ok(q) => {
-                write!(logger, "zygote: new request").ok();
+                write!(logger, "zygote: new request\n").ok();
                 q
             }
             Err(err) => {
-                write!(logger, "zygote: got unprocessable query: {}", err).ok();
+                write!(logger, "zygote: got unprocessable query: {}\n", err).ok();
                 return Ok(23);
             }
         };
+        // write!(logger, "{:?}\n", query).ok();
         match query {
             Query::Spawn(ref o) => process_spawn_query(&mut arg, o, &setup_data)?,
-            Query::Exit => break,
+            Query::Exit => {
+                break;
+            }
             Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout)?,
         };
     }

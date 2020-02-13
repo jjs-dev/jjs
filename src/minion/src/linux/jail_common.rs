@@ -31,8 +31,8 @@ pub(crate) fn get_path_for_cgroup_legacy_subsystem(subsys_name: &str, cgroup_id:
 
 pub(crate) fn get_path_for_cgroup_unified(cgroup_id: &str) -> PathBuf {
     std::path::Path::new("/sys/fs/cgroup")
-    .join("jjs")
-    .join(format!("sandbox.{}", cgroup_id))
+        .join("jjs")
+        .join(format!("sandbox.{}", cgroup_id))
 }
 
 const ID_CHARS: &[u8] = b"qwertyuiopasdfghjklzxcvbnm1234567890";
@@ -84,14 +84,19 @@ pub(crate) fn dominion_kill_all(zygote_pid: Pid, jail_id: Option<&str>) -> std::
     // We will send SIGTERM to zygote, and
     // kernel will kill all other processes by itself.
     unsafe {
-        libc::kill(zygote_pid, libc::SIGTERM);
+        if libc::kill(zygote_pid, libc::SIGTERM) != 0 {
+            eprintln!("warn: SIGTERM not delevered");
+        }
+        if libc::kill(zygote_pid, libc::SIGABRT) != 0 {
+            eprintln!("warn: SIGABRT not delivered");
+        }
     }
     let jail_id = match jail_id {
         Some(j) => j,
         None => return Ok(()),
     };
     // now let's wait until kill is done
-    let pids_tasks_file_path = get_path_for_cgroup_legacy_subsystem("pids", jail_id).join("tasks");
+    let pids_tasks_file_path = super::zygote::cgroup::get_cgroup_tasks_file_path(jail_id);
     let mut buf = Vec::with_capacity(8);
     loop {
         buf.clear();

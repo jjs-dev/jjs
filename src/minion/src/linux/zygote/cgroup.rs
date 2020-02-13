@@ -5,6 +5,7 @@ use crate::linux::{
 use std::{
     fs,
     os::unix::io::IntoRawFd,
+    path::PathBuf,
     sync::atomic::{AtomicU8, Ordering},
 };
 #[derive(Clone)]
@@ -133,7 +134,11 @@ unsafe fn setup_cgroups_v2(jail_options: &JailOptions) -> Handle {
     let cgroup_path = get_path_for_cgroup_unified(jail_id);
     fs::create_dir_all(&cgroup_path).expect("failed to create cgroup");
 
-    fs::write(cgroup_path.parent().unwrap().join("cgroup.subtree_control"), "+pids +cpu +memory").expect("failed to enable controllers");
+    fs::write(
+        cgroup_path.parent().unwrap().join("cgroup.subtree_control"),
+        "+pids +cpu +memory",
+    )
+    .expect("failed to enable controllers");
 
     fs::write(
         cgroup_path.join("pids.max"),
@@ -169,5 +174,57 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Group {
     Group {
         handles,
         id: jail_options.jail_id.clone(),
+    }
+}
+
+pub(super) fn get_cpu_usage(jail_id: &str) -> u64 {
+    match detect_cgroup_version() {
+        CgroupVersion::V1 => {
+            let current_usage_file = get_path_for_cgroup_legacy_subsystem("cpuacct", jail_id);
+            let current_usage_file = current_usage_file.join("cpuacct.usage");
+            let current_usage = fs::read_to_string(current_usage_file)
+                .expect("Couldn't load cpu usage")
+                .trim()
+                .parse::<u64>()
+                .unwrap();
+            current_usage
+        }
+        CgroupVersion::V2 => {
+            let mut current_usage_file = get_path_for_cgroup_unified(jail_id);
+            current_usage_file.push("cpu.stat");
+            let stat_data =
+                fs::read_to_string(current_usage_file).expect("failed to read cpu.stat");
+            let mut val = 0;
+            for line in stat_data.lines() {
+                if line.starts_with("usage_usec") {
+                    let usage = line
+                        .trim_start_matches("usage_usec ")
+                        .trim_end_matches("\n");
+                    val = usage.parse().unwrap();
+                }
+            }
+            // multiply by 1000 to convert from microseconds to nanoseconds
+            val * 1000
+        }
+    }
+}
+
+pub(in crate::linux) fn drop(jail_id: &str, legacy_subsystems: &[&str]) {
+    match detect_cgroup_version() {
+        CgroupVersion::V1 => {
+            for subsys in legacy_subsystems {
+                fs::remove_dir(get_path_for_cgroup_legacy_subsystem(subsys, jail_id)).ok();
+            }
+        }
+        CgroupVersion::V2 => {
+            fs::remove_dir(get_path_for_cgroup_unified(jail_id)).ok();
+        }
+    }
+}
+
+pub(in crate::linux) fn get_cgroup_tasks_file_path(jail_id: &str) -> PathBuf {
+    match detect_cgroup_version() {
+        CgroupVersion::V1 => get_path_for_cgroup_legacy_subsystem("pids", jail_id).join("tasks"),
+        CgroupVersion::V2 => get_path_for_cgroup_unified(jail_id).join("cgroup.procs"),
     }
 }

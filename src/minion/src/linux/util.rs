@@ -34,14 +34,14 @@ unsafe fn sock_lock(sock: &mut Socket, expected_class: &'static [u8]) -> crate::
     match sock.recv_into_slice::<[RawFd; 0]>(&mut recv_buf) {
         Ok(x) => x,
         Err(e) => {
-            write!(logger, "receive error: {:?}", e).unwrap();
+            write!(logger, "receive error: {:?}\n", e).unwrap();
             return Err(crate::Error::Sandbox);
         }
     };
     if recv_buf != expected_class {
         write!(
             logger,
-            "validation error: invalid class (expected {}, got {})",
+            "validation error: invalid class (expected {}, got {})\n",
             String::from_utf8_lossy(expected_class),
             String::from_utf8_lossy(&recv_buf)
         )
@@ -94,11 +94,11 @@ impl IpcSocketExt for Socket {
             Ok(cnt) => cnt.0,
             Err(_e) => return Err(crate::errors::Error::Sandbox),
         };
-        write!(logger, "util::recv() got message of {} bytes", num_read).ok();
+        write!(logger, "util::recv() got message of {} bytes\n", num_read).ok();
         match serde_json::from_slice(&buf[..num_read]) {
             Ok(x) => Ok(x),
             Err(e) => {
-                write!(logger, "ERROR: deserialization failed: {}", e).ok();
+                write!(logger, "ERROR: deserialization failed: {}\n", e).ok();
                 Err(crate::errors::Error::Sandbox)
             }
         }

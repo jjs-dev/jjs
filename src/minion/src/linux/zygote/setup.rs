@@ -1,7 +1,7 @@
 use crate::{
     linux::{
         jail_common::{self, JailOptions},
-        util::{err_exit, IpcSocketExt, Pid, StraceLogger, Uid},
+        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
         zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
         },
@@ -90,12 +90,17 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
     }
 }
 
+extern "C" fn exit_sighandler(_code: i32) {
+    unsafe {
+        libc::exit(1);
+    }
+}
+
 unsafe fn setup_sighandler() {
     use nix::sys::signal;
     for &death in &[
         signal::Signal::SIGABRT,
         signal::Signal::SIGINT,
-        signal::Signal::SIGTERM,
         signal::Signal::SIGSEGV,
     ] {
         let handler = signal::SigHandler::SigDfl;
@@ -104,8 +109,17 @@ unsafe fn setup_sighandler() {
 
         signal::sigaction(death, &action).expect("Couldn't setup sighandler");
     }
+    {
+        let sigterm_handler = signal::SigHandler::Handler(exit_sighandler);
+        let action = signal::SigAction::new(
+            sigterm_handler,
+            signal::SaFlags::empty(),
+            signal::SigSet::empty(),
+        );
+        signal::sigaction(signal::Signal::SIGTERM, &action)
+            .expect("Failed to setup SIGTERM handler");
+    }
 }
-
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
     if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
@@ -230,15 +244,10 @@ unsafe fn cpu_time_observer(
     let start = time::Instant::now();
     loop {
         libc::sleep(1);
-        let current_usage_file = jail_common::get_path_for_cgroup_legacy_subsystem("cpuacct", jail_id);
-        let current_usage_file = current_usage_file.join("cpuacct.usage");
-        let current_usage = fs::read_to_string(current_usage_file)
-            .expect("Couldn't load cpu usage")
-            .trim()
-            .parse::<u64>()
-            .unwrap();
+
         let elapsed = time::Instant::now().duration_since(start);
         let elapsed = elapsed.as_nanos();
+        let current_usage = super::cgroup::get_cpu_usage(jail_id);
         let was_cpu_tle = current_usage > cpu_time_limit;
         let was_real_tle = elapsed as u64 > real_time_limit;
         let ok = !was_cpu_tle && !was_real_tle;
@@ -246,13 +255,25 @@ unsafe fn cpu_time_observer(
             continue;
         }
         if was_cpu_tle {
+            eprintln!("CPU time limit exceeded");
             nix::unistd::write(chan, b"c").ok();
         } else if was_real_tle {
+            eprintln!("Real time limit exceeded");
             nix::unistd::write(chan, b"r").ok();
         }
+        /*// HACK here
+        // we write some random staff to zygote sock, causing parsing error
+        // that's why zygote will crash
+        let mut buf = [b'}'; 16384 + 16];
+        buf[0] = b'{';
+        if let Err(e) = nix::unistd::write(zygote_api_sock_handle,& buf) {
+            eprintln!("failed to break zygote sock: {}", e);
+        }*/
         // since we are inside pid ns, we can refer to zygote as pid1.
         let err = jail_common::dominion_kill_all(1 as Pid, None);
-        println!("{:?}", err);
+        if let Err(err) = err {
+            eprintln!("{:?}", err);
+        }
         // we will be killed by kernel too
     }
 }
@@ -261,7 +282,7 @@ unsafe fn observe_time(
     jail_id: &str,
     cpu_time_limit: u64,
     real_time_limit: u64,
-    chan: crate::linux::util::Handle,
+    chan: Handle,
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {

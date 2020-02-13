@@ -5,7 +5,7 @@
 
 mod main_loop;
 mod setup;
-mod cgroup;
+pub(in crate::linux) mod cgroup;
 
 use crate::linux::{
     jail_common::{self, JailOptions},

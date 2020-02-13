@@ -22,7 +22,7 @@ use std::{
 };
 use tiny_nix_ipc::Socket;
 
-pub use setup::SetupData;
+use setup::SetupData;
 use std::io::Write;
 
 const SANDBOX_INTERNAL_UID: Uid = 179;
@@ -63,7 +63,7 @@ struct DoExecArg {
     stdio: Stdio,
     sock: Socket,
     pwd: OsString,
-    cgroups_tasks: Vec<Handle>,
+    cgroups_tasks: cgroup::Group,
     jail_id: String,
 }
 
@@ -143,11 +143,9 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         // Join cgroups.
         // This doesn't require any additional capablities, because we just write some stuff
         // to preopened handle.
-        let my_pid = std::process::id();
-        let my_pid = format!("{}", my_pid);
-        for h in arg.cgroups_tasks {
-            nix::unistd::write(h, my_pid.as_bytes()).expect("Couldn't join cgroup");
-        }
+        /*for h in arg.cgroups_tasks {
+        }*/
+        arg.cgroups_tasks.join_self();
 
         // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fd_list;

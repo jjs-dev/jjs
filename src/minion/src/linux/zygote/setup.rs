@@ -1,7 +1,7 @@
 use crate::{
     linux::{
         jail_common::{self, JailOptions},
-        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
+        util::{err_exit, IpcSocketExt, Pid, StraceLogger, Uid},
         zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
         },
@@ -14,8 +14,8 @@ use std::{
 };
 use tiny_nix_ipc::Socket;
 
-pub struct SetupData {
-    pub cgroups: Vec<Handle>,
+pub(in crate::linux) struct SetupData {
+    pub(in crate::linux) cgroups: super::cgroup::Group,
 }
 
 unsafe fn configure_dir(dir_path: &Path, uid: Uid) {
@@ -194,7 +194,7 @@ fn setup_panic_hook() {
     }));
 }
 
-pub(crate) unsafe fn setup(
+pub(in crate::linux) unsafe fn setup(
     jail_params: &JailOptions,
     sock: &mut Socket,
 ) -> crate::Result<SetupData> {
@@ -230,7 +230,7 @@ unsafe fn cpu_time_observer(
     let start = time::Instant::now();
     loop {
         libc::sleep(1);
-        let current_usage_file = jail_common::get_path_for_subsystem("cpuacct", jail_id);
+        let current_usage_file = jail_common::get_path_for_cgroup_legacy_subsystem("cpuacct", jail_id);
         let current_usage_file = current_usage_file.join("cpuacct.usage");
         let current_usage = fs::read_to_string(current_usage_file)
             .expect("Couldn't load cpu usage")

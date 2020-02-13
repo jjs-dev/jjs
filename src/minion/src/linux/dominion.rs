@@ -226,7 +226,7 @@ impl Drop for LinuxDominion {
         }
         // Remove cgroups.
         for subsys in &["pids", "memory", "cpuacct"] {
-            fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id)).ok();
+            fs::remove_dir(jail_common::get_path_for_cgroup_legacy_subsystem(subsys, &self.id)).ok();
         }
         // Close handles
         nix::unistd::close(self.watchdog_chan).ok();

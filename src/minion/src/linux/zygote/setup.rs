@@ -258,7 +258,10 @@ unsafe fn cpu_time_observer(
             eprintln!("CPU time limit exceeded");
             nix::unistd::write(chan, b"c").ok();
         } else if was_real_tle {
-            eprintln!("Real time limit exceeded: limit {}, used {}", real_time_limit, elapsed);
+            eprintln!(
+                "Real time limit exceeded: limit {}, used {}",
+                real_time_limit, elapsed
+            );
             nix::unistd::write(chan, b"r").ok();
         }
         /*// HACK here

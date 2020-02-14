@@ -3,9 +3,9 @@
 //! In particular, zygote is namespace root.
 //! Zygote accepts queries for spawning child process
 
+pub(in crate::linux) mod cgroup;
 mod main_loop;
 mod setup;
-pub(in crate::linux) mod cgroup;
 
 use crate::linux::{
     jail_common::{self, JailOptions},

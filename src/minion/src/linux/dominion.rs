@@ -223,7 +223,7 @@ impl Drop for LinuxDominion {
             panic!("unable to kill dominion: {}", err);
         }
         // Remove cgroups.
-        if !std::env::var("MINION_DEBUG_KEEP_CGROUPS").is_ok() {
+        if std::env::var("MINION_DEBUG_KEEP_CGROUPS").is_err() {
             zygote::cgroup::drop(&self.id, &["pids", "memory", "cpuacct"]);
         }
 

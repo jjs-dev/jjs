@@ -58,9 +58,15 @@ fn do_detect_cgroup_version() -> u8 {
     let ty = stat.filesystem_type();
     // man 2 statfs
     match ty.0 {
-        0x0027_e0eb => CGROUP_VERSION_1,
-        0x6367_7270 => CGROUP_VERSION_2,
-        other_fs_magic => panic!("unknown FS magic: {:#x}", other_fs_magic),
+        0x0027_e0eb => return CGROUP_VERSION_1,
+        0x6367_7270 => return CGROUP_VERSION_2,
+        _ => (),
+    };
+    let p = std::path::Path::new("/sys/fs/cgroup");
+    if p.join("cgroup.subtree_control").exists() {
+        CGROUP_VERSION_2
+    } else {
+        CGROUP_VERSION_1
     }
 }
 

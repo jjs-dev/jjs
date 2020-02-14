@@ -28,7 +28,7 @@ impl Group {
         let mut once_iter;
         let it: &mut dyn std::iter::Iterator<Item = Handle> = match &self.handles {
             GroupHandles::V1(handles) => {
-                slice_iter = handles.iter().map(|x| *x);
+                slice_iter = handles.iter().copied();
                 &mut slice_iter
             }
             GroupHandles::V2(handle) => {
@@ -58,8 +58,8 @@ fn do_detect_cgroup_version() -> u8 {
     let ty = stat.filesystem_type();
     // man 2 statfs
     match ty.0 {
-        0x27e0eb => CGROUP_VERSION_1,
-        0x63677270 => CGROUP_VERSION_2,
+        0x0027_e0eb => CGROUP_VERSION_1,
+        0x6367_7270 => CGROUP_VERSION_2,
         other_fs_magic => panic!("unknown FS magic: {:#x}", other_fs_magic),
     }
 }
@@ -180,12 +180,11 @@ pub(super) fn get_cpu_usage(jail_id: &str) -> u64 {
         CgroupVersion::V1 => {
             let current_usage_file = get_path_for_cgroup_legacy_subsystem("cpuacct", jail_id);
             let current_usage_file = current_usage_file.join("cpuacct.usage");
-            let current_usage = fs::read_to_string(current_usage_file)
+            fs::read_to_string(current_usage_file)
                 .expect("Couldn't load cpu usage")
                 .trim()
                 .parse::<u64>()
-                .unwrap();
-            current_usage
+                .unwrap()
         }
         CgroupVersion::V2 => {
             let mut current_usage_file = get_path_for_cgroup_unified(jail_id);
@@ -197,7 +196,7 @@ pub(super) fn get_cpu_usage(jail_id: &str) -> u64 {
                 if line.starts_with("usage_usec") {
                     let usage = line
                         .trim_start_matches("usage_usec ")
-                        .trim_end_matches("\n");
+                        .trim_end_matches('\n');
                     val = usage.parse().unwrap();
                 }
             }

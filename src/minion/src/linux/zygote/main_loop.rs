@@ -11,7 +11,7 @@ unsafe fn process_spawn_query(
     setup_data: &SetupData,
 ) -> crate::Result<()> {
     let mut logger = StraceLogger::new();
-    write!(logger, "got Spawn request").ok();
+    writeln!(logger, "got Spawn request").ok();
     // Now we do some preprocessing.
     let env: Vec<_> = options.environment.clone();
 
@@ -34,9 +34,9 @@ unsafe fn process_spawn_query(
         pwd: options.pwd.clone().into_os_string(),
     };
 
-    write!(logger, "JobOptions are fetched").ok();
+    writeln!(logger, "JobOptions are fetched").ok();
     let startup_info = spawn_job(job_options, setup_data, arg.jail_options.jail_id.clone())?;
-    write!(logger, "job started. Sending startup_info back").ok();
+    writeln!(logger, "job started. Sending startup_info back").ok();
     arg.sock.send(&startup_info)?;
     Ok(())
 }
@@ -58,11 +58,11 @@ pub(crate) unsafe fn zygote_entry(mut arg: ZygoteOptions) -> crate::Result<i32> 
     loop {
         let query: Query = match arg.sock.recv() {
             Ok(q) => {
-                write!(logger, "zygote: new request\n").ok();
+                writeln!(logger, "zygote: new request").ok();
                 q
             }
             Err(err) => {
-                write!(logger, "zygote: got unprocessable query: {}\n", err).ok();
+                writeln!(logger, "zygote: got unprocessable query: {}", err).ok();
                 return Ok(23);
             }
         };

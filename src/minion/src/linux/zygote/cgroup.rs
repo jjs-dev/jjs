@@ -56,13 +56,11 @@ fn do_detect_cgroup_version() -> u8 {
     let stat =
         nix::sys::statfs::statfs("/sys/fs/cgroup").expect("/sys/fs/cgroup is not root of cgroupfs");
     let ty = stat.filesystem_type();
-    // TODO: this is hack. Remove as soon as possible. See https://github.com/nix-rust/nix/pull/1187 and https://github.com/rust-lang/libc/pull/1660/
-    let ty: libc::c_long = unsafe { std::mem::transmute(ty) };
     // man 2 statfs
-    match ty {
+    match ty.0 {
         0x27e0eb => CGROUP_VERSION_1,
         0x63677270 => CGROUP_VERSION_2,
-        other_fs_magic => panic!("unknown FS magic: {:x}", other_fs_magic),
+        other_fs_magic => panic!("unknown FS magic: {:#x}", other_fs_magic),
     }
 }
 

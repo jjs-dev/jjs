@@ -1732,7 +1732,7 @@ dependencies = [
  "cfg-if",
  "errno",
  "libc",
- "nix 0.16.1",
+ "nix 0.17.0",
  "procfs",
  "rand 0.7.3",
  "serde",
@@ -1871,6 +1871,18 @@ name = "nix"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd0eaf8df8bab402257e0a5c17a254e4cc1f72a93588a1ddfb5d356c801aa7cb"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if",
+ "libc",
+ "void",
+]
+
+[[package]]
+name = "nix"
+version = "0.17.0"
+source = "git+https://github.com/nix-rust/nix#922d5ee118a770435b14b08ec4be6f8ae9f7c30a"
 dependencies = [
  "bitflags",
  "cc",

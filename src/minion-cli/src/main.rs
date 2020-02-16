@@ -145,8 +145,7 @@ fn main() {
         println!("{:#?}", args);
     }
     let cp = execution_manager.spawn(args).unwrap();
-    let timeout = Duration::from_secs(3600);
-    cp.wait_for_exit(timeout).unwrap();
+    cp.wait_for_exit(None).unwrap();
     let exit_code = cp.get_exit_code().unwrap();
     println!("---> Child process exited with code {:?} <---", exit_code);
     if dominion.check_cpu_tle().unwrap() {

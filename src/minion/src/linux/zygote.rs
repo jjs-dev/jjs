@@ -3,6 +3,7 @@
 //! In particular, zygote is namespace root.
 //! Zygote accepts queries for spawning child process
 
+pub(in crate::linux) mod cgroup;
 mod main_loop;
 mod setup;
 
@@ -21,7 +22,7 @@ use std::{
 };
 use tiny_nix_ipc::Socket;
 
-pub use setup::SetupData;
+use setup::SetupData;
 use std::io::Write;
 
 const SANDBOX_INTERNAL_UID: Uid = 179;
@@ -62,7 +63,7 @@ struct DoExecArg {
     stdio: Stdio,
     sock: Socket,
     pwd: OsString,
-    cgroups_tasks: Vec<Handle>,
+    cgroups_tasks: cgroup::Group,
     jail_id: String,
 }
 
@@ -142,11 +143,7 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         // Join cgroups.
         // This doesn't require any additional capablities, because we just write some stuff
         // to preopened handle.
-        let my_pid = std::process::id();
-        let my_pid = format!("{}", my_pid);
-        for h in arg.cgroups_tasks {
-            nix::unistd::write(h, my_pid.as_bytes()).expect("Couldn't join cgroup");
-        }
+        arg.cgroups_tasks.join_self();
 
         // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
         let fd_list;
@@ -300,7 +297,7 @@ extern "C" fn timed_wait_waiter(arg: *mut c_void) -> *mut c_void {
     }
 }
 
-fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCode>> {
+fn timed_wait(pid: Pid, timeout: Option<time::Duration>) -> crate::Result<Option<ExitCode>> {
     unsafe {
         let (mut end_r, mut end_w);
         end_r = 0;
@@ -329,13 +326,24 @@ fn timed_wait(pid: Pid, timeout: time::Duration) -> crate::Result<Option<ExitCod
         poll_fd_ref.fd = end_r;
         poll_fd_ref.events = libc::POLLIN;
         let mut rtimeout: libc::timespec = mem::zeroed();
-        rtimeout.tv_sec = timeout.as_secs() as i64;
-        rtimeout.tv_nsec = i64::from(timeout.subsec_nanos());
+        let ptr_timeout;
+        match timeout {
+            Some(timeout) => {
+                rtimeout.tv_sec = timeout.as_secs() as i64;
+                rtimeout.tv_nsec = i64::from(timeout.subsec_nanos());
+                ptr_timeout = Some(&rtimeout);
+            }
+            None => {
+                ptr_timeout = None;
+            }
+        }
         let ret = loop {
             let poll_ret = libc::ppoll(
                 poll_fd_info.as_mut_ptr(),
                 1,
-                &rtimeout as *const _,
+                ptr_timeout
+                    .map(|p| p as *const _)
+                    .unwrap_or_else(std::ptr::null),
                 ptr::null(),
             );
             let ret: Option<_> = match poll_ret {

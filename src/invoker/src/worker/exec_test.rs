@@ -4,7 +4,7 @@ use crate::worker::{invoke_util, os_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use slog_scope::error;
-use std::{fs, io::Write, path::PathBuf, time::Duration};
+use std::{fs, io::Write, path::PathBuf};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
     pub(crate) test: &'a pom::Test,
@@ -89,7 +89,7 @@ impl<'a> TestExecutor<'a> {
         std::mem::drop(stdin); // close pipe
 
         let wait_result = child
-            .wait_for_exit(Duration::from_secs(1000 /* TODO */))
+            .wait_for_exit(None)
             .context("failed to wait for child")?;
 
         match wait_result {

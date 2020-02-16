@@ -372,8 +372,9 @@ pub trait ChildProcess: Debug {
     /// On all subsequent calls, None will be returned
     fn stderr(&mut self) -> Option<Box<dyn Read + Send + Sync>>;
 
-    /// Waits for child process exit with timeout
-    fn wait_for_exit(&self, timeout: Duration) -> Result<WaitOutcome>;
+    /// Waits for child process exit with timeout.
+    /// If timeout is None, `wait_for_exit` will block until child has exited
+    fn wait_for_exit(&self, timeout: Option<Duration>) -> Result<WaitOutcome>;
 
     /// Refreshes information about process
     fn poll(&self) -> Result<()>;

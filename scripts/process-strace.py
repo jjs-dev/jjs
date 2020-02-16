@@ -16,7 +16,7 @@ for line in fin:
     total_lines += 1
     pid = line.split()[0]
     pid = int(pid)
-    is_sigill = "--- SIGILL {si_signo=SIGILL, si_code=ILL_ILLOPN," in line
+    is_sigill = "--- SIGILL {si_signo=SIGILL, si_code=ILL_ILLOPN," in line or "--- SIGSEGV {si_signo=SIGSEGV" in line
     if is_sigill:
         if pid in sigilled:
             filter_sigill += 1
@@ -30,4 +30,4 @@ total_filtered = total_lines - accepted_lines
 
 print(f"Got {total_lines} lines, {total_filtered} filtered out, {accepted_lines} included in report")
 print("Filter summary")
-print(f"\t duplicate SIGILLs: {filter_sigill}")
+print(f"\t duplicate SIGs: {filter_sigill}")

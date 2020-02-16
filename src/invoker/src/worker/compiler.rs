@@ -1,7 +1,7 @@
 use crate::worker::{invoke_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
-use std::{fs, time::Duration};
+use std::fs;
 
 pub(crate) enum BuildOutcome {
     Success,
@@ -52,7 +52,7 @@ impl<'a> Compiler<'a> {
             };
 
             let wait_result = child
-                .wait_for_exit(Duration::from_secs(1000 /* TODO */))
+                .wait_for_exit(None)
                 .context("failed to wait for compiler")?;
             match wait_result {
                 minion::WaitOutcome::Timeout => {

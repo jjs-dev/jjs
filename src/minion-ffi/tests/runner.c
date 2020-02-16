@@ -52,7 +52,7 @@ void run_test(const char* self, const char* dir, const char* test_name, const st
             .cpu_time_limit = {test->tl, 0},
             .real_time_limit = {test->il, 0},
             .process_limit = 1,
-            .memory_limit = 0x40000000,
+            .memory_limit = 0x1000000,
             .isolation_root = dir,
             .shared_directories =
                 (const struct Minion_SharedDirectoryAccess[5]) {
@@ -76,7 +76,7 @@ void run_test(const char* self, const char* dir, const char* test_name, const st
                             .workdir = "/"},
                         &proc));
     Minion_WaitOutcome outcome;
-    verify_ok(minion_cp_wait(proc, &(const struct Minion_TimeSpec) {5, 0},
+    verify_ok(minion_cp_wait(proc, NULL,
                              &outcome));
     if (outcome == WAIT_OUTCOME_TIMEOUT) {
         bool is_tl, is_il;
@@ -171,7 +171,6 @@ int main(int argc, const char** argv) {
             close(comm_pipe[0]);
             assert(dup2(devnullfd, 0) == 0);
             assert(dup2(comm_pipe[1], 1) == 1);
-            assert(dup2(comm_pipe[1], 2) == 2);
             run_test(self, tempdir, tests[i].name, &tests[i]);
             die("program has not exited during run_test");
         }

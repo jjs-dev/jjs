@@ -1,6 +1,6 @@
 use crate::{
     linux::{
-        jail_common::{self, get_path_for_subsystem, JailOptions},
+        jail_common::{self, JailOptions},
         util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
         zygote::{
             WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
@@ -14,8 +14,8 @@ use std::{
 };
 use tiny_nix_ipc::Socket;
 
-pub struct SetupData {
-    pub cgroups: Vec<Handle>,
+pub(in crate::linux) struct SetupData {
+    pub(in crate::linux) cgroups: super::cgroup::Group,
 }
 
 unsafe fn configure_dir(dir_path: &Path, uid: Uid) {
@@ -90,82 +90,35 @@ pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, ui
     }
 }
 
-fn sigterm_handler_inner() -> ! {
+extern "C" fn exit_sighandler(_code: i32) {
     unsafe {
-        libc::exit(9);
+        libc::exit(1);
     }
-}
-
-extern "C" fn sigterm_handler(_signal: i32) {
-    sigterm_handler_inner();
 }
 
 unsafe fn setup_sighandler() {
     use nix::sys::signal;
-    // SIGTERM
-    {
-        let handler = signal::SigHandler::Handler(sigterm_handler);
+    for &death in &[
+        signal::Signal::SIGABRT,
+        signal::Signal::SIGINT,
+        signal::Signal::SIGSEGV,
+    ] {
+        let handler = signal::SigHandler::SigDfl;
         let action =
             signal::SigAction::new(handler, signal::SaFlags::empty(), signal::SigSet::empty());
-        signal::sigaction(signal::Signal::SIGTERM, &action).expect("Couldn't setup sighandler");
+
+        signal::sigaction(death, &action).expect("Couldn't setup sighandler");
     }
-}
-
-unsafe fn setup_cgroups(jail_options: &JailOptions) -> Vec<Handle> {
-    let jail_id = &jail_options.jail_id;
-    // configure cpuacct subsystem
-    let cpuacct_cgroup_path = get_path_for_subsystem("cpuacct", &jail_id);
-    fs::create_dir_all(&cpuacct_cgroup_path).unwrap();
-
-    // configure pids subsystem
-    let pids_cgroup_path = get_path_for_subsystem("pids", &jail_id);
-    fs::create_dir_all(&pids_cgroup_path).unwrap();
-
-    fs::write(
-        pids_cgroup_path.join("pids.max"),
-        format!(
-            "{}",
-            jail_options.max_alive_process_count + 2 /* to account for zygote and time watcher */
-        ),
-    )
-    .unwrap();
-
-    //configure memory subsystem
-    let mem_cgroup_path = get_path_for_subsystem("memory", &jail_id);
-
-    fs::create_dir_all(&mem_cgroup_path).unwrap();
-    fs::write(mem_cgroup_path.join("memory.swappiness"), "0").unwrap();
-
-    fs::write(
-        mem_cgroup_path.join("memory.limit_in_bytes"),
-        format!("{}", jail_options.memory_limit),
-    )
-    .unwrap();
-
-    let my_pid: Pid = libc::getpid();
-    if my_pid == -1 {
-        err_exit("getpid");
+    {
+        let sigterm_handler = signal::SigHandler::Handler(exit_sighandler);
+        let action = signal::SigAction::new(
+            sigterm_handler,
+            signal::SaFlags::empty(),
+            signal::SigSet::empty(),
+        );
+        signal::sigaction(signal::Signal::SIGTERM, &action)
+            .expect("Failed to setup SIGTERM handler");
     }
-
-    // we return handles to tasksfiles for main cgroups
-    // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
-    let mut handles = ["cpuacct", "memory", "pids"]
-        .iter()
-        .map(|subsys_name| {
-            use std::os::unix::io::IntoRawFd;
-            let p = get_path_for_subsystem(subsys_name, &jail_id);
-            let p = p.join("tasks");
-            let h = fs::OpenOptions::new()
-                .write(true)
-                .open(&p)
-                .unwrap_or_else(|err| panic!("Couldn't open tasks file {}: {}", p.display(), err))
-                .into_raw_fd();
-            libc::dup(h)
-        })
-        .collect::<Vec<_>>();
-    let pids_cgroup_handle = handles.pop().expect("must have len == 3");
-    nix::unistd::write(pids_cgroup_handle, b"1").expect("failed to join pids cgroup");
-    handles
 }
 
 unsafe fn setup_namespaces(_jail_options: &JailOptions) {
@@ -244,27 +197,28 @@ fn setup_panic_hook() {
         write!(logger, "{:?}", &bt).ok();
         // Now write same to stdout
         unsafe {
-            logger.set_fd(1);
+            logger.set_fd(2);
         }
         write!(logger, "PANIC: {}", info).ok();
         write!(logger, "{:?}", &bt).ok();
+        write!(logger, "Exiting").ok();
         unsafe {
-            libc::abort();
+            libc::exit(libc::EXIT_FAILURE);
         }
     }));
 }
 
-pub(crate) unsafe fn setup(
+pub(in crate::linux) unsafe fn setup(
     jail_params: &JailOptions,
     sock: &mut Socket,
 ) -> crate::Result<SetupData> {
     setup_panic_hook();
+    setup_sighandler();
     let uid = derive_user_ids(&jail_params.jail_id);
     configure_dir(&jail_params.isolation_root, uid);
-    setup_sighandler();
     setup_expositions(&jail_params, uid);
     setup_procfs(&jail_params);
-    let handles = setup_cgroups(&jail_params);
+    let handles = super::cgroup::setup_cgroups(&jail_params);
     // It's important cpu watcher will be outside of user namespace.
     setup_time_watch(&jail_params)?;
     setup_namespaces(&jail_params);
@@ -290,15 +244,10 @@ unsafe fn cpu_time_observer(
     let start = time::Instant::now();
     loop {
         libc::sleep(1);
-        let current_usage_file = jail_common::get_path_for_subsystem("cpuacct", jail_id);
-        let current_usage_file = current_usage_file.join("cpuacct.usage");
-        let current_usage = fs::read_to_string(current_usage_file)
-            .expect("Couldn't load cpu usage")
-            .trim()
-            .parse::<u64>()
-            .unwrap();
+
         let elapsed = time::Instant::now().duration_since(start);
         let elapsed = elapsed.as_nanos();
+        let current_usage = super::cgroup::get_cpu_usage(jail_id);
         let was_cpu_tle = current_usage > cpu_time_limit;
         let was_real_tle = elapsed as u64 > real_time_limit;
         let ok = !was_cpu_tle && !was_real_tle;
@@ -306,13 +255,20 @@ unsafe fn cpu_time_observer(
             continue;
         }
         if was_cpu_tle {
+            eprintln!("CPU time limit exceeded");
             nix::unistd::write(chan, b"c").ok();
         } else if was_real_tle {
+            eprintln!(
+                "Real time limit exceeded: limit {}, used {}",
+                real_time_limit, elapsed
+            );
             nix::unistd::write(chan, b"r").ok();
         }
         // since we are inside pid ns, we can refer to zygote as pid1.
         let err = jail_common::dominion_kill_all(1 as Pid, None);
-        println!("{:?}", err);
+        if let Err(err) = err {
+            eprintln!("failed to kill dominion {:?}", err);
+        }
         // we will be killed by kernel too
     }
 }
@@ -321,7 +277,7 @@ unsafe fn observe_time(
     jail_id: &str,
     cpu_time_limit: u64,
     real_time_limit: u64,
-    chan: crate::linux::util::Handle,
+    chan: Handle,
 ) -> crate::Result<()> {
     let fret = libc::fork();
     if fret == -1 {

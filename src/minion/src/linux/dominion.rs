@@ -205,15 +205,13 @@ impl LinuxDominion {
         self.zygote_sock.lock().unwrap().recv().ok()
     }
 
-    pub(crate) unsafe fn poll_job(&self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
+    pub(crate) unsafe fn poll_job(&self, pid: Pid, timeout: Option<Duration>) -> Option<ExitCode> {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
-
         self.zygote_sock.lock().unwrap().send(&q).ok();
-        let res = match self.zygote_sock.lock().unwrap().recv::<Option<i32>>() {
+        match self.zygote_sock.lock().unwrap().recv::<Option<i32>>() {
             Ok(x) => x,
-            Err(_) => return None,
-        };
-        res.map(Into::into)
+            Err(_) => None,
+        }
     }
 }
 
@@ -225,9 +223,10 @@ impl Drop for LinuxDominion {
             panic!("unable to kill dominion: {}", err);
         }
         // Remove cgroups.
-        for subsys in &["pids", "memory", "cpuacct"] {
-            fs::remove_dir(jail_common::get_path_for_subsystem(subsys, &self.id)).ok();
+        if std::env::var("MINION_DEBUG_KEEP_CGROUPS").is_err() {
+            zygote::cgroup::drop(&self.id, &["pids", "memory", "cpuacct"]);
         }
+
         // Close handles
         nix::unistd::close(self.watchdog_chan).ok();
 

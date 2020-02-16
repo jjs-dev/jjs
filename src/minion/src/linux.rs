@@ -73,7 +73,7 @@ impl ChildProcess for LinuxChildProcess {
         self.stderr.take()
     }
 
-    fn wait_for_exit(&self, timeout: std::time::Duration) -> crate::Result<WaitOutcome> {
+    fn wait_for_exit(&self, timeout: Option<std::time::Duration>) -> crate::Result<WaitOutcome> {
         if self.exit_code.load(Ordering::SeqCst) != EXIT_CODE_STILL_RUNNING {
             return Ok(WaitOutcome::AlreadyFinished);
         }
@@ -89,7 +89,8 @@ impl ChildProcess for LinuxChildProcess {
     }
 
     fn poll(&self) -> crate::Result<()> {
-        self.wait_for_exit(Duration::from_nanos(1)).map(|_w| ())
+        self.wait_for_exit(Some(Duration::from_nanos(1)))
+            .map(|_w| ())
     }
 
     fn is_finished(&self) -> crate::Result<bool> {

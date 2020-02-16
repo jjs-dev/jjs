@@ -342,13 +342,13 @@ pub unsafe extern "C" fn minion_cp_spawn(
 #[must_use]
 pub unsafe extern "C" fn minion_cp_wait(
     cp: &mut ChildProcess,
-    timeout: &TimeSpec,
+    timeout: Option<&TimeSpec>,
     out: *mut WaitOutcome,
 ) -> ErrorCode {
-    let ans = cp.0.wait_for_exit(std::time::Duration::new(
-        timeout.seconds.into(),
-        timeout.nanoseconds,
-    ));
+    let ans = cp.0.wait_for_exit(
+        timeout
+            .map(|timeout| std::time::Duration::new(timeout.seconds.into(), timeout.nanoseconds)),
+    );
     match ans {
         Result::Ok(ans) => {
             let outcome = match ans {

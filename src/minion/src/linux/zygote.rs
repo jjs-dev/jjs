@@ -143,8 +143,6 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         // Join cgroups.
         // This doesn't require any additional capablities, because we just write some stuff
         // to preopened handle.
-        /*for h in arg.cgroups_tasks {
-        }*/
         arg.cgroups_tasks.join_self();
 
         // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process

@@ -76,7 +76,7 @@ void run_test(const char* self, const char* dir, const char* test_name, const st
                             .workdir = "/"},
                         &proc));
     Minion_WaitOutcome outcome;
-    verify_ok(minion_cp_wait(proc, &(const struct Minion_TimeSpec) {45, 0},
+    verify_ok(minion_cp_wait(proc, NULL,
                              &outcome));
     if (outcome == WAIT_OUTCOME_TIMEOUT) {
         bool is_tl, is_il;

@@ -24,8 +24,7 @@ void test_return_1() { exit(1); }
 void test_ok() { exit(0); }
 
 void test_consume_memory() {
-    sleep(15);
-    // alloc 512 MiB
+    // alloc 1 GiB
     size_t const allocation_size = ((size_t) 1) << 30;
     char* ptr = (char*) malloc(allocation_size);
     if (ptr == NULL) {
@@ -47,12 +46,12 @@ void test_consume_memory() {
 }
 
 const struct test tests[] = {
-    //{"tl", test_tl, "TL\n", 1, 2},
-    //{"tl_fork", test_tl_fork, "TL\n", 1, 2},
-    //{"il", test_il, "ILE\n", 1, 2},
-    //{"abort", test_abort, "exit code -6\n", 1, 2},
-    //{"return1", test_return_1, "exit code 1\n", 1, 2},
-    //{"ok", test_ok, "exit code 0\n", 1, 2},
+    {"tl", test_tl, "TL\n", 1, 2},
+    {"tl_fork", test_tl_fork, "TL\n", 1, 2},
+    {"il", test_il, "ILE\n", 1, 2},
+    {"abort", test_abort, "exit code -6\n", 1, 2},
+    {"return1", test_return_1, "exit code 1\n", 1, 2},
+    {"ok", test_ok, "exit code 0\n", 1, 2},
     {"consume_memory", test_consume_memory, "exit code -9\n", 10, 25},
-    //{"wait_timeout", test_il, "Wait timed out\n", 1, 10},
+    {"wait_timeout", test_il, "Wait timed out\n", 1, 10},
     {NULL, NULL, NULL}};

@@ -66,12 +66,9 @@ pub(crate) unsafe fn zygote_entry(mut arg: ZygoteOptions) -> crate::Result<i32> 
                 return Ok(23);
             }
         };
-        // write!(logger, "{:?}\n", query).ok();
         match query {
             Query::Spawn(ref o) => process_spawn_query(&mut arg, o, &setup_data)?,
-            Query::Exit => {
-                break;
-            }
+            Query::Exit => break,
             Query::Poll(p) => process_poll_query(&mut arg, p.pid, p.timeout)?,
         };
     }

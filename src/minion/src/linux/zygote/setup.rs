@@ -264,18 +264,10 @@ unsafe fn cpu_time_observer(
             );
             nix::unistd::write(chan, b"r").ok();
         }
-        /*// HACK here
-        // we write some random staff to zygote sock, causing parsing error
-        // that's why zygote will crash
-        let mut buf = [b'}'; 16384 + 16];
-        buf[0] = b'{';
-        if let Err(e) = nix::unistd::write(zygote_api_sock_handle,& buf) {
-            eprintln!("failed to break zygote sock: {}", e);
-        }*/
         // since we are inside pid ns, we can refer to zygote as pid1.
         let err = jail_common::dominion_kill_all(1 as Pid, None);
         if let Err(err) = err {
-            eprintln!("{:?}", err);
+            eprintln!("failed to kill dominion {:?}", err);
         }
         // we will be killed by kernel too
     }

@@ -26,7 +26,6 @@ impl<'bctx> BuildCtx<'bctx> {
     pub(crate) fn cargo_build(&self) -> Command {
         let mut cmd = self.cargo();
         cmd.arg("build");
-        cmd.arg("-Zconfig-profile");
         if let Some(target) = &self.params.cfg.build.target {
             cmd.args(&["--target", target]);
         }

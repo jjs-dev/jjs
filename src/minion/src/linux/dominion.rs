@@ -205,7 +205,7 @@ impl LinuxDominion {
         self.zygote_sock.lock().unwrap().recv().ok()
     }
 
-    pub(crate) unsafe fn poll_job(&self, pid: Pid, timeout: Duration) -> Option<ExitCode> {
+    pub(crate) unsafe fn poll_job(&self, pid: Pid, timeout: Option<Duration>) -> Option<ExitCode> {
         let q = jail_common::Query::Poll(jail_common::PollQuery { pid, timeout });
         self.zygote_sock.lock().unwrap().send(&q).ok();
         match self.zygote_sock.lock().unwrap().recv::<Option<i32>>() {

@@ -44,7 +44,7 @@ unsafe fn process_spawn_query(
 unsafe fn process_poll_query(
     arg: &mut ZygoteOptions,
     pid: Pid,
-    timeout: Duration,
+    timeout: Option<Duration>,
 ) -> crate::Result<()> {
     let res = super::timed_wait(pid, timeout)?;
     arg.sock.send(&res)?;

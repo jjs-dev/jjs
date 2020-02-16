@@ -59,7 +59,7 @@ pub(crate) struct JobQuery {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct PollQuery {
     pub(crate) pid: Pid,
-    pub(crate) timeout: Duration,
+    pub(crate) timeout: Option<Duration>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

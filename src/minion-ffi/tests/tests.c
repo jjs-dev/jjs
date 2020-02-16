@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <signal.h>
 static void exceed_time_limit() {
     while (1) {
         // just some staff with side effects
@@ -29,7 +31,7 @@ void test_consume_memory() {
     char* ptr = (char*) malloc(allocation_size);
     if (ptr == NULL) {
         printf("OOM\n");
-        return;
+        kill(0, SIGKILL);
     }
     memset(ptr, 0, allocation_size);
     size_t const page_size = 4096;

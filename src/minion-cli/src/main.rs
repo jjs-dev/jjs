@@ -100,15 +100,17 @@ struct ExecOpt {
 }
 
 fn main() {
-    // TODO
-    std::env::set_var("RUST_BACKTRACE", "1");
     let options: ExecOpt = ExecOpt::from_args();
     if options.dump_argv {
         println!("{:#?}", options);
     }
-    let execution_manager = minion::setup();
+    if let Some(err) = minion::check() {
+        eprintln!("Error: {}", err);
+        std::process::exit(1);
+    }
+    let backend = minion::setup();
 
-    let dominion = execution_manager.new_dominion(minion::DominionOptions {
+    let dominion = backend.new_dominion(minion::DominionOptions {
         max_alive_process_count: options.num_processes.min(u32::max_value() as usize) as u32,
         memory_limit: options.memory_limit as u64,
         isolation_root: options.isolation_root.into(),
@@ -144,7 +146,7 @@ fn main() {
     if options.dump_minion_params {
         println!("{:#?}", args);
     }
-    let cp = execution_manager.spawn(args).unwrap();
+    let cp = backend.spawn(args).unwrap();
     cp.wait_for_exit(None).unwrap();
     let exit_code = cp.get_exit_code().unwrap();
     println!("---> Child process exited with code {:?} <---", exit_code);

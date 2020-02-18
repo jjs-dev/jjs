@@ -65,17 +65,14 @@ fn find_lca<'a>(a: &'a [String], b: &'a [String]) -> &'a [String] {
     let n = std::cmp::min(n1, n2);
 
     for i in 0..n {
-        if a[0] != b[0] {
+        if a[i] != b[i] {
             return &a[..i];
         }
     }
     if n1 < n2 { a } else { b }
 }
 
-/// Validate environment
-///
-/// If some problems are present, Some(s) with returned, where s is human-readable string
-/// describing these problems
+/// `crate::check()` on linux
 pub fn check() -> Result<(), String> {
     if detect_cgroup_version() == CgroupVersion::V1 {
         if unsafe { libc::geteuid() } != 0 {

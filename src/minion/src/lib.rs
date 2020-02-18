@@ -22,6 +22,11 @@ use std::{
     time::Duration,
 };
 
+/// This functions checks for system configurations issues.
+/// If it returns None, minion will probably work.
+/// If it returns Some(s), s is human-readable string
+/// describing these problems. It should be shown to administrtor,
+/// so that they can fix this problem.
 pub fn check() -> Option<String> {
     #[cfg(target_os = "linux")]
     {

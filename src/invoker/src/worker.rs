@@ -99,10 +99,8 @@ impl Worker {
     fn self_isolate(&mut self) {
         #[cfg(target_os = "linux")]
         {
-            nix::sched::unshare(
-                nix::sched::CloneFlags::CLONE_NEWNET | nix::sched::CloneFlags::CLONE_FILES,
-            )
-            .expect("failed to unshare");
+            // TODO: unshare NEWNET too. To achieve it, we have to switch to multiprocessing instead of multithreading
+            nix::sched::unshare(nix::sched::CloneFlags::CLONE_FILES).expect("failed to unshare");
         }
     }
 

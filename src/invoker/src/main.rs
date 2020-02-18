@@ -3,11 +3,8 @@ use slog_scope::debug;
 use std::sync::Arc;
 
 fn check_system() -> anyhow::Result<()> {
-    #[cfg(target_os = "linux")]
-    {
-        if let Some(err) = minion::linux_check_environment() {
-            bail!("invoker is not able to test runs: {}", err);
-        }
+    if let Some(err) = minion::check() {
+        bail!("invoker is not able to test runs: {}", err);
     }
     Ok(())
 }

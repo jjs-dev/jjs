@@ -56,15 +56,15 @@ pub(crate) struct ZygoteOptions {
     sock: Socket,
 }
 
-struct DoExecArg {
-    path: OsString,
-    arguments: Vec<OsString>,
-    environment: Vec<OsString>,
+struct DoExecArg<'a> {
+    path: &'a OsStr,
+    arguments: &'a [OsString],
+    environment: &'a [OsString],
     stdio: Stdio,
     sock: Socket,
-    pwd: OsString,
-    cgroups_tasks: cgroup::Group,
-    jail_id: String,
+    pwd: &'a OsStr,
+    cgroups_tasks: &'a cgroup::Group,
+    jail_id: &'a str,
 }
 
 fn duplicate_string_list(v: &[OsString]) -> *mut *mut c_char {
@@ -130,14 +130,14 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let mut stderr = std::fs::File::from_raw_fd(stderr_fd);
         let path = duplicate_string(&arg.path);
 
-        let mut argv_with_path = vec![arg.path.clone()];
-        argv_with_path.append(&mut (arg.arguments.clone()));
+        let mut argv_with_path = vec![arg.path.to_os_string()];
+        argv_with_path.extend(arg.arguments.iter().cloned());
 
         // Duplicate argv.
         let argv = duplicate_string_list(&argv_with_path);
 
         // Duplicate envp.
-        let environ = arg.environment.clone();
+        let environ = arg.environment;
         let envp = duplicate_string_list(&environ);
 
         // Join cgroups.
@@ -235,14 +235,14 @@ unsafe fn spawn_job(
         .expect("Couldn't make child socket inheritable");
     // `dea` will be passed to child process
     let dea = DoExecArg {
-        path: options.exe.as_os_str().to_os_string(),
-        arguments: options.argv,
-        environment: options.env,
+        path: options.exe.as_os_str(),
+        arguments: &options.argv,
+        environment: &options.env,
         stdio: options.stdio,
         sock: child_sock,
-        pwd: options.pwd.clone(),
-        cgroups_tasks: setup_data.cgroups.clone(),
-        jail_id,
+        pwd: &options.pwd,
+        cgroups_tasks: &setup_data.cgroups,
+        jail_id: &jail_id,
     };
     let child_pid: Pid;
     let res = libc::fork();
@@ -381,7 +381,6 @@ pub(crate) unsafe fn start_zygote(
 ) -> crate::Result<jail_common::ZygoteStartupInfo> {
     let mut logger = crate::linux::util::strace_logger();
     let (mut sock, js_sock) = Socket::new_socketpair().unwrap();
-    let jail_id = jail_common::gen_jail_id();
 
     let (return_allowed_r, return_allowed_w) = nix::unistd::pipe().expect("couldn't create pipe");
 
@@ -416,10 +415,14 @@ pub(crate) unsafe fn start_zygote(
         };
         return Ok(startup_info);
     }
+    let my_euid = nix::unistd::geteuid();
     // why we use unshare(PID) here, and not in setup_namespace()? See pid_namespaces(7) and unshare(2)
-    if libc::unshare(libc::CLONE_NEWPID) == -1 {
+    let unshare_ns =
+        libc::CLONE_NEWUSER | libc::CLONE_NEWPID | libc::CLONE_NEWNS | libc::CLONE_NEWNET;
+    if libc::unshare(unshare_ns) == -1 {
         err_exit("unshare");
     }
+    let sandbox_uid = my_euid.as_raw();
     let fret = libc::fork();
     if fret == -1 {
         err_exit("fork");
@@ -450,13 +453,13 @@ pub(crate) unsafe fn start_zygote(
     .unwrap();
     mem::drop(js_sock);
     let child_pid = fret as Pid;
-
-    let sandbox_uid = setup::derive_user_ids(&jail_id);
-    // Map 0 to 0; map sandbox uid: internal to external.
-    let mapping = format!("0 0 1\n{} {} 1", SANDBOX_INTERNAL_UID, sandbox_uid);
+    // map sandbox uid: internal to external.
+    let mapping = format!("{} {} 1", SANDBOX_INTERNAL_UID, sandbox_uid);
     let uid_map_path = format!("/proc/{}/uid_map", child_pid);
     let gid_map_path = format!("/proc/{}/gid_map", child_pid);
+    let setgroups_path = format!("/proc/{}/setgroups", child_pid);
     sock.lock(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
+    fs::write(setgroups_path, "deny").unwrap();
     fs::write(&uid_map_path, mapping.as_str()).unwrap();
     fs::write(&gid_map_path, mapping.as_str()).unwrap();
     sock.wake(WM_CLASS_PID_MAP_CREATED)?;

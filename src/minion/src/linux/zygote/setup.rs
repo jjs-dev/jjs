@@ -1,24 +1,22 @@
 use crate::{
     linux::{
         jail_common::{self, JailOptions},
-        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger, Uid},
+        util::{err_exit, Handle, IpcSocketExt, Pid, StraceLogger},
         zygote::{
-            WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP, WM_CLASS_SETUP_FINISHED,
+            SANDBOX_INTERNAL_UID, WM_CLASS_PID_MAP_CREATED, WM_CLASS_PID_MAP_READY_FOR_SETUP,
+            WM_CLASS_SETUP_FINISHED,
         },
     },
     DesiredAccess, PathExpositionOptions,
 };
-use std::{
-    collections::hash_map::DefaultHasher, ffi::CString, fs, hash::Hasher, io, io::Write,
-    os::unix::ffi::OsStrExt, path::Path, ptr, time,
-};
+use std::{ffi::CString, fs, io, io::Write, os::unix::ffi::OsStrExt, path::Path, ptr, time};
 use tiny_nix_ipc::Socket;
 
 pub(in crate::linux) struct SetupData {
     pub(in crate::linux) cgroups: super::cgroup::Group,
 }
 
-unsafe fn configure_dir(dir_path: &Path, uid: Uid) {
+unsafe fn configure_dir(dir_path: &Path) {
     let mode = libc::S_IRUSR
         | libc::S_IWUSR
         | libc::S_IXUSR
@@ -33,25 +31,18 @@ unsafe fn configure_dir(dir_path: &Path, uid: Uid) {
         err_exit("chmod");
     }
 
-    if libc::chown(path.as_ptr(), uid, uid) == -1 {
+    if libc::chown(path.as_ptr(), SANDBOX_INTERNAL_UID, SANDBOX_INTERNAL_UID) == -1 {
         err_exit("chown");
     }
 }
 
-fn expose_dir(
-    jail_root: &Path,
-    system_path: &Path,
-    alias_path: &Path,
-    access: DesiredAccess,
-    uid: Uid,
-) {
+fn expose_dir(jail_root: &Path, system_path: &Path, alias_path: &Path, access: DesiredAccess) {
     let bind_target = jail_root.join(alias_path);
     fs::create_dir_all(&bind_target).unwrap();
     if fs::metadata(&system_path).unwrap().is_file() {
         fs::remove_dir(&bind_target).unwrap();
         fs::write(&bind_target, &"").unwrap();
     }
-    let orig_bind_target = bind_target.clone();
     let bind_target = CString::new(bind_target.as_os_str().as_bytes()).unwrap();
     let bind_src = CString::new(system_path.as_os_str().as_bytes()).unwrap();
     unsafe {
@@ -65,8 +56,6 @@ fn expose_dir(
         if mnt_res == -1 {
             err_exit("mount");
         }
-
-        configure_dir(&orig_bind_target, uid);
 
         if let DesiredAccess::Readonly = access {
             let rem_ret = libc::mount(
@@ -83,10 +72,10 @@ fn expose_dir(
     }
 }
 
-pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path, uid: Uid) {
-    //mount --bind
+pub(crate) fn expose_dirs(expose: &[PathExpositionOptions], jail_root: &Path) {
+    // mount --bind
     for x in expose {
-        expose_dir(jail_root, &x.src, &x.dest, x.access.clone(), uid)
+        expose_dir(jail_root, &x.src, &x.dest, x.access.clone())
     }
 }
 
@@ -121,14 +110,8 @@ unsafe fn setup_sighandler() {
     }
 }
 
-unsafe fn setup_namespaces(_jail_options: &JailOptions) {
-    if libc::unshare(libc::CLONE_NEWNET | libc::CLONE_NEWUSER) == -1 {
-        err_exit("unshare")
-    }
-}
-
 unsafe fn setup_chroot(jail_options: &JailOptions) {
-    let path = jail_options.isolation_root.clone();
+    let path = &jail_options.isolation_root;
     let path = CString::new(path.as_os_str().as_bytes()).unwrap();
     libc::open(path.as_ptr(), 0);
     if libc::chroot(path.as_ptr()) == -1 {
@@ -160,9 +143,6 @@ unsafe fn setup_procfs(jail_options: &JailOptions) {
 unsafe fn setup_uid_mapping(sock: &mut Socket) -> crate::Result<()> {
     sock.wake(WM_CLASS_PID_MAP_READY_FOR_SETUP)?;
     sock.lock(WM_CLASS_PID_MAP_CREATED)?;
-    if libc::setuid(0) == -1 {
-        err_exit("setuid");
-    }
     Ok(())
 }
 
@@ -177,16 +157,8 @@ unsafe fn setup_time_watch(jail_options: &JailOptions) -> crate::Result<()> {
     )
 }
 
-unsafe fn setup_expositions(options: &JailOptions, uid: Uid) {
-    expose_dirs(&options.exposed_paths, &options.isolation_root, uid);
-}
-
-/// Derives user_ids (in range 1_000_000 to 3_000_000) from jail_id in deterministic way
-pub fn derive_user_ids(jail_id: &str) -> Uid {
-    let jail_id = jail_id.as_bytes();
-    let mut hasher = DefaultHasher::new();
-    hasher.write(jail_id);
-    (hasher.finish() % 2_000_000 + 1_000_000) as Uid
+unsafe fn setup_expositions(options: &JailOptions) {
+    expose_dirs(&options.exposed_paths, &options.isolation_root);
 }
 
 fn setup_panic_hook() {
@@ -214,15 +186,13 @@ pub(in crate::linux) unsafe fn setup(
 ) -> crate::Result<SetupData> {
     setup_panic_hook();
     setup_sighandler();
-    let uid = derive_user_ids(&jail_params.jail_id);
-    configure_dir(&jail_params.isolation_root, uid);
-    setup_expositions(&jail_params, uid);
+    // must be done before `configure_dir`.
+    setup_uid_mapping(sock)?;
+    configure_dir(&jail_params.isolation_root);
+    setup_expositions(&jail_params);
     setup_procfs(&jail_params);
     let handles = super::cgroup::setup_cgroups(&jail_params);
-    // It's important cpu watcher will be outside of user namespace.
     setup_time_watch(&jail_params)?;
-    setup_namespaces(&jail_params);
-    setup_uid_mapping(sock)?;
     setup_chroot(&jail_params);
     sock.wake(WM_CLASS_SETUP_FINISHED)?;
     let mut logger = crate::linux::util::StraceLogger::new();

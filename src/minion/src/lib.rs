@@ -8,10 +8,7 @@
 mod command;
 
 #[cfg(target_os = "linux")]
-mod linux;
-
-#[cfg(target_os = "linux")]
-pub use linux::check::check as linux_check_environment;
+pub mod linux;
 
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +21,16 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+
+pub fn check() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Err(err) = linux::check::check() {
+            return Some(err);
+        }
+    }
+    None
+}
 
 /// Represents way of isolation
 pub trait Backend: Debug + Send + Sync {

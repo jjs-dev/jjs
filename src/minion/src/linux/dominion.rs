@@ -9,11 +9,8 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    ffi::CString,
     fmt::{self, Debug},
-    fs,
     os::unix::io::AsRawFd,
-    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering::SeqCst},
         Mutex,
@@ -217,7 +214,6 @@ impl LinuxDominion {
 
 impl Drop for LinuxDominion {
     fn drop(&mut self) {
-        use std::os::unix::ffi::OsStrExt;
         // Kill all processes.
         if let Err(err) = self.kill() {
             panic!("unable to kill dominion: {}", err);
@@ -229,22 +225,5 @@ impl Drop for LinuxDominion {
 
         // Close handles
         nix::unistd::close(self.watchdog_chan).ok();
-
-        let do_umount = |inner_path: &Path| {
-            let mount_path = self.options.isolation_root.join(inner_path);
-            let mount_path = CString::new(mount_path.as_os_str().as_bytes()).unwrap();
-            unsafe {
-                if libc::umount2(mount_path.as_ptr(), libc::MNT_DETACH) == -1 {
-                    err_exit("umount2");
-                }
-            }
-        };
-
-        do_umount(Path::new("proc"));
-        fs::remove_dir(&self.options.isolation_root.join(PathBuf::from("proc"))).ok();
-
-        for x in &self.options.exposed_paths {
-            do_umount(&x.dest);
-        }
     }
 }

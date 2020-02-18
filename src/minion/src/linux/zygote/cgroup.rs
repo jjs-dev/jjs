@@ -1,12 +1,12 @@
 use crate::linux::{
-    jail_common::{get_path_for_cgroup_legacy_subsystem, get_path_for_cgroup_unified, JailOptions},
+    jail_common::{get_path_for_cgroup_legacy_subsystem, JailOptions},
     util::{err_exit, Handle, Pid},
 };
 use std::{
     fs,
     os::unix::io::IntoRawFd,
     path::PathBuf,
-    sync::atomic::{AtomicU8, Ordering},
+    sync::atomic::{AtomicU8, AtomicUsize, Ordering},
 };
 #[derive(Clone)]
 enum GroupHandles {
@@ -43,8 +43,8 @@ impl Group {
         }
     }
 }
-
-enum CgroupVersion {
+#[derive(Eq, PartialEq)]
+pub(in crate::linux) enum CgroupVersion {
     V1,
     V2,
 }
@@ -70,7 +70,7 @@ fn do_detect_cgroup_version() -> u8 {
     }
 }
 
-fn detect_cgroup_version() -> CgroupVersion {
+pub(in crate::linux) fn detect_cgroup_version() -> CgroupVersion {
     static CACHE: AtomicU8 = AtomicU8::new(0);
     if CACHE.load(Ordering::Relaxed) == 0 {
         let version = do_detect_cgroup_version();
@@ -81,6 +81,32 @@ fn detect_cgroup_version() -> CgroupVersion {
         CGROUP_VERSION_2 => CgroupVersion::V2,
         val => unreachable!("unexpected value in cgroup version cache: {}", val),
     }
+}
+
+fn do_get_cgroup_prefix() -> String {
+    // TODO: take from config
+    "/jjs".to_string()
+}
+
+pub(crate) fn get_cgroup_prefix() -> &'static PathBuf {
+    static CACHE: AtomicUsize = AtomicUsize::new(0);
+    if CACHE.load(Ordering::Relaxed) == 0 {
+        let sub_path = do_get_cgroup_prefix();
+        let mut buf: PathBuf = "/sys/fs/cgroup".into();
+        assert!(sub_path.starts_with('/'));
+        buf.push(&sub_path[1..]);
+        let ptr = Box::leak(Box::new(buf)) as &PathBuf;
+        CACHE.store(ptr as *const PathBuf as usize, Ordering::Relaxed);
+        ptr
+    } else {
+        unsafe { &*(CACHE.load(Ordering::Relaxed) as *const PathBuf) }
+    }
+}
+
+pub(crate) fn get_path_for_cgroup_unified(cgroup_id: &str) -> PathBuf {
+    get_cgroup_prefix()
+        .join("jjs")
+        .join(format!("sandbox.{}", cgroup_id))
 }
 
 unsafe fn setup_chroups_legacy(jail_options: &JailOptions) -> Vec<Handle> {
@@ -142,7 +168,7 @@ unsafe fn setup_cgroups_v2(jail_options: &JailOptions) -> Handle {
         cgroup_path.parent().unwrap().join("cgroup.subtree_control"),
         "+pids +cpu +memory",
     )
-    .expect("failed to enable controllers");
+    .ok();
 
     fs::write(
         cgroup_path.join("pids.max"),

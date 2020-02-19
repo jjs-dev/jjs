@@ -1,3 +1,5 @@
+// This file is included in many tests, and some functions are not used in all tests
+#![allow(dead_code)]
 use frontend_engine::{config, test_util, ApiServer};
 pub use test_util::check_error;
 
@@ -102,14 +104,28 @@ pub struct RequestBuilder<'a> {
     client: &'a rocket::local::Client,
 }
 
+impl std::fmt::Debug for RequestBuilder<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("ReguestBuidler")
+            .field("builder", &self.builder)
+            .field("auth_token", &self.auth_token)
+            .finish()
+    }
+}
+
 impl RequestBuilder<'_> {
-    pub fn var(&mut self, name: &str, val: &serde_json::Value) -> &mut Self {
-        self.builder.var(name, val);
+    pub fn var(&mut self, name: &str, val: impl Into<serde_json::Value>) -> &mut Self {
+        self.builder.var(name, &val.into());
         self
     }
 
     pub fn operation(&mut self, op: &str) -> &mut Self {
         self.builder.operation(op);
+        self
+    }
+
+    pub fn auth(&mut self, token: impl ToString) -> &mut Self {
+        self.auth_token = Some(token.to_string());
         self
     }
 

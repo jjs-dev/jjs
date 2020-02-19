@@ -73,7 +73,7 @@ impl std::fmt::Display for ErrorPrettyPrinter<'_> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RequestBuilder {
     vars: std::collections::HashMap<String, serde_json::Value>,
     operation: Option<String>,

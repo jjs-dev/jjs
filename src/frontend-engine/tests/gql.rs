@@ -25,49 +25,6 @@ query GetApiVersion {
     )
 }
 
-/// tests various operations with user
-#[test]
-fn test_user_ops() {
-    let env = common::Env::new("UserOps");
-    let res = env
-        .req()
-        .operation(
-            r#"
-mutation CreateAUser {
-    createUser(login: "JonSnow", password: "VerySecretPass", groups: []) {
-        login
-    }
-}
-    "#,
-        )
-        .exec()
-        .unwrap_ok();
-    assert_eq!(
-        res,
-        json!({
-            "createUser": {
-                "login": "JonSnow"
-            }
-        })
-    );
-
-    let res = env
-        .req()
-        .operation(
-            r#"
-mutation CreateSameUserAgain {
-    createUser(login: "JonSnow", password: "VerySecretPass", groups: []) {
-        login
-    }
-}
-        "#,
-        )
-        .exec()
-        .unwrap_errs();
-    assert_eq!(res.len(), 1);
-    common::check_error(&res[0], "UserAlreadyExists");
-}
-
 ///  tests operations with run
 ///  Since it is not end-to-end test, it doesn't check judging
 #[test]
@@ -124,7 +81,7 @@ mutation CreateRun($runCode: String!) {
 }
     "#,
         )
-        .var("runCode", &json!(run_encoded))
+        .var("runCode", json!(run_encoded))
         .exec()
         .unwrap_ok();
     assert_eq!(

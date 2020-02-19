@@ -13,7 +13,6 @@ use std::{
 #[derive(Clone)]
 pub struct Config {
     pub socket_path: String,
-    //pub token_provider: Arc<dyn Fn() -> String + Send + Sync>,
 }
 
 fn handle_conn(fcfg: &FrontendConfig, mut conn: UnixStream) {
@@ -44,11 +43,11 @@ fn handle_conn(fcfg: &FrontendConfig, mut conn: UnixStream) {
         Ok(tok) => fcfg.token_mgr.serialize(&tok),
         Err(err) => {
             eprintln!("Error when issuing root credentials: {}", err);
-            conn.write_all(b"internal error").ok();
+            conn.write_all(format!("Error: {:#}", err).as_bytes()).ok();
             return;
         }
-    }; //crate::security::Token::new_root().serialize(&fcfg.secret);
-    let message = format!("===Branca {}===\n", token);
+    };
+    let message = format!("==={}===\n", token);
     conn.write_all(message.as_bytes()).ok();
 }
 
@@ -63,6 +62,7 @@ fn server_loop(sock: UnixListener, fcfg: FrontendConfig) {
 
 fn do_start(cfg: Config, fcfg: &FrontendConfig) {
     info!("binding login server at {}", &cfg.socket_path);
+    std::fs::remove_file(&cfg.socket_path).ok();
     let listener = match UnixListener::bind(&cfg.socket_path) {
         Ok(l) => l,
         Err(err) => {

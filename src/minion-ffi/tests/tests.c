@@ -55,5 +55,5 @@ const struct test tests[] = {
     {"return1", test_return_1, "exit code 1\n", 1, 2},
     {"ok", test_ok, "exit code 0\n", 1, 2},
     {"consume_memory", test_consume_memory, "exit code -9\n", 10, 25},
-    {"wait_timeout", test_il, "Wait timed out\n", 1, 10},
+    //{"wait_timeout", test_il, "Wait timed out\n", 1, 10},
     {NULL, NULL, NULL}};

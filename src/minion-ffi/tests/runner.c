@@ -117,11 +117,21 @@ int test_main(int argc, char const* const* argv) {
     return 179;
 }
 
-size_t read_all(int fd, const char** buf_p) {
+size_t read_all(int fd, const char** buf_p, int* is_timeout) {
+    *is_timeout = 0;
+    struct timeval timeout = {20, 0};
     char* buf = NULL;
     size_t cap = 0;
     size_t sz = 0;
     while (1) {
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(fd, &fds);
+        if(!select(fd+1, &fds, NULL, NULL, &timeout))
+        {
+            *is_timeout = 1;
+            break;
+        }
         if (sz == cap) {
             cap = 2 * cap + 1;
             buf = realloc(buf, cap);
@@ -177,15 +187,22 @@ int main(int argc, const char** argv) {
         close(comm_pipe[1]);
         close(devnullfd);
         const char* output;
-        size_t output_sz = read_all(comm_pipe[0], &output);
+        int is_timeout;
+        size_t output_sz = read_all(comm_pipe[0], &output, &is_timeout);
         const char* output0 = output;
         size_t expected_output_sz = strlen(tests[i].expected_output);
         if (output_sz != expected_output_sz ||
-            memcmp(output, tests[i].expected_output, output_sz)) {
+            memcmp(output, tests[i].expected_output, output_sz) ||
+            is_timeout) {
             fail = 1;
+            fprintf(stderr, "test `%s`: ", tests[i].name);
+            if(is_timeout)
+                fprintf(stderr, "timeout");
+            else
+                fprintf(stderr, "output differs");
             fprintf(stderr,
-                    "test `%s`: output differs:\nActual output (len %lld):\n",
-                    tests[i].name, (long long) output_sz);
+                    ":\nActual output (len %lld):\n",
+                    (long long) output_sz);
             while (output_sz) {
                 ssize_t chunk_sz = fwrite(output, 1, output_sz, stderr);
                 assert(chunk_sz >= 0);

@@ -1,6 +1,6 @@
 #[test]
 fn separated_feedback() {
-    let driver = invoker::drivers::SillyDriver::new();
+    let driver = invoker::sources::BackgroundSource::new();
     let id = uuid::Uuid::parse_str("fdfd0b03-4adb-4166-b10c-a3f3155b1067").unwrap();
     let run_dir = tempfile::TempDir::new().unwrap();
     let invocation_dir = tempfile::TempDir::new().unwrap();

@@ -1,29 +1,26 @@
-use crate::controller::{ControllerDriver, InvocationFinishReason};
+use crate::controller::{InvocationFinishReason, TaskSource};
 use anyhow::Context;
 use invoker_api::InvokeTask;
 use serde::Serialize;
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::{collections::VecDeque, sync::Mutex};
 use uuid::Uuid;
 
-struct SillyDriverState {
+struct BackgroundSourceState {
     queue: VecDeque<InvokeTask>,
     messages: VecDeque<Message>,
 }
-pub struct SillyDriver {
-    state: Arc<Mutex<SillyDriverState>>,
+pub struct BackgroundSource {
+    state: Mutex<BackgroundSourceState>,
 }
 
-impl SillyDriver {
-    pub fn new() -> SillyDriver {
-        let state = SillyDriverState {
+impl BackgroundSource {
+    pub fn new() -> BackgroundSource {
+        let state = BackgroundSourceState {
             queue: VecDeque::new(),
             messages: VecDeque::new(),
         };
-        let state = Arc::new(Mutex::new(state));
-        SillyDriver { state }
+        let state = Mutex::new(state);
+        BackgroundSource { state }
     }
 
     pub fn add_task(&self, task: InvokeTask) {
@@ -37,9 +34,9 @@ impl SillyDriver {
     }
 }
 
-impl Default for SillyDriver {
-    fn default() -> SillyDriver {
-        SillyDriver::new()
+impl Default for BackgroundSource {
+    fn default() -> BackgroundSource {
+        BackgroundSource::new()
     }
 }
 
@@ -60,7 +57,7 @@ pub struct ProgressMessage {
     header: invoker_api::InvokeOutcomeHeader,
 }
 
-impl ControllerDriver for SillyDriver {
+impl TaskSource for BackgroundSource {
     fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<InvokeTask>> {
         let mut q = self.state.lock().unwrap();
         let q = &mut q.queue;

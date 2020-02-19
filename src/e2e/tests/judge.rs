@@ -135,7 +135,6 @@ mutation DeleteRun($runId: Int!) {
         .into_iter()
         .next()
         .unwrap();
-    dbg!(&err);
     assert!(
         err.pointer("/extensions/errorCode")
             .unwrap()
@@ -171,13 +170,13 @@ fn test_heavy_load() {
             let st = poll_status(i);
             if st == "QUEUE" {
                 new_codes.push(i);
-                println!("{} still running", i);
                 continue;
             }
             println!("{} done", i);
             assert_eq!(st, "ACCEPTED");
         }
         println!("--- now {} running ---", new_codes.len());
+        println!("{:?}", &new_codes);
         codes = new_codes;
     }
 }

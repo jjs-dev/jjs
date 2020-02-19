@@ -51,6 +51,7 @@ struct ExtendedInvokeRequest {
     revision: u32,
     notifier: Notifier,
     invocation_dir: PathBuf,
+    task_source_id: usize,
 }
 
 struct ControllerQueues {
@@ -81,7 +82,7 @@ pub enum InvocationFinishReason {
     JudgeDone,
 }
 
-pub trait ControllerDriver {
+pub trait TaskSource {
     fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
 
     fn set_finished(
@@ -97,9 +98,10 @@ pub trait ControllerDriver {
     ) -> anyhow::Result<()>;
 }
 
-impl<T: ControllerDriver> ControllerDriver for Arc<T> {
+impl<S: TaskSource, T: std::ops::Deref<Target = S>> TaskSource for T {
     fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
-        (**self).load_tasks(cnt)
+        let inner: &S = self.deref();
+        inner.load_tasks(cnt)
     }
 
     fn set_finished(
@@ -107,7 +109,8 @@ impl<T: ControllerDriver> ControllerDriver for Arc<T> {
         invocation_id: Uuid,
         reason: InvocationFinishReason,
     ) -> anyhow::Result<()> {
-        (**self).set_finished(invocation_id, reason)
+        let inner: &S = self.deref();
+        inner.set_finished(invocation_id, reason)
     }
 
     fn add_outcome_header(
@@ -115,13 +118,14 @@ impl<T: ControllerDriver> ControllerDriver for Arc<T> {
         invocation_id: Uuid,
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()> {
-        (**self).add_outcome_header(invocation_id, header)
+        let inner: &S = self.deref();
+        inner.add_outcome_header(invocation_id, header)
     }
 }
 
 pub struct Controller {
     workers: Vec<WorkerInfo>,
-    driver: Box<dyn ControllerDriver>,
+    sources: Vec<Box<dyn TaskSource>>,
     minion: Arc<dyn minion::Backend>,
     config: Arc<cfg::Config>,
     stop_flag: Arc<AtomicBool>,
@@ -130,7 +134,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        driver: Box<dyn ControllerDriver>,
+        sources: Vec<Box<dyn TaskSource>>,
         minion: Arc<dyn minion::Backend>,
         config: Arc<cfg::Config>,
         worker_count: usize,
@@ -152,7 +156,7 @@ impl Controller {
         }
 
         Ok(Controller {
-            driver,
+            sources,
             minion,
             workers,
             config,
@@ -212,6 +216,19 @@ impl Controller {
             .position(|worker| worker.state.is_idle())
     }
 
+    fn load_tasks(
+        &mut self,
+        mut limit: usize,
+    ) -> anyhow::Result<Vec<(invoker_api::InvokeTask, usize)>> {
+        let mut tasks = Vec::new();
+        for (source_id, source) in self.sources.iter().enumerate() {
+            let chunk = source.load_tasks(limit)?;
+            limit -= chunk.len();
+            tasks.extend(chunk.into_iter().map(|task| (task, source_id)));
+        }
+        Ok(tasks)
+    }
+
     fn tick_send_invoke_request(&mut self) -> anyhow::Result<bool> {
         let free_worker = match self.find_free_worker() {
             Some(fw) => fw,
@@ -240,20 +257,20 @@ impl Controller {
         if self.queues.invoke().len() >= self.invoke_queue_size() {
             return Ok(false);
         }
-        debug!("Searching for tasks");
         let cnt = self.invoke_queue_size() - self.queues.invoke().len();
-        let new_tasks = self.driver.load_tasks(cnt)?;
-        let new_tasks_count = new_tasks.len();
+        debug!("Searching for tasks (limit {})", cnt);
+        let new_tasks = self.load_tasks(cnt)?;
         if new_tasks.is_empty() {
             debug!("No new tasks");
+            return Ok(false);
         } else {
             info!("{} new tasks discovered", new_tasks.len());
         }
-        for invoke_task in new_tasks {
-            let extended_invoke_request = self.fetch_run_info(&invoke_task)?;
+        for (invoke_task, task_source_id) in new_tasks {
+            let extended_invoke_request = self.fetch_run_info(&invoke_task, task_source_id)?;
             self.queues.invoke().push_back(extended_invoke_request);
         }
-        Ok(new_tasks_count > 0)
+        Ok(true)
     }
 
     fn process_worker_message(&mut self, msg: Response, worker_id: usize) -> anyhow::Result<()> {
@@ -278,7 +295,7 @@ impl Controller {
                 worker.state = WorkerState::Invoke(req);
             }
             Response::OutcomeHeader(header) => {
-                self.driver
+                self.sources[req.task_source_id]
                     .add_outcome_header(req.inner.invocation_id, header)?;
                 let dir = req.inner.out_dir.clone();
                 let invocation_dir = req.invocation_dir.clone();
@@ -337,7 +354,7 @@ impl Controller {
             InvokeOutcome::Judge => InvocationFinishReason::JudgeDone,
             InvokeOutcome::CompileError(_) => InvocationFinishReason::CompileError,
         };
-        self.driver
+        self.sources[ext_inv_req.task_source_id]
             .set_finished(ext_inv_req.inner.invocation_id, reason)
             .context("failed to set run outcome in DB")?;
 

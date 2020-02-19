@@ -134,15 +134,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#authentication" id="authentication">Authentication</a></h1>
-<h2><a class="header" href="#root-user-authentication" id="root-user-authentication">Root user authentication</a></h2>
-<p>JJS has builtin root user, with username &quot;$root&quot; (Note that $ prefix can't be used in non-special user accounts).</p>
+<h2><a class="header" href="#root" id="root">Root</a></h2>
+<p>JJS has builtin root user, with username &quot;$root&quot; (Note that $ prefix can't be used in non-special user accounts).
+You can not log into this user using frontend api.</p>
 <h3><a class="header" href="#development-root-user" id="development-root-user">Development root user</a></h3>
 <p>When JJS is running in development mode, you can authenticate as root, using &quot;dev_root&quot; string as access token
 This option is automatically disabled in non-development environment, and shouldn't be turned on forcefully.</p>
-<h3><a class="header" href="#local-root-login-server-in-linux" id="local-root-login-server-in-linux">Local Root login server in Linux</a></h3>
-<p>This server is started automatically by frontend and is bound to <code>/tmp/jjs-auth-sock</code>
+<h3><a class="header" href="#local-root-login-service-in-linux" id="local-root-login-service-in-linux">Local Root login service in Linux</a></h3>
+<p>This server is started automatically by frontend and is bound to <code>/tmp/jjs-auth-sock</code>.
 You should connect to this socket from a process, uid of which exactly matches uid of frontend.
-Local auth server will write string of form <code>===S===</code>, where S is your token</p>
+Local auth server will write string of form <code>===S===</code>, where S is root access token.</p>
+<h2><a class="header" href="#normal-users" id="normal-users">Normal users</a></h2>
+<p>See <a href="https://mikailbag.github.io/jjs/api/mutation.doc.html"><code>createUser</code></a>.</p>
 
                     </main>
 

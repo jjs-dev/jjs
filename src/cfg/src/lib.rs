@@ -10,7 +10,7 @@ use std::{
     process::exit,
 };
 
-#[derive(Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct Limits {
     /// Memory limit in bytes
     pub memory: Option<u64>,
@@ -56,7 +56,7 @@ impl Default for Limits {
     }
 }
 
-#[derive(Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct Command {
     #[serde(default = "Command::default_env")]
     pub env: HashMap<String, String>,
@@ -75,7 +75,7 @@ impl Command {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Toolchain {
     /// Human-readable
     pub title: String,
@@ -96,7 +96,7 @@ pub struct Toolchain {
     pub limits: Limits,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Problem {
     pub name: String,
 

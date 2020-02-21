@@ -184,7 +184,10 @@ impl std::str::FromStr for DetectScriptOutput {
     }
 }
 
-fn run_detect_script(tpl: &TemplateInfo) -> anyhow::Result<Option<DetectScriptOutput>> {
+fn run_detect_script(
+    tpl: &TemplateInfo,
+    data_dir: &Path,
+) -> anyhow::Result<Option<DetectScriptOutput>> {
     let detect_script_path = tpl.dir.join("detect.sh");
     if !detect_script_path.exists() {
         bail!("detect.sh script missing");
@@ -194,6 +197,7 @@ fn run_detect_script(tpl: &TemplateInfo) -> anyhow::Result<Option<DetectScriptOu
     let status = std::process::Command::new("bash")
         .arg(&detect_script_path)
         .arg(out_file_path.path())
+        .env("DATA", data_dir)
         .status()
         .context("failed to execute detect.sh script")?;
     let script_out =
@@ -247,7 +251,8 @@ fn process_toolchain_template(
     mut event_log: Option<&mut dyn std::io::Write>,
     out_dir: &Path,
 ) -> anyhow::Result<()> {
-    let detect_out = match run_detect_script(&tpl)? {
+    let data_dir = tpl.dir.join("data");
+    let detect_out = match run_detect_script(&tpl, &data_dir)? {
         Some(dso) => dso,
         None => {
             println!("Skipping toolchain {}: not available", &tpl.name);
@@ -260,10 +265,9 @@ fn process_toolchain_template(
         .read_dir()?
         .map(|item| item.map_err(|err| anyhow::Error::new(err).context("failed to read script")))
         .collect();
-    let current_dir = tpl.dir.join("data");
     for script in scripts? {
         println!("running {}", script.path().display());
-        let out = run_under_trace(&script.path(), &current_dir, &detect_out)
+        let out = run_under_trace(&script.path(), &data_dir, &detect_out)
             .context("failed to collect trace")?;
         let scanner = serde_json::Deserializer::from_slice(&out).into_iter();
         let mut cnt = 0;

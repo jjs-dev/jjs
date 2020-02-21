@@ -132,7 +132,7 @@ jobs:
           JJS_WAIT: tcp://localhost:1779
           RUST_LOG: util::wait=debug
       - name: run tests
-        run: cargo jjs-test --integration-tests --skip-unit
+        run: cargo jjs-test --integration-tests --skip-unit --nocapture
       - name: collect logs
         if: always()
         run: |

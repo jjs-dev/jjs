@@ -111,9 +111,10 @@ FOR UPDATE
                 let mut filtered = Vec::new();
                 let mut to_del = Vec::new();
                 for inv in invs {
-                    to_del.push(inv.id);
+                    let inv_id = inv.id;
                     if predicate(inv.clone())? {
                         filtered.push(inv);
+                        to_del.push(inv_id);
                     }
                 }
                 const STATE_DONE: i16 = InvocationState::InWork.as_int();

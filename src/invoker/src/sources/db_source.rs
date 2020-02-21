@@ -1,37 +1,40 @@
-use crate::controller::{ControllerDriver, InvocationFinishReason};
+use crate::controller::{InvocationFinishReason, TaskSource};
 use anyhow::Context;
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct DbDriver {
+pub struct DbSource {
     db: Box<dyn db::DbConn>,
     config: Arc<cfg::Config>,
 }
 
-impl DbDriver {
-    pub fn new(db: Box<dyn db::DbConn>, config: Arc<cfg::Config>) -> DbDriver {
-        DbDriver { db, config }
+impl DbSource {
+    pub fn new(db: Box<dyn db::DbConn>, config: Arc<cfg::Config>) -> DbSource {
+        DbSource { db, config }
     }
 }
 
-impl ControllerDriver for DbDriver {
+impl TaskSource for DbSource {
     fn load_tasks(&self, mut cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
         let mut new_tasks = Vec::new();
         const WINDOW_SIZE: u32 = 10;
         const WINDOW_STEP: u32 = 9;
-        // https://github.com/rust-lang/rust-clippy/issues/5064
-        // assert!(WINDOW_STEP < WINDOW_SIZE);
+        {
+            #[allow(dead_code)]
+            const ASSERT_SIZE_IS_GREATER_THAN_STEP: usize =
+                (WINDOW_SIZE - WINDOW_STEP - 1) as usize;
+        }
         let mut offset = 0;
         while cnt > 0 {
-            let mut visited_count = 0;
+            let mut discovered_new_tasks = false;
             let chunk: Vec<db::schema::Invocation> =
                 self.db
                     .inv_find_waiting(offset, WINDOW_SIZE, &mut |_invocation| {
-                        visited_count += 1;
                         if cnt > 0 {
+                            discovered_new_tasks = true;
+                            cnt -= 1;
                             return Ok(true);
                         }
-                        cnt -= 1;
                         Ok(false)
                     })?;
             for invocation in chunk {
@@ -53,7 +56,7 @@ impl ControllerDriver for DbDriver {
                 };
                 new_tasks.push(invoke_task);
             }
-            if visited_count == 0 {
+            if !discovered_new_tasks {
                 break;
             }
             offset += WINDOW_STEP;

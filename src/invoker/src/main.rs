@@ -18,18 +18,20 @@ fn is_cli_mode() -> bool {
     std::env::args().count() > 1
 }
 
-fn make_driver(
+fn make_sources(
     config: Arc<cfg::Config>,
-) -> anyhow::Result<Box<dyn invoker::controller::ControllerDriver>> {
+) -> anyhow::Result<Vec<Box<dyn invoker::controller::TaskSource>>> {
+    let mut sources: Vec<Box<dyn invoker::controller::TaskSource>> = Vec::new();
     if is_cli_mode() {
-        let driver = std::sync::Arc::new(invoker::drivers::SillyDriver::new());
-        invoker::drivers::enable_cli(driver.clone());
+        let source = invoker::sources::CliSource::new();
         //let driver = invoker::drivers::CliDriver::new().context("failed to setup CLI Controller Driver")?;
-        return Ok(Box::new(driver));
+        sources.push(Box::new(source));
+    } else {
+        let db_conn = db::connect_env().context("db connection failed")?;
+        let source = invoker::sources::DbSource::new(db_conn, config);
+        sources.push(Box::new(source))
     }
-    let db_conn = db::connect_env().context("db connection failed")?;
-    let driver = invoker::drivers::DbDriver::new(db_conn, config);
-    Ok(Box::new(driver))
+    Ok(sources)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     debug!("system check passed");
 
     let backend = minion::setup();
-    let driver = make_driver(config.clone()).context("failed to initialize driver")?;
+    let driver = make_sources(config.clone()).context("failed to initialize driver")?;
     let controller = invoker::controller::Controller::new(driver, backend.into(), config, 3)
         .context("failed to start controller")?;
 

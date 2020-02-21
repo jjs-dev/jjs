@@ -125,6 +125,7 @@ impl Controller {
     pub(super) fn fetch_run_info(
         &self,
         invoke_task: &InvokeTask,
+        task_source_id: usize,
     ) -> anyhow::Result<ExtendedInvokeRequest> {
         let run_root = &invoke_task.run_dir;
 
@@ -206,6 +207,7 @@ impl Controller {
             revision: invoke_task.revision,
             notifier: Notifier::new(invoke_task.status_update_callback.clone()),
             invocation_dir: invoke_task.invocation_dir.clone(),
+            task_source_id,
         };
         Ok(req)
     }

@@ -1,5 +1,5 @@
+use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
-
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
@@ -22,14 +22,16 @@ pub struct RawTestsSpec {
     pub map: String,
     pub testgen: Option<Vec<String>>,
     pub files: Option<String>,
+    #[serde(default)]
+    pub limits: pom::Limits,
 }
 
 impl RawTestsSpec {
-    fn parse_mapping_chunk(&self, ch: &str) -> Result<Vec<u32>, String> {
+    fn parse_mapping_chunk(&self, ch: &str) -> anyhow::Result<Vec<u32>> {
         if ch.contains("..") {
             let parts: Vec<_> = ch.split("..").collect();
             if parts.len() != 2 {
-                return Err("range map chunk must look like x..y".to_string());
+                bail!("range map chunk must look like x..y");
             }
             let parts: Result<Vec<_>, _> = parts.into_iter().map(|x| x.parse::<u32>()).collect();
             match parts {
@@ -37,26 +39,24 @@ impl RawTestsSpec {
                     let begin = parts[0];
                     let end = parts[1];
                     if begin > end {
-                        return Err(
-                            "range begin must be less than or equal to range end".to_string()
-                        );
+                        bail!("range begin must be less than or equal to range end");
                     }
                     let idxs: Vec<_> = std::ops::RangeInclusive::new(begin, end).collect();
                     return Ok(idxs);
                 }
                 Err(e) => {
-                    return Err(format!("couldn't parse range bound: {}", e.to_string()));
+                    bail!("couldn't parse range bound: {}", e);
                 }
             }
         }
 
         match ch.parse() {
             Ok(num) => Ok(vec![num]),
-            Err(err) => Err(format!("couldn't parse number: {}", err.to_string())),
+            Err(err) => bail!("couldn't parse number: {}", err),
         }
     }
 
-    fn parse_mapping(&self) -> Result<Vec<u32>, String> {
+    fn parse_mapping(&self) -> anyhow::Result<Vec<u32>> {
         let chunks = self.map.split(',');
         let mut out = vec![];
         for ch in chunks {
@@ -64,18 +64,16 @@ impl RawTestsSpec {
                 Ok(idxs) => {
                     out.extend(idxs.into_iter());
                 }
-                err => {
-                    return err;
-                }
+                Err(err) => bail!("failed to parse '{}': {:#}", ch, err),
             }
         }
         if !out.is_sorted() {
-            return Err("mapping is not sorted".to_string());
+            bail!("mapping is not sorted");
         }
         Ok(out)
     }
 
-    fn postprocess(&self) -> Result<Vec<(u32, TestSpec)>, String> {
+    fn postprocess(&self) -> anyhow::Result<Vec<(u32, TestSpec)>> {
         {
             let mut cnt = 0;
             if self.files.is_some() {
@@ -85,7 +83,7 @@ impl RawTestsSpec {
                 cnt += 1;
             }
             if cnt == 2 {
-                return Err("exactly one of 'files' and 'testgen' must be specified".to_string());
+                bail!("exactly one of 'files' and 'testgen' must be specified");
             }
         }
         let idxs = self.parse_mapping()?;
@@ -101,7 +99,7 @@ impl RawTestsSpec {
                         out.push((id, TestGenSpec::File { path: file }));
                     }
                     Err(err) => {
-                        return Err(format!("formatting error: {:?}", err));
+                        bail!("formatting error: {:?}", err);
                         // TODO: implement Display for formatf FormatError
                     }
                 }
@@ -119,7 +117,15 @@ impl RawTestsSpec {
         }
         let out = out
             .into_iter()
-            .map(|(id, test_gen_spec)| (id, TestSpec { gen: test_gen_spec }))
+            .map(|(id, test_gen_spec)| {
+                (
+                    id,
+                    TestSpec {
+                        gen: test_gen_spec,
+                        limits: self.limits,
+                    },
+                )
+            })
             .collect();
 
         Ok(out)
@@ -135,6 +141,7 @@ pub enum TestGenSpec {
 #[derive(Debug)]
 pub struct TestSpec {
     pub gen: TestGenSpec,
+    pub limits: pom::Limits,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -167,57 +174,53 @@ pub struct RawProblem {
 
     #[serde(rename = "valuer-cfg")]
     pub valuer_cfg: Option<String>,
+
+    #[serde(default)]
+    pub limits: pom::Limits,
 }
 
 impl RawProblem {
-    fn process_tests(&self) -> Result<Vec<TestSpec>, String> {
+    fn process_tests(&self) -> anyhow::Result<Vec<TestSpec>> {
         let mut tests = Vec::new();
         for test_spec in &self.tests {
-            let res = test_spec.postprocess();
-            match res {
-                Ok(mut new_tests) => {
-                    tests.append(&mut new_tests);
-                }
-                Err(description) => {
-                    return Err(format!(
-                        "couldn't process test description block: {}",
-                        description
-                    ));
-                }
-            }
+            let mut new_tests = test_spec
+                .postprocess()
+                .context("bad test description block")?;
+
+            tests.append(&mut new_tests);
         }
         tests.sort_by_key(|item| item.0);
         let test_ids: Vec<_> = tests.iter().map(|item| item.0).collect();
         if test_ids.is_empty() {
-            return Err("No tests specified".to_owned());
+            bail!("No tests specified");
         }
 
         for i in 1..test_ids.len() {
             if test_ids[i - 1] == test_ids[i] {
-                return Err(format!("test {} is specified more than once", test_ids[i]));
+                bail!("test {} is specified more than once", test_ids[i]);
             }
         }
         for (i, tid) in test_ids.iter().enumerate() {
             if i + 1 != *tid as usize {
-                return Err(format!("test {} is not specified", i + 1));
+                bail!("test {} is not specified", i + 1);
             }
         }
         Ok(tests.into_iter().map(|item| item.1).collect())
     }
 
-    pub fn postprocess(mut self) -> Result<(Problem, /* warnings */ Vec<String>), String> {
+    pub fn postprocess(mut self) -> anyhow::Result<(Problem, /* warnings */ Vec<String>)> {
         let mut warnings = Vec::new();
         let tests = self.process_tests()?;
 
         let random_seed = match self.random_seed.take() {
             Some(s) => {
                 if s.len() != 16 {
-                    return Err("random-seed must have length of 16".to_string());
+                    bail!("random-seed must have length16");
                 }
                 if s.chars().all(|c| c.is_ascii_hexdigit()) {
                     s.to_lowercase()
                 } else {
-                    return Err("random-seed is not hex".to_string());
+                    bail!("random-seed is not hex");
                 }
             }
             None => {
@@ -234,10 +237,7 @@ impl RawProblem {
                     let custom_check = match self.custom_check {
                         Some(cs) => cs,
                         None => {
-                            return Err(
-                                "check-type=custom specified, but [custom-check] section is absent"
-                                    .to_owned(),
-                            );
+                            bail!("check-type=custom requires [custom-check] section");
                         }
                     };
                     Check::Custom(custom_check)
@@ -246,16 +246,13 @@ impl RawProblem {
                     let builtin_check = match self.builtin_check {
                         Some(bc) => bc,
                         None => {
-                            return Err(
-                                "check-type=builtin specified, but [builtin-check] section is absent"
-                                    .to_owned()
-                            );
+                            bail!("check-type=builtin requires [builtin-check] section");
                         }
                     };
                     Check::Builtin(builtin_check)
                 }
                 other => {
-                    return Err(format!("unknown check type: {}", other));
+                    bail!("unknown check type: {}", other);
                 }
             },
             tests,
@@ -266,6 +263,7 @@ impl RawProblem {
             }),
             valuer: self.valuer,
             valuer_cfg: self.valuer_cfg,
+            limits: self.limits,
         };
 
         Ok((out, warnings))
@@ -289,4 +287,5 @@ pub struct Problem {
     pub check_options: CheckOptions,
     pub valuer: String,
     pub valuer_cfg: Option<String>,
+    pub limits: pom::Limits,
 }

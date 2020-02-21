@@ -18,7 +18,7 @@ fn lower_run(_run: &db::schema::Run, inv: &invoker_api::InvokeOutcomeHeader) -> 
     }
 }
 
-fn lower_problem(prob: &cfg::Problem) -> ranker::ProblemConfig {
+fn lower_problem(prob: &pom::Problem) -> ranker::ProblemConfig {
     // TODO: get all this stuff from problem config
     ranker::ProblemConfig {
         name: prob.title.to_string(),

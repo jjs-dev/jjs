@@ -106,10 +106,24 @@ impl Run {
     }
 
     fn problem(&self, ctx: &Context) -> Problem {
-        ctx.cfg
+        let problem_data = ctx
+            .cfg
             .find_problem(&self.problem_name)
-            .expect("problem not found")
-            .into()
+            .expect("problem not found");
+        let id = ctx
+            .cfg
+            .find_contest("TODO")
+            .unwrap()
+            .problems
+            .iter()
+            .find(|problem| problem.name == self.problem_name)
+            .expect("problem disappeared")
+            .code
+            .clone();
+        Problem {
+            title: problem_data.name.clone(),
+            id,
+        }
     }
 
     /// Returns run source as base64-encoded string

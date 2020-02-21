@@ -6,7 +6,6 @@ mod transform_judge_log;
 mod valuer;
 
 use anyhow::Context;
-use cfg::Limits;
 use compiler::{BuildOutcome, Compiler};
 use crossbeam_channel::{Receiver, Sender};
 use exec_test::{ExecRequest, TestExecutor};
@@ -34,9 +33,8 @@ pub(crate) struct Command {
 pub(crate) struct InvokeRequest {
     pub(crate) compile_commands: Vec<Command>,
     pub(crate) execute_command: Command,
-    pub(crate) compile_limits: Limits,
-    pub(crate) execute_limits: Limits,
-    pub(crate) problem_data: pom::Problem,
+    pub(crate) compile_limits: pom::Limits,
+    pub(crate) problem: pom::Problem,
     /// Path to problem dir
     pub(crate) problem_dir: PathBuf,
     /// Path to file containing run source
@@ -189,7 +187,7 @@ impl Worker {
                         self.sender.send(Response::LiveTest(tid.get())).ok();
                     }
                     let tid_u32: u32 = tid.into();
-                    let test = &req.problem_data.tests[(tid_u32 - 1u32) as usize];
+                    let test = &req.problem.tests[(tid_u32 - 1u32) as usize];
                     let judge_request = ExecRequest {
                         test,
                         test_id: tid.into(),

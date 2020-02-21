@@ -2,10 +2,10 @@
 
 use std::env;
 
-mod cfg;
 mod command;
 mod compile;
 mod import;
+mod manifest;
 
 mod args {
     use std::path::PathBuf;
@@ -101,7 +101,7 @@ fn compile_problem(args: args::CompileArgs) {
     let toplevel_manifest = args.pkg_path.join("problem.toml");
     let toplevel_manifest = std::fs::read_to_string(toplevel_manifest).unwrap();
 
-    let raw_problem_cfg: cfg::RawProblem =
+    let raw_problem_cfg: manifest::RawProblem =
         toml::from_str(&toplevel_manifest).expect("problem.toml parse error");
     let (problem_cfg, warnings) = raw_problem_cfg.postprocess().unwrap();
 

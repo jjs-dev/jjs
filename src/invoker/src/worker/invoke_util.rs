@@ -42,8 +42,8 @@ pub(crate) fn create_sandbox(
         dest: PathBuf::from("/jjs"),
         access: minion::DesiredAccess::Full,
     });
-    let limits = if test_id.is_some() {
-        req.execute_limits
+    let limits = if let Some(test_id) = test_id {
+        req.problem.tests[(test_id - 1) as usize].limits
     } else {
         req.compile_limits
     };

@@ -8,9 +8,10 @@ use std::{
 struct Importer<'a> {
     src: &'a Path,
     dest: &'a Path,
-    problem_cfg: crate::cfg::RawProblem,
+    problem_cfg: crate::manifest::RawProblem,
     known_generators: HashSet<String>,
     doc: roxmltree::Node<'a, 'a>,
+    limits: pom::Limits,
 }
 
 enum FileCategory {
@@ -45,8 +46,6 @@ impl<'a> Importer<'a> {
         let node_testset = node_judging.first_element_child().unwrap();
         assert_eq!(node_testset.tag_name().name(), "testset");
 
-        let mut memory_limit = None;
-        let mut time_limit = None;
         let mut test_pattern = None;
         let mut ans_pattern = None;
         let mut test_count = None;
@@ -59,19 +58,19 @@ impl<'a> Importer<'a> {
                     let tl = child
                         .text()
                         .unwrap()
-                        .parse::<u32>()
+                        .parse::<u64>()
                         .expect("parsing <time-limit>:");
                     println!("time limit: {} ms", tl);
-                    time_limit.replace(tl);
+                    self.limits.time.replace(tl);
                 }
                 "memory-limit" => {
                     let ml = child
                         .text()
                         .unwrap()
-                        .parse::<u32>()
+                        .parse::<u64>()
                         .expect("parsing <memory-limit>:");
                     println!("memory limit: {} bytes ({} MiBs)", ml, ml / (1 << 20));
-                    memory_limit.replace(ml);
+                    self.limits.memory.replace(ml);
                 }
                 "input-path-pattern" => {
                     let pat = child.text().unwrap().to_string();
@@ -231,10 +230,11 @@ impl<'a> Importer<'a> {
             }
             assert_eq!(test_node.tag_name().name(), "test");
             cnt += 1;
-            let mut ts = crate::cfg::RawTestsSpec {
+            let mut ts = crate::manifest::RawTestsSpec {
                 map: cnt.to_string(),
                 testgen: None,
                 files: None,
+                limits: self.limits,
             };
             let is_generated = test_node.attribute("method").unwrap() == "generated";
             if is_generated {
@@ -309,10 +309,10 @@ impl<'a> Importer<'a> {
         let m = &mut self.problem_cfg;
         m.valuer = "icpc".to_string();
         m.check_type = "builtin".to_string();
-        m.builtin_check = Some(crate::cfg::BuiltinCheck {
+        m.builtin_check = Some(crate::manifest::BuiltinCheck {
             name: "polygon-compat".to_string(),
         });
-        m.check_options = Some(crate::cfg::CheckOptions {
+        m.check_options = Some(crate::manifest::CheckOptions {
             args: vec!["assets/module-checker/bin".to_string()],
         });
         let mut random_seed = [0; 32];
@@ -383,6 +383,7 @@ pub fn exec(args: crate::args::ImportArgs) {
         problem_cfg: Default::default(),
         known_generators: HashSet::new(),
         doc: doc.root_element(),
+        limits: pom::Limits::default(),
     };
 
     importer.run();

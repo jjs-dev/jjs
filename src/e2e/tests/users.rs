@@ -34,5 +34,5 @@ fn test_unicode() {
     check_login_and_password("猫鯉", "ありがとうございまので大丈夫");
     check_login_and_password("💻🌐", "🔑");
     check_login_and_password("死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死", "死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死死");
-    check_login_and_password("𘕣𗣳"𘕪𘛏𗄐𗷔 𗙫𗟩𗓮𘔔"", "𗫮");
+    check_login_and_password("𘕣𗣳\"𘕪𘛏𗄐𗷔 𗙫𗟩𗓮𘔔\"", "𗫮");
 }

@@ -13,6 +13,8 @@ pub struct Opt {
     toolchain: String,
     #[structopt(long, short = "f")]
     filename: String,
+    #[structopt(long, short = "c")]
+    contest: String,
 }
 
 fn resolve_toolchain(client: &Client, name: &str) -> String {
@@ -69,12 +71,13 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     let data = base64::encode(&data);
 
     let tc_id = resolve_toolchain(&params.client, &opt.toolchain);
-    let (_contest, problem) = resolve_problem(&params.client, "TODO", &opt.problem);
+    let (contest, problem) = resolve_problem(&params.client, &opt.contest, &opt.problem);
 
     let vars = crate::queries::submit::Variables {
         toolchain: tc_id,
         code: data,
         problem,
+        contest,
     };
 
     let resp = params

@@ -264,17 +264,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa87058dce70a3ff5621797f1506cb837edd02ac4c0ae642b4542dce802908b8"
 
 [[package]]
-name = "cfg"
-version = "0.1.0"
-dependencies = [
- "pom",
- "serde",
- "serde_derive",
- "serde_json",
- "toml 0.5.6",
-]
-
-[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -779,6 +768,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "entity"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "either",
+ "pom",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -919,10 +919,12 @@ dependencies = [
 name = "frontend"
 version = "0.1.0"
 dependencies = [
- "cfg",
+ "anyhow",
  "db",
  "dotenv",
+ "entity",
  "frontend-engine",
+ "problem-loader",
  "rocket",
  "slog-scope",
  "util",
@@ -958,16 +960,17 @@ dependencies = [
  "backtrace",
  "base64 0.11.0",
  "branca",
- "cfg",
  "constant_time_eq",
  "db",
  "digest",
+ "entity",
  "invoker-api",
  "juniper",
  "juniper_rocket",
  "libc",
  "my_internet_ip",
  "pom",
+ "problem-loader",
  "rand 0.7.3",
  "rand_chacha 0.2.1",
  "ranker",
@@ -1438,18 +1441,19 @@ dependencies = [
  "atty",
  "base64 0.11.0",
  "bitflags",
- "cfg",
  "chrono",
  "color-backtrace",
  "crossbeam-channel",
  "db",
  "dotenv",
+ "entity",
  "fs_extra",
  "invoker-api",
  "libc",
  "minion",
  "nix 0.16.1",
  "pom",
+ "problem-loader",
  "reqwest",
  "serde",
  "serde_json",
@@ -1629,6 +1633,12 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae91b68aebc4ddb91978b11a1b02ddd8602a05ec19002801c5666000e05e0f83"
 
 [[package]]
 name = "lock_api"
@@ -2214,6 +2224,15 @@ dependencies = [
  "ctor",
  "difference",
  "output_vt100",
+]
+
+[[package]]
+name = "problem-loader"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pom",
+ "serde_json",
 ]
 
 [[package]]
@@ -2809,9 +2828,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.44"
+version = "1.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48c575e0cc52bdd09b47f330f646cf59afc586e9c4e3ccd6fc1f625b8ea1dad7"
+checksum = "9371ade75d4c2d6cb154141b9752cf3781ec9c05e0e5cf35060e1e70ee7b9c25"
 dependencies = [
  "itoa",
  "ryu",
@@ -2828,6 +2847,18 @@ dependencies = [
  "itoa",
  "serde",
  "url 2.1.1",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "691b17f19fc1ec9d94ec0b5864859290dff279dbd7b03f017afda54eb36c3c35"
+dependencies = [
+ "dtoa",
+ "linked-hash-map",
+ "serde",
+ "yaml-rust",
 ]
 
 [[package]]
@@ -3640,8 +3671,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "atty",
+ "entity",
  "libsystemd",
  "log 0.4.8",
+ "problem-loader",
  "reqwest",
  "slog",
  "slog-envlogger",
@@ -3912,6 +3945,15 @@ name = "xmlparser"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b16981128b9e811347d0e72c25b2b22773da22b6dc30282846ad50427e89ba97"
+
+[[package]]
+name = "yaml-rust"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65923dd1784f44da1d2c3dbbc5e822045628c590ba72123e1c73d3c230c4434d"
+dependencies = [
+ "linked-hash-map",
+]
 
 [[package]]
 name = "yansi"

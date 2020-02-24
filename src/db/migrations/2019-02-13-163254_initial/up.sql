@@ -32,8 +32,9 @@ CREATE TABLE runs
     id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
     toolchain_id VARCHAR(100)                                               NOT NULL,
     problem_id   VARCHAR(100)                                               NOT NULL,
-    rejudge_id   unsigned_integer                                           NOT NULL,
-    user_id      UUID REFERENCES users (id)                                 NOT NULL
+    rejudge_id   unsigned_integer                                            NOT NULL,
+    user_id          UUID REFERENCES users (id)                      NOT NULL,
+    contest_id    VARCHAR(100)                                                NOT NULL
 );
 
 CREATE UNIQUE INDEX runs_id_unique_index ON runs (id);

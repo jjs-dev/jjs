@@ -1,0 +1,21 @@
+title: C
+name: gcc
+filename: "source.c"
+
+build-limits:
+  time: 6000
+
+build:
+  - argv:
+      - "{{ env_GCC }}"
+      - "$(Run.SourceFilePath)"
+      - "-o"
+      - "$(Run.BinaryFilePath)"
+      - "-std=c11"
+      - "-Wextra"
+      - "-Wpedantic"
+      - "-DONLINE_JUDGE"
+
+run:
+  argv:
+    - "$(Run.BinaryFilePath)"

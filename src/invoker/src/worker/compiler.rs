@@ -11,7 +11,6 @@ pub(crate) enum BuildOutcome {
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a InvokeRequest,
-    //pub(crate) minio
 }
 
 impl<'a> Compiler<'a> {

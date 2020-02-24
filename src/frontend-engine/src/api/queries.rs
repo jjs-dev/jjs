@@ -49,6 +49,12 @@ impl Query {
         misc::get_contests(ctx)
     }
 
+    /// Get contest by name
+    /// If contest with this name does not exists, `null` is returned
+    fn contest(ctx: &Context, name: String) -> ApiResult<Option<schema::Contest>> {
+        misc::get_contest(ctx, &name)
+    }
+
     /// Get standings as JSON-encoded string
     fn standings_simple(ctx: &Context) -> ApiResult<String> {
         monitor::get_standings(ctx)
@@ -62,7 +68,7 @@ impl Mutation {
         toolchain(description = "toolchain ID"),
         run_code(description = "run code, base64-encoded"),
         problem(description = "problem ID"),
-        contest(description = "contest ID (currently only contest=\"TODO\" is supported)")
+        contest(description = "contest ID")
     ))]
     fn submit_simple(
         ctx: &Context,

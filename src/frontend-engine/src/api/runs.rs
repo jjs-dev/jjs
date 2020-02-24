@@ -15,15 +15,14 @@ pub(crate) struct Run {
 
 impl Run {
     fn data_dir(&self, ctx: &Context) -> PathBuf {
-        ctx.cfg
-            .sysroot
-            .join("var/submissions")
-            .join(format!("s-{}", self.id))
+        ctx.data_dir
+            .join("var/runs")
+            .join(format!("run.{}", self.id))
     }
 
     fn last_invoke_dir(&self, ctx: &Context) -> ApiResult<PathBuf> {
         let rejudge_id = self.lookup(ctx)?.rejudge_id;
-        let f = format!("i-{}", rejudge_id);
+        let f = format!("inv.{}", rejudge_id);
         Ok(self.data_dir(ctx).join(f))
     }
 
@@ -92,7 +91,7 @@ impl Run {
 
     fn toolchain(&self, ctx: &Context) -> schema::Toolchain {
         ctx.cfg
-            .find_toolchain(&self.toolchain_name)
+            .find::<entity::Toolchain>(&self.toolchain_name)
             .expect("toolchain not found")
             .into()
     }
@@ -107,12 +106,13 @@ impl Run {
 
     fn problem(&self, ctx: &Context) -> Problem {
         let problem_data = ctx
-            .cfg
-            .find_problem(&self.problem_name)
-            .expect("problem not found");
+            .problem_loader
+            .find(&self.problem_name)
+            .expect("problem not found")
+            .0;
         let id = ctx
             .cfg
-            .find_contest("TODO")
+            .find::<entity::Contest>("TODO")
             .unwrap()
             .problems
             .iter()
@@ -244,23 +244,24 @@ pub(super) fn submit_simple(
     contest: schema::ContestId,
 ) -> ApiResult<Run> {
     use db::schema::NewInvocation;
-    let toolchain = ctx.cfg.toolchains.iter().find(|t| t.name == toolchain);
+    let toolchain = ctx.cfg.find::<entity::Toolchain>(&toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
         None => return Err(ApiError::new(ctx, "ToolchainUnknown")),
     };
-    if contest != "TODO" {
-        return Err(ApiError::new(ctx, "ContestUnknown"));
-    }
+    let contest: &entity::Contest = match ctx.cfg.find(&contest) {
+        Some(ent) => ent,
+        None => return Err(ApiError::new(ctx, "ContestUnknown")),
+    };
     if !ctx
         .access()
-        .wrap_contest(contest)
+        .wrap_contest(contest.id.clone())
         .can_submit()
         .internal(ctx)?
     {
         return Err(ApiError::access_denied(ctx));
     }
-    let problem = ctx.cfg.contests[0]
+    let problem = contest
         .problems
         .iter()
         .find(|pr| pr.code == problem)
@@ -276,16 +277,16 @@ pub(super) fn submit_simple(
         problem_id: prob_name,
         rejudge_id: 0,
         user_id: ctx.token.user_id(),
+        contest_id: contest.id.to_string(),
     };
 
     let run = ctx.db.run_new(new_run).internal(ctx)?;
 
     // Put run in sysroot
     let run_dir = ctx
-        .cfg
-        .sysroot
-        .join("var/submissions")
-        .join(&format!("s-{}", run.id));
+        .data_dir
+        .join("var/runs")
+        .join(&format!("run.{}", run.id));
     std::fs::create_dir(&run_dir).internal(ctx)?;
     let submission_src_path = run_dir.join("source");
     let decoded_code = base64::decode(&code).report(ctx)?;

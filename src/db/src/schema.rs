@@ -7,6 +7,7 @@ pub type RunId = i32;
 pub type InvocationId = i32;
 pub type UserId = uuid::Uuid;
 pub type ProblemId = String;
+pub type ContestId = String;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable, PartialEq, Eq)]
 pub struct Run {
@@ -15,6 +16,7 @@ pub struct Run {
     pub problem_id: ProblemId,
     pub rejudge_id: i32,
     pub user_id: UserId,
+    pub contest_id: ContestId,
 }
 
 #[derive(Insertable)]
@@ -24,6 +26,7 @@ pub struct NewRun {
     pub problem_id: ProblemId,
     pub rejudge_id: i32,
     pub user_id: UserId,
+    pub contest_id: ContestId,
 }
 
 #[derive(AsChangeset, Default)]

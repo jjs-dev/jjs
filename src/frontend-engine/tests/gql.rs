@@ -30,13 +30,28 @@ query GetApiVersion {
 #[test]
 fn test_runs_ops() {
     let env = common::EnvBuilder::new()
-        .toolchain(cfg::Toolchain {
+        .toolchain(entity::Toolchain {
             title: "C++".to_string(),
             name: "cpp".to_string(),
             filename: "source.cpp".to_string(),
             build_commands: vec![],
             run_command: Default::default(),
             limits: Default::default(),
+            env: std::collections::HashMap::new(),
+            env_blacklist: vec![],
+            env_passing: true,
+        })
+        .contest(entity::Contest {
+            anon_visible: true,
+            title: "test contest".to_string(),
+            id: "main".to_string(),
+            problems: vec![entity::entities::contest::ProblemBinding {
+                name: "a-plus-b".to_string(),
+                code: "A".to_string(),
+            }],
+            group: vec!["Participants".to_string()],
+            judges: vec!["Judges".to_string()],
+            unregistered_visible: true,
         })
         .build("runs_ops");
 
@@ -64,8 +79,8 @@ query GetNonExistingRun {
 #include <cstdio>
 int main() {
     int a, b;
-    scanf(" % d % d", &a, &b);
-    printf(" % d", a + b);
+    scanf("%d %d", &a, &b);
+    printf("%d", a + b);
 }
 "#;
     let run_encoded = base64::encode(RUN_TEXT);
@@ -75,7 +90,7 @@ int main() {
         .operation(
             r#"
 mutation CreateRun($runCode: String!) {
-    submitSimple(toolchain: "cpp", runCode: $runCode, problem: "A", contest: "TODO") {
+    submitSimple(toolchain: "cpp", runCode: $runCode, problem: "A", contest: "main") {
         id
     }
 }

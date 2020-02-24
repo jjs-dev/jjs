@@ -5,9 +5,16 @@ pub use test_util::check_error;
 
 use std::{env::temp_dir, path::PathBuf, sync::Arc};
 
-#[derive(Default)]
 pub struct EnvBuilder {
-    toolchains: Vec<cfg::Toolchain>,
+    inner: Option<entity::loader::LoaderBuilder>,
+}
+
+impl Default for EnvBuilder {
+    fn default() -> Self {
+        EnvBuilder {
+            inner: Some(entity::loader::LoaderBuilder::new()),
+        }
+    }
 }
 
 impl EnvBuilder {
@@ -15,18 +22,28 @@ impl EnvBuilder {
         Default::default()
     }
 
-    pub fn toolchain(&mut self, tc: cfg::Toolchain) -> &mut Self {
-        self.toolchains.push(tc);
+    fn get(&mut self) -> &mut entity::loader::LoaderBuilder {
+        self.inner
+            .as_mut()
+            .expect("EnvBuilder can not be used more than once")
+    }
+
+    pub fn toolchain(&mut self, tc: entity::Toolchain) -> &mut Self {
+        self.get().put(tc);
         self
     }
 
-    pub fn build(&self, name: &str) -> Env {
+    pub fn contest(&mut self, contest: entity::Contest) -> &mut Self {
+        self.get().put(contest);
+        self
+    }
+
+    pub fn build(&mut self, name: &str) -> Env {
         util::log::setup();
         // TODO partially duplicates ApiServer::create_embedded()
         let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
 
         let path = temp_dir().join(format!("jjs-fr-eng-integ-test-{}", name));
-        let path = path.to_str().expect("os temp dir is not utf8").to_string();
 
         std::fs::remove_dir_all(&path).ok();
         std::fs::create_dir(&path).expect("failed create dir for sysroot");
@@ -36,7 +53,7 @@ impl EnvBuilder {
         setup::setup(
             &setup::SetupParams {
                 toolchains: false,
-                data_dir: Some(path.clone().into()),
+                data_dir: Some(path.clone()),
                 config: None,
                 db: None,
                 // dummy value can be used because we don't setup db
@@ -50,9 +67,10 @@ impl EnvBuilder {
 
         runner.exit_if_errors();
 
-        let contest = cfg::Contest {
+        let contest = entity::Contest {
+            id: "main".to_string(),
             title: "DEV CONTEST".to_string(),
-            problems: vec![cfg::ProblemBinding {
+            problems: vec![entity::entities::contest::ProblemBinding {
                 name: "dev-problem".to_string(),
                 code: "A".to_string(),
             }],
@@ -62,17 +80,8 @@ impl EnvBuilder {
             judges: Vec::new(),
         };
 
-        let config = cfg::Config {
-            toolchains: self.toolchains.clone(),
-            sysroot: PathBuf::from(path),
-            install_dir: Default::default(),
-            toolchain_root: "".to_string(),
-            global_env: Default::default(),
-            env_passing: false,
-            env_blacklist: vec![],
-            contests: vec![contest],
-            problems: Default::default(),
-        };
+        self.get().put(contest);
+
         let secret = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE");
         let frontend_config = config::FrontendConfig {
             port: 0,
@@ -84,7 +93,16 @@ impl EnvBuilder {
             addr: Some("127.0.0.1".to_string()),
         };
 
-        let rock = ApiServer::create(frontend_config, &config, db_conn);
+        let rock = ApiServer::create(
+            frontend_config,
+            self.inner
+                .take()
+                .expect("EnvBuilder can not be used more than once")
+                .into_inner(),
+            db_conn,
+            problem_loader::Loader::empty(),
+            &path,
+        );
         Env {
             client: rocket::local::Client::new(rock).unwrap(),
         }

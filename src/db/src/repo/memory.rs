@@ -46,6 +46,7 @@ impl RunsRepo for MemoryRepo {
             problem_id: run_data.problem_id,
             rejudge_id: run_data.rejudge_id,
             user_id: run_data.user_id,
+            contest_id: run_data.contest_id,
         };
         data.runs.push(Some(run.clone()));
         Ok(run)
@@ -229,6 +230,7 @@ mod tests {
                 problem_id: "quux".to_string(),
                 rejudge_id: 33,
                 user_id: john_id,
+                contest_id: "olymp".to_string(),
             };
             let inserted_run = repo.run_new(new_run).unwrap();
             assert_eq!(inserted_run.id, 0);
@@ -244,6 +246,7 @@ mod tests {
                 problem_id: "0".to_string(),
                 rejudge_id: 0,
                 user_id: uuid::Uuid::new_v4(),
+                contest_id: "cntst".to_string(),
             };
             repo.run_new(new_run).unwrap();
             let patch = RunPatch {

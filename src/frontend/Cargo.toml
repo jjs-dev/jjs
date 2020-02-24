@@ -7,8 +7,10 @@ edition = "2018"
 [dependencies]
 frontend-engine = {path = "../frontend-engine"}
 rocket = "0.4.2"
-cfg = {path = "../cfg"}
+entity = {path = "../entity"}
 db = {path = "../db"}
 dotenv = "0.15.0"
 util = {path = "../util"}
 slog-scope = "4.3.0"
+problem-loader = {path = "../problem-loader"}
+anyhow = "1.0.26"

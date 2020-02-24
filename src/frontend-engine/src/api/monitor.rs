@@ -29,19 +29,8 @@ fn lower_problem(prob: &pom::Problem) -> ranker::ProblemConfig {
 }
 
 pub(super) fn get_standings(ctx: &Context) -> ApiResult<String> {
-    // let runs = ctx.db.run_select(None, None).internal(ctx)?;
-    let runs = ctx.db.load_runs_with_last_invocations().internal(ctx)?; //; runs.iter().map(lower_run).collect::<Vec<_>>();
-    //
-    /*let ranker_runs: Vec<_> = runs
-        .into_iter()
-        .map(|(r, inv)| {
-            Result::<ranker::Run, ApiError>::Ok(lower_run(
-                &r,
-                &inv.invoke_outcome_header().internal(ctx)?,
-            ))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    */
+    let runs = ctx.db.load_runs_with_last_invocations().internal(ctx)?;
+
     let mut ranker_runs = Vec::new();
     for (db_run, db_inv) in runs {
         let headers = db_inv.invoke_outcome_headers().internal(ctx)?;
@@ -55,16 +44,15 @@ pub(super) fn get_standings(ctx: &Context) -> ApiResult<String> {
         ranker_runs.push(lower_run(&db_run, &header));
     }
     let mut ranker_problems = ctx
-        .cfg
-        .problems
-        .iter()
-        .map(|(prob_name, prob_cfg)| (prob_name.clone(), lower_problem(prob_cfg)))
+        .problem_loader
+        .list()
+        .map(|problem| (lower_problem(problem.0)))
         .collect::<Vec<_>>();
 
-    ranker_problems.sort_by(|k1, k2| k1.0.cmp(&k2.0));
+    ranker_problems.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
 
     let mut ranker_problems_with_id = Vec::new();
-    for (i, prob_cfg) in ranker_problems.into_iter().map(|x| x.1).enumerate() {
+    for (i, prob_cfg) in ranker_problems.into_iter().map(|x| x).enumerate() {
         let id = NonZeroU32::new((i + 1).try_into().unwrap()).unwrap();
         ranker_problems_with_id.push((ranker::ProblemId(id), prob_cfg));
     }

@@ -129,18 +129,7 @@ pub struct ApiServer {}
 impl ApiServer {
     pub fn create_embedded() -> Rocket {
         let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
-
-        let config = cfg::Config {
-            toolchains: vec![],
-            sysroot: Default::default(),
-            install_dir: Default::default(),
-            toolchain_root: "".to_string(),
-            global_env: Default::default(),
-            env_passing: false,
-            env_blacklist: vec![],
-            contests: vec![],
-            problems: Default::default(),
-        };
+        let builder = entity::loader::LoaderBuilder::new();
         let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE")
             .into_boxed_slice()
             .into();
@@ -155,7 +144,13 @@ impl ApiServer {
             db_conn: db_conn.clone(),
         };
 
-        Self::create(frontend_config, &config, db_conn)
+        Self::create(
+            frontend_config,
+            builder.into_inner(),
+            db_conn,
+            problem_loader::Loader::empty(),
+            std::path::Path::new("/tmp/jjs"),
+        )
     }
 
     pub fn get_schema() -> String {
@@ -165,8 +160,10 @@ impl ApiServer {
 
     pub fn create(
         frontend_config: config::FrontendConfig,
-        config: &cfg::Config,
+        entity_loader: entity::Loader,
         pool: DbPool,
+        problem_loader: problem_loader::Loader,
+        data_dir: &std::path::Path,
     ) -> Rocket {
         let rocket_cfg_env = match frontend_config.env {
             config::Env::Prod => rocket::config::Environment::Production,
@@ -188,8 +185,10 @@ impl ApiServer {
 
         let graphql_context_factory = api::ContextFactory {
             pool: Arc::clone(&pool),
-            cfg: Arc::new(config.clone()),
+            cfg: Arc::new(entity_loader),
             fr_cfg: Arc::new(frontend_config.clone()),
+            problem_loader: Arc::new(problem_loader),
+            data_dir: data_dir.into(),
         };
 
         let graphql_schema = api::Schema::new(api::Query, api::Mutation);

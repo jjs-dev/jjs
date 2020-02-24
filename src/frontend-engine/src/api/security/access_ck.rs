@@ -6,7 +6,7 @@ use snafu::Snafu;
 #[derive(Copy, Clone)]
 pub(crate) struct RawAccessChecker<'a> {
     pub(crate) token: &'a Token,
-    pub(crate) cfg: &'a cfg::Config,
+    pub(crate) cfg: &'a entity::Loader,
     pub(crate) db: &'a dyn db::DbConn,
 }
 
@@ -59,15 +59,13 @@ impl From<db::Error> for AccessCheckError {
 pub(crate) type AccessResult = Result<bool, AccessCheckError>;
 
 impl AccessChecker<'_, ack_subject::Run> {
-    fn for_contest(&self) -> AccessChecker<ack_subject::Contest> {
-        self.raw.wrap_contest(
-            // TODO: correctly determine contest_id here
-            "TODO".to_string(),
-        )
+    fn for_contest(&self) -> Result<AccessChecker<ack_subject::Contest>, AccessCheckError> {
+        let run = self.raw.db.run_load(self.obj.0)?;
+        Ok(self.raw.wrap_contest(run.contest_id))
     }
 
     pub(crate) fn can_modify_run(&self) -> AccessResult {
-        if self.for_contest().is_contest_sudo()? {
+        if self.for_contest()?.is_contest_sudo()? {
             return Ok(true);
         }
         let run = self.raw.db.run_load(self.obj.0)?;
@@ -81,7 +79,7 @@ impl AccessChecker<'_, ack_subject::Contest> {
         let contest = self
             .raw
             .cfg
-            .find_contest(&self.obj.0)
+            .find::<entity::Contest>(&self.obj.0)
             .ok_or(AccessCheckError::NotFound)?;
         if self.is_contest_sudo()? {
             return Ok(true);
@@ -101,7 +99,7 @@ impl AccessChecker<'_, ack_subject::Contest> {
         let contest = self
             .raw
             .cfg
-            .find_contest(&self.obj.0)
+            .find::<entity::Contest>(&self.obj.0)
             .ok_or(AccessCheckError::NotFound)?;
         for judges_group in &contest.judges {
             if self.raw.token.user_info.groups.contains(judges_group) {

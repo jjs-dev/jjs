@@ -6,10 +6,12 @@ pub(crate) type DbPool = Arc<dyn db::DbConn>;
 //TODO: Do not clone Context on every request
 pub(crate) struct ContextData {
     pub(crate) db: DbPool,
-    pub(crate) cfg: Arc<cfg::Config>,
+    pub(crate) cfg: Arc<entity::Loader>,
     pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
     pub(crate) token_mgr: TokenMgr,
     pub(crate) token: Token,
+    pub(crate) problem_loader: Arc<problem_loader::Loader>,
+    pub(crate) data_dir: Arc<std::path::Path>,
     global: Arc<Mutex<crate::global::GlobalState>>,
 }
 
@@ -89,6 +91,8 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             token_mgr,
             token,
             global: (*global).clone(),
+            problem_loader: factory.problem_loader.clone(),
+            data_dir: factory.data_dir.clone(),
         })
     }
 }
@@ -107,8 +111,10 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
 
 pub(crate) struct ContextFactory {
     pub(crate) pool: DbPool,
-    pub(crate) cfg: Arc<cfg::Config>,
+    pub(crate) cfg: Arc<entity::Loader>,
     pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
+    pub(crate) problem_loader: Arc<problem_loader::Loader>,
+    pub(crate) data_dir: Arc<std::path::Path>,
 }
 
 impl ContextFactory {
@@ -127,6 +133,8 @@ impl ContextFactory {
             token,
             global: Arc::new(Mutex::new(crate::global::GlobalState::new())),
             fr_cfg: self.fr_cfg.clone(),
+            problem_loader: self.problem_loader.clone(),
+            data_dir: self.data_dir.clone(),
         }
     }
 }

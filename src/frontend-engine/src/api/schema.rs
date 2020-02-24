@@ -34,8 +34,8 @@ pub(crate) struct Toolchain {
     pub id: ToolchainId,
 }
 
-impl<'a> From<&'a cfg::Toolchain> for Toolchain {
-    fn from(tc: &'a cfg::Toolchain) -> Self {
+impl<'a> From<&'a entity::entities::toolchain::Toolchain> for Toolchain {
+    fn from(tc: &'a entity::entities::toolchain::Toolchain) -> Self {
         Self {
             name: tc.title.clone(),
             id: tc.name.clone(),

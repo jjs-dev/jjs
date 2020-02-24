@@ -7,7 +7,7 @@ fn submit(code: &str) -> i32 {
         .operation(
             r#"
 mutation Submit($runCode: String!) {
-  submitSimple(toolchain: "g++", problem: "A", runCode: $runCode, contest: "TODO") {
+  submitSimple(toolchain: "g++", problem: "A", runCode: $runCode, contest: "trial") {
     id
   }
 }
@@ -134,13 +134,7 @@ mutation DeleteRun($runId: Int!) {
         .into_iter()
         .next()
         .unwrap();
-    assert!(
-        err.pointer("/extensions/errorCode")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("AccessDenied")
-    );
+    frontend_engine::test_util::check_error(&err, "AccessDenied");
 }
 
 #[test]

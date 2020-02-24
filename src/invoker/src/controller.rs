@@ -127,16 +127,19 @@ pub struct Controller {
     workers: Vec<WorkerInfo>,
     sources: Vec<Box<dyn TaskSource>>,
     minion: Arc<dyn minion::Backend>,
-    config: Arc<cfg::Config>,
+    entity_loader: Arc<entity::Loader>,
     stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
+    problem_loader: Arc<problem_loader::Loader>,
+    global_files_dir: Arc<Path>,
+    toolchains_dir: Arc<Path>,
 }
 
 impl Controller {
     pub fn new(
         sources: Vec<Box<dyn TaskSource>>,
         minion: Arc<dyn minion::Backend>,
-        config: Arc<cfg::Config>,
+        cfg_data: util::cfg::CfgData,
         worker_count: usize,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();
@@ -147,21 +150,24 @@ impl Controller {
                 let w = Worker::new(res_tx, req_rx);
                 w.main_loop();
             });
-            let inf = WorkerInfo {
+            let info = WorkerInfo {
                 state: WorkerState::Idle,
                 receiver: res_rx,
                 sender: req_tx,
             };
-            workers.push(inf);
+            workers.push(info);
         }
 
         Ok(Controller {
             sources,
             minion,
             workers,
-            config,
+            entity_loader: Arc::new(cfg_data.entity_loader),
+            problem_loader: Arc::new(cfg_data.problem_loader),
             stop_flag: Arc::new(AtomicBool::new(false)),
             queues: Arc::new(ControllerQueues::new()),
+            global_files_dir: cfg_data.install_dir.to_path_buf().into(),
+            toolchains_dir: cfg_data.data_dir.join("opt").into(),
         })
     }
 
@@ -284,6 +290,10 @@ impl Controller {
         };
         match msg {
             Response::Invoke(outcome) => {
+                self.copy_invocation_data_dir_to_shared_fs(
+                    &req.inner.out_dir,
+                    &req.invocation_dir,
+                )?;
                 self.queues.publish().push_back((outcome, *req));
             }
             Response::LiveScore(score) => {
@@ -346,7 +356,7 @@ impl Controller {
             None => return Ok(false),
         };
         debug!(
-            "Publising: InvokeOutcome {:?} ExtendedInvokeRequest {:?}",
+            "Publising: InvokeOutcome {:?} {:?}",
             &invoke_outcome, &ext_inv_req
         );
         let reason = match invoke_outcome {

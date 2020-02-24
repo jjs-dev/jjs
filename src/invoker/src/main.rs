@@ -1,6 +1,5 @@
 use anyhow::{bail, Context};
 use slog_scope::debug;
-use std::sync::Arc;
 
 fn check_system() -> anyhow::Result<()> {
     if let Some(err) = minion::check() {
@@ -19,7 +18,7 @@ fn is_cli_mode() -> bool {
 }
 
 fn make_sources(
-    config: Arc<cfg::Config>,
+    cfg_data: &util::cfg::CfgData,
 ) -> anyhow::Result<Vec<Box<dyn invoker::controller::TaskSource>>> {
     let mut sources: Vec<Box<dyn invoker::controller::TaskSource>> = Vec::new();
     if is_cli_mode() {
@@ -28,7 +27,7 @@ fn make_sources(
         sources.push(Box::new(source));
     } else {
         let db_conn = db::connect_env().context("db connection failed")?;
-        let source = invoker::sources::DbSource::new(db_conn, config);
+        let source = invoker::sources::DbSource::new(db_conn, cfg_data);
         sources.push(Box::new(source))
     }
     Ok(sources)
@@ -42,13 +41,13 @@ fn main() -> anyhow::Result<()> {
     util::log::setup();
     util::wait::wait();
 
-    let config = Arc::new(cfg::get_config());
+    let config = util::cfg::load_cfg_data()?;
 
     check_system().context("system configuration problem")?;
     debug!("system check passed");
 
     let backend = minion::setup();
-    let driver = make_sources(config.clone()).context("failed to initialize driver")?;
+    let driver = make_sources(&config).context("failed to initialize driver")?;
     let controller = invoker::controller::Controller::new(driver, backend.into(), config, 3)
         .context("failed to start controller")?;
 

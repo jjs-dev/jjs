@@ -9,15 +9,6 @@ pub(crate) struct Problem {
     pub id: ProblemId,
 }
 
-impl<'a> From<&'a cfg::Problem> for Problem {
-    fn from(p: &'a cfg::Problem) -> Self {
-        Self {
-            title: p.title.clone(),
-            id: p.code.clone(),
-        }
-    }
-}
-
 pub(crate) struct Contest {
     pub title: String,
     pub id: ContestId,
@@ -41,7 +32,12 @@ impl Contest {
             .problems
             .iter()
             .map(|p| Problem {
-                title: p.title.clone(),
+                title: ctx
+                    .cfg
+                    .find_problem(&p.name)
+                    .expect("problem not found")
+                    .title
+                    .clone(),
                 id: p.code.clone(),
             })
             .collect()

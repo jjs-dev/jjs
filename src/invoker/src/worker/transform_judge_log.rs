@@ -63,7 +63,7 @@ impl Worker {
                 };
                 let test_local_dir = req.step_dir(Some(item.test_id.get()));
                 if item.components.contains(TestVisibleComponents::TEST_DATA) {
-                    let test_file = &req.problem_data.tests[item.test_id].path;
+                    let test_file = &req.problem.tests[item.test_id].path;
                     let test_file = req.resolve_asset(&test_file);
                     let test_data = std::fs::read(test_file).context("failed to read test data")?;
                     let test_data = base64::encode(&test_data);
@@ -83,7 +83,7 @@ impl Worker {
                     new_item.test_stderr = Some(sol_stderr);
                 }
                 if item.components.contains(TestVisibleComponents::ANSWER) {
-                    let answer_ref = &req.problem_data.tests[item.test_id].correct;
+                    let answer_ref = &req.problem.tests[item.test_id].correct;
                     if let Some(answer_ref) = answer_ref {
                         let answer_file = req.resolve_asset(answer_ref);
                         let answer =

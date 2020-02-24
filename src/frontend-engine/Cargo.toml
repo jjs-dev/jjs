@@ -5,6 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
+pom = {path = "../pom"}
 digest = "0.8.1"
 db = {path = "../db"}
 rand = "0.7.3"

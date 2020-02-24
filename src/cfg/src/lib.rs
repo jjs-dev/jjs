@@ -10,52 +10,6 @@ use std::{
     process::exit,
 };
 
-#[derive(Deserialize, Debug, Clone, Copy)]
-pub struct Limits {
-    /// Memory limit in bytes
-    pub memory: Option<u64>,
-    /// Time limit in milliseconds
-    pub time: Option<u64>,
-    /// Process count limit
-    pub process_count: Option<u64>,
-}
-
-impl Limits {
-    fn default_num_procs() -> u64 {
-        16
-    }
-
-    fn default_memory() -> u64 {
-        256 * 1024 * 1024
-    }
-
-    fn default_time() -> u64 {
-        3000
-    }
-
-    pub fn time(self) -> u64 {
-        self.time.unwrap_or_else(Self::default_time)
-    }
-
-    pub fn memory(self) -> u64 {
-        self.memory.unwrap_or_else(Self::default_memory)
-    }
-
-    pub fn process_count(self) -> u64 {
-        self.process_count.unwrap_or_else(Self::default_num_procs)
-    }
-}
-
-impl Default for Limits {
-    fn default() -> Limits {
-        Limits {
-            memory: Some(Limits::default_memory()),
-            time: Some(Limits::default_time()),
-            process_count: Some(Limits::default_num_procs()),
-        }
-    }
-}
-
 #[derive(Deserialize, Default, Debug, Clone)]
 pub struct Command {
     #[serde(default = "Command::default_env")]
@@ -93,23 +47,16 @@ pub struct Toolchain {
     pub run_command: Command,
 
     #[serde(rename = "build-limits", default)]
-    pub limits: Limits,
+    pub limits: pom::Limits,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct Problem {
+pub struct ProblemBinding {
+    /// Problem unique ID
     pub name: String,
 
+    /// Problem ID in contest
     pub code: String,
-
-    #[serde(default)]
-    pub limits: Limits,
-
-    #[serde(skip)]
-    pub title: String,
-
-    #[serde(skip)]
-    pub loaded: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -118,7 +65,7 @@ pub struct Contest {
 
     /// Information about problems, not related to judging
     /// process (which is controlled by problem itself)
-    pub problems: Vec<Problem>,
+    pub problems: Vec<ProblemBinding>,
 
     /// List of groups of judges
     /// Judges will have full capabilities in this contest
@@ -163,7 +110,7 @@ pub struct Config {
     pub contests: Vec<Contest>,
 
     #[serde(skip)]
-    pub problems: HashMap<String, Problem>,
+    pub problems: HashMap<String, pom::Problem>,
 }
 
 impl Config {
@@ -201,7 +148,7 @@ impl Config {
         None
     }
 
-    pub fn find_problem(&self, name: &str) -> Option<&Problem> {
+    pub fn find_problem(&self, name: &str) -> Option<&pom::Problem> {
         self.problems.get(name)
     }
 
@@ -277,11 +224,11 @@ pub fn get_config() -> Config {
                 .join(&problem.name)
                 .join("manifest.json");
 
-            let problem_manifest_file = match fs::File::open(&problem_manifest_path) {
-                Ok(reader) => reader,
+            let problem_manifest = match fs::read(&problem_manifest_path) {
+                Ok(data) => data,
                 Err(err) => {
                     eprintln!(
-                        "Error: couldn't open manifest {} for problem {}: {}",
+                        "Error: couldn't read manifest {} for problem {}: {}",
                         problem_manifest_path.display(),
                         &problem.name,
                         err
@@ -290,11 +237,8 @@ pub fn get_config() -> Config {
                 }
             };
 
-            let problem_manifest: pom::Problem =
-                serde_json::from_reader(std::io::BufReader::new(problem_manifest_file)).unwrap();
-            problem.title = problem_manifest.title;
-            problem.loaded = true;
-            c.problems.insert(problem.name.clone(), problem.clone());
+            let problem_manifest: pom::Problem = serde_json::from_slice(&problem_manifest).unwrap();
+            c.problems.insert(problem.name.clone(), problem_manifest);
         }
         c.contests.push(contest);
     }

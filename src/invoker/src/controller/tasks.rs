@@ -2,27 +2,9 @@
 use super::{notify::Notifier, Controller, ExtendedInvokeRequest};
 use crate::worker::{self, InvokeRequest};
 use anyhow::Context;
-use cfg::Limits;
 use invoker_api::InvokeTask;
 use std::{collections::HashMap, fs, path::PathBuf};
 use uuid::Uuid;
-
-fn merge_option<T: Copy>(place: &mut Option<T>, other: Option<T>) {
-    if let Some(x) = other {
-        place.replace(x);
-    }
-}
-
-/// Merges several `Limits` object. Last element of slice will have maxinal proirity.
-fn merge_limits(limits_set: &[Limits]) -> Limits {
-    let mut res = Limits::default();
-    for lim in limits_set {
-        merge_option(&mut res.memory, lim.memory);
-        merge_option(&mut res.process_count, lim.process_count);
-        merge_option(&mut res.time, lim.time);
-    }
-    res
-}
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub(crate) enum InterpolateError {
@@ -153,21 +135,13 @@ impl Controller {
             fs::File::open(problem_manifest_path).context("failed to read problem manifest")?,
         );
 
-        let problem_data: pom::Problem =
+        let problem: pom::Problem =
             serde_json::from_reader(reader).context("invalid problem manifest")?;
 
         let toolchain_cfg = self
             .config
             .find_toolchain(&invoke_task.toolchain_id)
             .ok_or_else(|| anyhow::anyhow!("toolchain {} not found", &invoke_task.toolchain_id))?;
-
-        let problem_cfg = self
-            .config
-            .find_problem(&invoke_task.problem_id)
-            .ok_or_else(|| anyhow::anyhow!("problem {} not found", &invoke_task.problem_id))?;
-
-        let compile_limits = merge_limits(&[toolchain_cfg.limits]);
-        let execute_limits = merge_limits(&[problem_cfg.limits]);
 
         let run_source = run_root.join("source");
         let temp_invocation_dir = tempfile::tempdir().context("failed to create temporary dir")?;
@@ -189,11 +163,10 @@ impl Controller {
                 .context("invalid build commands template")?,
             execute_command: interpolate_command(&toolchain_cfg.run_command, &interp_dict)
                 .context("invalid run command template")?,
-            execute_limits,
-            compile_limits,
+            compile_limits: toolchain_cfg.limits,
             problem_dir,
             source_file_name: toolchain_cfg.filename.clone(),
-            problem_data,
+            problem,
             run_source,
             out_dir,
             invocation_id: invoke_task.invocation_id,

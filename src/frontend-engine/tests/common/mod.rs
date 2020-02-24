@@ -52,12 +52,9 @@ impl EnvBuilder {
 
         let contest = cfg::Contest {
             title: "DEV CONTEST".to_string(),
-            problems: vec![cfg::Problem {
+            problems: vec![cfg::ProblemBinding {
                 name: "dev-problem".to_string(),
                 code: "A".to_string(),
-                limits: Default::default(),
-                title: "DEV PROBLEM".to_string(),
-                loaded: true,
             }],
             group: Vec::new(),
             unregistered_visible: false,

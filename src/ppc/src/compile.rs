@@ -2,7 +2,7 @@
 pub(crate) mod build;
 
 use crate::command::Command;
-use pom::{FileRef, FileRefRoot};
+use pom::{FileRef, FileRefRoot, Limits};
 use std::{
     collections::HashMap,
     fs,
@@ -11,7 +11,7 @@ use std::{
 };
 
 pub(crate) struct ProblemBuilder<'a> {
-    pub(crate) cfg: &'a crate::cfg::Problem,
+    pub(crate) cfg: &'a crate::manifest::Problem,
     pub(crate) problem_dir: &'a Path,
     pub(crate) out_dir: &'a Path,
     pub(crate) build_backend: &'a dyn build::BuildBackend,
@@ -39,10 +39,27 @@ fn get_entropy_hex(s: &mut [u8]) {
     }
 }
 
+fn merge_option<T: Copy>(place: &mut Option<T>, other: Option<T>) {
+    if let Some(x) = other {
+        place.replace(x);
+    }
+}
+
+/// Merges several `Limits` object. Last element of slice will have maximal proirity.
+fn merge_limits(limits_set: &[Limits]) -> Limits {
+    let mut res = Limits::default();
+    for lim in limits_set {
+        merge_option(&mut res.memory, lim.memory);
+        merge_option(&mut res.process_count, lim.process_count);
+        merge_option(&mut res.time, lim.time);
+    }
+    res
+}
+
 // TODO: remove duplicated code
 impl<'a> ProblemBuilder<'a> {
     fn do_build(&self, src: &Path, dest: &Path) -> Command {
-        fs::create_dir_all(dest).expect("coudln't create dir");
+        fs::create_dir_all(dest).expect("failed to create dir");
 
         let build_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -139,7 +156,7 @@ impl<'a> ProblemBuilder<'a> {
             let tid = i + 1;
             let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
             match &test_spec.gen {
-                crate::cfg::TestGenSpec::Generate { testgen, args } => {
+                crate::manifest::TestGenSpec::Generate { testgen, args } => {
                     let testgen_cmd = testgens.get(testgen).unwrap_or_else(|| {
                         eprintln!("error: unknown testgen {}", testgen);
                         exit(1);
@@ -161,7 +178,7 @@ impl<'a> ProblemBuilder<'a> {
                     self.configure_command(&mut cmd);
                     cmd.run_quiet();
                 }
-                crate::cfg::TestGenSpec::File { path } => {
+                crate::manifest::TestGenSpec::File { path } => {
                     let src_path = self.problem_dir.join("tests").join(path);
                     if let Err(e) = std::fs::copy(&src_path, &out_file_path) {
                         eprintln!(
@@ -179,6 +196,7 @@ impl<'a> ProblemBuilder<'a> {
                     root: FileRefRoot::Problem,
                 },
                 correct: None,
+                limits: merge_limits(&[self.cfg.limits, test_spec.limits]),
             };
             if let Some(cmd) = gen_answers {
                 let test_data = fs::File::open(&out_file_path).unwrap();
@@ -240,14 +258,14 @@ impl<'a> ProblemBuilder<'a> {
         let out_path = format!("{}/assets/checker", self.out_dir.display());
 
         match self.cfg.check {
-            crate::cfg::Check::Custom(_) => {
+            crate::manifest::Check::Custom(_) => {
                 self.do_build(Path::new(checker_path), Path::new(&out_path));
                 FileRef {
                     path: "checker/bin".to_string(),
                     root: FileRefRoot::Problem,
                 }
             }
-            crate::cfg::Check::Builtin(ref bc) => FileRef {
+            crate::manifest::Check::Builtin(ref bc) => FileRef {
                 path: format!("bin/builtin-checker-{}", bc.name),
                 root: FileRefRoot::System,
             },
@@ -299,8 +317,8 @@ impl<'a> ProblemBuilder<'a> {
 
         let tests = {
             let gen_answers = match &self.cfg.check {
-                crate::cfg::Check::Custom(cs) => cs.pass_correct,
-                crate::cfg::Check::Builtin(_) => true,
+                crate::manifest::Check::Custom(cs) => cs.pass_correct,
+                crate::manifest::Check::Builtin(_) => true,
             };
             let gen_answers = if gen_answers {
                 let primary_solution_name = self.cfg.primary_solution.as_ref().unwrap_or_else(|| {

@@ -20,3 +20,4 @@ getrandom = "0.1.14"
 hex = "0.4.0"
 formatf = { git = "https://github.com/mikailbag/formatf" }
 roxmltree = "0.9.0"
+anyhow = "1.0.26"

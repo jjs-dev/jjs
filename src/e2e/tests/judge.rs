@@ -38,7 +38,6 @@ query GetRuns {
         .unwrap_ok();
     let resp = resp.pointer("/runs").unwrap().as_array().unwrap();
     for item in resp {
-        // dbg!(&item);
         if item.pointer("/id").unwrap().as_i64().unwrap() == id as i64 {
             let status = item.pointer("/status").unwrap();
             return status
@@ -163,6 +162,9 @@ fn test_heavy_load() {
         );
         codes.push(id);
     }
+    const BUDGET: u32 = 3;
+    const INITIAL_BUDGET: u32 = 10;
+    let mut budget = INITIAL_BUDGET;
     while !codes.is_empty() {
         std::thread::sleep(std::time::Duration::from_secs(3));
         let mut new_codes = Vec::new();
@@ -173,10 +175,15 @@ fn test_heavy_load() {
                 continue;
             }
             println!("{} done", i);
+            budget = std::cmp::max(budget, BUDGET);
             assert_eq!(st, "ACCEPTED");
         }
         println!("--- now {} running ---", new_codes.len());
         println!("{:?}", &new_codes);
         codes = new_codes;
+        if budget == 0 {
+            panic!("Timeout");
+        }
+        budget -= 1;
     }
 }

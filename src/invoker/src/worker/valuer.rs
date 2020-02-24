@@ -15,13 +15,13 @@ pub(crate) struct Valuer {
 
 impl Valuer {
     pub(crate) fn new(req: &InvokeRequest) -> anyhow::Result<Valuer> {
-        let valuer_exe = req.resolve_asset(&req.problem_data.valuer_exe);
+        let valuer_exe = req.resolve_asset(&req.problem.valuer_exe);
         let mut cmd = std::process::Command::new(&valuer_exe);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
         cmd.env("JJS_VALUER", "1");
-        let work_dir = req.resolve_asset(&req.problem_data.valuer_cfg);
+        let work_dir = req.resolve_asset(&req.problem.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);
         } else {
@@ -72,9 +72,9 @@ impl Valuer {
     }
 
     pub(crate) fn write_problem_data(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
-        let problem_info = &req.problem_data;
         let proto_problem_info = ProblemInfo {
-            test_count: problem_info
+            test_count: req
+                .problem
                 .tests
                 .len()
                 .try_into()

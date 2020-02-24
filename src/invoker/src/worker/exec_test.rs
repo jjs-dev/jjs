@@ -133,11 +133,11 @@ impl<'a> TestExecutor<'a> {
         let step_dir = self.req.step_dir(Some(self.exec.test_id));
         let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-        let full_checker_path = self.req.resolve_asset(&self.req.problem_data.checker_exe);
+        let full_checker_path = self.req.resolve_asset(&self.req.problem.checker_exe);
         let mut cmd = std::process::Command::new(full_checker_path);
         cmd.current_dir(&self.req.problem_dir);
 
-        for arg in &self.req.problem_data.checker_cmd {
+        for arg in &self.req.problem.checker_cmd {
             cmd.arg(arg);
         }
 

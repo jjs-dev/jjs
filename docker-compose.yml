@@ -4,6 +4,7 @@ services:
     image: postgres:11
     environment:
       POSTGRES_USER: root
+      POSTGRES_HOST_AUTH_METHOD: trust
   init-db:
     image: jjs:latest
     command:
@@ -71,4 +72,3 @@ services:
         target: /var/lib/jjs
 volumes:
   jjs_data:
-

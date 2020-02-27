@@ -11,10 +11,17 @@ pub struct Opts {
     debug: bool,
     #[structopt(long)]
     nocapture: bool,
+    #[structopt(long)]
+    podman: bool,
 }
 pub fn task_run(opts: Opts) -> anyhow::Result<()> {
+    let compose_bin = if opts.podman {
+        "podman-compose"
+    } else {
+        "docker-compose"
+    };
     println!("dropping existing docker-compose");
-    Command::new("podman-compose").arg("down").try_exec()?;
+    Command::new(compose_bin).arg("down").try_exec()?;
     if opts.build {
         println!("Building");
         let mut cmd = Command::new("cargo");
@@ -25,7 +32,7 @@ pub fn task_run(opts: Opts) -> anyhow::Result<()> {
         cmd.try_exec()?;
     }
     println!("starting jjs");
-    Command::new("podman-compose")
+    Command::new(compose_bin)
         .arg("up")
         .arg("--detach")
         .try_exec()?;

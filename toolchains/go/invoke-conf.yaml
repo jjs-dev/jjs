@@ -1,0 +1,19 @@
+title: GoLang
+name: go
+filename: "source.go"
+
+build-limits:
+  time: 6000
+
+build:
+  - argv:
+    - "{{ env_GO }}"
+    - "build"
+    - "-o"
+    - "$(Run.BinaryFilePath)"
+    - "-ldflags=\"-X 'main.ONLINE_JUDGE=true'\""
+    - "$(Run.SourceFilePath)"
+
+run:
+    argv:
+        - "$(Run.BinaryFilePath)"

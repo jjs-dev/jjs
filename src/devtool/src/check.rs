@@ -159,6 +159,14 @@ pub struct CheckOpts {
     pub(crate) fail_fast: bool,
 }
 
+fn secrets_enabled() -> bool {
+    let val = match std::env::var("SECRET_ENABLED") {
+        Ok(val) => val,
+        Err(_) => return false, // definitely not a CI
+    };
+    !val.trim().is_empty()
+}
+
 pub fn check(opts: &CheckOpts, runner: &Runner) {
     if opts.rustfmt || !opts.no_default {
         rustfmt(runner);
@@ -178,8 +186,8 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     if opts.udeps {
         udeps(runner);
     }
-    let force_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_ok();
-    let force_not_pvs = std::env::var("CI").is_ok() && std::env::var("SECRET_ENABLED").is_err();
+    let force_pvs = std::env::var("CI").is_ok() && secrets_enabled();
+    let force_not_pvs = std::env::var("CI").is_ok() && !secrets_enabled();
     if (opts.pvs || force_pvs) && !force_not_pvs {
         pvs(runner);
     }

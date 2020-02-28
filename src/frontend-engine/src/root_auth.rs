@@ -47,7 +47,7 @@ fn handle_conn(fcfg: &FrontendConfig, mut conn: UnixStream) {
             return;
         }
     };
-    let message = format!("==={}===\n", token);
+    let message = format!("{}\n", token);
     conn.write_all(message.as_bytes()).ok();
 }
 

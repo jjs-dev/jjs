@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "minion-ffi.h"
 #include <assert.h>
 #include <fcntl.h>
@@ -214,7 +215,16 @@ int main(int argc, const char** argv) {
         }
         free((void*) output0);
         int status;
-        assert(wait(&status) == pid);
+        int q = waitpid(pid, &status, WNOHANG);
+        assert(q == 0 || q == pid);
+        if(q == 0)
+        {
+            kill(pid, SIGKILL);
+            die("*** FATAL ERROR: test `%s`: timeout. The process will "
+                "be killed. Please kill the remaining processes (if any) "
+                "and clean the tempdir (%s) MANUALLY! ***\n",
+                tests[i].name, tempdir);
+        }
         if (!WIFEXITED(status) || WEXITSTATUS(status)) {
             die("*** FATAL ERROR: test `%s`: run_test aborted. Please clean "
                 "the tempdir (%s) MANUALLY! ***\n",

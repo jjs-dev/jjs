@@ -15,7 +15,7 @@ rocket = "0.4.2"
 serde = "1.0.104"
 sha3 = "0.8.2"
 rand_chacha = "0.2.1"
-cfg = {path = "../cfg"}
+entity = {path = "../entity"}
 base64 = "0.11.0"
 constant_time_eq = "0.1.5"
 libc = "0.2.66"
@@ -31,6 +31,7 @@ anyhow = "1.0.26"
 invoker-api = {path = "../invoker-api"}
 rocket_contrib = "0.4.2"
 my_internet_ip = "0.1.1"
+problem-loader = {path = "../problem-loader"}
 
 [dev-dependencies]
 toml = "0.5.6"

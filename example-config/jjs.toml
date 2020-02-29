@@ -1,9 +1,0 @@
-toolchain-root= "/opt/jjs-tc/root"
-# TODO disable this option
-env-passing = true
-env-blacklist = ["LS_COLORS"]
-[limits]
-time = 60000
-[global-env]
-PATH = "/usr/bin"
-LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/"

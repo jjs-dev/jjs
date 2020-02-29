@@ -224,13 +224,13 @@ fn process_toolchain_invoke_conf(
     detect_out: &DetectScriptOutput,
 ) -> anyhow::Result<()> {
     let out_file = out_dir
-        .join("etc/toolchains")
-        .join(format!("{}.toml", &tpl.name));
-    let in_file = tpl.dir.join("invoke-conf.toml");
+        .join("etc/objects/toolchains")
+        .join(format!("{}.yaml", &tpl.name));
+    let in_file = tpl.dir.join("invoke-conf.yaml");
     if !in_file.exists() {
         return Ok(());
     }
-    let in_file = std::fs::read_to_string(&in_file).context("failed to read invoke-conf.toml")?;
+    let in_file = std::fs::read_to_string(&in_file).context("failed to read invoke-conf.yaml")?;
 
     let mut render_ctx = tera::Context::new();
     for (k, v) in &detect_out.env {

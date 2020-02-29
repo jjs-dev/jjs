@@ -27,15 +27,16 @@ impl Contest {
     }
 
     fn problems(&self, ctx: &Context) -> Vec<Problem> {
-        let contest_cfg = ctx.cfg.contests.get(0).unwrap();
+        let contest_cfg: &entity::Contest = ctx.cfg.find(&self.id).unwrap();
         contest_cfg
             .problems
             .iter()
             .map(|p| Problem {
                 title: ctx
-                    .cfg
-                    .find_problem(&p.name)
+                    .problem_loader
+                    .find(&p.name)
                     .expect("problem not found")
+                    .0
                     .title
                     .clone(),
                 id: p.code.clone(),

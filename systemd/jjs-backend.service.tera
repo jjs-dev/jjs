@@ -5,7 +5,7 @@ After=postgresql.service
 
 [Service]
 Type=notify
-Environment=JJS_SYSROOT={{ jjs_sysroot }} JJS_SD_NOTIFY=1
+Environment=JJS_DATA=/var/lib/jjs JJS_SD_NOTIFY=1
 EnvironmentFile=/var/lib/jjs/etc/env.txt
 User=root
 Group=root

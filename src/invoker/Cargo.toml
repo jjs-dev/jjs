@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 minion = {path = "../minion"}
-cfg = {path ="../cfg"}
+entity = {path ="../entity"}
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
 db = {path = "../db"}
@@ -33,7 +33,7 @@ reqwest = {version = "0.10.1", features = ["blocking", "json"]}
 crossbeam-channel = "0.4.0"
 signal-hook = "0.1.13"
 uuid = {version = "0.7.4", features = ["v5"]}
-
+problem-loader = {path = "../problem-loader"}
 [features]
 beautiful_backtrace = ["color-backtrace"]
 default = ["beautiful_backtrace"]

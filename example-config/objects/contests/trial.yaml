@@ -1,0 +1,14 @@
+id: trial
+title: "JJS demo contest"
+vis-unreg: true
+vis-anon: true
+group: ["Participants"]
+judges: ["Judges"]
+
+problems:
+  - code: A
+    name: a-plus-b
+  - code: B
+    name: array-sum
+  - code: C
+    name: sqrt

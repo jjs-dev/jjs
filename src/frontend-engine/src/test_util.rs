@@ -109,5 +109,14 @@ pub fn check_error(err: &serde_json::Value, exp_code: &str) {
         .and_then(|v| v.get("errorCode"))
         .and_then(|v| v.as_str())
         .map(|x| x.to_string());
-    assert_eq!(code.as_deref(), Some(exp_code));
+    if code.as_deref() == Some(exp_code) {
+        return;
+    }
+    match code {
+        Some(actual_code) => panic!(
+            "Error code mismatch: expected `{}`, actual `{}`",
+            exp_code, actual_code
+        ),
+        None => panic!("Expected `{}` error, got {:?}", exp_code, err),
+    }
 }

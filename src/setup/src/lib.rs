@@ -59,7 +59,7 @@ fn create_dirs(params: &SetupParams) -> anyhow::Result<()> {
         }
 
         add(data_dir, "var")?;
-        add(data_dir, "var/submissions")?;
+        add(data_dir, "var/runs")?;
         add(data_dir, "var/problems")?;
         add(data_dir, "opt")?;
     }
@@ -79,11 +79,8 @@ fn copy_or_symlink_config(conf_params: &ConfigParams, params: &SetupParams) -> a
         std::os::unix::fs::symlink(symlink_src, symlink_target)?;
     } else {
         add(data_dir, "etc")?;
-        add(data_dir, "etc/toolchains")?;
-        let cfg_dir_items = vec!["jjs.toml", "contest.toml"]
-            .iter()
-            .map(|x| cfg_dir.join(x))
-            .collect();
+        add(data_dir, "etc/objects")?;
+        let cfg_dir_items = vec!["objects"].iter().map(|x| cfg_dir.join(x)).collect();
         fs_extra::copy_items(
             &cfg_dir_items,
             data_dir.join("etc"),

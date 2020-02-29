@@ -1,16 +1,19 @@
 use crate::controller::{InvocationFinishReason, TaskSource};
 use anyhow::Context;
-use std::sync::Arc;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 pub struct DbSource {
     db: Box<dyn db::DbConn>,
-    config: Arc<cfg::Config>,
+    runs_dir: PathBuf,
 }
 
 impl DbSource {
-    pub fn new(db: Box<dyn db::DbConn>, config: Arc<cfg::Config>) -> DbSource {
-        DbSource { db, config }
+    pub fn new(db: Box<dyn db::DbConn>, cfg_data: &util::cfg::CfgData) -> DbSource {
+        DbSource {
+            db,
+            runs_dir: cfg_data.data_dir.join("var/runs"),
+        }
     }
 }
 
@@ -42,9 +45,10 @@ impl TaskSource for DbSource {
                 let db_run = self.db.run_load(db_invoke_task.run_id as i32)?;
                 let invocation_id = Uuid::from_fields(invocation.id as u32, 0, 0, &[0; 8])
                     .expect("this call is always correct");
-                let run_dir = self.config.sysroot.join("var/submissions");
-                let run_dir = run_dir.join(&format!("s-{}", db_invoke_task.run_id));
-                let invocation_dir = run_dir.join(&format!("i-{}", db_invoke_task.revision));
+                let run_dir = self
+                    .runs_dir
+                    .join(&format!("run.{}", db_invoke_task.run_id));
+                let invocation_dir = run_dir.join(&format!("inv.{}", db_invoke_task.revision));
                 let invoke_task = invoker_api::InvokeTask {
                     revision: db_invoke_task.revision,
                     status_update_callback: db_invoke_task.status_update_callback,

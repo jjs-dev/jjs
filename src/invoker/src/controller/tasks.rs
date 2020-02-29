@@ -3,7 +3,7 @@ use super::{notify::Notifier, Controller, ExtendedInvokeRequest};
 use crate::worker::{self, InvokeRequest};
 use anyhow::Context;
 use invoker_api::InvokeTask;
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -64,7 +64,7 @@ pub(crate) fn interpolate_string(
 }
 
 fn interpolate_command(
-    command: &cfg::Command,
+    command: &entity::entities::toolchain::Command,
     dict: &HashMap<String, String>,
 ) -> Result<worker::Command, InterpolateError> {
     let mut res: worker::Command = Default::default();
@@ -82,14 +82,14 @@ fn interpolate_command(
 }
 
 pub(crate) fn get_common_interpolation_dict(
-    toolchain_cfg: &cfg::Toolchain,
+    toolchain: &entity::Toolchain,
 ) -> HashMap<String, String> {
     let mut dict = HashMap::new();
     dict.insert("Invoker.Id".to_string(), String::from("inv"));
     dict.insert(
         "Run.SourceFilePath".to_string(),
         PathBuf::from("/jjs")
-            .join(&toolchain_cfg.filename)
+            .join(&toolchain.filename)
             .display()
             .to_string(),
     );
@@ -125,22 +125,15 @@ impl Controller {
                 .encode_lower(&mut buf);
             run_metadata.insert("InvokeRequestId".to_string(), s.to_owned());
         }
-        let prob_name = &invoke_task.problem_id;
+        let problem_name = &invoke_task.problem_id;
+        let (problem, problem_dir) = self
+            .problem_loader
+            .find(problem_name)
+            .context("unknown problem")?;
 
-        let problem_dir = self.config.sysroot.join("var/problems").join(&prob_name);
-
-        let problem_manifest_path = problem_dir.join("manifest.json");
-
-        let reader = std::io::BufReader::new(
-            fs::File::open(problem_manifest_path).context("failed to read problem manifest")?,
-        );
-
-        let problem: pom::Problem =
-            serde_json::from_reader(reader).context("invalid problem manifest")?;
-
-        let toolchain_cfg = self
-            .config
-            .find_toolchain(&invoke_task.toolchain_id)
+        let toolchain = self
+            .entity_loader
+            .find::<entity::Toolchain>(&invoke_task.toolchain_id)
             .ok_or_else(|| anyhow::anyhow!("toolchain {} not found", &invoke_task.toolchain_id))?;
 
         let run_source = run_root.join("source");
@@ -148,31 +141,31 @@ impl Controller {
 
         let out_dir = temp_invocation_dir.into_path();
         let interp_dict = {
-            let mut dict = get_common_interpolation_dict(toolchain_cfg);
+            let mut dict = get_common_interpolation_dict(toolchain);
             for (k, v) in run_metadata {
                 dict.insert(format!("Run.Meta.{}", k), v);
             }
             dict
         };
         let inv_req = InvokeRequest {
-            compile_commands: toolchain_cfg
+            compile_commands: toolchain
                 .build_commands
                 .iter()
                 .map(|c| interpolate_command(c, &interp_dict))
                 .collect::<Result<_, _>>()
                 .context("invalid build commands template")?,
-            execute_command: interpolate_command(&toolchain_cfg.run_command, &interp_dict)
+            execute_command: interpolate_command(&toolchain.run_command, &interp_dict)
                 .context("invalid run command template")?,
-            compile_limits: toolchain_cfg.limits,
-            problem_dir,
-            source_file_name: toolchain_cfg.filename.clone(),
-            problem,
+            compile_limits: toolchain.limits,
+            problem_dir: problem_dir.to_path_buf(),
+            source_file_name: toolchain.filename.clone(),
+            problem: problem.clone(),
             run_source,
             out_dir,
             invocation_id: invoke_task.invocation_id,
-            global_dir: self.config.install_dir.clone(),
+            global_dir: self.global_files_dir.to_path_buf(),
             minion: self.minion.clone(),
-            toolchains_dir: self.config.sysroot.join("opt"),
+            toolchains_dir: self.toolchains_dir.to_path_buf(),
         };
 
         let req = ExtendedInvokeRequest {

@@ -63,8 +63,7 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          # FIXME https://github.com/est31/cargo-udeps/issues/53
-          cargo install cargo-udeps || true
+          cargo install cargo-udeps --locked
       - name: Get Rust version
         id: rustc_version
         run: |
@@ -86,8 +85,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: cargo-udeps
-        # FIXME https://github.com/est31/cargo-udeps/issues/53
-        run: cargo jjs-check --no-default --udeps || true
+        run: cargo jjs-check --no-default --udeps
   e2e:
     name: e2e
     runs-on: "ubuntu-18.04"

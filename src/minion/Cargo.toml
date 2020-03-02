@@ -16,4 +16,5 @@ procfs = "0.7.7"
 nix = {git = "https://github.com/nix-rust/nix"}
 snafu = "0.6.2"
 backtrace = "0.3.43"
+thiserror = "1.0.11"
 

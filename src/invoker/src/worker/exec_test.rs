@@ -66,7 +66,7 @@ impl<'a> TestExecutor<'a> {
         invoke_util::command_set_from_inv_req(&mut native_command, &command);
         invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
-        native_command.dominion(sandbox);
+        native_command.dominion(sandbox.dominion.clone());
 
         // capture child input
         native_command.stdin(minion::InputSpecification::pipe());

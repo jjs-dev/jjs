@@ -1,5 +1,6 @@
 pub mod check;
 mod dominion;
+pub mod ext;
 mod jail_common;
 mod pipe;
 mod util;

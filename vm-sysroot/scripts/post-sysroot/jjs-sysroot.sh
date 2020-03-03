@@ -19,7 +19,7 @@ fi
 
 sudo rm -rf "$SYSROOT/var/lib/jjs/opt"
 #rm -rf tmp
-cargo run --offline -p soft ../toolchains "$SYSROOT/var/lib/jjs"
+cargo run --offline -p soft "$(pwd)/../toolchains" "$SYSROOT/var/lib/jjs"
 echo 'sandbox:x:179:179:sandbox:/:/bin/sh' > "$SYSROOT/var/lib/jjs/opt/etc/passwd"
 echo 'sandbox:x:179:' > "$SYSROOT/var/lib/jjs/opt/etc/group"
 #sudo mv tmp "$SYSROOT/var/lib/jjs/opt"

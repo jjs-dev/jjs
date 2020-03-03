@@ -1,12 +1,13 @@
 use super::{
     prelude::*,
-    schema::{contest::Problem, RunId},
+    schema::{contest::Problem, ContestId, RunId},
 };
 use slog_scope::debug;
 use std::path::PathBuf;
 
 pub(crate) struct Run {
     pub id: RunId,
+    pub contest_id: ContestId,
     pub toolchain_name: String,
     pub status: Option<InvokeStatusOut>,
     pub score: Option<i32>,
@@ -112,7 +113,7 @@ impl Run {
             .0;
         let id = ctx
             .cfg
-            .find::<entity::Contest>("TODO")
+            .find::<entity::Contest>(&self.contest_id)
             .unwrap()
             .problems
             .iter()
@@ -148,7 +149,7 @@ impl Run {
         ctx: &Context,
         filter: RunProtocolFilterParams,
     ) -> ApiResult<Option<String>> {
-        let access_ck = ctx.access().wrap_contest("TODO".to_string());
+        let access_ck = ctx.access().wrap_contest(self.contest_id.clone());
         let kind = access_ck.select_judge_log_kind().internal(ctx)?;
         let path = self
             .last_invoke_dir(ctx)?
@@ -177,7 +178,7 @@ fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
     let last_inv = ctx.db.inv_last(run.id).internal(ctx)?;
     let kind = ctx
         .access()
-        .wrap_contest("TODO".to_string())
+        .wrap_contest(run.contest_id.clone())
         .select_judge_log_kind()
         .internal(ctx)?;
     let inv_out_header = last_inv
@@ -198,6 +199,7 @@ fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
         status,
         score: inv_out_header.and_then(|h| h.score).map(|sc| sc as i32),
         problem_name: run.problem_id.clone(),
+        contest_id: run.contest_id.clone(),
     })
 }
 

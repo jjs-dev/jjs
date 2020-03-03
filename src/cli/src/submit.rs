@@ -47,7 +47,7 @@ fn resolve_problem(client: &Client, contest_name: &str, problem_code: &str) -> (
         .expect("request rejected");
     let mut target_contest = None;
     for contest in data.contests {
-        if contest.id == contest_name {
+        if contest.name == contest_name {
             target_contest = Some(contest);
             break;
         }
@@ -59,7 +59,7 @@ fn resolve_problem(client: &Client, contest_name: &str, problem_code: &str) -> (
 
     for problem in contest.problems {
         if problem.id == problem_code {
-            return (contest.id, problem.id);
+            return (contest.name, problem.id);
         }
     }
     eprintln!("problem {} not found", problem_code);

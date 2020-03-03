@@ -8,7 +8,7 @@ pub(crate) use contest::Contest;
 pub type ToolchainId = String;
 pub type RunId = i32;
 pub type ProblemId = String;
-pub type ContestId = String;
+pub type ContestName = String;
 pub type UserId = Uuid;
 
 #[derive(GraphQLObject)]

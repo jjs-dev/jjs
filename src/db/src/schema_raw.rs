@@ -19,7 +19,7 @@ table! {
         problem_id -> Varchar,
         rejudge_id -> Int4,
         user_id -> Uuid,
-        contest_id -> Varchar,
+        contest_name -> Varchar,
     }
 }
 

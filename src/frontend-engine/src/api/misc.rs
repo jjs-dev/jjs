@@ -15,7 +15,7 @@ pub(super) fn toolchains_list(ctx: &Context) -> ApiResult<Vec<schema::Toolchain>
 fn describe_contest(c: &entity::Contest) -> schema::Contest {
     schema::Contest {
         title: c.title.clone(),
-        id: c.id.clone(),
+        name: c.name.clone(),
     }
 }
 

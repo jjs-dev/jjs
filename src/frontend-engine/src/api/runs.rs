@@ -241,7 +241,7 @@ pub(super) fn submit_simple(
     toolchain: schema::ToolchainId,
     code: String,
     problem: schema::ProblemId,
-    contest: schema::ContestId,
+    contest: schema::ContestName,
 ) -> ApiResult<Run> {
     use db::schema::NewInvocation;
     let toolchain = ctx.cfg.find::<entity::Toolchain>(&toolchain);
@@ -255,7 +255,7 @@ pub(super) fn submit_simple(
     };
     if !ctx
         .access()
-        .wrap_contest(contest.id.clone())
+        .wrap_contest(contest.name.clone())
         .can_submit()
         .internal(ctx)?
     {
@@ -277,7 +277,7 @@ pub(super) fn submit_simple(
         problem_id: prob_name,
         rejudge_id: 0,
         user_id: ctx.token.user_id(),
-        contest_id: contest.id.to_string(),
+        contest_name: contest.name.to_string(),
     };
 
     let run = ctx.db.run_new(new_run).internal(ctx)?;

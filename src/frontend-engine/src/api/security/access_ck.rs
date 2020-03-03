@@ -1,5 +1,5 @@
 use super::Token;
-use crate::api::schema::{ContestId, RunId};
+use crate::api::schema::{ContestName, RunId};
 use snafu::Snafu;
 
 /// Access check service
@@ -17,9 +17,9 @@ impl<'a> RawAccessChecker<'a> {
 
     pub(crate) fn wrap_contest(
         &self,
-        contest_id: ContestId,
+        contest_name: ContestName,
     ) -> AccessChecker<'a, ack_subject::Contest> {
-        self.wrap(ack_subject::Contest(contest_id))
+        self.wrap(ack_subject::Contest(contest_name))
     }
 
     pub(crate) fn wrap_run(&self, run_id: RunId) -> AccessChecker<'a, ack_subject::Run> {
@@ -34,7 +34,7 @@ impl<'a> RawAccessChecker<'a> {
 
 pub(crate) mod ack_subject {
     use super::*;
-    pub(crate) struct Contest(pub(super) ContestId);
+    pub(crate) struct Contest(pub(super) ContestName);
 
     pub(crate) struct Run(pub(super) RunId);
 }
@@ -61,7 +61,7 @@ pub(crate) type AccessResult = Result<bool, AccessCheckError>;
 impl AccessChecker<'_, ack_subject::Run> {
     fn for_contest(&self) -> Result<AccessChecker<ack_subject::Contest>, AccessCheckError> {
         let run = self.raw.db.run_load(self.obj.0)?;
-        Ok(self.raw.wrap_contest(run.contest_id))
+        Ok(self.raw.wrap_contest(run.contest_name))
     }
 
     pub(crate) fn can_modify_run(&self) -> AccessResult {

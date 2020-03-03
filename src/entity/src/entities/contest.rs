@@ -13,7 +13,7 @@ pub struct ProblemBinding {
 pub struct Contest {
     pub title: String,
 
-    pub id: String,
+    pub name: String,
 
     /// Information about problems, not related to judging
     /// process (which is controlled by problem itself)
@@ -38,6 +38,6 @@ pub struct Contest {
 impl Seal for Contest {}
 impl Entity for Contest {
     fn name(&self) -> &str {
-        &self.id
+        &self.name
     }
 }

@@ -68,14 +68,14 @@ impl Mutation {
         toolchain(description = "toolchain ID"),
         run_code(description = "run code, base64-encoded"),
         problem(description = "problem ID"),
-        contest(description = "contest ID")
+        contest(description = "contest name")
     ))]
     fn submit_simple(
         ctx: &Context,
         toolchain: schema::ToolchainId,
         run_code: String,
         problem: schema::ProblemId,
-        contest: schema::ContestId,
+        contest: schema::ContestName,
     ) -> ApiResult<runs::Run> {
         runs::submit_simple(ctx, toolchain, run_code, problem, contest)
     }

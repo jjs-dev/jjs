@@ -1,4 +1,4 @@
-use super::{super::prelude::*, ContestId, ProblemId};
+use super::{super::prelude::*, ContestName, ProblemId};
 
 #[derive(GraphQLObject)]
 pub(crate) struct Problem {
@@ -11,7 +11,7 @@ pub(crate) struct Problem {
 
 pub(crate) struct Contest {
     pub title: String,
-    pub id: ContestId,
+    pub name: ContestName,
 }
 
 #[juniper::object(Context = Context)]
@@ -22,12 +22,12 @@ impl Contest {
     }
 
     /// Configured by human, something readable like 'olymp-2019', or 'test-contest'
-    fn id(&self) -> &str {
-        &self.id
+    fn name(&self) -> &str {
+        &self.name
     }
 
     fn problems(&self, ctx: &Context) -> Vec<Problem> {
-        let contest_cfg: &entity::Contest = ctx.cfg.find(&self.id).unwrap();
+        let contest_cfg: &entity::Contest = ctx.cfg.find(&self.name).unwrap();
         contest_cfg
             .problems
             .iter()

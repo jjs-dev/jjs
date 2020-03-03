@@ -46,7 +46,7 @@ impl RunsRepo for MemoryRepo {
             problem_id: run_data.problem_id,
             rejudge_id: run_data.rejudge_id,
             user_id: run_data.user_id,
-            contest_id: run_data.contest_id,
+            contest_name: run_data.contest_name,
         };
         data.runs.push(Some(run.clone()));
         Ok(run)

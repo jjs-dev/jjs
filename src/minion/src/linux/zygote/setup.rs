@@ -39,7 +39,9 @@ unsafe fn configure_dir(dir_path: &Path) {
 fn expose_dir(jail_root: &Path, system_path: &Path, alias_path: &Path, access: DesiredAccess) {
     let bind_target = jail_root.join(alias_path);
     fs::create_dir_all(&bind_target).unwrap();
-    if fs::metadata(&system_path).unwrap().is_file() {
+    let stat = fs::metadata(&system_path)
+        .unwrap_or_else(|err| panic!("failed to stat {}: {}", system_path.display(), err));
+    if stat.is_file() {
         fs::remove_dir(&bind_target).unwrap();
         fs::write(&bind_target, &"").unwrap();
     }

@@ -8,6 +8,8 @@ pub struct Limits {
     pub time: Option<u64>,
     /// Process count limit
     pub process_count: Option<u64>,
+    /// Working dir size limit in bytes
+    pub work_dir_size: Option<u64>,
 }
 
 impl Limits {
@@ -23,6 +25,10 @@ impl Limits {
         3000
     }
 
+    fn default_work_dir_size() -> u64 {
+        16 * 1024 * 1024
+    }
+
     pub fn time(self) -> u64 {
         self.time.unwrap_or_else(Self::default_time)
     }
@@ -34,6 +40,11 @@ impl Limits {
     pub fn process_count(self) -> u64 {
         self.process_count.unwrap_or_else(Self::default_num_procs)
     }
+
+    pub fn work_dir_size(self) -> u64 {
+        self.work_dir_size
+            .unwrap_or_else(Self::default_work_dir_size)
+    }
 }
 
 impl Default for Limits {
@@ -42,6 +53,7 @@ impl Default for Limits {
             memory: Some(Limits::default_memory()),
             time: Some(Limits::default_time()),
             process_count: Some(Limits::default_num_procs()),
+            work_dir_size: Some(Limits::default_work_dir_size()),
         }
     }
 }

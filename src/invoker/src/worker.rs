@@ -109,7 +109,7 @@ impl Worker {
                 Request::Invoke(inv_req) => {
                     debug!("Got InvokeRequest: {:?}", &inv_req);
                     let outcome = self.invoke(&inv_req).unwrap_or_else(|err| {
-                        error!("Invoke failed: {}", err);
+                        error!("Invoke failed: {:#}", err);
                         InvokeOutcome::Fault
                     });
                     debug!("InvokeOutcome: {:?}", &outcome);

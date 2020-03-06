@@ -1,12 +1,5 @@
-use anyhow::{bail, Context};
+use anyhow::Context;
 use slog_scope::debug;
-
-fn check_system() -> anyhow::Result<()> {
-    if let Some(err) = minion::check() {
-        bail!("invoker is not able to test runs: {}", err);
-    }
-    Ok(())
-}
 
 fn install_color_backtrace() {
     #[cfg(feature = "beautiful_backtrace")]
@@ -43,7 +36,9 @@ fn main() -> anyhow::Result<()> {
 
     let config = util::cfg::load_cfg_data()?;
 
-    check_system().context("system configuration problem")?;
+    invoker::init::init().context("failed to initialize")?;
+
+    //check_system().context("system configuration problem")?;
     debug!("system check passed");
 
     let backend = minion::setup();

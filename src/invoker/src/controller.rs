@@ -376,7 +376,15 @@ impl Controller {
         temp_dir: &Path,
         invocation_dir: &Path,
     ) -> anyhow::Result<()> {
-        std::fs::create_dir_all(invocation_dir).context("failed to create target dir")?;
+        if let Err(err) = std::fs::create_dir(invocation_dir) {
+            if err.kind() != std::io::ErrorKind::AlreadyExists {
+                anyhow::bail!(
+                    "failed to create target dir {}: {}",
+                    invocation_dir.display(),
+                    err
+                );
+            }
+        }
         let from: Vec<_> = std::fs::read_dir(temp_dir)
             .context("failed to list source directory")?
             .map(|x| x.map(|y| y.path()))

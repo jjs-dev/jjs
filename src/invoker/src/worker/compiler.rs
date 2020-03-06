@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
             invoke_util::command_set_from_inv_req(&mut native_command, &command);
             invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
-            native_command.dominion(sandbox.clone());
+            native_command.dominion(sandbox.dominion.clone());
 
             let child = match native_command.spawn(&*self.req.minion) {
                 Ok(child) => child,

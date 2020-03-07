@@ -48,10 +48,13 @@ fi
 
 jjs-invoker &
 
-ifdown eth0
-ifup eth0
+if [ "x\$(readlink /proc/1/exe)" == x/ ]
+then
+    ifdown eth0
+    ifup eth0
+fi
 
-if [ "$$" == 1 ]
+if [ "\$\$" == 1 ]
 then
 sh
 killall jjs-frontend

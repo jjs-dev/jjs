@@ -25,6 +25,8 @@ mount -o remount,rw /
 ifdown lo
 ifup lo
 
+haveged -F &
+
 su postgres -c 'postgres -D /var/lib/postgresql/*/main & while ! psql -c ""; do true; done'
 sleep 5
 

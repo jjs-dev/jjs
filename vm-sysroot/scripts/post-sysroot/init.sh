@@ -25,6 +25,8 @@ mount -o remount,rw /
 ifdown lo
 ifup lo
 
+haveged -F &
+
 su postgres -c 'postgres -D /var/lib/postgresql/*/main & while ! psql -c ""; do true; done'
 sleep 5
 
@@ -48,10 +50,13 @@ fi
 
 jjs-invoker &
 
-ifdown eth0
-ifup eth0
+if [ "x\$(readlink /proc/1/exe)" == x/ ]
+then
+    ifdown eth0
+    ifup eth0
+fi
 
-if [ "$$" == 1 ]
+if [ "\$\$" == 1 ]
 then
 sh
 killall jjs-frontend

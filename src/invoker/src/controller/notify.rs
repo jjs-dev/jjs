@@ -71,4 +71,4 @@ impl Notifier {
     }
 }
 
-const LIVE_STATUS_UPDATE_THROTTLE: Duration = Duration::from_nanos(1); //Duration::from_secs(1);
+const LIVE_STATUS_UPDATE_THROTTLE: Duration = Duration::from_secs(1);

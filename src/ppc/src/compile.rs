@@ -197,6 +197,7 @@ impl<'a> ProblemBuilder<'a> {
                 },
                 correct: None,
                 limits: merge_limits(&[self.cfg.limits, test_spec.limits]),
+                group: "TODO".to_string(),
             };
             if let Some(cmd) = gen_answers {
                 let test_data = fs::File::open(&out_file_path).unwrap();

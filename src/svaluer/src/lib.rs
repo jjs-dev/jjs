@@ -11,11 +11,11 @@ mod fiber;
 use anyhow::{Context, Result};
 use fiber::{Fiber, FiberReply};
 use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};
+use log::debug;
 use pom::TestId;
-use slog_scope::debug;
 use std::collections::HashSet;
 /// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting with environment, such as JJS invoker.
-pub trait ValuerDriver {
+pub trait ValuerDriver: std::fmt::Debug {
     /// Retrieves `ProblemInfo`. Will be called once.
     fn problem_info(&mut self) -> Result<ProblemInfo>;
     /// Sends valuer response
@@ -25,6 +25,7 @@ pub trait ValuerDriver {
 }
 
 /// SValuer itself
+#[derive(Debug)]
 pub struct SimpleValuer<'a> {
     driver: &'a mut dyn ValuerDriver,
     /// Amount of tests that are currently running.
@@ -83,8 +84,8 @@ impl<'a> SimpleValuer<'a> {
         debug!("Polling fibers");
         // do we have something new from fibers?
         for fiber in &mut self.fibers {
-            debug!("Polling fiber {:?}", fiber.kind());
             let reply = fiber.poll();
+            debug!("Polling fiber {:?}: {:?}", fiber.kind(), &reply);
             match reply {
                 FiberReply::LiveScore { score } => {
                     if fiber.kind() == JudgeLogKind::Contestant {
@@ -100,8 +101,11 @@ impl<'a> SimpleValuer<'a> {
                 }
                 FiberReply::Test { test_id } => {
                     let is_live = self.fibers.iter().any(|fib| fib.test_is_live(test_id));
+                    debug!(
+                        "Step done: test execution requested (test id {}, live: {})",
+                        test_id, is_live
+                    );
                     self.send_run_on_test_query(test_id, is_live)?;
-                    debug!("Step done: test execution requested");
                     return Ok(true);
                 }
                 FiberReply::Finish(judge_log) => {

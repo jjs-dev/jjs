@@ -76,6 +76,7 @@ pub struct Test {
     pub path: FileRef,
     pub correct: Option<FileRef>,
     pub limits: Limits,
+    pub group: String,
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Hash)]

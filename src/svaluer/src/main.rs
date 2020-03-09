@@ -1,10 +1,11 @@
 //! Simple valuer
 use anyhow::Context;
+use log::debug;
 use pom::TestId;
-use slog_scope::debug;
 use std::collections::HashSet;
 
 /// CLI-based driver, useful for manual testing valuer config
+#[derive(Debug)]
 struct TermDriver {
     current_tests: HashSet<TestId>,
     full_judge_log: Option<invoker_api::valuer_proto::JudgeLog>,
@@ -21,7 +22,7 @@ mod term_driver {
     };
     fn read_value<T: FromStr>(what: impl AsRef<str>) -> Result<T>
     where
-        <T as FromStr>::Err: std::fmt::Display,
+        <T as FromStr>::Err: std::error::Error,
     {
         let mut user_input = String::new();
         loop {
@@ -33,7 +34,7 @@ mod term_driver {
                 .context("failed to read line")?;
             let user_input = user_input.trim();
             match user_input.parse() {
-                // These are different Ok's: One is anyhow::Result::Ok, other is Result<.., <T as FromStr>::Err>>
+                // These are different Ok's: one is anyhow::Result::Ok, other is Result<.., <T as FromStr>::Err>>
                 Ok(x) => break Ok(x),
                 Err(err) => {
                     eprintln!("failed to parse your input: {}. Please, enter again.", err);
@@ -46,7 +47,12 @@ mod term_driver {
     impl svaluer::ValuerDriver for TermDriver {
         fn problem_info(&mut self) -> Result<valuer_proto::ProblemInfo> {
             let test_count = read_value("test count")?;
-            let info = valuer_proto::ProblemInfo { test_count };
+            let mut tests = Vec::new();
+            for i in 1..=test_count {
+                let group = read_value(format!("group test #{} belongs to", i))?;
+                tests.push(group);
+            }
+            let info = valuer_proto::ProblemInfo { tests };
             Ok(info)
         }
 
@@ -134,7 +140,8 @@ mod json_driver {
         time::{Duration, Instant},
     };
     use svaluer::ValuerDriver;
-    /// Json-RPC driver, used in integrating with JJS invoker
+    /// Json-RPC driver, used in integration with JJS invoker
+    #[derive(Debug)]
     pub struct JsonDriver {
         chan: crossbeam::channel::Receiver<Message>,
     }

@@ -8,10 +8,9 @@ use invoker_api::{
     },
     Status,
 };
+use log::{debug, info};
 use pom::TestId;
-use slog_scope::{debug, info};
 use std::{collections::HashSet, num::NonZeroU32};
-
 /// Creates single JudgeLog
 /// SValuer works by aggegating several fibers (one per judgelog kind).
 #[derive(Debug)]
@@ -37,18 +36,18 @@ pub(crate) enum FiberReply {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum GroupVisPreset {
-    Samples,
-    Online,
-    Offlime,
+    Full,
+    Brief,
+    Hidden,
 }
 
 impl GroupVisPreset {
     fn subtask_flags_for(self, k: JudgeLogKind) -> SubtaskVisibleComponents {
         let mut out = SubtaskVisibleComponents::empty();
-        if self == GroupVisPreset::Samples || k == JudgeLogKind::Full {
+        if self == GroupVisPreset::Full || k == JudgeLogKind::Full {
             out |= SubtaskVisibleComponents::all();
         }
-        if self == GroupVisPreset::Online || k == JudgeLogKind::Full {
+        if self == GroupVisPreset::Brief || k == JudgeLogKind::Full {
             out |= SubtaskVisibleComponents::SCORE;
         }
         out
@@ -56,71 +55,65 @@ impl GroupVisPreset {
 
     fn test_flags_for(self, k: JudgeLogKind) -> TestVisibleComponents {
         let mut out = TestVisibleComponents::empty();
-        if self == GroupVisPreset::Samples || k == JudgeLogKind::Full {
+        if self == GroupVisPreset::Full || k == JudgeLogKind::Full {
             out |= TestVisibleComponents::all();
         }
-        if self == GroupVisPreset::Online {
+        if self == GroupVisPreset::Brief {
             out |= TestVisibleComponents::STATUS;
         }
         out
+    }
+
+    fn is_visible_for(self, k: JudgeLogKind) -> bool {
+        match self {
+            GroupVisPreset::Brief | GroupVisPreset::Full => true,
+            GroupVisPreset::Hidden => k == JudgeLogKind::Full,
+        }
     }
 }
 
 impl Fiber {
     pub(crate) fn new(cfg: &Config, problem_info: &ProblemInfo, kind: JudgeLogKind) -> Fiber {
         let mut groups = Vec::new();
-
-        let mut samples_group = Group::new();
-        samples_group
-            .add_tests(1..=cfg.samples_count)
-            .set_id(NonZeroU32::new(1).unwrap())
-            .set_tests_vis(GroupVisPreset::Samples.test_flags_for(kind))
-            .set_group_vis(GroupVisPreset::Samples.subtask_flags_for(kind));
-        groups.push(samples_group);
-
-        let mut online_tests_group = Group::new();
-        online_tests_group
-            .add_dep(0)
-            .set_id(NonZeroU32::new(2).unwrap())
-            .set_tests_vis(GroupVisPreset::Online.test_flags_for(kind))
-            .set_group_vis(GroupVisPreset::Online.subtask_flags_for(kind));
-        {
-            let first = cfg.samples_count + 1;
-            let last = match cfg.open_tests_count {
-                Some(cnt) => first + cnt - 1,
-                None => problem_info.test_count,
+        let mut visible_tests = HashSet::new();
+        let mut skipped_groups = HashSet::new();
+        for (i, group_cfg) in cfg.groups.iter().enumerate() {
+            let vis_preset = match group_cfg.feedback {
+                crate::cfg::FeedbackKind::Brief => GroupVisPreset::Brief,
+                crate::cfg::FeedbackKind::Full => GroupVisPreset::Full,
+                crate::cfg::FeedbackKind::Hidden => GroupVisPreset::Hidden,
             };
-            assert!(last <= problem_info.test_count);
-            online_tests_group.add_tests(first..=last);
-            if cfg.open_tests_count.is_some() {
-                online_tests_group.set_score(cfg.open_tests_score.unwrap());
-            } else {
-                online_tests_group.set_score(100);
+            if !vis_preset.is_visible_for(kind) {
+                skipped_groups.insert(i);
+                continue;
             }
-        }
-        groups.push(online_tests_group);
-        if kind == JudgeLogKind::Full {
-            if let Some(open_test_count) = cfg.open_tests_count {
-                let mut offline_tests_group = Group::new();
-                offline_tests_group
-                    .add_dep(1)
-                    .set_group_vis(GroupVisPreset::Offlime.subtask_flags_for(kind))
-                    .set_tests_vis(GroupVisPreset::Offlime.test_flags_for(kind))
-                    .set_id(NonZeroU32::new(3).unwrap());
-                let first = open_test_count + cfg.samples_count + 1;
-                let last = problem_info.test_count;
-                offline_tests_group.add_tests(first..=last);
-                offline_tests_group.set_score(100 - cfg.open_tests_score.unwrap());
-                groups.push(offline_tests_group);
+            let mut grp = Group::new();
+            grp.set_id(NonZeroU32::new((i + 1) as u32).unwrap());
+            let mut tests = Vec::new();
+            for (i, test_tag) in problem_info.tests.iter().enumerate() {
+                if test_tag == group_cfg.tests_tag() {
+                    tests.push((i + 1) as u32);
+                }
             }
+            visible_tests.extend(tests.iter().map(|test_id| pom::TestId::make(*test_id)));
+            grp.add_tests(tests);
+
+            grp.set_tests_vis(vis_preset.test_flags_for(kind))
+                .set_group_vis(vis_preset.subtask_flags_for(kind));
+            grp.set_score(group_cfg.score);
+            for dep in &group_cfg.deps {
+                let group_id = cfg.get_group(dep).expect("invalid config");
+                if skipped_groups.contains(&group_id) {
+                    continue;
+                }
+                grp.add_dep(group_id as u32);
+            }
+            if !group_cfg.run_to_first_failure {
+                grp.set_run_all_tests();
+            }
+
+            groups.push(grp);
         }
-
-        let test_count = match kind {
-            JudgeLogKind::Contestant => cfg.open_tests_count.unwrap_or(problem_info.test_count),
-            JudgeLogKind::Full => problem_info.test_count,
-        };
-        let visible_tests = (1..=test_count).map(TestId::make).collect();
-
         Fiber {
             kind,
             visible_tests,
@@ -193,8 +186,9 @@ impl Fiber {
             return FiberReply::None;
         }
         let cur_live_score = self.current_score();
+        debug!("live score: {}", cur_live_score);
         if cur_live_score != self.last_live_score {
-            debug!(
+            info!(
                 "live score updated: old={}, cur={}",
                 self.last_live_score, cur_live_score
             );
@@ -272,15 +266,37 @@ mod tests {
         JudgeLogSubtaskRow, JudgeLogTestRow, SubtaskId, SubtaskVisibleComponents,
         TestVisibleComponents,
     };
+
+    fn make_fiber(cfg: &str, problem_info: &[&str], kind: JudgeLogKind) -> Fiber {
+        Fiber::new(
+            &serde_yaml::from_str(cfg).unwrap(),
+            &ProblemInfo {
+                tests: problem_info.iter().map(ToString::to_string).collect(),
+            },
+            kind,
+        )
+    }
     #[test]
     fn simple() {
-        let mut f = Fiber::new(
-            &Config {
-                open_tests_count: Some(1),
-                open_tests_score: Some(60),
-                samples_count: 1,
-            },
-            &ProblemInfo { test_count: 3 },
+        simple_logger::init().ok();
+        let mut f = make_fiber(
+            "
+groups:
+  - name: samples
+    feedback: full
+    score: 0
+  - name: online
+    feedback: brief
+    score: 60
+    deps: 
+      - samples
+  - name: offline
+    feedback: hidden
+    score: 40
+    deps: 
+      - online        
+        ",
+            &["samples", "online", "offline"],
             JudgeLogKind::Full,
         );
         assert_eq!(
@@ -297,6 +313,7 @@ mod tests {
                 test_id: TestId::make(2)
             }
         );
+        // dbg!(&f);
         assert_eq!(f.poll(), FiberReply::None);
         f.add_test(TestId::make(2), &crate::status_util::make_ok_status());
         assert_eq!(f.poll(), FiberReply::LiveScore { score: 60 });

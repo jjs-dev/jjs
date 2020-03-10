@@ -30,8 +30,10 @@ slog-scope = "4.3.0"
 anyhow = "1.0.26"
 invoker-api = {path = "../invoker-api"}
 rocket_contrib = "0.4.2"
-my_internet_ip = "0.1.1"
 problem-loader = {path = "../problem-loader"}
+serde_yaml = "0.8.11"
+thiserror = "1.0.11"
+schemars = "0.6.5"
 
 [dev-dependencies]
 toml = "0.5.6"

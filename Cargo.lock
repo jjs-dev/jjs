@@ -555,36 +555,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "curl"
-version = "0.4.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06aa71e9208a54def20792d877bc663d6aae0732b9852e612c4a933177c31283"
-dependencies = [
- "curl-sys",
- "libc",
- "openssl-probe",
- "openssl-sys",
- "schannel",
- "socket2",
- "winapi 0.3.8",
-]
-
-[[package]]
-name = "curl-sys"
-version = "0.4.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f659f3ffac9582d6177bb86d1d2aa649f4eb9d0d4de9d03ccc08b402832ea340"
-dependencies = [
- "cc",
- "libc",
- "libz-sys",
- "openssl-sys",
- "pkg-config",
- "vcpkg",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "db"
 version = "0.1.0"
 dependencies = [
@@ -937,6 +907,10 @@ dependencies = [
  "frontend-engine",
  "problem-loader",
  "rocket",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_yaml",
  "slog-scope",
  "util",
 ]
@@ -979,7 +953,6 @@ dependencies = [
  "juniper",
  "juniper_rocket",
  "libc",
- "my_internet_ip",
  "pom",
  "problem-loader",
  "rand 0.7.3",
@@ -987,12 +960,15 @@ dependencies = [
  "ranker",
  "rocket",
  "rocket_contrib",
+ "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "setup",
  "sha3",
  "slog-scope",
  "snafu",
+ "thiserror",
  "toml 0.5.6",
  "util",
  "uuid",
@@ -1634,18 +1610,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libz-sys"
-version = "1.0.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb5e43362e38e2bca2fd5f5134c4d4564a23a5c28e9b95411652021a8675ebe"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
- "vcpkg",
-]
-
-[[package]]
 name = "linked-hash-map"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1823,15 +1787,6 @@ dependencies = [
  "net2",
  "winapi 0.2.8",
  "ws2_32-sys",
-]
-
-[[package]]
-name = "my_internet_ip"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdb0d83792d339eedcc44b29aba92c7126bab17c3087636903a46cec5f4bf615"
-dependencies = [
- "curl",
 ]
 
 [[package]]
@@ -2757,6 +2712,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07569773d6aaf3324812c6572244aec08521b64ce056f2be3b5cc135fb63caec"
+dependencies = [
+ "schemars_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38535ecef477d8495dc6c288e876c03c4428b8141ffa57803111348cf14230a9"
+dependencies = [
+ "proc-macro2 1.0.8",
+ "quote 1.0.2",
+ "serde_derive_internals",
+ "syn 1.0.14",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2832,6 +2810,17 @@ name = "serde_derive"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "128f9e303a5a29922045a830221b8f78ec74a5f544944f3d5984f8ec3895ef64"
+dependencies = [
+ "proc-macro2 1.0.8",
+ "quote 1.0.2",
+ "syn 1.0.14",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dbab34ca63057a1f15280bdf3c39f2b1eb1b54c17e98360e511637aef7418c6"
 dependencies = [
  "proc-macro2 1.0.8",
  "quote 1.0.2",
@@ -3096,18 +3085,6 @@ dependencies = [
  "proc-macro2 1.0.8",
  "quote 1.0.2",
  "syn 1.0.14",
-]
-
-[[package]]
-name = "socket2"
-version = "0.3.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8b74de517221a2cb01a53349cf54182acdc31a074727d3079068448c0676d85"
-dependencies = [
- "cfg-if",
- "libc",
- "redox_syscall",
- "winapi 0.3.8",
 ]
 
 [[package]]

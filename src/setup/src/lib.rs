@@ -80,7 +80,10 @@ fn copy_or_symlink_config(conf_params: &ConfigParams, params: &SetupParams) -> a
     } else {
         add(data_dir, "etc")?;
         add(data_dir, "etc/objects")?;
-        let cfg_dir_items = vec!["objects"].iter().map(|x| cfg_dir.join(x)).collect();
+        let cfg_dir_items = vec!["objects", "frontend.yaml"]
+            .iter()
+            .map(|x| cfg_dir.join(x))
+            .collect();
         fs_extra::copy_items(
             &cfg_dir_items,
             data_dir.join("etc"),

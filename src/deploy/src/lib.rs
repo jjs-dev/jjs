@@ -140,6 +140,9 @@ pub fn package(params: &Params, runner: &Runner) {
     if params.cfg.components.api_doc {
         generate_api_docs(params);
     }
+    if params.cfg.components.json_schema {
+        generate_json_schema(params);
+    }
     runner.exit_if_errors();
 
     generate_envscript(params);
@@ -266,6 +269,21 @@ fn generate_man(params: &Params) {
     fs_extra::copy_items(&src, &dst, &opts).unwrap();
 
     assert_eq!(st, true);
+}
+
+fn generate_json_schema(params: &Params) {
+    print_section("Generating json schemas");
+    let out_dir = params.artifacts.join("share/schema");
+    fs::create_dir_all(&out_dir).unwrap();
+    let bin_out_dir = params.artifacts.join("bin");
+    let frontend_bin = bin_out_dir.join("jjs-frontend");
+    let frontend_out = Command::new(frontend_bin)
+        .env("__JJS_SPEC", "config-schema")
+        .output()
+        .expect("failed to invoke jjs-frontend");
+    assert!(frontend_out.status.success());
+    fs::write(out_dir.join("frontend-config.json"), frontend_out.stdout)
+        .expect("failed to write schema");
 }
 
 fn env_add(var_name: &str, prepend: &str) -> String {

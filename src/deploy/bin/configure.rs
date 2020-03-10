@@ -75,6 +75,9 @@ struct Opt {
     /// Name or path to Docker or other tool which can run containers (e.g. Podman)
     #[structopt(long = "with-docker")]
     docker_name: Option<String>,
+    /// If enabled, json schemas will be emitted
+    #[structopt(long = "enable-json-schema")]
+    json_schema: bool,
 }
 
 impl Opt {
@@ -85,6 +88,9 @@ impl Opt {
         }
         if self.deb && !replace(&mut self.systemd, true) {
             log::warn!("Enabling systemd because deb generation was requested");
+        }
+        if self.json_schema && !replace(&mut self.no_core, false) {
+            log::warn!("Enabling core because json schema generation was requested");
         }
     }
 }
@@ -212,6 +218,7 @@ fn main() {
         core: !opt.no_core,
         extras: opt.extras,
         api_doc: opt.apidoc,
+        json_schema: opt.json_schema,
     };
     let packaging = cfg::PackagingConfig {
         deb: if opt.deb {

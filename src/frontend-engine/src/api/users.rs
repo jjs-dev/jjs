@@ -15,7 +15,7 @@ pub(super) fn create(
             return Err(ApiError::access_denied(ctx));
         }
     }
-    let cur_user = ctx.db.user_try_load_by_login(&login).internal(ctx)?;
+    let cur_user = ctx.db().user_try_load_by_login(&login).internal(ctx)?;
     if let Some(..) = cur_user {
         return Err(ApiError::new(ctx, "UserAlreadyExists"));
     }
@@ -28,7 +28,7 @@ pub(super) fn create(
         groups,
     };
 
-    let user = ctx.db.user_new(new_user).internal(ctx)?;
+    let user = ctx.db().user_new(new_user).internal(ctx)?;
 
     Ok((&user).into())
 }

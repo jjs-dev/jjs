@@ -28,7 +28,7 @@ impl Run {
     }
 
     fn lookup(&self, ctx: &Context) -> ApiResult<db::schema::Run> {
-        ctx.db.run_load(self.id).internal(ctx)
+        ctx.db().run_load(self.id).internal(ctx)
     }
 }
 
@@ -175,7 +175,7 @@ impl Run {
 }
 
 fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
-    let last_inv = ctx.db.inv_last(run.id).internal(ctx)?;
+    let last_inv = ctx.db().inv_last(run.id).internal(ctx)?;
     let kind = ctx
         .access()
         .wrap_contest(run.contest_id.clone())
@@ -205,14 +205,14 @@ fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
 
 pub(super) fn list(ctx: &Context, id: Option<i32>, limit: Option<i32>) -> ApiResult<Vec<Run>> {
     let user_runs = ctx
-        .db
+        .db()
         .run_select(id, limit.map(|x| x as u32))
         .internal(ctx)?;
     user_runs.iter().map(|s| describe_run(ctx, s)).collect()
 }
 
 pub(super) fn load(ctx: &Context, id: i32) -> ApiResult<Option<Run>> {
-    let db_run = ctx.db.run_try_load(id).internal(ctx)?;
+    let db_run = ctx.db().run_try_load(id).internal(ctx)?;
     match db_run {
         Some(db_run) => Ok(Some(describe_run(ctx, &db_run)?)),
         None => Ok(None),
@@ -232,8 +232,8 @@ fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
 
     Some(format!(
         "http://{}:{}/internal/lsu-webhook?token={}",
-        ctx.fr_cfg.addr.as_ref()?,
-        ctx.fr_cfg.port,
+        ctx.config().addr.as_ref()?,
+        ctx.config().port,
         lsu_webhook_token
     ))
 }
@@ -282,7 +282,7 @@ pub(super) fn submit_simple(
         contest_id: contest.id.to_string(),
     };
 
-    let run = ctx.db.run_new(new_run).internal(ctx)?;
+    let run = ctx.db().run_new(new_run).internal(ctx)?;
 
     // Put run in sysroot
     let run_dir = ctx
@@ -303,7 +303,7 @@ pub(super) fn submit_simple(
 
     let new_inv = NewInvocation::new(&invoke_task).internal(ctx)?;
 
-    ctx.db.inv_new(new_inv).internal(ctx)?;
+    ctx.db().inv_new(new_inv).internal(ctx)?;
 
     describe_run(ctx, &run)
 }
@@ -318,20 +318,20 @@ pub(super) fn modify(
     if !ctx.access().wrap_run(id).can_modify_run().internal(ctx)? {
         return Err(ApiError::access_denied(ctx));
     }
-    let current_run = ctx.db.run_load(id).report(ctx)?;
+    let current_run = ctx.db().run_load(id).report(ctx)?;
     let should_delete = delete.unwrap_or(false);
     if should_delete {
         if score.is_some() || rejudge.is_some() {
             return "both modification and delete were requested".report(ctx);
         }
-        ctx.db.run_delete(id).internal(ctx)?;
+        ctx.db().run_delete(id).internal(ctx)?;
     } else {
         let mut patch = db::schema::RunPatch::default();
         if let Some(true) = rejudge {
             patch.rejudge_id = Some(current_run.rejudge_id + 1);
             // TODO enqueue
         }
-        ctx.db.run_update(id, patch).internal(ctx)?;
+        ctx.db().run_update(id, patch).internal(ctx)?;
     }
 
     Ok(())
@@ -369,7 +369,7 @@ pub(super) fn poll_live_status(ctx: &Context, run_id: RunId) -> ApiResult<RunLiv
             finish: false,
         });
     }
-    let invocation = ctx.db.inv_last(run_id).internal(ctx)?;
+    let invocation = ctx.db().inv_last(run_id).internal(ctx)?;
     Ok(RunLiveStatusUpdate {
         live_score: None,
         current_test: None,

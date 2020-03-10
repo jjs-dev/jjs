@@ -1,7 +1,10 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-use rocket::{catch, catchers, get, post, routes, Rocket};
+use api::Context;
+use rocket::{catch, catchers, fairing::AdHoc, get, post, routes, Rocket, State};
 use slog_scope::debug;
+use std::sync::{Arc, Mutex};
+use thiserror::Error;
 
 mod api;
 pub mod config;
@@ -13,12 +16,8 @@ pub mod test_util;
 
 pub use api::TokenMgr;
 use api::TokenMgrError;
-pub use config::FrontendConfig;
+pub use config::FrontendParams;
 pub use root_auth::LocalAuthServer;
-
-use api::Context;
-use rocket::{fairing::AdHoc, State};
-use std::sync::{Arc, Mutex};
 
 type DbPool = Arc<dyn db::DbConn>;
 
@@ -124,6 +123,14 @@ fn route_lsu_webhook(
         .webhook_handler(lsu.into_inner(), token);
 }
 
+#[derive(Error, Debug)]
+pub enum ApiServerCreateError {
+    #[error("failed to initialize Rocket: {0}")]
+    Rocket(#[from] rocket::config::ConfigError),
+    #[error("failed to intropspect api: {0}")]
+    IntrospectGql(String),
+}
+
 pub struct ApiServer {}
 
 impl ApiServer {
@@ -134,23 +141,27 @@ impl ApiServer {
             .into_boxed_slice()
             .into();
         let token_mgr = crate::api::TokenMgr::new(db_conn.clone(), secret);
-        let frontend_config = config::FrontendConfig {
-            port: 0,
-            addr: Some("127.0.0.1".to_string()),
-            host: "127.0.0.1".to_string(),
-            unix_socket_path: "".to_string(),
-            env: config::Env::Dev,
+        let frontend_config = config::FrontendParams {
+            cfg: config::FrontendConfig {
+                port: 0,
+                addr: Some("127.0.0.1".to_string()),
+                host: "127.0.0.1".to_string(),
+                unix_socket_path: "".to_string(),
+                env: config::Env::Dev,
+                tls: None,
+            },
             token_mgr,
             db_conn: db_conn.clone(),
         };
 
         Self::create(
-            frontend_config,
+            Arc::new(frontend_config),
             builder.into_inner(),
             db_conn,
             problem_loader::Loader::empty(),
             std::path::Path::new("/tmp/jjs"),
         )
+        .expect("failed to create embedded instance")
     }
 
     pub fn get_schema() -> String {
@@ -159,34 +170,35 @@ impl ApiServer {
     }
 
     pub fn create(
-        frontend_config: config::FrontendConfig,
+        frontend_params: Arc<config::FrontendParams>,
         entity_loader: entity::Loader,
         pool: DbPool,
         problem_loader: problem_loader::Loader,
         data_dir: &std::path::Path,
-    ) -> Rocket {
-        let rocket_cfg_env = match frontend_config.env {
+    ) -> Result<Rocket, ApiServerCreateError> {
+        let rocket_cfg_env = match frontend_params.cfg.env {
             config::Env::Prod => rocket::config::Environment::Production,
             config::Env::Dev => rocket::config::Environment::Development,
         };
         let mut rocket_config = rocket::Config::new(rocket_cfg_env);
 
-        rocket_config
-            .set_address(frontend_config.host.clone())
-            .unwrap();
-        rocket_config.set_port(frontend_config.port);
-        rocket_config.set_log_level(match frontend_config.env {
+        rocket_config.set_address(frontend_params.cfg.host.clone())?;
+        rocket_config.set_port(frontend_params.cfg.port);
+        rocket_config.set_log_level(match frontend_params.cfg.env {
             config::Env::Dev => rocket::config::LoggingLevel::Normal,
             config::Env::Prod => rocket::config::LoggingLevel::Critical,
         });
         rocket_config
-            .set_secret_key(base64::encode(frontend_config.token_mgr.secret_key()))
+            .set_secret_key(base64::encode(frontend_params.token_mgr.secret_key()))
             .unwrap();
+        if let Some(tls) = &frontend_params.cfg.tls {
+            rocket_config.set_tls(&tls.cert_path, &tls.key_path)?;
+        }
 
         let graphql_context_factory = api::ContextFactory {
             pool: Arc::clone(&pool),
             cfg: Arc::new(entity_loader),
-            fr_cfg: Arc::new(frontend_config.clone()),
+            fr_cfg: Arc::clone(&frontend_params),
             problem_loader: Arc::new(problem_loader),
             data_dir: data_dir.into(),
         };
@@ -200,19 +212,20 @@ impl ApiServer {
             )),
             juniper::IntrospectionFormat::default(),
         )
-        .unwrap();
+        // TODO: this is hack
+        .map_err(|err| ApiServerCreateError::IntrospectGql(format!("{:?}", err)))?;
         assert!(intro_errs.is_empty());
 
         let introspection_json = serde_json::to_string(&intro_data).unwrap();
 
-        let cfg1 = frontend_config.clone();
+        let cfg1 = Arc::clone(&frontend_params);
 
-        rocket::custom(rocket_config)
+        Ok(rocket::custom(rocket_config)
             .manage(graphql_context_factory)
             .manage(graphql_schema)
             .manage(GqlApiSchema(introspection_json))
             .manage(Arc::new(Mutex::new(global::GlobalState::new())))
-            .manage(Arc::new(frontend_config))
+            .manage(frontend_params)
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(secret_key::SecretKey(cfg1.token_mgr.secret_key().into())))
             }))
@@ -227,6 +240,6 @@ impl ApiServer {
                     route_lsu_webhook
                 ],
             )
-            .register(catchers![catch_bad_request])
+            .register(catchers![catch_bad_request]))
     }
 }

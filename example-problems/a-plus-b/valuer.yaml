@@ -1,0 +1,9 @@
+groups:
+  - name: samples
+    feedback: full
+    score: 0
+  - name: tests
+    feedback: brief
+    score: 100
+    deps:
+      - samples

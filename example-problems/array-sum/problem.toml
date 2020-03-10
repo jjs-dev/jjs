@@ -3,6 +3,7 @@ name = "array-sum"
 title = "Finding Maximal Flow in Highly Parallel Networks"
 random-seed = "c4142a74815ae779"
 valuer = "icpc"
+valuer-cfg = "valuer.yaml"
 
 [custom-check]
 pass-correct = false
@@ -10,7 +11,9 @@ pass-correct = false
 [[tests]]
 map = "1..2"
 files = "%d.txt"
+group = "samples"
 
 [[tests]]
 map = "3..20"
 testgen = ["main"]
+group = "tests"

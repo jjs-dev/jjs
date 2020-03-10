@@ -197,7 +197,7 @@ impl<'a> ProblemBuilder<'a> {
                 },
                 correct: None,
                 limits: merge_limits(&[self.cfg.limits, test_spec.limits]),
-                group: test_spec.group.as_deref().unwrap_or("default").to_string(),
+                group: test_spec.group.clone(),
             };
             if let Some(cmd) = gen_answers {
                 let test_data = fs::File::open(&out_file_path).unwrap();
@@ -289,7 +289,7 @@ impl<'a> ProblemBuilder<'a> {
         if let Some(valuer_cfg) = &self.cfg.valuer_cfg {
             println!("Valuer config");
             let src = self.problem_dir.join(valuer_cfg.trim_start_matches('/'));
-            let dest = valuer_cfg_dir.join("cfg.toml");
+            let dest = valuer_cfg_dir.join("cfg.yaml");
             std::fs::create_dir(&valuer_cfg_dir)?;
             if src.is_file() {
                 std::fs::copy(&src, &dest)?;

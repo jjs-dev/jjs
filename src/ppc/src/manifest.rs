@@ -24,6 +24,7 @@ pub struct RawTestsSpec {
     pub files: Option<String>,
     #[serde(default)]
     pub limits: pom::Limits,
+    pub group: Option<String>,
 }
 
 impl RawTestsSpec {
@@ -123,6 +124,7 @@ impl RawTestsSpec {
                     TestSpec {
                         gen: test_gen_spec,
                         limits: self.limits,
+                        group: self.group.clone(),
                     },
                 )
             })
@@ -142,6 +144,7 @@ pub enum TestGenSpec {
 pub struct TestSpec {
     pub gen: TestGenSpec,
     pub limits: pom::Limits,
+    pub group: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

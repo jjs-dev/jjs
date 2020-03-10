@@ -313,7 +313,6 @@ groups:
                 test_id: TestId::make(2)
             }
         );
-        // dbg!(&f);
         assert_eq!(f.poll(), FiberReply::None);
         f.add_test(TestId::make(2), &crate::status_util::make_ok_status());
         assert_eq!(f.poll(), FiberReply::LiveScore { score: 60 });

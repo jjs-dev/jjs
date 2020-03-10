@@ -9,12 +9,14 @@ use invoker_api::{
 use status_util::{make_err_status, make_ok_status};
 use std::collections::VecDeque;
 
+#[derive(Debug)]
 struct TestMock {
     test_id: TestId,
     live: bool,
     status: Status,
 }
 
+#[derive(Debug)]
 struct MockDriver {
     tests: VecDeque<TestMock>,
     pending_notifications: VecDeque<TestDoneNotification>,
@@ -132,8 +134,10 @@ impl MockDriver {
         assert_eq!(&expected, judge_log);
     }
 
-    fn exec(&mut self, cfg: crate::cfg::Config) {
-        util::log::setup();
+    fn exec(&mut self, cfg: impl AsRef<str>) {
+        simple_logger::init().ok();
+        let cfg = cfg.as_ref();
+        let cfg = serde_yaml::from_str(cfg).expect("failed to parse config");
         let valuer = SimpleValuer::new(self, &cfg).unwrap();
         valuer.exec().unwrap();
     }
@@ -181,16 +185,11 @@ mod simple {
             subtasks: vec![
                 JudgeLogSubtaskRow {
                     subtask_id: SubtaskId::make(1),
-                    score: 0,
-                    components: SubtaskVisibleComponents::SCORE,
-                },
-                JudgeLogSubtaskRow {
-                    subtask_id: SubtaskId::make(2),
                     score: 64,
                     components: SubtaskVisibleComponents::SCORE,
                 },
                 JudgeLogSubtaskRow {
-                    subtask_id: SubtaskId::make(3),
+                    subtask_id: SubtaskId::make(2),
                     score: 36,
                     components: SubtaskVisibleComponents::SCORE,
                 },
@@ -203,17 +202,27 @@ mod simple {
         contestant_log.tests.pop();
         contestant_log.tests[0].components = TestVisibleComponents::STATUS;
         contestant_log.score = 64;
-        MockDriver::new(ProblemInfo { test_count: 2 })
-            .add_test(1, true, true)
-            .add_test(2, false, true)
-            .add_judge_log(full_log)
-            .add_judge_log(contestant_log)
-            .add_live_score(64)
-            .exec(crate::cfg::Config {
-                open_tests_count: Some(1),
-                open_tests_score: Some(64),
-                samples_count: 0,
-            });
+        MockDriver::new(ProblemInfo {
+            tests: vec!["online".to_string(), "offline".to_string()],
+        })
+        .add_test(1, true, true)
+        .add_test(2, false, true)
+        .add_judge_log(full_log)
+        .add_judge_log(contestant_log)
+        .add_live_score(64)
+        .exec(
+            "
+groups:
+  - name: online
+    feedback: brief
+    score: 64
+  - name: offline
+    feedback: hidden
+    score: 36
+    deps:
+      - online
+            ",
+        );
     }
 
     #[test]
@@ -242,14 +251,24 @@ mod simple {
         };
         let mut contestant_log = full_log.clone();
         contestant_log.kind = JudgeLogKind::Contestant;
-        MockDriver::new(ProblemInfo { test_count: 2 })
-            .add_test(1, true, false)
-            .add_judge_log(full_log)
-            .add_judge_log(contestant_log)
-            .exec(crate::cfg::Config {
-                samples_count: 1,
-                open_tests_count: None,
-                open_tests_score: None,
-            });
+        MockDriver::new(ProblemInfo {
+            tests: vec!["samples".to_string(), "online".to_string()],
+        })
+        .add_test(1, true, false)
+        .add_judge_log(full_log)
+        .add_judge_log(contestant_log)
+        .exec(
+            "
+groups:
+  - name: samples
+    score: 0
+    feedback: full
+  - name: online
+    score: 100
+    feedback: brief
+    deps:
+      - samples    
+                ",
+        );
     }
 }

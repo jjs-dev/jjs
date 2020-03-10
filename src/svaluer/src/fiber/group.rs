@@ -5,8 +5,8 @@ use invoker_api::{
     },
     Status,
 };
+use log::debug;
 use pom::TestId;
-use slog_scope::debug;
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
@@ -21,6 +21,7 @@ pub(crate) struct Group {
     failed_tests: BTreeSet<(TestId, Status)>,
     has_failed_deps: bool,
     running_tests: BTreeSet<TestId>,
+    run_all_tests: bool,
 }
 
 impl Group {
@@ -36,6 +37,7 @@ impl Group {
             failed_tests: BTreeSet::new(),
             has_failed_deps: false,
             running_tests: BTreeSet::new(),
+            run_all_tests: false,
         }
     }
 
@@ -75,6 +77,11 @@ impl Group {
         self.subtask_vis_flags = vis;
         self
     }
+
+    pub(crate) fn set_run_all_tests(&mut self) -> &mut Self {
+        self.run_all_tests = true;
+        self
+    }
 }
 
 impl Group {
@@ -106,7 +113,7 @@ impl Group {
 
     pub(crate) fn on_group_fail(&mut self, other_group_id: u32) {
         if !self.deps.contains(&other_group_id) {
-            // this group was not required, so we ignore this failure
+            // that group was not required, so we ignore this failure
             return;
         }
         debug!("group {:?}: dep {} failed", self.id, other_group_id);
@@ -119,11 +126,15 @@ impl Group {
         debug!("Group {:?}: searching for test", self.id);
         // we can't run if some deps are running or failed
         if self.has_failed_deps || !self.deps.is_empty() {
-            debug!("Returning None: group has failed");
+            debug!("Returning None: group has failed or not all deps succeeded");
+            return None;
+        }
+        if !self.running_tests.is_empty() && !self.run_all_tests {
+            debug!("Returning None: run_all_tests=false, and a test is already running");
             return None;
         }
         if let Some(t) = self.pending_tests.iter().next().copied() {
-            debug!("Test: {:?}", t);
+            debug!("found test: {}", t);
             self.pending_tests.remove(&t);
             self.running_tests.insert(t);
             Some(t)
@@ -201,16 +212,17 @@ mod tests {
     use super::*;
     #[test]
     fn simple() {
+        simple_logger::init().ok();
         let st = || Status {
             kind: invoker_api::StatusKind::Accepted,
-            code: "".to_string(),
+            code: "MOCK_OK".to_string(),
         };
         let mut g = Group::new();
         g.add_tests(1..=3);
         assert_eq!(g.pop_test(), Some(TestId::make(1)));
-        g.mark_test_ok(TestId::make(1), st());
+        g.on_test_done(TestId::make(1), st());
         assert_eq!(g.pop_test(), Some(TestId::make(2)));
-        g.mark_test_ok(TestId::make(2), st());
+        g.on_test_done(TestId::make(2), st());
         assert_eq!(g.pop_test(), Some(TestId::make(3)));
         assert_eq!(g.pop_test(), None);
     }

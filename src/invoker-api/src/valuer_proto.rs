@@ -92,7 +92,7 @@ impl Default for JudgeLog {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProblemInfo {
-    pub test_count: u32,
+    pub tests: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]

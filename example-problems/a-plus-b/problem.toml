@@ -4,7 +4,7 @@ name = "a-plus-b"
 title = "P == NP?" # Clickbait :)
 random-seed = "09c5d2237e9b0e60"
 valuer = "icpc"
-valuer-cfg = "valuer.toml"
+valuer-cfg = "valuer.yaml"
 
 [builtin-check]
 name = "cmp-tokens"
@@ -12,15 +12,19 @@ name = "cmp-tokens"
 [[tests]]
 map = "1..2"
 files = "%d.txt"
+group = "samples"
 
 [[tests]]
 map = "3..5"
 testgen = ["main"]
+group = "tests"
 
 [[tests]]
 map = "6..7"
 files = "%d.txt"
+group = "tests"
 
 [[tests]]
 map = "8..20"
 testgen = ["random"]
+group = "tests"

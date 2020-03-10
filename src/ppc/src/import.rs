@@ -235,6 +235,7 @@ impl<'a> Importer<'a> {
                 testgen: None,
                 files: None,
                 limits: self.limits,
+                group: "default".to_string(),
             };
             let is_generated = test_node.attribute("method").unwrap() == "generated";
             if is_generated {

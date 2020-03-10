@@ -3,7 +3,6 @@ use anyhow::{bail, Context};
 use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use slog_scope::warn;
 use std::{
-    convert::TryInto,
     io::{BufRead, BufReader, BufWriter, Write},
     os::unix::{io::IntoRawFd, process::CommandExt},
 };
@@ -73,12 +72,12 @@ impl Valuer {
 
     pub(crate) fn write_problem_data(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
         let proto_problem_info = ProblemInfo {
-            test_count: req
+            tests: req
                 .problem
                 .tests
-                .len()
-                .try_into()
-                .expect("wow such many tests"),
+                .iter()
+                .map(|test_spec| test_spec.group.clone())
+                .collect(),
         };
         self.write_val(proto_problem_info)
     }

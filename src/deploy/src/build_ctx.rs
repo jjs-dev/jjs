@@ -38,6 +38,7 @@ impl<'bctx> BuildCtx<'bctx> {
         }
         cmd.arg("-Zunstable-options");
         cmd.arg("--out-dir").arg(self.params.build.join("jjs-out"));
+        cmd.arg("--locked");
         cmd
     }
 }

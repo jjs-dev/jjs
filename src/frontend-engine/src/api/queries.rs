@@ -59,6 +59,15 @@ impl Query {
     fn standings_simple(ctx: &Context) -> ApiResult<String> {
         monitor::get_standings(ctx)
     }
+
+    /// Check if JJS is running in development mode.
+    /// Please note that you don't have to respect this information, but following is recommended:
+    ///   - Display it in each page/view.
+    ///   - Change theme.
+    ///   - On login view, add button "login as root".
+    fn is_development(ctx: &Context) -> ApiResult<bool> {
+        Ok(matches!(ctx.config().env, crate::config::Env::Dev))
+    }
 }
 
 #[juniper::object(Context = Context)]

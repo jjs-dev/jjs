@@ -25,6 +25,7 @@ impl Worker {
         };
         persistent_judge_log.status = status;
         persistent_judge_log.kind = valuer_log.kind;
+        persistent_judge_log.score = valuer_log.score;
         // now fill compile_stdout and compile_stderr in judge_log
         {
             let mut compile_stdout = Vec::new();

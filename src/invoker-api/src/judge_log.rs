@@ -1,8 +1,6 @@
 //! Judge log stored in FS
-use crate::{
-    valuer_proto::{JudgeLogKind, SubtaskId},
-    Status, StatusKind,
-};
+pub use crate::valuer_proto::JudgeLogKind;
+use crate::{valuer_proto::SubtaskId, Status, StatusKind};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JudgeLogTestRow {

@@ -66,6 +66,11 @@ impl JudgeLogKind {
             JudgeLogKind::Contestant => "contestant",
         }
     }
+
+    pub fn list() -> impl Iterator<Item = JudgeLogKind> {
+        const ALL_KINDS: [JudgeLogKind; 2] = [JudgeLogKind::Contestant, JudgeLogKind::Full];
+        ALL_KINDS.iter().copied()
+    }
 }
 
 /// Judge log from valuer POV

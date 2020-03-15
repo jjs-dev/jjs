@@ -139,6 +139,18 @@ impl Worker {
         match compiler_response {
             Err(err) => return Err(err),
             Ok(BuildOutcome::Error(st)) => {
+                for kind in invoker_api::judge_log::JudgeLogKind::list() {
+                    let pseudo_valuer_proto = invoker_api::valuer_proto::JudgeLog {
+                        kind,
+                        tests: vec![],
+                        subtasks: vec![],
+                        score: 0,
+                        is_full: false,
+                    };
+                    let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req)?;
+                    protocol.status = st.clone();
+                    self.put_protocol(req, protocol)?;
+                }
                 outcome = InvokeOutcome::CompileError(st);
             }
             Ok(BuildOutcome::Success) => {
@@ -148,6 +160,22 @@ impl Worker {
             }
         };
         Ok(outcome)
+    }
+
+    fn put_outcome(
+        &mut self,
+        score: u32,
+        status: invoker_api::Status,
+        kind: invoker_api::judge_log::JudgeLogKind,
+    ) {
+        let header = invoker_api::InvokeOutcomeHeader {
+            score: Some(score),
+            status: Some(status),
+            kind,
+        };
+        self.sender
+            .send(Response::OutcomeHeader(header))
+            .expect("failed to send sync request");
     }
 
     fn put_protocol(
@@ -162,14 +190,7 @@ impl Worker {
         let protocol_file = std::io::BufWriter::new(protocol_file);
         serde_json::to_writer(protocol_file, &protocol)
             .context("failed to write judge log to file")?;
-        let header = invoker_api::InvokeOutcomeHeader {
-            score: Some(protocol.score),
-            status: Some(protocol.status),
-            kind: protocol.kind,
-        };
-        self.sender
-            .send(Response::OutcomeHeader(header))
-            .expect("failed to send sync request");
+        self.put_outcome(protocol.score, protocol.status, protocol.kind);
         Ok(())
     }
 

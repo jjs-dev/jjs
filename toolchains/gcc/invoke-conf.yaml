@@ -5,6 +5,10 @@ filename: "source.c"
 build-limits:
   time: 6000
 
+# TODO disable this hack
+env-passing: true
+env-blacklist: ["LS_COLORS"]
+
 build:
   - argv:
       - "{{ env_GCC }}"

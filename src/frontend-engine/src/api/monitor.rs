@@ -29,7 +29,7 @@ fn lower_problem(prob: &pom::Problem) -> ranker::ProblemConfig {
 }
 
 pub(super) fn get_standings(ctx: &Context) -> ApiResult<String> {
-    let runs = ctx.db.load_runs_with_last_invocations().internal(ctx)?;
+    let runs = ctx.db().load_runs_with_last_invocations().internal(ctx)?;
 
     let mut ranker_runs = Vec::new();
     for (db_run, db_inv) in runs {

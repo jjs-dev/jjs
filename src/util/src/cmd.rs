@@ -22,10 +22,14 @@ impl Runner {
 
 impl Runner {
     pub fn exit_if_errors(&self) {
-        if self.had_errors.load(Ordering::SeqCst) {
+        if self.has_error() {
             eprintln!("Action was not successful: some commands failed");
             exit(1);
         }
+    }
+
+    pub fn has_error(&self) -> bool {
+        self.had_errors.load(Ordering::SeqCst)
     }
 
     pub fn error(&self) {

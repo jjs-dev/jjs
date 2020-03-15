@@ -83,18 +83,22 @@ impl EnvBuilder {
         self.get().put(contest);
 
         let secret = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE");
-        let frontend_config = config::FrontendConfig {
-            port: 0,
-            host: "127.0.0.1".to_string(),
-            unix_socket_path: "".to_string(),
-            env: config::Env::Dev,
+        let frontend_config = config::FrontendParams {
+            cfg: config::FrontendConfig {
+                port: 0,
+                host: "127.0.0.1".to_string(),
+                unix_socket_path: "".to_string(),
+                env: config::Env::Dev,
+                addr: Some("127.0.0.1".to_string()),
+                tls: None,
+            },
+
             db_conn: db_conn.clone(),
             token_mgr: frontend_engine::TokenMgr::new(db_conn.clone(), secret.into()),
-            addr: Some("127.0.0.1".to_string()),
         };
 
         let rock = ApiServer::create(
-            frontend_config,
+            Arc::new(frontend_config),
             self.inner
                 .take()
                 .expect("EnvBuilder can not be used more than once")
@@ -104,7 +108,7 @@ impl EnvBuilder {
             &path,
         );
         Env {
-            client: rocket::local::Client::new(rock).unwrap(),
+            client: rocket::local::Client::new(rock.unwrap()).unwrap(),
         }
     }
 }

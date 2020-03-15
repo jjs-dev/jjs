@@ -5,9 +5,8 @@ pub(crate) type DbPool = Arc<dyn db::DbConn>;
 
 //TODO: Do not clone Context on every request
 pub(crate) struct ContextData {
-    pub(crate) db: DbPool,
     pub(crate) cfg: Arc<entity::Loader>,
-    pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
+    pub(crate) fr_cfg: Arc<crate::config::FrontendParams>,
     pub(crate) token_mgr: TokenMgr,
     pub(crate) token: Token,
     pub(crate) problem_loader: Arc<problem_loader::Loader>,
@@ -20,12 +19,20 @@ impl ContextData {
         RawAccessChecker {
             token: &self.token,
             cfg: &self.cfg,
-            db: &*self.db,
+            db: &*self.db(),
         }
     }
 
     pub(crate) fn global(&self) -> std::sync::MutexGuard<crate::global::GlobalState> {
         self.global.lock().unwrap()
+    }
+
+    pub(crate) fn db(&self) -> &dyn db::DbConn {
+        &*self.fr_cfg.db_conn
+    }
+
+    pub(crate) fn config(&self) -> &crate::config::FrontendConfig {
+        &self.fr_cfg.cfg
     }
 }
 
@@ -51,8 +58,8 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .expect("State<ContextFactory> missing");
 
         let frontend_config = request
-            .guard::<rocket::State<Arc<crate::config::FrontendConfig>>>()
-            .expect("State<Arc<FrontendConfig>> missing");
+            .guard::<rocket::State<Arc<crate::config::FrontendParams>>>()
+            .expect("State<Arc<FrontendParams>> missing");
 
         let secret_key = request
             .guard::<rocket::State<crate::secret_key::SecretKey>>()
@@ -72,7 +79,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
         let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key);
 
         let token = token.and_then(|header| {
-            token_mgr.deserialize(header.as_bytes(), frontend_config.env.is_dev())
+            token_mgr.deserialize(header.as_bytes(), frontend_config.cfg.env.is_dev())
         });
         let token = match token {
             Ok(tok) => Ok(tok),
@@ -85,7 +92,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
         let token = token.map_err(|e| Err((rocket::http::Status::BadRequest, e)))?;
 
         rocket::Outcome::Success(ContextData {
-            db: factory.pool.clone(),
             cfg: factory.cfg.clone(),
             fr_cfg: frontend_config.clone(),
             token_mgr,
@@ -112,7 +118,7 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for Context {
 pub(crate) struct ContextFactory {
     pub(crate) pool: DbPool,
     pub(crate) cfg: Arc<entity::Loader>,
-    pub(crate) fr_cfg: Arc<crate::config::FrontendConfig>,
+    pub(crate) fr_cfg: Arc<crate::config::FrontendParams>,
     pub(crate) problem_loader: Arc<problem_loader::Loader>,
     pub(crate) data_dir: Arc<std::path::Path>,
 }
@@ -127,7 +133,6 @@ impl ContextFactory {
             Err(e) => panic!("failed create root's Token: {}", e),
         };
         ContextData {
-            db: self.pool.clone(),
             cfg: self.cfg.clone(),
             token_mgr,
             token,

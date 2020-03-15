@@ -14,3 +14,7 @@ util = {path = "../util"}
 slog-scope = "4.3.0"
 problem-loader = {path = "../problem-loader"}
 anyhow = "1.0.26"
+serde = {version = "1.0.104", features = ["derive"]}
+serde_yaml = "0.8.11"
+schemars = "0.6.5"
+serde_json = "1.0.48"

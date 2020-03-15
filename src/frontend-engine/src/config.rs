@@ -1,6 +1,8 @@
-use std::{env, sync::Arc};
-
-#[derive(Copy, Clone, Debug)]
+use anyhow::Context as _;
+use schemars::JsonSchema;
+use serde::{de::Error as _, Deserialize, Serialize};
+use std::{path::Path, sync::Arc};
+#[derive(Copy, Clone, Debug, Serialize, JsonSchema)]
 pub enum Env {
     Prod,
     Dev,
@@ -38,74 +40,121 @@ pub fn derive_key_512(secret: &str) -> Vec<u8> {
     out
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct TlsConfig {
+    pub cert_path: String,
+    pub key_path: String,
+}
+
+impl<'de> serde::de::Deserialize<'de> for Env {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let s: String = serde::de::Deserialize::deserialize(deserializer)?;
+        match s.as_str() {
+            "dev" | "devel" | "development" => Ok(Env::Dev),
+            "prod" | "production" => Ok(Env::Prod),
+            _ => Err(D::Error::custom("unknown environment")),
+        }
+    }
+}
+
+fn default_env() -> Env {
+    if cfg!(debug_assertions) {
+        Env::Dev
+    } else {
+        Env::Prod
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
 pub struct FrontendConfig {
+    #[serde(default = "default_port")]
     pub port: u16,
+    #[serde(default = "default_host")]
     pub host: String,
-    pub token_mgr: crate::api::TokenMgr,
-    pub db_conn: Arc<dyn db::DbConn>,
+    #[serde(default = "default_unix_socket_path")]
     pub unix_socket_path: String,
+    #[serde(default = "default_env")]
     pub env: Env,
     /// Public address of frontend (must be visible to invoker)
+    #[serde(default = "default_self_addr")]
     pub addr: Option<String>,
+    #[serde(default)]
+    pub tls: Option<TlsConfig>,
+}
+
+impl Default for FrontendConfig {
+    fn default() -> Self {
+        Self {
+            port: default_port(),
+            host: default_host(),
+            unix_socket_path: default_unix_socket_path(),
+            env: default_env(),
+            addr: default_self_addr(),
+            tls: None,
+        }
+    }
+}
+
+fn default_port() -> u16 {
+    1779
+}
+
+fn default_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_unix_socket_path() -> String {
+    "/tmp/jjs-auth-sock".to_string()
+}
+
+fn default_self_addr() -> Option<String> {
+    Some("127.0.0.1".to_string())
 }
 
 impl FrontendConfig {
-    pub fn obtain() -> FrontendConfig {
-        let port = env::var("JJS_PORT")
-            .map_err(|_| ())
-            .and_then(|s| s.parse().map_err(|_| ()))
-            .unwrap_or(1779);
-        let host = env::var("JJS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-        let environ = env::var("JJS_ENV")
-            .map_err(|_| ())
-            .and_then(|e| match e.as_str() {
-                "dev" | "devel" | "development" => Ok(Env::Dev),
-                "prod" | "production" => Ok(Env::Prod),
-                _ => Err(()),
-            })
-            .unwrap_or_else(|_| {
-                if cfg!(debug_assertions) {
-                    Env::Dev
-                } else {
-                    Env::Prod
-                }
-            });
-        let secret = env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
-            if let Env::Dev = environ {
+    pub fn obtain(jjs_data_dir: &Path) -> anyhow::Result<FrontendConfig> {
+        let config_path = jjs_data_dir.join("etc/frontend.yaml");
+        let config = if config_path.exists() {
+            let config = std::fs::read(config_path).context("failed to read config")?;
+            serde_yaml::from_slice(&config).context("parse error")?
+        } else {
+            FrontendConfig::default()
+        };
+        Ok(config)
+    }
+
+    pub fn into_frontend_params(self) -> anyhow::Result<FrontendParams> {
+        let db_conn: Arc<dyn db::DbConn> =
+            db::connect_env().context("db connection failed")?.into();
+
+        let secret = std::env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
+            if let Env::Dev = self.env {
                 String::from("DEVEL_HARDCODED_TOKEN")
             } else {
                 panic!("Error: running in production mode, but JJS_SECRET_KEY not specified");
             }
         });
         let secret = derive_key_512(&secret);
-        let db_conn: Arc<dyn db::DbConn> = db::connect_env()
-            .expect("initialize db connection failed")
-            .into();
-        let unix_socket_path =
-            env::var("JJS_UNIX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/jjs-auth-sock".to_string());
-
-        let token_mgr = crate::api::TokenMgr::new(db_conn.clone(), secret.into());
-
-        let addr = std::env::var("JJS_SELF_ADDR")
-            .or_else(|_| my_internet_ip::get().map(|addr| addr.to_string()))
-            .map_err(|err| {
-                eprintln!(
-                    "Warning: failed to determine machine IP ({:?}), and JJS_SELF_ADDR is missing.
-            Some features will be unavailable",
-                    err
-                );
-            })
-            .ok();
-
-        FrontendConfig {
-            port,
-            host,
+        let token_mgr = crate::TokenMgr::new(db_conn.clone(), secret.into());
+        Ok(FrontendParams {
+            cfg: dbg!(self),
             db_conn,
-            unix_socket_path,
-            env: environ,
             token_mgr,
-            addr,
-        }
+        })
     }
+}
+
+// TODO: needs refactoring. Probably should be deleted.
+#[derive(Debug)]
+pub struct FrontendParams {
+    pub token_mgr: crate::api::TokenMgr,
+    pub db_conn: Arc<dyn db::DbConn>,
+    pub cfg: FrontendConfig,
 }

@@ -51,7 +51,7 @@ struct ApiError {
 
 impl ApiError {
     fn dev_backtrace(&mut self) {
-        if self.ctx.fr_cfg.env.is_dev() {
+        if self.ctx.config().env.is_dev() {
             self.extension.set_backtrace();
             if let Some(err) = &self.source {
                 let backtrace = format!("{:?}", err.backtrace());
@@ -124,7 +124,7 @@ impl std::fmt::Display for AnyhowAlternateWrapper<'_> {
 
 impl juniper::IntoFieldError for ApiError {
     fn into_field_error(self) -> juniper::FieldError {
-        let is_visible = self.visible || self.ctx.fr_cfg.env.is_dev();
+        let is_visible = self.visible || self.ctx.config().env.is_dev();
         let wrp;
         let data: &dyn std::fmt::Display = match &self.source {
             Some(err) if is_visible => {

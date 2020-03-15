@@ -7,7 +7,7 @@ pub(super) fn simple(
 ) -> ApiResult<schema::SessionToken> {
     let mut success = false;
     let mut reject_reason = "";
-    if let Some(user) = ctx.db.user_try_load_by_login(&login).internal(ctx)? {
+    if let Some(user) = ctx.db().user_try_load_by_login(&login).internal(ctx)? {
         if let Some(password_hash) = user.password_hash {
             success = crate::password::check_password_hash(&password, &password_hash);
             if !success {

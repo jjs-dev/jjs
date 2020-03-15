@@ -20,6 +20,9 @@ pub(crate) struct RawBuildOpts {
     /// Additional options to pass to configure
     #[structopt(long = "configure-opt")]
     configure: Vec<String>,
+    /// Build all docs
+    #[structopt(long)]
+    docs: bool,
 }
 
 struct BuildOpts(RawBuildOpts);
@@ -41,7 +44,7 @@ impl BuildOpts {
 
     fn should_build_man(&self) -> bool {
         let bt = detect_build_type();
-        bt.deploy_info().contains(&DeployKind::Man)
+        bt.deploy_info().contains(&DeployKind::Man) || self.0.full || self.0.docs
     }
 
     fn should_build_docker(&self) -> bool {
@@ -62,6 +65,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
     let mut cmd = Command::new("../configure");
     cmd.current_dir("target");
     cmd.arg("--out=/opt/jjs");
+    cmd.arg("--enable-json-schema");
 
     if opts.full() || opts.should_build_deb() {
         cmd.arg("--enable-deb");
@@ -86,6 +90,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
         cmd.arg("--disable-core");
         cmd.arg("--disable-tools");
         cmd.arg("--enable-api-doc");
+        cmd.arg("--enable-doca");
     } else {
         cmd.arg("--disable-man");
     }

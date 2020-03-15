@@ -14,6 +14,7 @@ serde = "1.0.104"
 util = {path = "../util"}
 serde_yaml = "0.8.11"
 log = "0.4.8"
+either = "1.5.3"
 
 [dev-dependencies]
 simple_logger = "1.6.0"

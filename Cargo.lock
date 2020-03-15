@@ -3186,6 +3186,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossbeam",
+ "either",
  "invoker-api",
  "log 0.4.8",
  "pom",

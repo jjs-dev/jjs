@@ -20,6 +20,7 @@ impl Valuer {
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
         cmd.env("JJS_VALUER", "1");
+        cmd.env("RUST_LOG", "info,svaluer=debug");
         let work_dir = req.resolve_asset(&req.problem.valuer_cfg);
         if work_dir.exists() {
             cmd.current_dir(&work_dir);

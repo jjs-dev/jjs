@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - fixup-deploy
 env:
   CI: 1
   RUST_BACKTRACE: full
@@ -20,9 +21,9 @@ jobs:
           JJS_DT_DEPLOY: docker
       - name: upload docker images
         run: |
-          docker login --username mikailbag --password ${{ secrets.PKG_REGISTRY_TOKEN }} docker.pkg.github.com
-          docker tag jjs:latest docker.pkg.github.com/mikailbag/jjs/jjs:master
-          docker push docker.pkg.github.com/mikailbag/jjs/jjs:master
+          docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
+          docker tag jjs:latest docker.pkg.github.com/jjs-dev/jjs/jjs:master
+          docker push docker.pkg.github.com/jjs-dev/jjs/jjs:master
   deb:
     name: deb
     runs-on: 'ubuntu-18.04'

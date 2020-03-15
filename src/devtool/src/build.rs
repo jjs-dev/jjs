@@ -90,7 +90,6 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
         cmd.arg("--disable-core");
         cmd.arg("--disable-tools");
         cmd.arg("--enable-api-doc");
-        cmd.arg("--enable-doca");
     } else {
         cmd.arg("--disable-man");
     }

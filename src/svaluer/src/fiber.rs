@@ -112,6 +112,8 @@ impl Fiber {
                 grp.set_run_all_tests();
             }
 
+            grp.freeze();
+
             groups.push(grp);
         }
         Fiber {
@@ -157,7 +159,8 @@ impl Fiber {
     }
 
     fn poll_groups_for_tests(&mut self) -> Option<TestId> {
-        for (i, g) in self.groups.iter_mut().enumerate() {
+        for &i in &self.active_groups {
+            let g = &mut self.groups[i];
             if let reply @ Some(_) = g.pop_test() {
                 debug!("group {} returned {}", i, reply.unwrap());
                 return reply;
@@ -197,14 +200,15 @@ impl Fiber {
                 score: cur_live_score,
             };
         }
-        let mut del_from_active_groups = Vec::new();
+        let mut new_active_groups = Vec::new();
         for &i in &self.active_groups {
             let g = &self.groups[i];
             let is_passed = g.is_passed();
             let is_failed = g.is_failed();
             if is_passed || is_failed {
                 info!("group {} is finished", i);
-                del_from_active_groups.push(i);
+            } else {
+                new_active_groups.push(i);
             }
             assert!(!(is_passed && is_failed));
             if g.is_passed() {
@@ -219,6 +223,7 @@ impl Fiber {
                 }
             }
         }
+        self.active_groups = new_active_groups;
         if let Some(test_id) = self.poll_groups_for_tests() {
             debug!("got test from groups: {}", test_id);
             FiberReply::Test { test_id }

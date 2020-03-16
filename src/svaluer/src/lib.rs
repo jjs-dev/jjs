@@ -8,6 +8,8 @@ mod tests;
 pub mod cfg;
 mod fiber;
 
+pub use cfg::Config;
+
 use anyhow::{Context, Result};
 use fiber::{Fiber, FiberReply};
 use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};

@@ -1,4 +1,4 @@
-use snafu::{ResultExt, Snafu};
+use thiserror::{Error};
 use std::path::Path;
 
 #[derive(Debug, Copy, Clone)]
@@ -16,13 +16,13 @@ pub(crate) struct TaskSuccess {
 }
 
 //pub(crate) type TaskError = Box<dyn std::error::Error + 'static>;
-#[derive(Debug, Snafu)]
+#[derive(Debug, Error)]
 pub(crate) enum TaskError {
-    #[snafu(display("child command returned non-zero code"))]
-    ExitCodeNonZero {},
-    #[snafu(display("child execution failed: {}", source))]
-    ChildExecError { source: std::io::Error },
-    #[snafu(display("feature not supported: {}", feature))]
+    #[error("child command returned non-zero code")]
+    ExitCodeNonZero,
+    #[error("child execution failed: {source}")]
+    ChildExecError { #[from] source: std::io::Error },
+    #[error("feature not supported: {feature}")]
     FeatureNotSupported { feature: &'static str },
 }
 
@@ -38,7 +38,7 @@ trait CommandExt {
 
 impl CommandExt for std::process::Command {
     fn run(&mut self) -> Result<(), TaskError> {
-        let st = self.status().context(ChildExecError {})?;
+        let st = self.status()?;
         if st.success() {
             Ok(())
         } else {

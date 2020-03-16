@@ -356,11 +356,25 @@ impl<'a> Importer<'a> {
         Ok(())
     }
 
+    fn import_valuer_config(&mut self) -> anyhow::Result<()> {
+        let valuer_cfg_path = self.src.join("files/valuer.cfg");
+        let config;
+        if valuer_cfg_path.exists() {
+            println!("Importing valuer.cfg from {}", valuer_cfg_path.display());
+            config = serde_yaml::to_string(&super::valuer_cfg::import(&valuer_cfg_path)?)?;
+        } else {
+            config = include_str!("./default_valuer_config.yaml").to_string();
+        }
+        std::fs::write(self.dest.join("valuer.yaml"), config)?;
+        Ok(())
+    }
+
     pub(crate) fn run(&mut self) -> anyhow::Result<()> {
         self.init_dirs()?;
         self.fill_manifest()?;
         self.produce_generator_shim();
         self.feed(self.doc)?;
+        self.import_valuer_config()?;
         Ok(())
     }
 }

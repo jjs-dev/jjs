@@ -1,5 +1,6 @@
 mod problem_importer;
 mod template;
+mod valuer_cfg;
 
 use anyhow::{bail, Context as _};
 use problem_importer::Importer;

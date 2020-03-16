@@ -1,11 +1,11 @@
 #![feature(is_sorted)]
 
-use std::env;
-
 mod command;
 mod compile;
 mod import;
 mod manifest;
+
+use std::env;
 
 mod args {
     use std::path::PathBuf;
@@ -45,16 +45,6 @@ mod args {
     pub enum Args {
         Compile(CompileArgs),
         Import(ImportArgs),
-    }
-}
-
-mod errors {
-    use snafu::Snafu;
-
-    #[derive(Debug, Snafu)]
-    #[snafu(visibility(pub))]
-    pub enum Error {
-        ConfigFormat { description: String },
     }
 }
 

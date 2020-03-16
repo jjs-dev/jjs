@@ -22,8 +22,12 @@ done
 echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
 
 mount -o remount,rw /
-ifdown lo
-ifup lo
+
+if [ "x\$(readlink /proc/1/cwd)" == x/ ]
+then
+    ifdown lo
+    ifup lo
+fi
 
 haveged -F &
 
@@ -50,10 +54,16 @@ fi
 
 jjs-invoker &
 
-if [ "x\$(readlink /proc/1/exe)" == x/ ]
+if [ "x\$(readlink /proc/1/cwd)" == x/ ]
 then
-    ifdown eth0
-    ifup eth0
+    grep '^auto [a-z0-9]*\$' /etc/network/interfaces | cut -d ' ' -f 2-2 | while read iface
+    do
+        if [ "x\$iface" != xlo ]
+        then
+            ifdown "\$iface"
+            ifup "\$iface"
+        fi
+    done
 fi
 
 if [ "\$\$" == 1 ]

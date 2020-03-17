@@ -1,3 +1,4 @@
+mod contest_import;
 mod problem_importer;
 mod template;
 mod valuer_cfg;
@@ -78,11 +79,32 @@ pub fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
             for item in items {
                 let item = item?;
                 let problem_name = item.file_name();
-                println!("--- Importing problem {} ---", problem_name.to_string_lossy());
+                println!(
+                    "--- Importing problem {} ---",
+                    problem_name.to_string_lossy()
+                );
                 let problem_dir = item.path();
                 let target_dir = dest.join("problems").join(&problem_name);
                 std::fs::create_dir_all(&target_dir)?;
                 import_one_problem(&problem_dir, &target_dir)?;
+            }
+            if args.update_cfg {
+                let contest_name = args
+                    .contest_name
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("missing --contest-name"))?;
+                let contest_config =
+                    contest_import::import(&src.join("contest.xml"), contest_name)
+                        .context("import contest config")?;
+                let jjs_data_dir = std::env::var("JJS_DATA").context("JJS_DATA missing")?;
+                let path = PathBuf::from(jjs_data_dir)
+                    .join("etc/objects/contests")
+                    .join(format!("{}.yaml", contest_name));
+                if path.exists() && !args.force {
+                    anyhow::bail!("path {} already exists", path.display());
+                }
+                let contest_config = serde_yaml::to_string(&contest_config)?;
+                std::fs::write(path, contest_config)?;
             }
         }
     }

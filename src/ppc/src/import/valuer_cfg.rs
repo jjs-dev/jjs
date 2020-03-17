@@ -36,7 +36,7 @@ impl<'a> Visitor<'a> {
         let mut iter = node.into_inner();
         let group_num_node = iter.next().unwrap();
         assert_eq!(group_num_node.as_rule(), Rule::num);
-        let num: u32 = dbg!(group_num_node.as_str()).parse().unwrap();
+        let num: u32 = group_num_node.as_str().parse().unwrap();
         let mut group_cfg = svaluer::cfg::Group {
             name: format!("g{}", num),
             feedback: svaluer::cfg::FeedbackKind::Brief,
@@ -81,6 +81,15 @@ impl<'a> Visitor<'a> {
                         .deps
                         .push(svaluer::cfg::GroupRef::ByName(dep_group_name));
                 }
+            }
+            Rule::group_option_sets_marked_if_passed => {
+                self.warn_not_sup("GroupOptionSetsMarkedIfPassed");
+            }
+            Rule::group_option_offline => {
+                group.feedback = svaluer::cfg::FeedbackKind::Hidden;
+            }
+            Rule::group_option_test_score => {
+                self.warn_not_sup("GroupOptionTestScore");
             }
             other => panic!("{:?}", other),
         }

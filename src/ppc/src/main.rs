@@ -38,6 +38,14 @@ mod args {
         /// Rewrite dir
         #[structopt(long, short = "F")]
         pub force: bool,
+        /// Write contest config to jjs data_dir.
+        /// This option can only be used when importing contest
+        #[structopt(long, short = "C")]
+        pub update_cfg: bool,
+        /// Imported contest name
+        /// This option can only be used when importing contest
+        #[structopt(long, short = "N")]
+        pub contest_name: Option<String>,
     }
 
     #[derive(StructOpt)]

@@ -218,7 +218,7 @@ impl RawProblem {
         let random_seed = match self.random_seed.take() {
             Some(s) => {
                 if s.len() != 16 {
-                    bail!("random-seed must have length16");
+                    bail!("random-seed must have length 16");
                 }
                 if s.chars().all(|c| c.is_ascii_hexdigit()) {
                     s.to_lowercase()

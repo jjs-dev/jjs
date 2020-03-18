@@ -35,14 +35,12 @@ class Generator {
 };
 
 struct TestgenSession {
-    FILE* out_file = nullptr;
     int test_id = 0;
     Generator gen;
-    int64_t fd_out_file = -1;
 
     TestgenSession(uint64_t _seed);
 };
 
 /// Call this first in test generator
-TestgenSession init(bool open_files = true);
+TestgenSession init();
 } // namespace testgen

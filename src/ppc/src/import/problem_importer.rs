@@ -146,9 +146,14 @@ impl<'a> Importer<'a> {
                 // do nothing here, processed separately
             }
             FileCategory::Generator => {
-                let module_dir = self.dest.join("modules").join(format!("gen-{}", file_name));
-                std::fs::create_dir(&module_dir).expect("create module dir");
-                let dest_path = module_dir.join("main.cpp");
+                let gen_dir = self.dest.join("generators").join(format!("{}", file_name));
+                std::fs::create_dir(&gen_dir).expect("create generator dir");
+                let extension = match file_type {
+                    _ if file_type.starts_with("cpp.g++") => "cpp",
+                    "python.3" => "py",
+                    _ => anyhow::bail!("unknown file type: {}", file_type),
+                };
+                let dest_path = gen_dir.join(format!("main.{}", extension));
                 let src_path = self.src.join(file_path);
                 std::fs::copy(&src_path, &dest_path).with_context(|| {
                     format!(
@@ -158,11 +163,14 @@ impl<'a> Importer<'a> {
                     )
                 })?;
 
-                let cmakefile = module_dir.join("CMakeLists.txt");
-                // currently, CMakeLists are same with generator
-                let cmakedata =
-                    super::template::get_checker_cmakefile(super::template::CheckerOptions {});
-                std::fs::write(cmakefile, cmakedata).context("write generator's CMakeLists.txt")?;
+                if extension == "cpp" {
+                    let cmakefile = gen_dir.join("CMakeLists.txt");
+                    // currently, CMakeLists are same with generator
+                    let cmakedata =
+                        super::template::get_checker_cmakefile(super::template::CheckerOptions {});
+                    std::fs::write(cmakefile, cmakedata)
+                        .context("write generator's CMakeLists.txt")?;
+                }
             }
         }
         Ok(())
@@ -186,19 +194,6 @@ impl<'a> Importer<'a> {
             std::fs::write(cmakefile, cmakedata).context("write checker's CMakeLists.txt")?;
         }
         Ok(())
-    }
-
-    fn produce_generator_shim(&mut self) {
-        {
-            static SHIM: &str = include_str!("./gen-compat-shim.cpp");
-            let dest_path = self.dest.join("testgens/shim/main.cpp");
-            std::fs::write(dest_path, SHIM).expect("put generator-shim file");
-        }
-        {
-            static SHIM_CMAKE: &str = include_str!("./shim.cmake");
-            let dest_path = self.dest.join("testgens/shim/CMakeLists.txt");
-            std::fs::write(dest_path, SHIM_CMAKE).expect("put generator-shim CMakeLists.txt");
-        }
     }
 
     fn process_executable(&mut self, node_executable: roxmltree::Node) -> anyhow::Result<()> {
@@ -228,18 +223,20 @@ impl<'a> Importer<'a> {
                 testgen: None,
                 files: None,
                 limits: self.limits,
-                group: test_node
-                    .attribute("group")
-                    .unwrap_or("default")
-                    .to_string(),
+                group: format!(
+                    "g{}",
+                    test_node
+                        .attribute("group")
+                        .unwrap_or("default")
+                        .to_string()
+                ),
             };
             let is_generated = test_node.attribute("method").unwrap() == "generated";
             if is_generated {
                 let cmd_iter = test_node.attribute("cmd").unwrap().split_whitespace();
-                let mut testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
+                let testgen_cmd = cmd_iter.map(ToOwned::to_owned).collect::<Vec<_>>();
                 let gen_name = testgen_cmd[0].clone();
                 self.known_generators.insert(gen_name);
-                testgen_cmd.insert(0, "shim".to_string());
                 ts.testgen = Some(testgen_cmd);
             } else {
                 // TODO: use formatf here instead of hardcoded format strings
@@ -305,6 +302,13 @@ impl<'a> Importer<'a> {
         }
     }
 
+    fn process_problem(&mut self, node_problem: roxmltree::Node) {
+        assert_eq!(node_problem.tag_name().name(), "problem");
+        if let Some(name) = node_problem.attribute("short-name") {
+            self.problem_cfg.name = name.to_string();
+        }
+    }
+
     fn fill_manifest(&mut self) -> anyhow::Result<()> {
         let m = &mut self.problem_cfg;
         m.valuer = "icpc".to_string();
@@ -315,9 +319,11 @@ impl<'a> Importer<'a> {
         m.check_options = Some(crate::manifest::CheckOptions {
             args: vec!["assets/module-checker/bin".to_string()],
         });
-        let mut random_seed = [0; 32];
+        m.valuer_cfg = Some("valuer.yaml".to_string());
+        let mut random_seed = [0; 8];
         getrandom::getrandom(&mut random_seed)?;
         let rand_seed_hex = hex::encode(&random_seed);
+        assert_eq!(rand_seed_hex.len(), 16);
         m.random_seed = Some(rand_seed_hex);
         Ok(())
     }
@@ -325,8 +331,7 @@ impl<'a> Importer<'a> {
     fn init_dirs(&mut self) -> anyhow::Result<()> {
         for suf in &[
             "solutions",
-            "testgens",
-            "testgens/shim",
+            "generators",
             "tests",
             "modules",
             "modules/checker",
@@ -340,6 +345,13 @@ impl<'a> Importer<'a> {
         Ok(())
     }
 
+    fn go(&mut self, node: roxmltree::Node) -> anyhow::Result<()> {
+        for child in node.children() {
+            self.feed(child)?;
+        }
+        Ok(())
+    }
+
     fn feed(&mut self, node: roxmltree::Node) -> anyhow::Result<()> {
         match node.tag_name().name() {
             "names" => self.process_names(node),
@@ -347,10 +359,12 @@ impl<'a> Importer<'a> {
             "judging" => self.process_judging_section(node)?,
             "executable" => self.process_executable(node)?,
             "checker" => self.process_checker(node)?,
+            "problem" => {
+                self.process_problem(node);
+                self.go(node)?;
+            }
             _ => {
-                for ch in node.children() {
-                    self.feed(ch)?;
-                }
+                self.go(node)?;
             }
         }
         Ok(())
@@ -372,7 +386,6 @@ impl<'a> Importer<'a> {
     pub(crate) fn run(&mut self) -> anyhow::Result<()> {
         self.init_dirs()?;
         self.fill_manifest()?;
-        self.produce_generator_shim();
         self.feed(self.doc)?;
         self.import_valuer_config()?;
         Ok(())

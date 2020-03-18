@@ -217,9 +217,15 @@ impl Fiber {
                     group.on_group_pass(i as u32);
                 }
             } else if g.is_failed() {
-                debug!("group {} is failed", i);
-                for group in &mut self.groups {
-                    group.on_group_fail(i as u32);
+                let mut queue = vec![i as u32];
+                while let Some(k) = queue.pop() {
+                    debug!("group {} is failed", k);
+                    for (j, group) in self.groups.iter_mut().enumerate() {
+                        group.on_group_fail(k as u32);
+                        if group.is_failed() {
+                            queue.push(j as u32);
+                        }
+                    }
                 }
             }
         }

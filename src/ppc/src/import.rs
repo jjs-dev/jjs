@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn import_one_problem(src: &Path, dest: &Path) -> anyhow::Result<()> {
+fn import_one_problem(src: &Path, dest: &Path, build: bool, force: bool) -> anyhow::Result<()> {
     let manifest_path = src.join("problem.xml");
     let manifest = std::fs::read_to_string(manifest_path).context("failed read problem.xml")?;
     let doc = roxmltree::Document::parse(&manifest).context("parse error")?;
@@ -36,6 +36,23 @@ fn import_one_problem(src: &Path, dest: &Path) -> anyhow::Result<()> {
         )
     });
     std::fs::write(manifest_path, manifest_data).expect("write ppc manifest");
+    if build {
+        println!("building problem {}", &importer.problem_cfg.name);
+        let problems_dir: PathBuf = std::env::var("JJS_DATA")?.into();
+        let out_path = problems_dir
+            .join("var/problems")
+            .join(&importer.problem_cfg.name);
+        if force {
+            std::fs::remove_dir_all(&out_path).ok();
+        }
+        std::fs::create_dir(&out_path)?;
+        crate::compile_problem(crate::args::CompileArgs {
+            pkg_path: dest.to_path_buf(),
+            out_path,
+            force,
+            verbose: true,
+        });
+    }
     Ok(())
 }
 
@@ -61,8 +78,8 @@ fn detect_import_kind(path: &Path) -> anyhow::Result<ImportKind> {
 
 pub fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
     if args.force {
-        std::fs::remove_dir_all(&args.out_path).context("remove out dir")?;
-        std::fs::create_dir(&args.out_path).context("recreate out dir")?;
+        std::fs::remove_dir_all(&args.out_path).ok();
+        std::fs::create_dir(&args.out_path).context("create out dir")?;
     } else {
         crate::check_dir(&PathBuf::from(&args.out_path), false /* TODO */);
     }
@@ -71,7 +88,7 @@ pub fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
     let dest = Path::new(&args.out_path);
     let kind = detect_import_kind(src).context("failed to detect import operation kind")?;
     match kind {
-        ImportKind::Problem => import_one_problem(src, dest)?,
+        ImportKind::Problem => import_one_problem(src, dest, args.build, args.force)?,
         ImportKind::Contest => {
             println!("Importing contest");
             println!("Importing problems");
@@ -86,16 +103,15 @@ pub fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
                 let problem_dir = item.path();
                 let target_dir = dest.join("problems").join(&problem_name);
                 std::fs::create_dir_all(&target_dir)?;
-                import_one_problem(&problem_dir, &target_dir)?;
+                import_one_problem(&problem_dir, &target_dir, args.build, args.force)?;
             }
             if args.update_cfg {
                 let contest_name = args
                     .contest_name
                     .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("missing --contest-name"))?;
-                let contest_config =
-                    contest_import::import(&src.join("contest.xml"), contest_name)
-                        .context("import contest config")?;
+                let contest_config = contest_import::import(&src.join("contest.xml"), contest_name)
+                    .context("import contest config")?;
                 let jjs_data_dir = std::env::var("JJS_DATA").context("JJS_DATA missing")?;
                 let path = PathBuf::from(jjs_data_dir)
                     .join("etc/objects/contests")

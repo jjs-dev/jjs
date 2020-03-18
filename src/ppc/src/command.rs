@@ -37,15 +37,14 @@ impl Command {
         out
     }
 
-    pub fn run_quiet(&mut self) {
-        use std::{os::unix::process::ExitStatusExt, process::exit};
+    pub fn run_quiet(&mut self) -> std::process::Output {
+        use std::{os::unix::process::ExitStatusExt};
         let mut s = self.to_std_command();
         let out = s.output().expect("couldn't spawn");
         let status = out.status;
         if status.success() {
-            return;
+            return out;
         }
-        eprintln!("error: child returned error");
 
         let exit_code = if status.code().is_some() {
             format!("normal: {}", status.code().unwrap())
@@ -53,14 +52,14 @@ impl Command {
             format!("signaled: {}", status.signal().unwrap())
         };
         eprintln!(
-            "testgen did not finished successfully (exit code {})",
+            "Chiild did not finished successfully (exit code {})",
             exit_code
         );
 
         eprintln!("command: `{}`", self);
         eprintln!("child stdout:\n{}", String::from_utf8_lossy(&out.stdout));
         eprintln!("child stderr:\n{}", String::from_utf8_lossy(&out.stderr));
-        exit(1);
+        std::process::exit(1);
     }
 }
 

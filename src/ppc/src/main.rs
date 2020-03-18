@@ -46,6 +46,9 @@ mod args {
         /// This option can only be used when importing contest
         #[structopt(long, short = "N")]
         pub contest_name: Option<String>,
+        /// Build imported problems and install them to jjs data_dir
+        #[structopt(long, short = "B")]
+        pub build: bool,
     }
 
     #[derive(StructOpt)]
@@ -75,18 +78,6 @@ fn check_dir(path: &Path, allow_nonempty: bool) {
         eprintln!("error: dir {} is not empty", path.display());
         exit(1);
     }
-}
-
-fn open_as_handle(path: &str) -> std::io::Result<i64> {
-    use std::os::unix::io::IntoRawFd;
-    // note: platform-dependent code
-    let file = std::fs::File::create(path)?;
-    let fd = file.into_raw_fd();
-    let fd_dup = unsafe { libc::dup(fd) }; // to cancel CLOEXEC behavior
-    unsafe {
-        libc::close(fd);
-    }
-    Ok(i64::from(fd_dup))
 }
 
 fn compile_problem(args: args::CompileArgs) {
@@ -126,9 +117,40 @@ fn compile_problem(args: args::CompileArgs) {
     builder.build();
 }
 
+#[cfg(target_os = "linux")]
+fn tune_linux() -> anyhow::Result<()> {
+    let mut current_limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    unsafe {
+        if libc::prlimit(0, libc::RLIMIT_STACK, std::ptr::null(), &mut current_limit) != 0 {
+            anyhow::bail!("get current RLIMIT_STACK");
+        }
+    }
+    let new_limit = libc::rlimit {
+        rlim_cur: current_limit.rlim_max,
+        rlim_max: current_limit.rlim_max,
+    };
+    unsafe {
+        if libc::prlimit(0, libc::RLIMIT_STACK, &new_limit, std::ptr::null_mut()) != 0 {
+            anyhow::bail!("update RLIMIT_STACK");
+        }
+    }
+
+    Ok(())
+}
+
+fn tune_resourece_limits() -> anyhow::Result<()> {
+    #[cfg(target_os = "linux")]
+    tune_linux()?;
+
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     use structopt::StructOpt;
-
+    tune_resourece_limits()?;
     let args = Args::from_args();
 
     match args {

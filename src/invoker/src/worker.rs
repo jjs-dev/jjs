@@ -211,9 +211,10 @@ impl Worker {
         let mut valuer = Valuer::new(req).context("failed to init valuer")?;
         valuer
             .write_problem_data(req)
+            .await
             .context("failed to send problem data")?;
         loop {
-            match valuer.poll()? {
+            match valuer.poll().await? {
                 ValuerResponse::Test { test_id: tid, live } => {
                     if live {
                         self.send(Response::LiveTest(tid.get())).await;
@@ -240,6 +241,7 @@ impl Worker {
                             test_id: tid,
                             test_status: judge_response.status,
                         })
+                        .await
                         .with_context(|| {
                             format!("failed to notify valuer that test {} is done", tid)
                         })?;

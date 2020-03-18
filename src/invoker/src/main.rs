@@ -68,7 +68,6 @@ async fn real_main() -> anyhow::Result<()> {
 
     invoker::init::init().context("failed to initialize")?;
 
-    //check_system().context("system configuration problem")?;
     debug!("system check passed");
 
     let driver = make_sources(&config).context("failed to initialize driver")?;

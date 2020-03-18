@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 frontend-engine = {path = "../frontend-engine"}
-rocket = "0.4.2"
+rocket = {version = "0.4.2", features = ["tls"]}
 entity = {path = "../entity"}
 db = {path = "../db"}
 dotenv = "0.15.0"

@@ -11,11 +11,12 @@ pub(crate) enum BuildOutcome {
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a InvokeRequest,
+    pub(crate) minion: &'a dyn minion::Backend,
 }
 
 impl<'a> Compiler<'a> {
     pub(crate) fn compile(&self) -> anyhow::Result<BuildOutcome> {
-        let sandbox = invoke_util::create_sandbox(self.req, None, &*self.req.minion)
+        let sandbox = invoke_util::create_sandbox(self.req, None, self.minion)
             .context("failed to create sandbox")?;
         let step_dir = self.req.step_dir(None);
         fs::copy(
@@ -36,7 +37,7 @@ impl<'a> Compiler<'a> {
 
             native_command.dominion(sandbox.dominion.clone());
 
-            let child = match native_command.spawn(&*self.req.minion) {
+            let child = match native_command.spawn(self.minion) {
                 Ok(child) => child,
                 Err(err) => {
                     if err.is_system() {

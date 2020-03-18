@@ -19,6 +19,7 @@ pub(crate) struct ExecOutcome {
 pub(crate) struct TestExecutor<'a> {
     pub(crate) exec: ExecRequest<'a>,
     pub(crate) req: &'a InvokeRequest,
+    pub(crate) minion: &'a dyn minion::Backend,
 }
 
 enum RunOutcome {
@@ -51,7 +52,7 @@ impl<'a> TestExecutor<'a> {
     fn run_solution(&self, test_data: &[u8], test_id: u32) -> anyhow::Result<RunOutcome> {
         let step_dir = self.req.step_dir(Some(test_id));
 
-        let sandbox = invoke_util::create_sandbox(self.req, Some(test_id), &*self.req.minion)?;
+        let sandbox = invoke_util::create_sandbox(self.req, Some(test_id), self.minion)?;
 
         fs::copy(self.req.out_dir.join("build"), step_dir.join("data/build"))
             .context("failed to copy build artifact to share dir")?;
@@ -71,7 +72,7 @@ impl<'a> TestExecutor<'a> {
         // capture child input
         native_command.stdin(minion::InputSpecification::pipe());
 
-        let mut child = match native_command.spawn(&*self.req.minion) {
+        let mut child = match native_command.spawn(&*self.minion) {
             Ok(child) => child,
             Err(err) => {
                 if err.is_system() {

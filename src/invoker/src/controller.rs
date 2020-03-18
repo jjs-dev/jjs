@@ -1,9 +1,8 @@
 mod notify;
 mod tasks;
 
-use crate::worker::{InvokeOutcome, InvokeRequest, Request, Response, Worker};
+use crate::worker::{InvokeOutcome, InvokeRequest, Request, Response};
 use anyhow::Context;
-use crossbeam_channel::{Receiver, Sender};
 use notify::Notifier;
 use slog_scope::{debug, error, info, warn};
 use std::{
@@ -11,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use uuid::Uuid;
 
 enum WorkerState {
@@ -39,9 +39,31 @@ impl WorkerState {
 }
 
 struct WorkerInfo {
-    sender: Sender<Request>,
-    receiver: Receiver<Response>,
     state: WorkerState,
+    child_stdout: tokio::io::BufReader<tokio::process::ChildStdout>,
+    child_stdin: tokio::process::ChildStdin,
+}
+
+impl WorkerInfo {
+    async fn recv(&mut self) -> anyhow::Result<Option<Response>> {
+        let mut line = String::new();
+        let read_line_fut = self.child_stdout.read_line(&mut line);
+
+        match tokio::time::timeout(std::time::Duration::from_millis(10), read_line_fut).await {
+            Ok(read) => {
+                read?;
+                Ok(serde_json::from_str(&line).context("parse error")?)
+            }
+            Err(_elapsed) => Ok(None),
+        }
+    }
+
+    async fn send(&mut self, req: Request) -> anyhow::Result<()> {
+        let mut data = serde_json::to_vec(&req)?;
+        data.push(b'\n');
+        self.child_stdin.write_all(&data).await?;
+        Ok(())
+    }
 }
 
 /// Contains `RunInfo` for worker + stuff for controller itself
@@ -126,7 +148,6 @@ impl<S: TaskSource, T: std::ops::Deref<Target = S>> TaskSource for T {
 pub struct Controller {
     workers: Vec<WorkerInfo>,
     sources: Vec<Box<dyn TaskSource>>,
-    minion: Arc<dyn minion::Backend>,
     entity_loader: Arc<entity::Loader>,
     stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
@@ -138,29 +159,29 @@ pub struct Controller {
 impl Controller {
     pub fn new(
         sources: Vec<Box<dyn TaskSource>>,
-        minion: Arc<dyn minion::Backend>,
         cfg_data: util::cfg::CfgData,
         worker_count: usize,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();
         for _ in 0..worker_count {
-            let (req_tx, req_rx) = crossbeam_channel::unbounded();
-            let (res_tx, res_rx) = crossbeam_channel::unbounded();
-            std::thread::spawn(|| {
-                let w = Worker::new(res_tx, req_rx);
-                w.main_loop();
-            });
+            let mut child = tokio::process::Command::new(std::env::current_exe()?)
+                .env("__JJS_WORKER", "1")
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .context("failed to spawn worker")?;
             let info = WorkerInfo {
                 state: WorkerState::Idle,
-                receiver: res_rx,
-                sender: req_tx,
+                child_stdin: child.stdin.take().expect("child stdin was captured"),
+                child_stdout: tokio::io::BufReader::new(
+                    child.stdout.take().expect("child stdout was captured"),
+                ),
             };
             workers.push(info);
         }
 
         Ok(Controller {
             sources,
-            minion,
             workers,
             entity_loader: Arc::new(cfg_data.entity_loader),
             problem_loader: Arc::new(cfg_data.problem_loader),
@@ -171,8 +192,7 @@ impl Controller {
         })
     }
 
-    // this functions call several `tick` functions
-    pub fn run_forever(mut self) {
+    pub async fn run_forever(mut self) {
         if let Err(err) = self.setup_signal() {
             error!("SIGTERM handler is not registered: {}", err);
         }
@@ -180,7 +200,7 @@ impl Controller {
             if !self.should_run() {
                 break;
             }
-            let sleep = match self.tick() {
+            let sleep = match self.tick().await {
                 Err(e) => {
                     warn!("Tick failed: {:#}", e);
                     true
@@ -195,12 +215,13 @@ impl Controller {
         }
     }
 
-    fn tick(&mut self) -> anyhow::Result<bool> {
+    // this function calls several `tick` functions
+    async fn tick(&mut self) -> anyhow::Result<bool> {
         // did we have any updates?
         let mut flag = false;
-        flag = flag || self.tick_poll_workers()?;
+        flag = flag || self.tick_poll_workers().await?;
         flag = flag || self.tick_publish_outcome()?;
-        flag = flag || self.tick_send_invoke_request()?;
+        flag = flag || self.tick_send_invoke_request().await?;
         flag = flag || self.tick_get_tasks()?;
         Ok(flag)
     }
@@ -235,7 +256,7 @@ impl Controller {
         Ok(tasks)
     }
 
-    fn tick_send_invoke_request(&mut self) -> anyhow::Result<bool> {
+    async fn tick_send_invoke_request(&mut self) -> anyhow::Result<bool> {
         let free_worker = match self.find_free_worker() {
             Some(fw) => fw,
             None => return Ok(false),
@@ -248,8 +269,8 @@ impl Controller {
         let worker = &mut self.workers[free_worker];
         let req = Request::Invoke(invoke_request.inner.clone());
         worker
-            .sender
             .send(req)
+            .await
             .context("failed to send request to invoker")?;
         worker.state = WorkerState::Invoke(Box::new(invoke_request));
         Ok(true)
@@ -279,7 +300,11 @@ impl Controller {
         Ok(true)
     }
 
-    fn process_worker_message(&mut self, msg: Response, worker_id: usize) -> anyhow::Result<()> {
+    async fn process_worker_message(
+        &mut self,
+        msg: Response,
+        worker_id: usize,
+    ) -> anyhow::Result<()> {
         debug!("Processing message {:?} from worker {}", &msg, worker_id);
         let worker = &mut self.workers[worker_id];
         let old_state = std::mem::replace(&mut worker.state, WorkerState::Idle);
@@ -297,11 +322,11 @@ impl Controller {
                 self.queues.publish().push_back((outcome, *req));
             }
             Response::LiveScore(score) => {
-                req.notifier.set_score(score);
+                req.notifier.set_score(score).await;
                 worker.state = WorkerState::Invoke(req);
             }
             Response::LiveTest(test) => {
-                req.notifier.set_test(test);
+                req.notifier.set_test(test).await;
                 worker.state = WorkerState::Invoke(req);
             }
             Response::OutcomeHeader(header) => {
@@ -317,7 +342,7 @@ impl Controller {
         Ok(())
     }
 
-    fn tick_poll_workers(&mut self) -> anyhow::Result<bool> {
+    async fn tick_poll_workers(&mut self) -> anyhow::Result<bool> {
         let mut msgs = Vec::new();
         const MAX_MSGS_BATCH: usize = 5;
         for (i, worker) in self.workers.iter_mut().enumerate() {
@@ -328,24 +353,22 @@ impl Controller {
                 if msgs.len() >= MAX_MSGS_BATCH {
                     break;
                 }
-                match worker.receiver.try_recv() {
-                    Ok(msg) => {
+                match worker.recv().await {
+                    Ok(Some(msg)) => {
                         msgs.push((i, msg));
                     }
-                    Err(err) => match err {
-                        crossbeam_channel::TryRecvError::Disconnected => {
-                            error!("worker {} crashed", i);
-                            worker.state = WorkerState::Crash;
-                            break;
-                        }
-                        crossbeam_channel::TryRecvError::Empty => break,
-                    },
+                    Ok(None) => break,
+                    Err(err) => {
+                        error!("worker {} crashed: failed to receive Response: {}", i, err);
+                        worker.state = WorkerState::Crash;
+                        break;
+                    }
                 }
             }
         }
         let emp = msgs.is_empty();
         for msg in msgs {
-            self.process_worker_message(msg.1, msg.0)?;
+            self.process_worker_message(msg.1, msg.0).await?;
         }
         Ok(!emp)
     }

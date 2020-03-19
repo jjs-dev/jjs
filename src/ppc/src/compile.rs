@@ -1,5 +1,6 @@
 //! This module implements compiling source package into invoker package
 pub(crate) mod build;
+mod progress_notifier;
 
 use crate::command::Command;
 use pom::{FileRef, FileRefRoot, Limits};
@@ -157,12 +158,12 @@ impl<'a> ProblemBuilder<'a> {
     ) -> Vec<pom::Test> {
         let tests_path = format!("{}/assets/tests", self.out_dir.display());
         std::fs::create_dir_all(&tests_path).expect("couldn't create tests output dir");
+        let mut notifier = progress_notifier::Notifier::new(self.cfg.tests.len());
         let mut out = vec![];
         for (i, test_spec) in self.cfg.tests.iter().enumerate() {
             let tid = i + 1;
-            if tid % 10 == 0 {
-                println!("Building test {}/{}", tid, self.cfg.tests.len());
-            }
+            notifier.maybe_notify(tid);
+
             let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
             match &test_spec.gen {
                 crate::manifest::TestGenSpec::Generate { testgen, args } => {
@@ -246,7 +247,7 @@ impl<'a> ProblemBuilder<'a> {
                     .unwrap_or_else(|err| panic!("launch main solution error: {}", err));
                 if !output.status.success() {
                     eprintln!(
-                        "Error when generating correct answer for test {}: main solution failed",
+                        "Error while generating correct answer for test {}: main solution failed",
                         tid
                     );
                     eprintln!(

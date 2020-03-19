@@ -169,6 +169,9 @@ fn check_env() {
 fn find_docker<'a>() -> &'a str {
     let has_podman = std::process::Command::new("podman")
         .arg("--help")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .map_or(false, |st| st.success());
     if has_podman { "podman" } else { "docker" }

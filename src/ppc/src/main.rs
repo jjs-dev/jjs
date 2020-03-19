@@ -154,7 +154,10 @@ fn main() -> anyhow::Result<()> {
     let args = Args::from_args();
 
     match args {
-        Args::Compile(compile_args) => Ok(compile_problem(compile_args)),
+        Args::Compile(compile_args) => {
+            compile_problem(compile_args);
+            Ok(())
+        }
         Args::Import(import_args) => import::exec(import_args),
     }
 }

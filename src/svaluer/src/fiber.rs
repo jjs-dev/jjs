@@ -221,8 +221,11 @@ impl Fiber {
                 while let Some(k) = queue.pop() {
                     debug!("group {} is failed", k);
                     for (j, group) in self.groups.iter_mut().enumerate() {
+                        if !group.is_waiting() {
+                            continue;
+                        }
                         group.on_group_fail(k as u32);
-                        if group.is_failed() {
+                        if group.is_skipped() {
                             queue.push(j as u32);
                         }
                     }

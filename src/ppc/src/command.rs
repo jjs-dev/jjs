@@ -38,7 +38,7 @@ impl Command {
     }
 
     pub fn run_quiet(&mut self) -> std::process::Output {
-        use std::{os::unix::process::ExitStatusExt};
+        use std::os::unix::process::ExitStatusExt;
         let mut s = self.to_std_command();
         let out = s.output().expect("couldn't spawn");
         let status = out.status;

@@ -146,6 +146,14 @@ impl Group {
         self.finished() == Some(false)
     }
 
+    pub(crate) fn is_skipped(&self) -> bool {
+        matches!(self.state, State::Skipped(_))
+    }
+
+    pub(crate) fn is_waiting(&self) -> bool {
+        matches!(self.state, State::Waiting(_))
+    }
+
     pub(crate) fn running_tests(&self) -> u32 {
         match &self.state {
             State::Running(state) => state.running_tests.len() as u32,

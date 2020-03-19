@@ -146,7 +146,7 @@ impl<'a> Importer<'a> {
                 // do nothing here, processed separately
             }
             FileCategory::Generator => {
-                let gen_dir = self.dest.join("generators").join(format!("{}", file_name));
+                let gen_dir = self.dest.join("generators").join(file_name);
                 std::fs::create_dir(&gen_dir).expect("create generator dir");
                 let extension = match file_type {
                     _ if file_type.starts_with("cpp.g++") => "cpp",
@@ -372,13 +372,12 @@ impl<'a> Importer<'a> {
 
     fn import_valuer_config(&mut self) -> anyhow::Result<()> {
         let valuer_cfg_path = self.src.join("files/valuer.cfg");
-        let config;
-        if valuer_cfg_path.exists() {
+        let config = if valuer_cfg_path.exists() {
             println!("Importing valuer.cfg from {}", valuer_cfg_path.display());
-            config = serde_yaml::to_string(&super::valuer_cfg::import(&valuer_cfg_path)?)?;
+            serde_yaml::to_string(&super::valuer_cfg::import(&valuer_cfg_path)?)?
         } else {
-            config = include_str!("./default_valuer_config.yaml").to_string();
-        }
+            include_str!("./default_valuer_config.yaml").to_string()
+        };
         std::fs::write(self.dest.join("valuer.yaml"), config)?;
         Ok(())
     }

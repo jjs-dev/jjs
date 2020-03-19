@@ -122,7 +122,7 @@ impl Run {
             .code
             .clone();
         Problem {
-            title: problem_data.name.clone(),
+            title: problem_data.title.clone(),
             id,
         }
     }

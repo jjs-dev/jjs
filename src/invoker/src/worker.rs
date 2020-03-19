@@ -7,21 +7,21 @@ mod valuer;
 
 use anyhow::Context;
 use compiler::{BuildOutcome, Compiler};
-use crossbeam_channel::{Receiver, Sender};
 use exec_test::{ExecRequest, TestExecutor};
 use invoker_api::{
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use slog_scope::{debug, error};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use valuer::Valuer;
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Command {
     pub(crate) argv: Vec<String>,
     pub(crate) env: Vec<String>,
@@ -29,7 +29,7 @@ pub(crate) struct Command {
 }
 
 /// Submission information, sufficient for judging
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct InvokeRequest {
     pub(crate) compile_commands: Vec<Command>,
     pub(crate) execute_command: Command,
@@ -49,8 +49,6 @@ pub(crate) struct InvokeRequest {
     pub(crate) toolchains_dir: PathBuf,
     /// UUID of request
     pub(crate) invocation_id: uuid::Uuid,
-    /// Minion backend to use for invocations
-    pub(crate) minion: Arc<dyn minion::Backend>,
 }
 
 impl InvokeRequest {
@@ -72,11 +70,12 @@ impl InvokeRequest {
     }
 }
 
+#[derive(Deserialize, Serialize)]
 pub(crate) enum Request {
     Invoke(InvokeRequest),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(crate) enum Response {
     Invoke(InvokeOutcome),
     OutcomeHeader(invoker_api::InvokeOutcomeHeader),
@@ -85,44 +84,57 @@ pub(crate) enum Response {
 }
 
 pub(crate) struct Worker {
-    sender: Sender<Response>,
-    receiver: Receiver<Request>,
+    /// Minion backend to use for invocations
+    minion: Arc<dyn minion::Backend>,
 }
 
 impl Worker {
-    pub(crate) fn new(sender: Sender<Response>, receiver: Receiver<Request>) -> Worker {
-        Worker { sender, receiver }
-    }
-
-    fn self_isolate(&mut self) {
-        #[cfg(target_os = "linux")]
-        {
-            // TODO: unshare NEWNET too. To achieve it, we have to switch to multiprocessing instead of multithreading
-            nix::sched::unshare(nix::sched::CloneFlags::CLONE_FILES).expect("failed to unshare");
+    pub(crate) fn new() -> Worker {
+        Worker {
+            minion: minion::setup().into(),
         }
     }
 
-    pub(crate) fn main_loop(mut self) {
-        self.self_isolate();
-        while let Ok(req) = self.receiver.recv() {
+    async fn recv(&self) -> Option<Request> {
+        let mut buf = String::new();
+        let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
+        match stdin.read_line(&mut buf).await {
+            Ok(_) => Some(serde_json::from_str(&buf).expect("parse error")),
+            Err(_) => None,
+        }
+    }
+
+    async fn send(&self, resp: Response) {
+        let mut stdout = tokio::io::stdout();
+        let mut msg = serde_json::to_vec(&resp).expect("failed to serialize Response");
+        msg.push(b'\n');
+        stdout
+            .write_all(&msg)
+            .await
+            .expect("Failed to print Response");
+    }
+
+    pub(crate) async fn main_loop(mut self) {
+        while let Some(req) = self.recv().await {
             match req {
                 Request::Invoke(inv_req) => {
                     debug!("Got InvokeRequest: {:?}", &inv_req);
-                    let outcome = self.invoke(&inv_req).unwrap_or_else(|err| {
+                    let outcome = self.invoke(&inv_req).await.unwrap_or_else(|err| {
                         error!("Invoke failed: {:#}", err);
                         InvokeOutcome::Fault
                     });
                     debug!("InvokeOutcome: {:?}", &outcome);
-                    self.sender
-                        .send(Response::Invoke(outcome))
-                        .expect("failed to send InvokeOutcome");
+                    self.send(Response::Invoke(outcome)).await;
                 }
             }
         }
     }
 
-    fn invoke(&mut self, req: &InvokeRequest) -> anyhow::Result<InvokeOutcome> {
-        let compiler = Compiler { req };
+    async fn invoke(&mut self, req: &InvokeRequest) -> anyhow::Result<InvokeOutcome> {
+        let compiler = Compiler {
+            req,
+            minion: &*self.minion,
+        };
 
         if !req.run_source.exists() {
             anyhow::bail!("Run source file not exisis");
@@ -149,12 +161,12 @@ impl Worker {
                     };
                     let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req)?;
                     protocol.status = st.clone();
-                    self.put_protocol(req, protocol)?;
+                    self.put_protocol(req, protocol).await?;
                 }
                 outcome = InvokeOutcome::CompileError(st);
             }
             Ok(BuildOutcome::Success) => {
-                self.run_tests(req)?;
+                self.run_tests(req).await?;
 
                 outcome = InvokeOutcome::Judge;
             }
@@ -162,7 +174,7 @@ impl Worker {
         Ok(outcome)
     }
 
-    fn put_outcome(
+    async fn put_outcome(
         &mut self,
         score: u32,
         status: invoker_api::Status,
@@ -173,12 +185,10 @@ impl Worker {
             status: Some(status),
             kind,
         };
-        self.sender
-            .send(Response::OutcomeHeader(header))
-            .expect("failed to send sync request");
+        self.send(Response::OutcomeHeader(header)).await;
     }
 
-    fn put_protocol(
+    async fn put_protocol(
         &mut self,
         req: &InvokeRequest,
         protocol: invoker_api::judge_log::JudgeLog,
@@ -190,22 +200,24 @@ impl Worker {
         let protocol_file = std::io::BufWriter::new(protocol_file);
         serde_json::to_writer(protocol_file, &protocol)
             .context("failed to write judge log to file")?;
-        self.put_outcome(protocol.score, protocol.status, protocol.kind);
+        self.put_outcome(protocol.score, protocol.status, protocol.kind)
+            .await;
         Ok(())
     }
 
-    fn run_tests(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
+    async fn run_tests(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
         let mut test_results = vec![];
 
         let mut valuer = Valuer::new(req).context("failed to init valuer")?;
         valuer
             .write_problem_data(req)
+            .await
             .context("failed to send problem data")?;
         loop {
-            match valuer.poll()? {
+            match valuer.poll().await? {
                 ValuerResponse::Test { test_id: tid, live } => {
                     if live {
-                        self.sender.send(Response::LiveTest(tid.get())).ok();
+                        self.send(Response::LiveTest(tid.get())).await;
                     }
                     let tid_u32: u32 = tid.into();
                     let test = &req.problem.tests[(tid_u32 - 1u32) as usize];
@@ -217,6 +229,7 @@ impl Worker {
                     let test_exec = TestExecutor {
                         exec: judge_request,
                         req,
+                        minion: &*self.minion,
                     };
 
                     let judge_response = test_exec
@@ -228,6 +241,7 @@ impl Worker {
                             test_id: tid,
                             test_status: judge_response.status,
                         })
+                        .await
                         .with_context(|| {
                             format!("failed to notify valuer that test {} is done", tid)
                         })?;
@@ -236,13 +250,14 @@ impl Worker {
                     break;
                 }
                 ValuerResponse::LiveScore { score } => {
-                    self.sender.send(Response::LiveScore(score)).ok();
+                    self.send(Response::LiveScore(score)).await;
                 }
                 ValuerResponse::JudgeLog(judge_log) => {
                     let converted_judge_log = self
                         .process_judge_log(&judge_log, req)
                         .context("failed to convert valuer judge log to invoker judge log")?;
                     self.put_protocol(req, converted_judge_log)
+                        .await
                         .context("failed to save protocol")?;
                 }
             }
@@ -252,7 +267,7 @@ impl Worker {
     }
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, Deserialize)]
 pub(crate) enum InvokeOutcome {
     /// Compilation failed
     CompileError(Status),
@@ -262,4 +277,10 @@ pub(crate) enum InvokeOutcome {
     /// Run was not judged, because of invocation fault
     /// Maybe, several protocols were emitted, but results are neither precise nor complete
     Fault,
+}
+
+pub async fn main() -> anyhow::Result<()> {
+    let w = Worker::new();
+    w.main_loop().await;
+    Ok(())
 }

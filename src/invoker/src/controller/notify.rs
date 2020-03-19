@@ -21,17 +21,17 @@ impl Notifier {
         }
     }
 
-    pub(crate) fn set_score(&mut self, score: u32) {
+    pub(crate) async fn set_score(&mut self, score: u32) {
         self.score = Some(score);
-        self.maybe_drain();
+        self.maybe_drain().await
     }
 
-    pub(crate) fn set_test(&mut self, test: u32) {
+    pub(crate) async fn set_test(&mut self, test: u32) {
         self.test = Some(test);
-        self.maybe_drain();
+        self.maybe_drain().await
     }
 
-    fn maybe_drain(&mut self) {
+    async fn maybe_drain(&mut self) {
         let mut has_something = false;
         has_something = has_something || self.score.is_some();
         has_something = has_something || self.test.is_some();
@@ -44,10 +44,10 @@ impl Notifier {
         if self.throttled_until > Instant::now() {
             return;
         }
-        self.drain();
+        self.drain().await
     }
 
-    fn drain(&mut self) {
+    async fn drain(&mut self) {
         debug!("Notifier: draining");
         let endpoint = match self.endpoint.as_ref() {
             Some(ep) => ep,
@@ -57,12 +57,12 @@ impl Notifier {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };
-        let client = reqwest::blocking::ClientBuilder::new()
+        let client = reqwest::ClientBuilder::new()
             .timeout(std::time::Duration::from_secs(3))
             .build()
             .expect("failed to initialize reqwest client");
         debug!("Sending request to {}", &endpoint);
-        if let Err(err) = client.post(endpoint).json(&event).send() {
+        if let Err(err) = client.post(endpoint).json(&event).send().await {
             warn!("Failed to send live status update: {}", err);
             warn!("Disabling live status updates for this run");
             self.errored = true;

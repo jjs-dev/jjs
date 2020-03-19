@@ -26,27 +26,55 @@ fn make_sources(
     Ok(sources)
 }
 
+fn worker_self_isolate() -> anyhow::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        // TODO: unshare NEWNET too. To achieve it, we have to switch to multiprocessing instead of multithreading
+        nix::sched::unshare(nix::sched::CloneFlags::CLONE_FILES).context("failed to unshare")?;
+    }
+    Ok(())
+}
+
+fn is_worker() -> bool {
+    std::env::var("__JJS_WORKER").is_ok()
+}
+
 fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     if atty::is(atty::Stream::Stderr) {
         install_color_backtrace();
     }
     util::log::setup();
-    util::wait::wait();
+    if is_worker() {
+        worker_self_isolate()?;
+    } else {
+        util::wait::wait();
+    }
+    let mut rt = tokio::runtime::Builder::new()
+        .basic_scheduler()
+        .enable_all()
+        .core_threads(1)
+        .max_threads(2)
+        .build()?;
+    rt.block_on(async { real_main().await })
+}
+
+async fn real_main() -> anyhow::Result<()> {
+    if is_worker() {
+        return invoker::worker::main().await;
+    }
 
     let config = util::cfg::load_cfg_data()?;
 
     invoker::init::init().context("failed to initialize")?;
 
-    //check_system().context("system configuration problem")?;
     debug!("system check passed");
 
-    let backend = minion::setup();
     let driver = make_sources(&config).context("failed to initialize driver")?;
-    let controller = invoker::controller::Controller::new(driver, backend.into(), config, 3)
+    let controller = invoker::controller::Controller::new(driver, config, 3)
         .context("failed to start controller")?;
 
     util::daemon_notify_ready();
-    controller.run_forever();
+    controller.run_forever().await;
     Ok(())
 }

@@ -164,7 +164,6 @@ impl Controller {
             out_dir,
             invocation_id: invoke_task.invocation_id,
             global_dir: self.global_files_dir.to_path_buf(),
-            minion: self.minion.clone(),
             toolchains_dir: self.toolchains_dir.to_path_buf(),
         };
 

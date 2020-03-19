@@ -137,12 +137,12 @@ fn default_external_addr() -> Option<String> {
 impl FrontendConfig {
     pub fn obtain(jjs_data_dir: &Path) -> anyhow::Result<FrontendConfig> {
         let config_path = jjs_data_dir.join("etc/frontend.yaml");
-        let config = if config_path.exists() {
-            let config = std::fs::read(config_path).context("failed to read config")?;
-            serde_yaml::from_slice(&config).context("parse error")?
-        } else {
-            FrontendConfig::default()
-        };
+        if !config_path.exists() {
+            anyhow::bail!("Frontend config {} does not exist", config_path.display());
+        }
+        let config = std::fs::read(config_path).context("failed to read config")?;
+        let config = serde_yaml::from_slice(&config).context("parse error")?;
+
         Ok(config)
     }
 

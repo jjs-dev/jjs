@@ -37,7 +37,7 @@ fn import_one_problem(src: &Path, dest: &Path, build: bool, force: bool) -> anyh
     });
     std::fs::write(manifest_path, manifest_data).expect("write ppc manifest");
     if build {
-        println!("building problem {}", &importer.problem_cfg.name);
+        println!("Building problem {}", &importer.problem_cfg.name);
         let problems_dir: PathBuf = std::env::var("JJS_DATA")?.into();
         let out_path = problems_dir
             .join("var/problems")

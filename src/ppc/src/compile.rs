@@ -247,7 +247,7 @@ impl<'a> ProblemBuilder<'a> {
                     .unwrap_or_else(|err| panic!("launch main solution error: {}", err));
                 if !output.status.success() {
                     eprintln!(
-                        "Error when generating correct answer for test {}: main solution failed",
+                        "Error while generating correct answer for test {}: main solution failed",
                         tid
                     );
                     eprintln!(

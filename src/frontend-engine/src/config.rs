@@ -48,6 +48,25 @@ pub struct TlsConfig {
     pub key_path: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct ListenConfig {
+    #[serde(default = "default_listen_host")]
+    pub host: String,
+    #[serde(default = "default_listen_port")]
+    pub port: u16,
+}
+
+impl Default for ListenConfig {
+    fn default() -> Self {
+        ListenConfig {
+            host: default_listen_host(),
+            port: default_listen_port(),
+        }
+    }
+}
+
 impl<'de> serde::de::Deserialize<'de> for Env {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -74,17 +93,15 @@ fn default_env() -> Env {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct FrontendConfig {
-    #[serde(default = "default_port")]
-    pub port: u16,
-    #[serde(default = "default_host")]
-    pub host: String,
+    #[serde(default)]
+    pub listen: ListenConfig,
     #[serde(default = "default_unix_socket_path")]
     pub unix_socket_path: String,
     #[serde(default = "default_env")]
     pub env: Env,
     /// Public address of frontend (must be visible to invoker)
-    #[serde(default = "default_self_addr")]
-    pub addr: Option<String>,
+    #[serde(default = "default_external_addr")]
+    pub external_addr: Option<String>,
     #[serde(default)]
     pub tls: Option<TlsConfig>,
 }
@@ -92,21 +109,20 @@ pub struct FrontendConfig {
 impl Default for FrontendConfig {
     fn default() -> Self {
         Self {
-            port: default_port(),
-            host: default_host(),
+            listen: ListenConfig::default(),
             unix_socket_path: default_unix_socket_path(),
             env: default_env(),
-            addr: default_self_addr(),
+            external_addr: default_external_addr(),
             tls: None,
         }
     }
 }
 
-fn default_port() -> u16 {
+fn default_listen_port() -> u16 {
     1779
 }
 
-fn default_host() -> String {
+fn default_listen_host() -> String {
     "127.0.0.1".to_string()
 }
 
@@ -114,19 +130,19 @@ fn default_unix_socket_path() -> String {
     "/tmp/jjs-auth-sock".to_string()
 }
 
-fn default_self_addr() -> Option<String> {
+fn default_external_addr() -> Option<String> {
     Some("127.0.0.1".to_string())
 }
 
 impl FrontendConfig {
     pub fn obtain(jjs_data_dir: &Path) -> anyhow::Result<FrontendConfig> {
         let config_path = jjs_data_dir.join("etc/frontend.yaml");
-        let config = if config_path.exists() {
-            let config = std::fs::read(config_path).context("failed to read config")?;
-            serde_yaml::from_slice(&config).context("parse error")?
-        } else {
-            FrontendConfig::default()
-        };
+        if !config_path.exists() {
+            anyhow::bail!("Frontend config {} does not exist", config_path.display());
+        }
+        let config = std::fs::read(config_path).context("failed to read config")?;
+        let config = serde_yaml::from_slice(&config).context("parse error")?;
+
         Ok(config)
     }
 

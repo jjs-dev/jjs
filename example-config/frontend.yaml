@@ -1,1 +1,2 @@
-addr: 127.0.0.1
+# See share/schema/frontend-config.json
+{}

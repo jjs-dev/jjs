@@ -85,11 +85,13 @@ impl EnvBuilder {
         let secret = config::derive_key_512("EMBEDDED_FRONTEND_INSTANCE");
         let frontend_config = config::FrontendParams {
             cfg: config::FrontendConfig {
-                port: 0,
-                host: "127.0.0.1".to_string(),
+                listen: config::ListenConfig {
+                    port: 0,
+                    host: "127.0.0.1".to_string(),
+                },
                 unix_socket_path: "".to_string(),
                 env: config::Env::Dev,
-                addr: Some("127.0.0.1".to_string()),
+                external_addr: Some("127.0.0.1".to_string()),
                 tls: None,
             },
 

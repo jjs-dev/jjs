@@ -52,7 +52,7 @@ impl Command {
             format!("signaled: {}", status.signal().unwrap())
         };
         eprintln!(
-            "Chiild did not finished successfully (exit code {})",
+            "Child did not finished successfully (exit code {})",
             exit_code
         );
 

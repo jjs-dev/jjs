@@ -144,7 +144,7 @@ impl FrontendConfig {
         let secret = derive_key_512(&secret);
         let token_mgr = crate::TokenMgr::new(db_conn.clone(), secret.into());
         Ok(FrontendParams {
-            cfg: dbg!(self),
+            cfg: self,
             db_conn,
             token_mgr,
         })

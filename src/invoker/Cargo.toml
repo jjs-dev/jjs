@@ -29,8 +29,7 @@ util = {path = "../util"}
 slog-scope = "4.3.0"
 anyhow = "1.0.26"
 thiserror = "1.0.10"
-reqwest = {version = "0.10.1", features = ["blocking", "json"]}
-crossbeam-channel = "0.4.0"
+reqwest = {version = "0.10.1", features = ["json"]}
 signal-hook = "0.1.13"
 uuid = {version = "0.7.4", features = ["v5"]}
 problem-loader = {path = "../problem-loader"}

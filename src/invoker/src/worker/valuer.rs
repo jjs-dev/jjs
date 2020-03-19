@@ -8,7 +8,7 @@ pub(crate) struct Valuer {
     stdin: BufWriter<tokio::process::ChildStdin>,
     stdout: BufReader<tokio::process::ChildStdout>,
     // ties lifetime of valuer instance to `Valuer` lifetime
-    _child: tokio::process::Child
+    _child: tokio::process::Child,
 }
 
 impl Valuer {
@@ -52,7 +52,7 @@ impl Valuer {
         let val = Valuer {
             stdin: BufWriter::new(stdin),
             stdout: BufReader::new(stdout),
-            _child: child
+            _child: child,
         };
 
         Ok(val)

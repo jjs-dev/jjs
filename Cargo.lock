@@ -1442,7 +1442,6 @@ dependencies = [
  "bitflags",
  "chrono",
  "color-backtrace",
- "crossbeam-channel",
  "db",
  "dotenv",
  "entity",

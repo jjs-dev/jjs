@@ -2,7 +2,7 @@ use anyhow::Context;
 use std::collections::HashSet;
 
 #[derive(Default)]
-pub(crate) struct DepCollector {
+pub(super) struct DepCollector {
     files: HashSet<String>,
 }
 
@@ -18,28 +18,32 @@ fn decode_path(p: &serde_json::Value) -> anyhow::Result<Option<String>> {
 }
 
 impl DepCollector {
-    pub(crate) fn process_log_item(&mut self, s: &serde_json::Value) -> anyhow::Result<usize> {
+    pub(super) fn process_log_item(&mut self, s: &serde_json::Value) -> anyhow::Result<usize> {
         let cnt_before = self.files.len();
-        static MSG: &str = "unexpected ktrace output";
-        let value = s.as_object().context(MSG)?.get("payload").context(MSG)?;
 
-        let kind = value.get("kind").context(MSG)?;
-        match kind.as_str().context(MSG)? {
+        let value = s
+            .as_object()
+            .context("event is not object")?
+            .get("payload")
+            .context("payload missing")?;
+
+        let kind = value.get("kind").context("kind missing")?;
+        match kind.as_str().context("kind is not string")? {
             "attach" | "exit" | "signal" => return Ok(0),
             "sysenter" | "sysexit" => (),
             other => anyhow::bail!("unknown event kind: {}", other),
         }
-        let value = value.get("data").context(MSG)?;
+        let value = value.get("data").context("data missing")?;
         let syscall_name = value
             .pointer("/decoded/name")
             .context("decoded syscall info missing")?
             .as_str()
-            .context(MSG)?;
+            .context("syscall name is not string")?;
         let syscall_args = value
             .pointer("/decoded/args")
-            .context(MSG)?
+            .context("decoded args missing")?
             .as_array()
-            .context(MSG)?;
+            .context("decoded args is not array")?;
         let syscall_is_error = value
             .pointer("/decoded/ret/kind")
             .map(|val| val.as_str() == Some("error"));
@@ -81,10 +85,6 @@ impl DepCollector {
         let cnt_after = self.files.len();
 
         Ok(cnt_after - cnt_before)
-    }
-
-    pub(crate) fn count(&self) -> usize {
-        self.files.len()
     }
 }
 

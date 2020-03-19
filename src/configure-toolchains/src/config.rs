@@ -1,14 +1,15 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) enum SetupKind {
+pub(crate) enum Strategy {
     Trace,
+    Debootstrap,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ToolchainConfig {
-    kind: SetupKind,
+    pub(crate) strategies: Vec<Strategy>,
     #[serde(default)]
     pub(crate) depends: Vec<String>,
     #[serde(default)]

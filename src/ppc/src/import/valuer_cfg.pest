@@ -1,0 +1,36 @@
+config = {SOI ~ definition* ~ EOI}
+definition = {global_def | group_def}
+
+global_def = {"global" ~ "{" ~ (global_option ~ ";")* ~ "}"}
+global_option = {("stat_to_judges" | "stat_to_users") ~ num? }
+
+group_def = {"group" ~ num ~ "{" ~ (group_option ~ ";" )* ~ "}"}
+group_option = _{group_option_tests | group_option_score | 
+  group_option_test_score | group_option_requires | 
+  group_option_offline | group_option_sets_marked_if_passed | 
+  group_option_sets_marked | group_option_pass_if_count | 
+  group_option_skip_if_not_rejudge | group_option_skip |
+  group_option_stat_to_users | group_option_stat_to_judges |
+  group_option_user_status | group_option_test_all | 
+  group_option_zero_if }
+group_option_tests = {"tests" ~ num ~ "-" ~ num}
+group_option_score = {"score" ~ num}
+group_option_test_score = {"test_score" ~ num}
+group_option_requires = {"requires" ~ num_list}
+group_option_offline = {"offline"}
+group_option_sets_marked = {"sets_marked"}
+group_option_skip = {"skip"}
+group_option_sets_marked_if_passed = {"sets_marked_if_passed" ~ num_list}
+group_option_pass_if_count = {"pass_if_count" ~ num}
+group_option_skip_if_not_rejudge = {"skip_if_not_rejudge"}
+group_option_stat_to_users = {"stat_to_users"}
+group_option_stat_to_judges = {"stat_to_judges"}
+// TODO: fix this rule. find out what `STATUS` is.
+group_option_user_status = {"user_status" ~ num}
+group_option_test_all = {"test_all"}
+group_option_zero_if = {"zero_if"}
+
+num_list = _{num ~ ("," ~ num)*}
+num = @{"0" | (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT{0,7})}
+WHITESPACE = _{" " | "\n" | "\t"}
+COMMENT = _{"#" ~ (!"\n" ~ ANY)*}

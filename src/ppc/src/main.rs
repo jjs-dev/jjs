@@ -1,11 +1,11 @@
 #![feature(is_sorted)]
 
-use std::env;
-
 mod command;
 mod compile;
 mod import;
 mod manifest;
+
+use std::env;
 
 mod args {
     use std::path::PathBuf;
@@ -38,6 +38,17 @@ mod args {
         /// Rewrite dir
         #[structopt(long, short = "F")]
         pub force: bool,
+        /// Write contest config to jjs data_dir.
+        /// This option can only be used when importing contest
+        #[structopt(long, short = "C")]
+        pub update_cfg: bool,
+        /// Imported contest name
+        /// This option can only be used when importing contest
+        #[structopt(long, short = "N")]
+        pub contest_name: Option<String>,
+        /// Build imported problems and install them to jjs data_dir
+        #[structopt(long, short = "B")]
+        pub build: bool,
     }
 
     #[derive(StructOpt)]
@@ -45,16 +56,6 @@ mod args {
     pub enum Args {
         Compile(CompileArgs),
         Import(ImportArgs),
-    }
-}
-
-mod errors {
-    use snafu::Snafu;
-
-    #[derive(Debug, Snafu)]
-    #[snafu(visibility(pub))]
-    pub enum Error {
-        ConfigFormat { description: String },
     }
 }
 
@@ -77,18 +78,6 @@ fn check_dir(path: &Path, allow_nonempty: bool) {
         eprintln!("error: dir {} is not empty", path.display());
         exit(1);
     }
-}
-
-fn open_as_handle(path: &str) -> std::io::Result<i64> {
-    use std::os::unix::io::IntoRawFd;
-    // note: platform-dependent code
-    let file = std::fs::File::create(path)?;
-    let fd = file.into_raw_fd();
-    let fd_dup = unsafe { libc::dup(fd) }; // to cancel CLOEXEC behavior
-    unsafe {
-        libc::close(fd);
-    }
-    Ok(i64::from(fd_dup))
 }
 
 fn compile_problem(args: args::CompileArgs) {
@@ -128,13 +117,47 @@ fn compile_problem(args: args::CompileArgs) {
     builder.build();
 }
 
-fn main() {
-    use structopt::StructOpt;
+#[cfg(target_os = "linux")]
+fn tune_linux() -> anyhow::Result<()> {
+    let mut current_limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    unsafe {
+        if libc::prlimit(0, libc::RLIMIT_STACK, std::ptr::null(), &mut current_limit) != 0 {
+            anyhow::bail!("get current RLIMIT_STACK");
+        }
+    }
+    let new_limit = libc::rlimit {
+        rlim_cur: current_limit.rlim_max,
+        rlim_max: current_limit.rlim_max,
+    };
+    unsafe {
+        if libc::prlimit(0, libc::RLIMIT_STACK, &new_limit, std::ptr::null_mut()) != 0 {
+            anyhow::bail!("update RLIMIT_STACK");
+        }
+    }
 
+    Ok(())
+}
+
+fn tune_resourece_limits() -> anyhow::Result<()> {
+    #[cfg(target_os = "linux")]
+    tune_linux()?;
+
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    use structopt::StructOpt;
+    tune_resourece_limits()?;
     let args = Args::from_args();
 
     match args {
-        Args::Compile(compile_args) => compile_problem(compile_args),
+        Args::Compile(compile_args) => {
+            compile_problem(compile_args);
+            Ok(())
+        }
         Args::Import(import_args) => import::exec(import_args),
     }
 }

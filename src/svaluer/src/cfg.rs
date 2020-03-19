@@ -29,7 +29,7 @@ pub struct Group {
     /// Determines what information will be provided to contestant
     pub feedback: FeedbackKind,
     /// Tag to find tests in this group. If none, same as `name`
-    tests_tag: Option<String>,
+    pub tests_tag: Option<String>,
     /// Stop running group if some test failed
     #[serde(default = "default_run_to_first_failure")]
     pub run_to_first_failure: bool,

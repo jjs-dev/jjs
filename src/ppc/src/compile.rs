@@ -78,6 +78,10 @@ impl<'a> ProblemBuilder<'a> {
             Ok(cmd) => cmd.command,
             Err(err) => {
                 eprintln!("Build error: unable to run build task: {}", err);
+                if let build::TaskError::ExitCodeNonZero(out) = err {
+                    eprintln!("--- stdout ---\n{}", String::from_utf8_lossy(&out.stdout));
+                    eprintln!("--- stderr ---\n{}", String::from_utf8_lossy(&out.stderr));
+                }
                 eprintln!("Build task: {:#?}", task);
                 exit(1);
             }
@@ -110,6 +114,7 @@ impl<'a> ProblemBuilder<'a> {
             .to_str()
             .expect("path is not utf8")
             .to_owned();
+        println!("Building solution {}", &sol_id);
         let out_path = format!("{}/assets/sol-{}", self.out_dir.display(), &sol_id);
         (sol_id, self.do_build(&sol_path, &PathBuf::from(&out_path)))
     }
@@ -124,13 +129,14 @@ impl<'a> ProblemBuilder<'a> {
     }
 
     fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> Command {
+        println!("Building generator {}", testgen_name);
         let out_path = format!("{}/assets/testgen-{}", self.out_dir.display(), testgen_name);
         self.do_build(testgen_path, &Path::new(&out_path))
     }
 
     fn build_testgens(&self) -> HashMap<String, Command> {
         let mut out = HashMap::new();
-        for testgen in self.glob("testgens/*") {
+        for testgen in self.glob("generators/*") {
             let testgen_name = testgen.file_stem().unwrap().to_str().expect("utf8 error");
             let testgen_launch_cmd = self.build_testgen(&testgen, testgen_name);
             out.insert(testgen_name.to_string(), testgen_launch_cmd);
@@ -154,6 +160,9 @@ impl<'a> ProblemBuilder<'a> {
         let mut out = vec![];
         for (i, test_spec) in self.cfg.tests.iter().enumerate() {
             let tid = i + 1;
+            if tid % 10 == 0 {
+                println!("Building test {}/{}", tid, self.cfg.tests.len());
+            }
             let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
             match &test_spec.gen {
                 crate::manifest::TestGenSpec::Generate { testgen, args } => {
@@ -171,12 +180,10 @@ impl<'a> ProblemBuilder<'a> {
                         cmd.arg(a);
                     }
                     cmd.env("JJS_TEST_ID", &tid.to_string());
-                    let out_file_handle = crate::open_as_handle(&out_file_path)
-                        .expect("couldn't create test output file");
-                    cmd.env("JJS_TEST", &out_file_handle.to_string());
                     cmd.env("JJS_RANDOM_SEED", &entropy);
                     self.configure_command(&mut cmd);
-                    cmd.run_quiet();
+                    let gen_out = cmd.run_quiet();
+                    std::fs::write(&out_file_path, gen_out.stdout).expect("failed to write test");
                 }
                 crate::manifest::TestGenSpec::File { path } => {
                     let src_path = self.problem_dir.join("tests").join(path);
@@ -209,13 +216,18 @@ impl<'a> ProblemBuilder<'a> {
                 let mut cmd = cmd.clone();
                 self.configure_command(&mut cmd);
                 let mut cmd = cmd.to_std_command();
+                let mut close_handles = vec![];
                 unsafe {
                     use std::os::unix::{io::IntoRawFd, process::CommandExt};
                     let test_data_fd = test_data.into_raw_fd();
+                    close_handles.push(test_data_fd);
                     let test_data_fd = libc::dup(test_data_fd);
+                    close_handles.push(test_data_fd);
 
                     let ans_data_fd = answer_data.into_raw_fd();
+                    close_handles.push(ans_data_fd);
                     let ans_data_fd = libc::dup(ans_data_fd);
+                    close_handles.push(ans_data_fd);
                     cmd.pre_exec(move || {
                         if libc::dup2(test_data_fd, 0) == -1 {
                             return Err(std::io::Error::last_os_error());
@@ -226,15 +238,20 @@ impl<'a> ProblemBuilder<'a> {
                         Ok(())
                     });
                 }
-                let status = cmd
+                let output = cmd
                     .stdin(crate::Stdio::piped())
                     .stdout(crate::Stdio::piped())
-                    .status()
-                    .unwrap_or_else(|err| panic!("launching gen_answers cmd failed: {}", err));
-                if !status.success() {
+                    .stderr(crate::Stdio::piped())
+                    .output()
+                    .unwrap_or_else(|err| panic!("launch main solution error: {}", err));
+                if !output.status.success() {
                     eprintln!(
-                        "Error when generating correct answer for test {}: primary solution failed",
+                        "Error when generating correct answer for test {}: main solution failed",
                         tid
+                    );
+                    eprintln!(
+                        "solution stderr: {}",
+                        String::from_utf8_lossy(&output.stderr)
                     );
                     exit(1);
                 }
@@ -243,6 +260,11 @@ impl<'a> ProblemBuilder<'a> {
                     path: short_file_path,
                     root: FileRefRoot::Problem,
                 });
+                for handle in close_handles {
+                    unsafe {
+                        libc::close(handle);
+                    }
+                }
             }
             out.push(test_info);
         }

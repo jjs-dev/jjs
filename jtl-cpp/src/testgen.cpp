@@ -37,7 +37,7 @@ uint64_t testgen::Generator::next_range(uint64_t lo, uint64_t hi) {
     return lo + get_rand(hi - lo, gen);
 }
 testgen::TestgenSession::TestgenSession(uint64_t _seed) : gen(_seed) {}
-testgen::TestgenSession testgen::init(bool open_files) {
+testgen::TestgenSession testgen::init() {
     auto rand_seed = get_env_hex("JJS_RANDOM_SEED");
     if (rand_seed.len != 8) {
         die("rand_seed has incorrect length (%zu instead of 8)\n",
@@ -47,10 +47,5 @@ testgen::TestgenSession testgen::init(bool open_files) {
     memcpy(&random_seed, rand_seed.head.get(), 8);
     testgen::TestgenSession sess {random_seed};
     sess.test_id = get_env_int("JJS_TEST_ID");
-    if (open_files) {
-        sess.out_file = get_env_file("JJS_TEST", "w");
-    } else {
-        sess.fd_out_file = get_env_int("JJS_TEST");
-    }
     return sess;
 }

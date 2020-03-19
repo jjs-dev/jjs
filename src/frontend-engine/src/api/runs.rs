@@ -232,8 +232,8 @@ fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
 
     Some(format!(
         "http://{}:{}/internal/lsu-webhook?token={}",
-        ctx.config().addr.as_ref()?,
-        ctx.config().port,
+        ctx.config().external_addr.as_ref()?,
+        ctx.config().listen.port,
         lsu_webhook_token
     ))
 }

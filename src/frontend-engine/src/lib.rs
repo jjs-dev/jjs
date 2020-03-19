@@ -143,9 +143,11 @@ impl ApiServer {
         let token_mgr = crate::api::TokenMgr::new(db_conn.clone(), secret);
         let frontend_config = config::FrontendParams {
             cfg: config::FrontendConfig {
-                port: 0,
-                addr: Some("127.0.0.1".to_string()),
-                host: "127.0.0.1".to_string(),
+                listen: config::ListenConfig {
+                    host: "127.0.0.1".to_string(),
+                    port: 0,
+                },
+                external_addr: Some("127.0.0.1".to_string()),
                 unix_socket_path: "".to_string(),
                 env: config::Env::Dev,
                 tls: None,
@@ -182,8 +184,8 @@ impl ApiServer {
         };
         let mut rocket_config = rocket::Config::new(rocket_cfg_env);
 
-        rocket_config.set_address(frontend_params.cfg.host.clone())?;
-        rocket_config.set_port(frontend_params.cfg.port);
+        rocket_config.set_address(frontend_params.cfg.listen.host.clone())?;
+        rocket_config.set_port(frontend_params.cfg.listen.port);
         rocket_config.set_log_level(match frontend_params.cfg.env {
             config::Env::Dev => rocket::config::LoggingLevel::Normal,
             config::Env::Prod => rocket::config::LoggingLevel::Critical,

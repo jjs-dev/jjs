@@ -116,8 +116,6 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-e2e-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-e2e-${{ steps.rustc_version.outputs.version }}-
       - name: build
         run: cargo jjs-build
         env:

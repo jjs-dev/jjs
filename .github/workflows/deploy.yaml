@@ -22,6 +22,9 @@ jobs:
       - name: upload docker images
         run: |
           docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
+          docker login --username mikailbag --password ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker tag jjs:latest mikailbag/jjs:latest
+          docker push mikailbag/jjs
           docker tag jjs:latest docker.pkg.github.com/jjs-dev/jjs/jjs:master
           docker push docker.pkg.github.com/jjs-dev/jjs/jjs:master
   deb:

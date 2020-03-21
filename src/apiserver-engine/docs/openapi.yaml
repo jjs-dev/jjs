@@ -1,0 +1,312 @@
+openapi: 3.0.0
+info:
+  title: "JJS main API"
+  version: ""
+
+paths:
+  "/system/api-version":
+    get:
+      operationId: apiVersion
+      summary: Returns API version
+      description: |-
+        Version is returned in format {major: MAJOR, minor: MINOR}.
+        MAJOR component is incremented, when backwards-incompatible changes were made.
+        MINOR component is incremented, when backwards-compatible changes were made.
+
+        It means, that if you developed application with apiVersion X.Y, your application
+        should assert that MAJOR = X and MINOR >= Y
+
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersion"
+  "/system/is-dev":
+    get:
+      operationId: isDev
+      summary: Returns if JJS is running in development mode.
+      description: |-
+        Please note that you don't have to respect this information, but following is recommended:
+         - Display it in each page/view.
+         - Change theme.
+         - On login view, add button "login as root".
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: boolean
+  "/contests/{name}":
+    get:
+      operationId: getContest
+      summary: Finds contest by name
+      description: |-
+        If contest with this name does not exists, `null` is returned
+      parameters:
+        - $ref: "#/components/parameters/contest_name"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contest"
+  "/contests/{name}/problems":
+    get:
+      operationId: listContestProblems
+      summary: Lists all problems in contest `name`
+      parameters:
+        - $ref: "#/components/parameters/contest_name"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Problem"
+  "/contests/{name}/standings":
+    get:
+      operationId: getContestStandings
+      summary: Returns standings as JSON object
+      parameters:
+        - $ref: "#/components/parameters/contest_name"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+  "/contests":
+    get:
+      operationId: listContests
+      summary: Lists contests
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contest"
+  "/runs":
+    get:
+      operationId: listRuns
+      summary: List runs
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Run"
+    post:
+      operationId: submitRun
+      summary: Submit run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunSimpleSubmitParams"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+  "/runs/{id}":
+    get:
+      operationId: getRun
+      summary: Loads run by id
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+    patch:
+      operationId: patchRun
+      summary: Modifies run
+      description: |-
+        Updates run according to given arguments
+
+        On success, new run state is returned
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunPatch"
+
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+    delete:
+      operationId: deleteRun
+      summary: Deletes run
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      responses:
+        204:
+          description: ok
+  "/runs/<id>/live":
+    get:
+      operationId: getRunLiveStatus
+      summary: returns incremental Live Status
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunLiveStatusUpdate"
+  "/runs/<id>/source":
+    get:
+      operationId: getRunSource
+      summary: Returns run source as base64-encoded JSON string
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+        204:
+          description: run source is not available
+  "/runs/<id>/binary":
+    get:
+      operationId: getRunBinary
+      summary: Returns run build artifact as base64-encoded JSON string
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: string
+        204:
+          description: run binary is not available
+  "/runs/<id>/protocol":
+    get:
+      operationId: getRunProtocol
+      summary: Returns invocation protocol as JSON document
+      responses:
+        200:
+          description: ok
+          content:
+            /application/json:
+              schema:
+                type: object
+      parameters:
+        - $ref: "#/components/parameters/run_id"
+        - in: query
+          name: compile_log
+          description: If false, compilation logs will be excluded
+          schema:
+            type: boolean
+        - in: query
+          name: test_data
+          description: If false, test data will be excluded for all tests
+          schema:
+            type: boolean
+        - in: query
+          name: output
+          description: If false, solution stdout&stderr will be excluded for all tests
+          schema:
+            type: boolean
+        - in: query
+          name: answer
+          description: If false, correct answer will be excluded for all tests
+          schema:
+            type: boolean
+
+  "/toolchains":
+    get:
+      operationId: listToolchains
+      summary: Lists toolchains
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Toolchain"
+  "/auth/simple":
+    post:
+      operationId: logIn
+      summary: Login using login and password
+      description: |-
+        In future, other means to authn will be added.
+        See `SessionToken` documentation for more details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimpleAuthParams"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionToken"
+  "/users":
+    post:
+      operationId: createUser
+      summary: Creates new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateParams"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+components:
+  parameters:
+    contest_name:
+      in: path
+      name: name
+      required: true
+      schema:
+        type: string
+    run_id:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        format: uint32

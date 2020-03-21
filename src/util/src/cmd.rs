@@ -54,6 +54,7 @@ pub trait CommandExt {
     fn run_on(&mut self, runner: &Runner);
 
     fn try_exec(&mut self) -> Result<(), anyhow::Error>;
+    fn try_exec_with_output(&mut self) -> Result<std::process::Output, anyhow::Error>;
 
     fn cargo_color(&mut self);
 }
@@ -71,12 +72,25 @@ impl CommandExt for Command {
     }
 
     fn try_exec(&mut self) -> anyhow::Result<()> {
-        let st = self
+        let status = self
             .status()
             .with_context(|| format!("failed to start {:?}", self))?;
-        if st.success() {
+        if status.success() {
             Ok(())
         } else {
+            bail!("child command {:?} failed", self)
+        }
+    }
+
+    fn try_exec_with_output(&mut self) -> anyhow::Result<std::process::Output> {
+        let output = self
+            .output()
+            .with_context(|| format!("failed to start {:?}", self))?;
+        if output.status.success() {
+            Ok(output)
+        } else {
+            println!("{}", String::from_utf8_lossy(&output.stdout));
+            println!("{}", String::from_utf8_lossy(&output.stderr));
             bail!("child command {:?} failed", self)
         }
     }

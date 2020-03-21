@@ -1,0 +1,40 @@
+[package]
+name = "apiserver-engine"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+pom = {path = "../pom"}
+digest = "0.8.1"
+db = {path = "../db"}
+rand = "0.7.3"
+uuid = "0.7.4"
+rocket = {git = "https://github.com/SergioBenitez/rocket", branch = "async"}
+serde = "1.0.104"
+sha3 = "0.8.2"
+rand_chacha = "0.2.1"
+entity = {path = "../entity"}
+base64 = "0.11.0"
+constant_time_eq = "0.1.5"
+libc = "0.2.66"
+serde_json = "1.0.44"
+branca = "0.9.0"
+backtrace = "0.3.43"
+ranker = {path = "../ranker"}
+util = {path = "../util"}
+slog-scope = "4.3.0"
+anyhow = "1.0.26"
+invoker-api = {path = "../invoker-api"}
+rocket_contrib = {git = "https://github.com/SergioBenitez/rocket", branch = "async"}
+problem-loader = {path = "../problem-loader"}
+serde_yaml = "0.8.11"
+thiserror = "1.0.13"
+schemars = "0.6.5"
+tokio = {version = "0.2.13", features = ["rt-threaded", "macros", "uds", "stream"]}
+futures = "0.3.4"
+
+[dev-dependencies]
+toml = "0.5.6"
+setup = {path = "../setup"}
+simple_logger = "1.6.0"

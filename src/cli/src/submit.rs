@@ -1,5 +1,4 @@
-use frontend_api::Client;
-use graphql_client::GraphQLQuery;
+use client::{Api as _, ApiClient};
 use serde_json::Value;
 use std::process::exit;
 use structopt::StructOpt;
@@ -19,17 +18,12 @@ pub struct Opt {
     count: u32,
 }
 
-fn resolve_toolchain(client: &Client, name: &str) -> String {
-    let vars = crate::queries::list_toolchains::Variables {};
-
-    let res = client
-        .query::<_, crate::queries::list_toolchains::ResponseData>(
-            &crate::queries::ListToolchains::build_query(vars),
-        )
-        .expect("network error")
-        .into_result();
-    let res = res.expect("Couldn't get toolchain information");
-    for tc in res.toolchains {
+async fn resolve_toolchain(client: &ApiClient, name: &str) -> String {
+    let list = client
+        .list_toolchains()
+        .await
+        .expect("Couldn't get toolchain information");
+    for tc in list {
         if tc.id == name {
             return tc.id;
         }
@@ -37,18 +31,14 @@ fn resolve_toolchain(client: &Client, name: &str) -> String {
     panic!("Couldn't find toolchain {}", name);
 }
 
-fn resolve_problem(client: &Client, contest_name: &str, problem_code: &str) -> (String, String) {
-    let data = client
-        .query::<_, crate::queries::list_contests::ResponseData>(
-            &crate::queries::ListContests::build_query(crate::queries::list_contests::Variables {
-                detailed: true,
-            }),
-        )
-        .expect("network error")
-        .into_result()
-        .expect("request rejected");
+async fn resolve_problem(
+    client: &ApiClient,
+    contest_name: &str,
+    problem_code: &str,
+) -> (String, String) {
+    let data = client.list_contests().await.unwrap();
     let mut target_contest = None;
-    for contest in data.contests {
+    for contest in data {
         if contest.id == contest_name {
             target_contest = Some(contest);
             break;
@@ -59,22 +49,24 @@ fn resolve_problem(client: &Client, contest_name: &str, problem_code: &str) -> (
         exit(1);
     });
 
-    for problem in contest.problems {
-        if problem.id == problem_code {
-            return (contest.id, problem.id);
+    let problems = client.list_contest_problems(&contest.id).await.unwrap();
+
+    for problem in problems {
+        if problem.rel_name == problem_code {
+            return (contest.id, problem.rel_name);
         }
     }
     eprintln!("problem {} not found", problem_code);
     exit(1);
 }
 struct Run {
-    run_id: i64,
+    run_id: i32,
     current_score: i64,
     current_test: i64,
 }
 
 impl Run {
-    fn new(run_id: i64) -> Run {
+    fn new(run_id: i32) -> Run {
         Run {
             run_id,
             current_score: 0,
@@ -82,26 +74,13 @@ impl Run {
         }
     }
 
-    fn poll(&mut self, client: &Client) -> Option<crate::queries::view_run::ViewRunFindRun> {
-        let poll_lsu_vars = crate::queries::view_run::Variables {
-            run_id: self.run_id,
-        };
-        let resp = client
-            .query::<_, crate::queries::view_run::ResponseData>(
-                &crate::queries::ViewRun::build_query(poll_lsu_vars),
-            )
-            .expect("network error")
-            .into_result();
-        let resp = resp
-            .expect("poll LSU failed")
-            .find_run
-            .expect("run not found");
-        let lsu = &resp.live_status_update;
+    async fn poll(&mut self, client: &ApiClient) -> Option<client::models::Run> {
+        let lsu = client.get_run_live_status(self.run_id).await.unwrap();
         if let Some(ct) = &lsu.current_test {
-            self.current_test = *ct;
+            self.current_test = *ct as i64;
         }
         if let Some(ls) = &lsu.live_score {
-            self.current_score = *ls;
+            self.current_score = *ls as i64;
         }
         println!(
             "score = {}, running on test {}",
@@ -109,45 +88,46 @@ impl Run {
         );
         if lsu.finish {
             println!("judging finished");
-            return Some(resp);
+            return Some(client.get_run(self.run_id).await.unwrap());
         }
         None
     }
 }
-fn make_submit(client: &Client, contest: &str, problem: &str, code: &str, toolchain: &str) -> Run {
-    let vars = crate::queries::submit::Variables {
+async fn make_submit(
+    client: &ApiClient,
+    contest: &str,
+    problem: &str,
+    code: &str,
+    toolchain: &str,
+) -> Run {
+    let params = client::models::RunSimpleSubmitParams {
         toolchain: toolchain.to_string(),
         code: code.to_string(),
         problem: problem.to_string(),
         contest: contest.to_string(),
     };
 
-    let resp = client
-        .query::<_, crate::queries::submit::ResponseData>(&crate::queries::Submit::build_query(
-            vars,
-        ))
-        .expect("network error")
-        .into_result();
-    let run_id = resp.expect("submit failed").submit_simple.id;
+    let resp = client.submit_run(params).await;
+    let run_id = resp.expect("submit failed").id;
     println!("submitted: id={}", run_id);
     Run::new(run_id)
 }
 
-pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
+pub async fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     let data = std::fs::read(&opt.filename).expect("Couldn't read file");
     let code = base64::encode(&data);
 
-    let toolchain = resolve_toolchain(&params.client, &opt.toolchain);
-    let (contest, problem) = resolve_problem(&params.client, &opt.contest, &opt.problem);
+    let toolchain = resolve_toolchain(&params.client, &opt.toolchain).await;
+    let (contest, problem) = resolve_problem(&params.client, &opt.contest, &opt.problem).await;
     let mut runs = Vec::new();
     for _ in 0..opt.count {
-        let run = make_submit(&params.client, &contest, &problem, &code, &toolchain);
+        let run = make_submit(&params.client, &contest, &problem, &code, &toolchain).await;
         runs.push(run);
     }
     while !runs.is_empty() {
         let mut nruns = Vec::new();
         for mut run in runs {
-            if let Some(final_results) = run.poll(&params.client) {
+            if let Some(final_results) = run.poll(&params.client).await {
                 println!(
                     "status: {}({}), score: {}",
                     final_results

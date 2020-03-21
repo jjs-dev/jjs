@@ -3,6 +3,7 @@
 mod build;
 mod check;
 mod ci;
+mod codegen;
 mod glob_util;
 mod run;
 mod tests;
@@ -28,6 +29,8 @@ enum CliArgs {
     FmtCpp,
     /// Launch development version of JJS
     Run(run::Opts),
+    /// Generate some code
+    Codegen,
 }
 
 fn task_clean() {
@@ -140,6 +143,7 @@ fn main() {
             None
         }
         CliArgs::Run(opts) => run::task_run(opts).err(),
+        CliArgs::Codegen => codegen::task_codegen().err(),
     };
     if let Some(err) = err {
         eprintln!("Error: {:?}", err);

@@ -1,10 +1,11 @@
-use crate::fail;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
 #[derive(Parser)]
 #[grammar = "gram.pest"]
 struct RawAstParser;
+
+pub(crate) type ParseError = pest::error::Error<Rule>;
 
 pub(crate) enum Option {
     Flag(String),
@@ -48,11 +49,8 @@ fn parse_options(ast: Pair<Rule>) -> Vec<Option> {
     out
 }
 
-pub(crate) fn parse(data: &str) -> Vec<Statement> {
-    let ast = RawAstParser::parse(Rule::userlist, data)
-        .unwrap_or_else(fail)
-        .next()
-        .unwrap();
+pub(crate) fn parse(data: &str) -> Result<Vec<Statement>, crate::Error> {
+    let ast = RawAstParser::parse(Rule::userlist, data)?.next().unwrap();
     let mut out = vec![];
     for item in ast.into_inner() {
         if item.as_rule() == Rule::EOI {
@@ -81,5 +79,5 @@ pub(crate) fn parse(data: &str) -> Vec<Statement> {
         let st = Statement { data: sdata };
         out.push(st);
     }
-    out
+    Ok(out)
 }

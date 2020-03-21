@@ -1,8 +1,6 @@
-mod client;
 mod list_parse;
 
-use graphql_client::GraphQLQuery;
-use snafu::{ResultExt, Snafu};
+use client::Api as _;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -18,10 +16,10 @@ mod args {
         /// Auth token. If not set, will be read from JJS_AUTH environment variable
         #[structopt(long = "auth", short = "a")]
         pub token: Option<String>,
-        /// JJS frontend host or IP
+        /// JJS apiserver host or IP
         #[structopt(long = "host", short = "h", default_value = "http://localhost")]
         pub host: String,
-        /// JJS frontend port
+        /// JJS apiserver port
         #[structopt(long = "port", short = "p", default_value = "1779")]
         pub port: u16,
     }
@@ -33,38 +31,31 @@ mod args {
     }
 }
 
-#[derive(Snafu, Debug)]
+#[derive(thiserror::Error, Debug)]
 enum Error {
+    #[error("failed to read {filename}: {source}")]
     ReadFile {
         filename: String,
+        #[source]
         source: std::io::Error,
     },
-    Utf8 {
-        source: std::string::FromUtf8Error,
-    },
-    #[snafu(display("userlist is malformed: {}", description))]
+    #[error("userlist is malformed: {}", source)]
     Format {
-        description: String,
+        #[from]
+        source: list_parse::ParseError,
     },
-    #[snafu(display("api error: {:?}", inner))]
-    Frontend {
-        inner: Vec<graphql_client::Error>,
+    #[error("api error: {source}")]
+    Api {
+        #[from]
+        source: client::Error,
     },
-    #[snafu(display("transport error: {}", source))]
-    Transport {
-        source: frontend_api::TransportError,
-    },
+    #[error("invalid base64 string")]
+    Base64,
 }
 
-impl From<frontend_api::TransportError> for Error {
-    fn from(source: frontend_api::TransportError) -> Self {
-        Self::Transport { source }
-    }
-}
-
-fn decode_base64(s: String) -> String {
-    let buf = base64::decode(&s).unwrap_or_else(fail);
-    String::from_utf8(buf).unwrap_or_else(fail)
+fn decode_base64(s: String) -> Result<String, crate::Error> {
+    let buf = base64::decode(&s).map_err(|_| crate::Error::Base64)?;
+    String::from_utf8(buf).map_err(|_| crate::Error::Base64)
 }
 
 #[derive(Clone)]
@@ -135,14 +126,16 @@ impl OptionStorage {
     }
 }
 
-fn add_users(arg: args::Add) -> Result<(), Error> {
+async fn add_users(arg: args::Add) -> Result<(), Error> {
     let mut data = Vec::new();
     let ignore_failures;
     {
-        let file = std::fs::read(&arg.file).context(ReadFile { filename: arg.file })?;
-        let file = String::from_utf8(file).context(Utf8)?;
+        let file = std::fs::read_to_string(&arg.file).map_err(|source| crate::Error::ReadFile {
+            filename: arg.file,
+            source,
+        })?;
 
-        let statements = list_parse::parse(&file);
+        let statements = list_parse::parse(&file)?;
         let mut option_storage = OptionStorage::new();
         for st in statements {
             match st.data {
@@ -156,10 +149,10 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
                     subst.options(&options);
                     let mut groups = subst.groups.clone();
                     if subst.base64 {
-                        username = decode_base64(username);
-                        password = decode_base64(password);
+                        username = decode_base64(username)?;
+                        password = decode_base64(password)?;
                         for item in &mut groups {
-                            let dec = decode_base64(std::mem::replace(item, String::new()));
+                            let dec = decode_base64(std::mem::replace(item, String::new()))?;
                             std::mem::replace(item, dec);
                         }
                     }
@@ -171,28 +164,21 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
         ignore_failures = option_storage.ignore_fail;
     }
 
-    let client = frontend_api::Client::from_env();
+    let client = client::connect();
 
     for (login, password, groups) in data {
-        let vars = client::create_user::Variables {
+        let params = client::models::UserCreateParams {
             login,
             password,
-            groups,
+            groups: Some(groups),
         };
+        let resp = client.create_user(params).await;
 
-        let req_body = client::CreateUser::build_query(vars);
-        let resp = client.query::<_, client::create_user::ResponseData>(&req_body)?;
-
-        let res = resp.into_result();
-
-        if let Err(errs) = res {
+        if let Err(err) = resp {
             if ignore_failures {
-                eprintln!("warning: user creation failed");
-                for err in errs {
-                    eprintln!("\t{}", err);
-                }
+                eprintln!("warning: user creation failed: {}", err);
             } else {
-                return Err(Error::Frontend { inner: errs });
+                return Err(Error::Api { source: err });
             }
         }
     }
@@ -200,15 +186,11 @@ fn add_users(arg: args::Add) -> Result<(), Error> {
     Ok(())
 }
 
-fn fail<E: std::fmt::Display, X>(err: E) -> X {
-    eprintln!("Error:\n{}", err);
-    std::process::exit(1)
-}
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let arg: args::Args = args::Args::from_args();
     let args::Args::Add(arg) = arg;
-    let res = add_users(arg);
+    let res = add_users(arg).await;
     match res {
         Ok(_) => (),
         Err(e) => {

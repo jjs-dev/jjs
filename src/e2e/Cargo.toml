@@ -5,7 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-frontend-engine = {path = "../frontend-engine"}
+apiserver-engine = {path = "../apiserver-engine"}
 reqwest = { version = "0.10.1", features = ["blocking"] }
 serde_json = "1.0.44"
 base64 = "0.11.0"

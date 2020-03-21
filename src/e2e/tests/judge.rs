@@ -4,49 +4,28 @@ fn submit(code: &str) -> i32 {
     let code = base64::encode(code);
 
     let resp = e2e::RequestBuilder::new()
-        .operation(
-            r#"
-mutation Submit($runCode: String!) {
-  submitSimple(toolchain: "g++", problem: "A", runCode: $runCode, contest: "trial") {
-    id
-  }
-}
-    "#,
-        )
-        .var("runCode", &serde_json::Value::from(code))
+        .action("/runs")
+        .var("toolchain", "g++")
+        .var("problem", "A")
+        .var("contest", "trial")
+        .var("code", code.as_str())
         .exec()
         .unwrap_ok();
-    let resp = resp.pointer("/submitSimple/id").unwrap();
+    let resp = resp.pointer("/id").unwrap();
     resp.as_i64().unwrap().try_into().unwrap()
 }
 
 fn poll_status(id: i32) -> String {
-    let resp = e2e::RequestBuilder::new()
-        .operation(
-            r#"
-query GetRuns {
-  runs{
-    id,
-    status {
-      code
-    }
-  }
-}        
-        "#,
-        )
+    let run_info = e2e::RequestBuilder::new()
+        .action(&format!("/runs/{}", id))
         .exec()
         .unwrap_ok();
-    let resp = resp.pointer("/runs").unwrap().as_array().unwrap();
-    for item in resp {
-        if item.pointer("/id").unwrap().as_i64().unwrap() == id as i64 {
-            let status = item.pointer("/status").unwrap();
-            return status
-                .as_object()
-                .map(|s| s.get("code").unwrap().as_str().unwrap().to_string())
-                .unwrap_or_else(|| "QUEUE".to_string());
-        }
-    }
-    panic!("Run with id {} not found", id);
+
+    let status = &run_info["status"];
+    status
+        .as_object()
+        .map(|s| s.get("code").unwrap().as_str().unwrap().to_string())
+        .unwrap_or_else(|| "QUEUE".to_string())
 }
 
 fn send_check_status(run_code: &str, correct_status: &str) {
@@ -101,15 +80,10 @@ fn test_wrong_solution_is_rejected() {
 #[test]
 fn test_non_privileged_user_cannot_see_non_their_runs() {
     e2e::RequestBuilder::new()
-        .operation(
-            r#"
-mutation CreateUsrs {
-  createUser(login:"cersei", groups: [], password:"") {
-    id
-  }
-}
-            "#,
-        )
+        .action("/users")
+        .var("login", "cersei")
+        .var("groups", &[] as &[String])
+        .var("password", "")
         .exec()
         .unwrap_ok();
 
@@ -119,22 +93,12 @@ mutation CreateUsrs {
     "#,
     );
     let err = e2e::RequestBuilder::new()
-        .operation(
-            r#"
-    
-mutation DeleteRun($runId: Int!) {
-  modifyRun(id:$runId, delete: true)
-}
-    "#,
-        )
-        .var("runId", &serde_json::Value::from(id))
+        .action(&format!("/runs/{}", id))
+        .method(apiserver_engine::test_util::Method::Delete)
         .user("cersei")
         .exec()
-        .unwrap_errs()
-        .into_iter()
-        .next()
-        .unwrap();
-    frontend_engine::test_util::check_error(&err, "AccessDenied");
+        .unwrap_err();
+    apiserver_engine::test_util::check_error(&err, "AccessDenied");
 }
 
 #[test]

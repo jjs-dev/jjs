@@ -1,6 +1,0 @@
-query ListToolchains {
-    toolchains {
-        id,
-        name
-    }
-}

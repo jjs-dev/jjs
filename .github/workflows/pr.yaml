@@ -86,6 +86,17 @@ jobs:
           key: ${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: cargo-udeps
         run: cargo jjs-check --no-default --udeps || true #FIXME
+  codegen:
+    name: codegen
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: actions/checkout@v1
+      - run: bash scripts/ci-env.sh
+      - run: cargo jjs codegen
+      - run: |
+          git add rust-toolchain
+          git diff --exit-code
+
   e2e:
     name: e2e
     runs-on: "ubuntu-18.04"
@@ -135,7 +146,7 @@ jobs:
         if: always()
         run: |
           mkdir logs
-          sudo journalctl -u jjs-frontend.service -p debug > logs/frontend.txt
+          sudo journalctl -u jjs-apiserver.service -p debug > logs/apiserver.txt
           sudo journalctl -u jjs-backend.service -p debug > logs/invoker.txt
           sudo cat /var/log/postgresql/postgresql-10-main.log > logs/postgres.txt
           cat logs/*

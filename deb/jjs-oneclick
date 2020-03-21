@@ -39,6 +39,6 @@ su postgres -c 'psql -U postgres -d jjs -c "grant all on all tables in schema pu
 su postgres -c 'psql -U postgres -d jjs -c "grant all on all sequences in schema public to jjs;"'
 
 systemctl enable jjs-backend
-systemctl enable jjs-frontend
+systemctl enable jjs-apiserver
 systemctl start jjs-backend
-systemctl start jjs-frontend
+systemctl start jjs-apiserver

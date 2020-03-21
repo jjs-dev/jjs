@@ -1,30 +1,14 @@
 fn check_login_and_password(login: &str, password: &str) {
     e2e::RequestBuilder::new()
-        .operation(
-            r#"
-mutation CreateUser($login: String!, $password: String!) {
-    createUser(login: $login, password: $password, groups: []) {
-        id
-    }
-}
-"#,
-        )
-        .var("login", &login.into())
-        .var("password", &password.into())
+        .action("/users")
+        .var("login", login)
+        .var("password", password)
         .exec()
         .unwrap_ok();
     e2e::RequestBuilder::new()
-        .operation(
-            r#"
-mutation LogIn($login: String!, $password: String!) {
-    authSimple(login: $login, password: $password) {
-        data
-    }
-}
-"#,
-        )
-        .var("login", &login.into())
-        .var("password", &password.into())
+        .action("/auth/simple")
+        .var("login", login)
+        .var("password", password)
         .exec()
         .unwrap_ok();
 }

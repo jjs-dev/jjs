@@ -2,7 +2,7 @@
 
 - [Running](running.md)
 - [Clients](clients.md)
-- [Frontend API Introduction](frontend.md)
+- [Apiserver usage Introduction](apiserver.md)
 - [Installing JJS in Virtual Machine](vm.md)
 - [Sysroot Layout](sysroot.md)
 - [Userlist](userlist.md)

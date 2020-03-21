@@ -1,0 +1,14 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+openapi = {path = "../gen-api-client"}
+hyper = "0.13"
+tokio1 = {package = "tokio", version = "0.1.22"}
+tokio = "0.2.13"
+tokio-core = "0.1"
+tokio-compat = "0.1.5"
+serde_json = "1.0.48"

@@ -15,3 +15,5 @@ atty = "0.2.14"
 util = {path = "../util"}
 lazy_static = "1.4.0"
 anyhow = "1.0.26"
+serde_json = "1.0.48"
+serde_yaml = "0.8.11"

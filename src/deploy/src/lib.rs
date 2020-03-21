@@ -54,7 +54,7 @@ fn create_registry() -> Registry {
     add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
     add_bin("svaluer", "jjs-svaluer", PackageComponentKind::Core);
     add_bin(
-        "soft",
+        "configure-toolchains",
         "jjs-configure-toolchains",
         PackageComponentKind::Tools,
     );
@@ -75,6 +75,7 @@ fn build_jjs_components(params: &Params, runner: &Runner) {
     let pkg_dir = params.artifacts.clone();
 
     util::make_empty(&pkg_dir).unwrap();
+    fs::create_dir(pkg_dir.join("libexec")).ok();
     fs::create_dir(pkg_dir.join("lib")).ok();
     fs::create_dir(pkg_dir.join("lib/systemd")).ok();
     fs::create_dir(pkg_dir.join("lib/systemd/system")).ok();
@@ -127,6 +128,11 @@ fn build_jjs_components(params: &Params, runner: &Runner) {
     copy_dir("example-config");
     copy_dir("example-problems");
     copy_dir("toolchains");
+    {
+        let strace_parser_src = proj_root.join("scripts/strace-parser.py");
+        let strace_parser_dest = pkg_dir.join("libexec/strace-parser.py");
+        std::fs::copy(strace_parser_src, strace_parser_dest).expect("copy strace-parser.py");
+    }
 }
 
 pub fn package(params: &Params, runner: &Runner) {

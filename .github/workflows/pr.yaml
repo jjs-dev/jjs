@@ -93,9 +93,9 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev
+          sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 libunwind-dev \
+            fakechroot fakeroot debootstrap
           sudo -u postgres createuser runner --superuser
-          cargo install lxtrace
       - name: Get Rust version
         id: rustc_version
         run: |
@@ -122,8 +122,7 @@ jobs:
           JOB: e2e
       - name: launch jjs
         run: |
-          # TODO: finer grained --force. Maybe --force-depends?
-          sudo dpkg --force-all -i /opt/jjs/pkg/jjs.deb
+          sudo dpkg -i /opt/jjs/pkg/jjs.deb
           sudo jjs-oneclick
       - name: wait for launch
         run: cargo run --package util

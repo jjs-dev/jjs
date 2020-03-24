@@ -69,7 +69,7 @@ struct Opt {
     /// Docker build additional options
     #[structopt(long)]
     docker_build_opt: Vec<String>,
-    /// Build frontend GraphQL API documentaion. Requires `graphdoc`
+    /// Build apiserver API documentaion. Requires npx
     #[structopt(long = "enable-api-doc")]
     apidoc: bool,
     /// Name or path to Docker or other tool which can run containers (e.g. Podman)

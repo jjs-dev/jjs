@@ -48,7 +48,7 @@ fn create_registry() -> Registry {
     add_bin("envck", "jjs-env-check", PackageComponentKind::Tools);
     add_bin("setup", "jjs-setup", PackageComponentKind::Tools);
     add_bin("ppc", "jjs-ppc", PackageComponentKind::Tools);
-    add_bin("frontend", "jjs-frontend", PackageComponentKind::Core);
+    add_bin("apiserver", "jjs-apiserver", PackageComponentKind::Core);
     add_bin("userlist", "jjs-userlist", PackageComponentKind::Tools);
     add_bin("cli", "jjs-cli", PackageComponentKind::Tools);
     add_bin("invoker", "jjs-invoker", PackageComponentKind::Core);
@@ -230,21 +230,29 @@ fn build_testlib(params: &Params) {
 }
 
 fn generate_api_docs(params: &Params) {
-    print_section("building graphql docs");
-    let mut cmd = Command::new("graphdoc");
-    let schema: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(params.src.join("src/frontend-api/src/schema-gen.json")).unwrap(),
-    )
-    .unwrap();
-    let schema =
-        serde_json::Value::Object(vec![("data".to_string(), schema)].into_iter().collect());
-    let hacked_schema_path = params.build.join("schema-gen-fixed.json");
-    let schema = serde_json::to_string(&schema).unwrap();
-    std::fs::write(&hacked_schema_path, schema).unwrap();
-    cmd.arg("--schema-file").arg(&hacked_schema_path);
-    cmd.arg("--output")
-        .arg(params.artifacts.join("share/docs/api"));
-    cmd.try_exec().unwrap();
+    if Command::new("npx")
+        .arg("--help")
+        .try_exec_with_output()
+        .is_err()
+    {
+        eprintln!("Error: npx is not installed");
+        std::process::exit(1);
+    }
+    let schema_path = params
+        .src
+        .join("src/apiserver-engine/docs/openapi-gen.json");
+    let docs_path = params.artifacts.join("share/docs/api");
+    Command::new("npx")
+        .arg("@openapitools/openapi-generator-cli")
+        .arg("generate")
+        .arg("--input-spec")
+        .arg(schema_path)
+        .arg("--output")
+        .arg(docs_path)
+        .arg("--generator-name")
+        .arg("html2")
+        .try_exec()
+        .expect("failed to generate api docs");
 }
 
 fn generate_man(params: &Params) {
@@ -282,13 +290,13 @@ fn generate_json_schema(params: &Params) {
     let out_dir = params.artifacts.join("share/schema");
     fs::create_dir_all(&out_dir).unwrap();
     let bin_out_dir = params.artifacts.join("bin");
-    let frontend_bin = bin_out_dir.join("jjs-frontend");
-    let frontend_out = Command::new(frontend_bin)
+    let apiserver_binary = bin_out_dir.join("jjs-apiserver");
+    let apiserver_out = Command::new(apiserver_binary)
         .env("__JJS_SPEC", "config-schema")
         .output()
-        .expect("failed to invoke jjs-frontend");
-    assert!(frontend_out.status.success());
-    fs::write(out_dir.join("frontend-config.json"), frontend_out.stdout)
+        .expect("failed to invoke jjs-apiserver");
+    assert!(apiserver_out.status.success());
+    fs::write(out_dir.join("apiserver-config.json"), apiserver_out.stdout)
         .expect("failed to write schema");
 }
 

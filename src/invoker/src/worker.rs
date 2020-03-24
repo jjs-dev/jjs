@@ -12,8 +12,8 @@ use invoker_api::{
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
-use slog_scope::{debug, error};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},

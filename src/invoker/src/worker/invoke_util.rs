@@ -1,6 +1,6 @@
 use crate::worker::{Command, InvokeRequest};
 use anyhow::{bail, Context};
-use slog_scope::{debug, error};
+use log::{debug, error};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -100,7 +100,7 @@ pub(crate) fn create_sandbox(
 }
 
 pub(crate) fn log_execute_command(command_interp: &Command) {
-    debug!("executing command"; "command" => ?command_interp);
+    debug!("executing command {:?}", command_interp);
 }
 
 pub(crate) fn command_set_from_inv_req(cmd: &mut minion::Command, command: &Command) {

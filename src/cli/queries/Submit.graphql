@@ -1,5 +1,0 @@
-mutation Submit($code: String!, $problem: String!, $toolchain: String!, $contest: String!) {
-    submitSimple(problem: $problem, contest: $contest, runCode: $code, toolchain: $toolchain) {
-        id
-    }
-}

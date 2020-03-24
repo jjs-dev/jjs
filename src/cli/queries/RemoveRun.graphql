@@ -1,3 +1,0 @@
-mutation RemoveRun($runId: Int!) {
-    modifyRun(id: $runId, delete: true)
-}

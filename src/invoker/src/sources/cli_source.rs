@@ -1,7 +1,7 @@
 use super::background_source::BackgroundSource;
 use anyhow::Context;
 use invoker_api::{CliInvokeTask, InvokeTask};
-use slog_scope::debug;
+use log::debug;
 use std::sync::Arc;
 fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
     InvokeTask {

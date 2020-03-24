@@ -5,7 +5,7 @@ pub mod wait;
 
 use std::sync::atomic::AtomicBool;
 
-/// Called by daemon component (e.g. `frontend` and `invoker`), when it is ready to serve
+/// Called by daemon component (e.g. `apiserver` and `invoker`), when it is ready to serve
 /// Must be called once
 pub fn daemon_notify_ready() {
     static CALLED: AtomicBool = AtomicBool::new(false);

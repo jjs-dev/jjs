@@ -23,7 +23,7 @@ pub(crate) fn build(params: &crate::Params) {
             std::fs::write(out_path, unit_text).expect("failed emit unit");
         };
         emit_unit("backend");
-        emit_unit("frontend");
+        emit_unit("apiserver");
     } else {
         eprintln!("error: systemd files can not be generated without --install-prefix");
         std::process::exit(1);

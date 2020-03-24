@@ -1,29 +1,16 @@
 use crate::CommonParams;
-use graphql_client::GraphQLQuery;
+use client::Api as _;
 use serde_json::Value;
 
-pub fn exec(cx: &CommonParams) -> Value {
-    let vars = crate::queries::api_version::Variables {};
-
-    let res = cx
-        .client
-        .query::<_, crate::queries::api_version::ResponseData>(
-            &crate::queries::ApiVersion::build_query(vars),
-        )
-        .expect("network error")
-        .into_result();
+pub async fn exec(cx: &CommonParams) -> Value {
+    let res = cx.client.api_version().await;
     match res {
-        Ok(data) => {
-            let vers = data.api_version;
-            let items = vers.split('.').collect::<Vec<_>>();
-            assert_eq!(items.len(), 2);
-            serde_json::json!({
-                "major": items[0],
-                "minor": items[1]
-            })
-        }
+        Ok(vers) => serde_json::json!({
+            "major": vers.major,
+            "minor": vers.minor
+        }),
         Err(e) => {
-            eprintln!("Error: {}", e[0]);
+            eprintln!("Error: {}", e);
             Value::Null
         }
     }

@@ -1,0 +1,775 @@
+{
+  "components": {
+    "parameters": {
+      "contest_name": {
+        "in": "path",
+        "name": "name",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "run_id": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "uint32",
+          "type": "integer"
+        }
+      }
+    },
+    "schemas": {
+      "ApiVersion": {
+        "properties": {
+          "major": {
+            "description": "MAJOR component",
+            "format": "uint16",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "minor": {
+            "description": "MINOR component",
+            "format": "uint16",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "major",
+          "minor"
+        ],
+        "type": "object"
+      },
+      "Contest": {
+        "properties": {
+          "id": {
+            "description": "Configured by human, something readable like 'olymp-2019', or 'test-contest'",
+            "type": "string"
+          },
+          "title": {
+            "description": "E.g. \"Berlandian Olympiad in Informatics. Finals. Day 3.\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "InvokeStatus": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "properties": {
+          "rel_name": {
+            "description": "Problem relative name (aka problem code) as contestants see. This is usually one letter or something similar, e.g. 'A' or '3F'.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Problem title as contestants see, e.g. \"Find max flow\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rel_name",
+          "title"
+        ],
+        "type": "object"
+      },
+      "Run": {
+        "description": "Represents a run.",
+        "properties": {
+          "contest_id": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "problem_name": {
+            "type": "string"
+          },
+          "score": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InvokeStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "toolchain_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contest_id",
+          "id",
+          "problem_name",
+          "score",
+          "status",
+          "toolchain_name"
+        ],
+        "type": "object"
+      },
+      "RunLiveStatusUpdate": {
+        "description": "Represents Live Status Update\n\nSome fields can be missing for various reasons, it is normal that particular object will look like {liveScore: null, currentTest: null, finish: false}. Information in all fields except `finish` can be inaccurate, incorrect or outdated. You can rely on following: if `finish` is true, final judging results are available",
+        "properties": {
+          "current_test": {
+            "description": "Current running test",
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "finish": {
+            "description": "Whether final status is available",
+            "type": "boolean"
+          },
+          "live_score": {
+            "description": "Estimation of score. Usually, final score will be greater than or equal to `live_score`",
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "current_test",
+          "finish",
+          "live_score"
+        ],
+        "type": "object"
+      },
+      "RunPatch": {
+        "properties": {
+          "rejudge": {
+            "default": false,
+            "description": "Queue for judging again",
+            "type": "boolean"
+          },
+          "score": {
+            "default": null,
+            "description": "New score (useful for custom judging)",
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RunSimpleSubmitParams": {
+        "properties": {
+          "code": {
+            "description": "Base64-encoded source text",
+            "type": "string"
+          },
+          "contest": {
+            "description": "Contest where run is submitted",
+            "type": "string"
+          },
+          "problem": {
+            "description": "Problem name, relative to contest",
+            "type": "string"
+          },
+          "toolchain": {
+            "description": "Toolchain to use when judging this run",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "contest",
+          "problem",
+          "toolchain"
+        ],
+        "type": "object"
+      },
+      "SessionToken": {
+        "description": "Type that represents session You shouldn't do any assumptions about this type representation",
+        "properties": {
+          "data": {
+            "description": "Opaque string that represents session data On all subsequent requests, put this string as value of header `X-Jjs-Auth`",
+            "type": "string"
+          },
+          "raw_data": {
+            "description": "in dev mode, contains session data in unencrypted form",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "raw_data"
+        ],
+        "type": "object"
+      },
+      "SimpleAuthParams": {
+        "properties": {
+          "login": {
+            "description": "Login",
+            "type": "string"
+          },
+          "password": {
+            "description": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ],
+        "type": "object"
+      },
+      "Toolchain": {
+        "properties": {
+          "id": {
+            "description": "Internal name, e.g. \"cpp.san.9.1\"",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human readable name, e.g. \"GCC C++ v9.1 with sanitizers enables\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "description": "UUID of this user.",
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "login"
+        ],
+        "type": "object"
+      },
+      "UserCreateParams": {
+        "properties": {
+          "groups": {
+            "default": [],
+            "description": "List of groups new user should belong to",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "login": {
+            "description": "Login (must be unique)",
+            "type": "string"
+          },
+          "password": {
+            "description": "Password (no strength validation is performed)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "AccessToken": {
+        "description": "This token is issued by `/auth/simple` endpoint. If it returned SessionToken `tok`, then AccessToken is \"Token ${tok.data}\"",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "title": "JJS main API",
+    "version": ""
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/auth/simple": {
+      "post": {
+        "description": "In future, other means to authn will be added.\nSee `SessionToken` documentation for more details.",
+        "operationId": "logIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimpleAuthParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionToken"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Login using login and password"
+      }
+    },
+    "/contests": {
+      "get": {
+        "operationId": "listContests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Contest"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Lists contests"
+      }
+    },
+    "/contests/{name}": {
+      "get": {
+        "description": "If contest with this name does not exists, `null` is returned",
+        "operationId": "getContest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest_name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contest"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Finds contest by name"
+      }
+    },
+    "/contests/{name}/problems": {
+      "get": {
+        "operationId": "listContestProblems",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest_name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Problem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Lists all problems in contest `name`"
+      }
+    },
+    "/contests/{name}/standings": {
+      "get": {
+        "operationId": "getContestStandings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest_name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Returns standings as JSON object"
+      }
+    },
+    "/runs": {
+      "get": {
+        "operationId": "listRuns",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Run"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "List runs"
+      },
+      "post": {
+        "operationId": "submitRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSimpleSubmitParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Submit run"
+      }
+    },
+    "/runs/{id}": {
+      "delete": {
+        "operationId": "deleteRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "ok"
+          }
+        },
+        "summary": "Deletes run"
+      },
+      "get": {
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Loads run by id"
+      },
+      "patch": {
+        "description": "Updates run according to given arguments\n\nOn success, new run state is returned",
+        "operationId": "patchRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Modifies run"
+      }
+    },
+    "/runs/{id}/binary": {
+      "get": {
+        "operationId": "getRunBinary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "204": {
+            "description": "run binary is not available"
+          }
+        },
+        "summary": "Returns run build artifact as base64-encoded JSON string"
+      }
+    },
+    "/runs/{id}/live": {
+      "get": {
+        "operationId": "getRunLiveStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunLiveStatusUpdate"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "returns incremental Live Status"
+      }
+    },
+    "/runs/{id}/protocol": {
+      "get": {
+        "operationId": "getRunProtocol",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          },
+          {
+            "description": "If false, compilation logs will be excluded",
+            "in": "query",
+            "name": "compile_log",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, test data will be excluded for all tests",
+            "in": "query",
+            "name": "test_data",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, solution stdout&stderr will be excluded for all tests",
+            "in": "query",
+            "name": "output",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, correct answer will be excluded for all tests",
+            "in": "query",
+            "name": "answer",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "/application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Returns invocation protocol as JSON document"
+      }
+    },
+    "/runs/{id}/source": {
+      "get": {
+        "operationId": "getRunSource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "204": {
+            "description": "run source is not available"
+          }
+        },
+        "summary": "Returns run source as base64-encoded JSON string"
+      }
+    },
+    "/system/api-version": {
+      "get": {
+        "description": "Version is returned in format {major: MAJOR, minor: MINOR}.\nMAJOR component is incremented, when backwards-incompatible changes were made.\nMINOR component is incremented, when backwards-compatible changes were made.\n\nIt means, that if you developed application with apiVersion X.Y, your application\nshould assert that MAJOR = X and MINOR >= Y",
+        "operationId": "apiVersion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiVersion"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Returns API version"
+      }
+    },
+    "/system/is-dev": {
+      "get": {
+        "description": "Please note that you don't have to respect this information, but following is recommended:\n - Display it in each page/view.\n - Change theme.\n - On login view, add button \"login as root\".",
+        "operationId": "isDev",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Returns if JJS is running in development mode."
+      }
+    },
+    "/toolchains": {
+      "get": {
+        "operationId": "listToolchains",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Toolchain"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Lists toolchains"
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Creates new user"
+      }
+    }
+  },
+  "security": [
+    {
+      "AccessToken": []
+    }
+  ]
+}

@@ -1,11 +1,9 @@
 mod api_version;
 mod contests;
-mod queries;
 mod submissions;
 mod submit;
 
-use frontend_api::*;
-use slog::{o, Drain, Logger};
+use client::ApiClient;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -25,14 +23,13 @@ struct Opt {
 enum SubOpt {
     Submit(submit::Opt),
     ManageSubmissions(submissions::Opt),
-    Contests(contests::Opt),
+    Contests,
     #[structopt(name = "api-version")]
     ApiVersion,
 }
 
 pub struct CommonParams {
-    client: Client,
-    logger: Logger,
+    client: ApiClient,
 }
 
 fn gen_completion() {
@@ -44,32 +41,25 @@ fn gen_completion() {
     );
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     if std::env::var("COMPLETION").is_ok() {
         gen_completion();
         exit(0);
     }
+    util::log::setup();
 
     let opt: Opt = Opt::from_args();
 
-    let drain =
-        slog_term::CompactFormat::new(slog_term::TermDecorator::new().stderr().build()).build();
+    let client = client::connect();
 
-    let logger = slog_envlogger::new(drain);
-    let logger = std::sync::Mutex::new(logger);
-    let logger = Logger::root(logger.fuse(), o!()).into_erased();
-    let _guard = slog_scope::set_global_logger(logger.clone());
-    slog_stdlog::init().unwrap();
-
-    let client = Client::from_env();
-
-    let common = CommonParams { client, logger };
+    let common = CommonParams { client };
 
     let data = match opt.sub {
-        SubOpt::Submit(sopt) => submit::exec(sopt, &common),
-        SubOpt::ManageSubmissions(sopt) => submissions::exec(sopt, &common),
-        SubOpt::Contests(sopt) => contests::exec(sopt, &common),
-        SubOpt::ApiVersion => api_version::exec(&common),
+        SubOpt::Submit(sopt) => submit::exec(sopt, &common).await,
+        SubOpt::ManageSubmissions(sopt) => submissions::exec(sopt, &common).await,
+        SubOpt::Contests => contests::exec(&common).await,
+        SubOpt::ApiVersion => api_version::exec(&common).await,
     };
 
     let data = serde_json::to_string_pretty(&data).unwrap();

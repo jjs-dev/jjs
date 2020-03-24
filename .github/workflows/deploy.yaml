@@ -52,7 +52,6 @@ jobs:
         run: |
           bash scripts/ci-env.sh
           cargo install mdbook --no-default-features
-          sudo npm install -g @2fd/graphdoc
       - name: cargo jjs-build
         run: cargo jjs-build
         env:

@@ -57,9 +57,6 @@ impl Package for BinPackages {
                     .push((self.pkgs[i].package_name.clone(), Some(i)));
             }
         }
-        if sctx.components_cfg().api_doc {
-            self.selected.push(("frontend-api".to_string(), None));
-        }
     }
 
     fn selected(&self) -> bool {

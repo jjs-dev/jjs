@@ -1,5 +1,5 @@
 use anyhow::Context;
-use slog_scope::debug;
+use log::debug;
 
 fn install_color_backtrace() {
     #[cfg(feature = "beautiful_backtrace")]
@@ -16,7 +16,6 @@ fn make_sources(
     let mut sources: Vec<Box<dyn invoker::controller::TaskSource>> = Vec::new();
     if is_cli_mode() {
         let source = invoker::sources::CliSource::new();
-        //let driver = invoker::drivers::CliDriver::new().context("failed to setup CLI Controller Driver")?;
         sources.push(Box::new(source));
     } else {
         let db_conn = db::connect_env().context("db connection failed")?;

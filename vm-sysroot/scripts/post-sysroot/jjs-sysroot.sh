@@ -24,7 +24,7 @@ echo 'sandbox:x:179:179:sandbox:/:/bin/sh' > "$SYSROOT/var/lib/jjs/opt/etc/passw
 echo 'sandbox:x:179:' > "$SYSROOT/var/lib/jjs/opt/etc/group"
 #sudo mv tmp "$SYSROOT/var/lib/jjs/opt"
 
-cat > "$SYSROOT/var/lib/jjs/etc/frontend.yaml" << EOF
+cat > "$SYSROOT/var/lib/jjs/etc/apiserver.yaml" << EOF
 host: 0.0.0.0
 port: 1779
 addr: 127.0.0.1

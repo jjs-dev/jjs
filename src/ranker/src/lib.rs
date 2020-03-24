@@ -1,5 +1,5 @@
 //! Ranker is library, responsible for generating monitor
-//! Is is used in both frontend and invoker
+//! Is is used in both apiserver and invoker
 
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-systemctl stop jjs-frontend
+systemctl stop jjs-apiserver
 systemctl stop jjs-backend
-systemctl disable jjs-frontend
+systemctl disable jjs-apiserver
 systemctl disable jjs-backend

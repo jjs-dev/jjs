@@ -40,16 +40,16 @@ su jjs -c '
 $(cat env.txt)
 
 if [ "x\$JJS_ENV" == xdev ]
-then echo "WARNING: jjs-frontend is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
+then echo "WARNING: jjs-apiserver is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
 fi
 
-jjs-frontend &
+jjs-apiserver &
 '
 
 $(cat env.txt)
 
 if [ "x\$JJS_ENV" == xdev ]
-then echo "WARNING: jjs-frontend is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
+then echo "WARNING: jjs-apiserver is running in development mode. To switch to production mode, run \\\`jjs-prod\\\`." >&2
 fi
 
 jjs-invoker &
@@ -69,7 +69,7 @@ fi
 if [ "\$\$" == 1 ]
 then
 sh
-killall jjs-frontend
+killall jjs-apiserver
 killall jjs-invoker
 killall -INT postgres
 while killall -0 postgres

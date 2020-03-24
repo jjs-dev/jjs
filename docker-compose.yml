@@ -27,7 +27,7 @@ services:
         target: /var/lib/jjs
     security_opt:
       - seccomp=unconfined
-  frontend:
+  apiserver:
     image: jjs:latest
     environment:
       DATABASE_URL: postgres://db:5432/jjs
@@ -35,10 +35,10 @@ services:
       JJS_PATH: /opt/jjs
       JJS_WAIT: file:///var/lib/jjs/done.txt
       JJS_HOST: "0.0.0.0"
-      RUST_LOG: info,frontend=debug,util=debug,frontend_engine=debug
-      JJS_SELF_ADDR: frontend
+      RUST_LOG: info,apiserver=debug,util=debug,apiserver_engine=debug
+      JJS_SELF_ADDR: apiserver
     command: 
-      - jjs-frontend
+      - jjs-apiserver
     depends_on:
       - db
       - init-db

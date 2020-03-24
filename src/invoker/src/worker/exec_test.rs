@@ -3,7 +3,7 @@ mod checker_proto;
 use crate::worker::{invoke_util, os_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
-use slog_scope::error;
+use log::error;
 use std::{fs, io::Write, path::PathBuf};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
@@ -199,7 +199,7 @@ impl<'a> TestExecutor<'a> {
         let parsed_out = match checker_proto::parse(&checker_out) {
             Ok(o) => o,
             Err(err) => {
-                error!( "checker output couldn't be parsed"; "error" => ? err);
+                error!("checker output couldn't be parsed: {}", err);
                 return return_value_for_judge_fault;
             }
         };

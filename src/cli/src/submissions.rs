@@ -1,6 +1,6 @@
-use graphql_client::GraphQLQuery;
+use client::Api as _;
+use log::error;
 use serde_json::Value;
-use slog::error;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -12,21 +12,11 @@ pub struct Opt {
     _filter: String,
 }
 
-pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
+pub async fn exec(opt: Opt, params: &super::CommonParams) -> Value {
     // at first, load submissions from DB
     // TODO optimizations
-    let vars = crate::queries::list_runs::Variables { detailed: true };
-    // TODO:                                                   ^
-    //                                       should be false here
-    //                                see https://github.com/graphql-rust/graphql-client/issues/250
-    let query = crate::queries::ListRuns::build_query(vars);
-    let submissions = params
-        .client
-        .query::<_, crate::queries::list_runs::ResponseData>(&query)
-        .expect("transport error")
-        .into_result()
-        .expect("api error")
-        .runs;
+
+    let submissions = params.client.list_runs().await.expect("api error");
     match opt.action.as_str() {
         "view" => serde_json::to_value(&submissions).unwrap(),
         "remove" => {
@@ -34,20 +24,13 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
             for sbm in &submissions {
                 let id = sbm.id;
                 result.push(id);
-                let vars = crate::queries::remove_run::Variables { run_id: id };
                 params
                     .client
-                    .query::<_, crate::queries::remove_run::ResponseData>(
-                        &crate::queries::RemoveRun::build_query(vars),
-                    )
-                    .unwrap()
-                    .into_result()
-                    .map(std::mem::drop)
+                    .delete_run(id)
+                    .await
+                    .map(drop)
                     .unwrap_or_else(|err| {
-                        error!(
-                            params.logger,
-                            "api error when deleting submission {}: {}", id, err[0]
-                        )
+                        error!("api error when deleting submission {}: {:?}", id, err)
                     });
             }
             serde_json::to_value(result).unwrap()
@@ -57,18 +40,13 @@ pub fn exec(opt: Opt, params: &super::CommonParams) -> Value {
             for sbm in &submissions {
                 let id = sbm.id;
                 result.push(id);
-                let vars = crate::queries::rejudge_run::Variables { run_id: id };
-                let query = crate::queries::RejudgeRun::build_query(vars);
-                let res = params
-                    .client
-                    .query::<_, crate::queries::rejudge_run::ResponseData>(&query)
-                    .unwrap()
-                    .into_result();
+                let patch = client::models::RunPatch {
+                    rejudge: Some(true),
+                    score: None,
+                };
+                let res = params.client.patch_run(id, Some(patch)).await;
                 if let Err(e) = res {
-                    error!(
-                        params.logger,
-                        "When rejudging run {}: api error: {}", id, e[0]
-                    );
+                    error!("When rejudging run {}: api error: {}", id, e);
                 }
             }
             serde_json::to_value(result).unwrap()

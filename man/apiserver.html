@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Frontend API Introduction - JJS Manual</title>
+        <title>Apiserver usage Introduction - JJS Manual</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded "><a href="running.html"><strong aria-hidden="true">1.</strong> Running</a></li><li class="expanded "><a href="clients.html"><strong aria-hidden="true">2.</strong> Clients</a></li><li class="expanded "><a href="frontend.html" class="active"><strong aria-hidden="true">3.</strong> Frontend API Introduction</a></li><li class="expanded "><a href="vm.html"><strong aria-hidden="true">4.</strong> Installing JJS in Virtual Machine</a></li><li class="expanded "><a href="sysroot.html"><strong aria-hidden="true">5.</strong> Sysroot Layout</a></li><li class="expanded "><a href="userlist.html"><strong aria-hidden="true">6.</strong> Userlist</a></li><li class="expanded "><a href="authentication.html"><strong aria-hidden="true">7.</strong> Authentication</a></li><li class="expanded "><a href="problems/index.html"><strong aria-hidden="true">8.</strong> Problem Preparation</a></li><li><ol class="section"><li class="expanded "><a href="problems/packages.html"><strong aria-hidden="true">8.1.</strong> Package Types</a></li><li class="expanded "><a href="problems/ppc.html"><strong aria-hidden="true">8.2.</strong> PPC</a></li><li class="expanded "><a href="problems/testgen.html"><strong aria-hidden="true">8.3.</strong> Writing Test Generators</a></li><li class="expanded "><a href="problems/checker.html"><strong aria-hidden="true">8.4.</strong> Writing Checkers</a></li><li class="expanded "><a href="problems/polygon.html"><strong aria-hidden="true">8.5.</strong> Importing from Polygon</a></li></ol></li><li class="expanded "><a href="authorization.html"><strong aria-hidden="true">9.</strong> Authorization and Access Control</a></li></ol>
+                <ol class="chapter"><li class="expanded "><a href="running.html"><strong aria-hidden="true">1.</strong> Running</a></li><li class="expanded "><a href="clients.html"><strong aria-hidden="true">2.</strong> Clients</a></li><li class="expanded "><a href="apiserver.html" class="active"><strong aria-hidden="true">3.</strong> Apiserver usage Introduction</a></li><li class="expanded "><a href="vm.html"><strong aria-hidden="true">4.</strong> Installing JJS in Virtual Machine</a></li><li class="expanded "><a href="sysroot.html"><strong aria-hidden="true">5.</strong> Sysroot Layout</a></li><li class="expanded "><a href="userlist.html"><strong aria-hidden="true">6.</strong> Userlist</a></li><li class="expanded "><a href="authentication.html"><strong aria-hidden="true">7.</strong> Authentication</a></li><li class="expanded "><a href="problems/index.html"><strong aria-hidden="true">8.</strong> Problem Preparation</a></li><li><ol class="section"><li class="expanded "><a href="problems/packages.html"><strong aria-hidden="true">8.1.</strong> Package Types</a></li><li class="expanded "><a href="problems/ppc.html"><strong aria-hidden="true">8.2.</strong> PPC</a></li><li class="expanded "><a href="problems/testgen.html"><strong aria-hidden="true">8.3.</strong> Writing Test Generators</a></li><li class="expanded "><a href="problems/checker.html"><strong aria-hidden="true">8.4.</strong> Writing Checkers</a></li><li class="expanded "><a href="problems/polygon.html"><strong aria-hidden="true">8.5.</strong> Importing from Polygon</a></li></ol></li><li class="expanded "><a href="authorization.html"><strong aria-hidden="true">9.</strong> Authorization and Access Control</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -132,18 +132,24 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#working-with-frontend" id="working-with-frontend">Working with Frontend</a></h1>
+                        <h1><a class="header" href="#working-with-apiserver" id="working-with-apiserver">Working with Apiserver</a></h1>
 <h2><a class="header" href="#overview" id="overview">Overview</a></h2>
-<p>Frontend exposes GraphQL API.
-Assuming frontend is running on <code>127.0.0.1:1779</code>, visit <code>http://localhost:1779/graphiql</code> for playground.</p>
+<p>Apiserver exposes HTTP REST API.
+Visit <a href="https://jjs-dev.github.io/jjs/api">JJS documantaion</a> for api details.</p>
 <h2><a class="header" href="#authentication" id="authentication">Authentication</a></h2>
 <p>All API methods from non-<code>auth</code> category, and authDrop (TODO: not implemented) require request to be authenticated.
 Authentication can be performed in various ways, e.g. see <code>authAnonymous</code> and <code>authSimple</code>.
 These methods return you <code>AuthToken</code> object, containing token.
-This token should be provided in all subsequent requests, as value of header <code>X-JJS-Auth</code>.</p>
+This token should be provided in all subsequent requests:
+`
+// when logging in
+let token: AuthToken = ...</p>
+<p>// later, when doing request
+req.set_header(&quot;Authorization&quot;, &quot;Token ${token.data}&quot;)
+`</p>
 <h2><a class="header" href="#logout" id="logout">Logout</a></h2>
 <p>(TODO: not implemented)
-Just call <code>authDrop</code> with desired token as <code>X-JJS-Auth</code> header value, and token will be revoked.</p>
+Just call <code>authDrop</code> with desired token in <code>Authorization</code> header, and token will be revoked.</p>
 
                     </main>
 

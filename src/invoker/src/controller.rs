@@ -187,7 +187,7 @@ impl Controller {
             problem_loader: Arc::new(cfg_data.problem_loader),
             stop_flag: Arc::new(AtomicBool::new(false)),
             queues: Arc::new(ControllerQueues::new()),
-            global_files_dir: cfg_data.install_dir.to_path_buf().into(),
+            global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
         })
     }

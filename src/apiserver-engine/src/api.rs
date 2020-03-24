@@ -219,21 +219,6 @@ impl<T, E: Into<anyhow::Error>> ResultToApiUtil<T, E> for Result<T, E> {
         })
     }
 }
-/*
-trait StrErrorMsgUtil {
-    fn report<T>(&self, ctx: &Context) -> Result<T, ApiError>;
-}
-
-impl StrErrorMsgUtil for str {
-    fn report<T>(&self, ctx: &Context) -> Result<T, ApiError> {
-        Err(ApiError {
-            visible: true,
-            extension: ErrorExtension::new(),
-            cause: Some(anyhow::anyhow!("{}", self)),
-            ctx: ctx.clone(),
-        })
-    }
-}*/
 
 pub(crate) trait ApiObject:
     serde::ser::Serialize + serde::de::DeserializeOwned + schemars::JsonSchema

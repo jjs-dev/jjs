@@ -24,7 +24,7 @@ fn catch_bad_request() -> &'static str {
 Your request is incorrect.
 Possible reasons:
 - Query body is missing or is not valid JSON
-- X-Jjs-Auth header is not valid access token
+- `Authorization` header does not contain access token
     "#
 }
 

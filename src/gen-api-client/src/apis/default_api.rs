@@ -121,7 +121,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     ) -> Box<dyn Future<Output = Result<crate::models::ApiVersion, Error<serde_json::Value>>> + Unpin>
     {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/system/api-version".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/system/api-version".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))
@@ -132,7 +139,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         user_create_params: crate::models::UserCreateParams,
     ) -> Box<dyn Future<Output = Result<crate::models::User, Error<serde_json::Value>>> + Unpin>
     {
-        let mut req = __internal_request::Request::new(hyper::Method::POST, "/users".to_string());
+        let mut req = __internal_request::Request::new(hyper::Method::POST, "/users".to_string())
+            .with_auth(__internal_request::Auth::ApiKey(
+                __internal_request::ApiKey {
+                    in_header: true,
+                    in_query: false,
+                    param_name: "Authorization".to_owned(),
+                },
+            ));
         req = req.with_body_param(user_create_params);
 
         // TODO: do not box here
@@ -144,7 +158,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         id: i32,
     ) -> Box<dyn Future<Output = Result<(), Error<serde_json::Value>>> + Unpin> {
         let mut req =
-            __internal_request::Request::new(hyper::Method::DELETE, "/runs/{id}".to_string());
+            __internal_request::Request::new(hyper::Method::DELETE, "/runs/{id}".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
         req = req.returns_nothing();
 
@@ -158,7 +179,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     ) -> Box<dyn Future<Output = Result<crate::models::Contest, Error<serde_json::Value>>> + Unpin>
     {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/contests/{name}".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/contests/{name}".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("name".to_string(), name.to_string());
 
         // TODO: do not box here
@@ -172,7 +200,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         let mut req = __internal_request::Request::new(
             hyper::Method::GET,
             "/contests/{name}/standings".to_string(),
-        );
+        )
+        .with_auth(__internal_request::Auth::ApiKey(
+            __internal_request::ApiKey {
+                in_header: true,
+                in_query: false,
+                param_name: "Authorization".to_owned(),
+            },
+        ));
         req = req.with_path_param("name".to_string(), name.to_string());
 
         // TODO: do not box here
@@ -185,7 +220,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>
     {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
 
         // TODO: do not box here
@@ -197,7 +239,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         id: i32,
     ) -> Box<dyn Future<Output = Result<String, Error<serde_json::Value>>> + Unpin> {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/runs/<id>/binary".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}/binary".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
 
         // TODO: do not box here
@@ -212,7 +261,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
             + Unpin,
     > {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/runs/<id>/live".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}/live".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
 
         // TODO: do not box here
@@ -228,7 +284,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         answer: Option<bool>,
     ) -> Box<dyn Future<Output = Result<serde_json::Value, Error<serde_json::Value>>> + Unpin> {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/runs/<id>/protocol".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}/protocol".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         if let Some(ref s) = compile_log {
             req = req.with_query_param("compile_log".to_string(), s.to_string());
         }
@@ -252,7 +315,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         id: i32,
     ) -> Box<dyn Future<Output = Result<String, Error<serde_json::Value>>> + Unpin> {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/runs/<id>/source".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/runs/{id}/source".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
 
         // TODO: do not box here
@@ -261,7 +331,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
 
     fn is_dev(&self) -> Box<dyn Future<Output = Result<bool, Error<serde_json::Value>>> + Unpin> {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/system/is-dev".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/system/is-dev".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))
@@ -276,7 +353,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         let mut req = __internal_request::Request::new(
             hyper::Method::GET,
             "/contests/{name}/problems".to_string(),
-        );
+        )
+        .with_auth(__internal_request::Auth::ApiKey(
+            __internal_request::ApiKey {
+                in_header: true,
+                in_query: false,
+                param_name: "Authorization".to_owned(),
+            },
+        ));
         req = req.with_path_param("name".to_string(), name.to_string());
 
         // TODO: do not box here
@@ -288,7 +372,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     ) -> Box<
         dyn Future<Output = Result<Vec<crate::models::Contest>, Error<serde_json::Value>>> + Unpin,
     > {
-        let mut req = __internal_request::Request::new(hyper::Method::GET, "/contests".to_string());
+        let mut req = __internal_request::Request::new(hyper::Method::GET, "/contests".to_string())
+            .with_auth(__internal_request::Auth::ApiKey(
+                __internal_request::ApiKey {
+                    in_header: true,
+                    in_query: false,
+                    param_name: "Authorization".to_owned(),
+                },
+            ));
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))
@@ -298,7 +389,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         &self,
     ) -> Box<dyn Future<Output = Result<Vec<crate::models::Run>, Error<serde_json::Value>>> + Unpin>
     {
-        let mut req = __internal_request::Request::new(hyper::Method::GET, "/runs".to_string());
+        let mut req = __internal_request::Request::new(hyper::Method::GET, "/runs".to_string())
+            .with_auth(__internal_request::Auth::ApiKey(
+                __internal_request::ApiKey {
+                    in_header: true,
+                    in_query: false,
+                    param_name: "Authorization".to_owned(),
+                },
+            ));
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))
@@ -311,7 +409,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
             + Unpin,
     > {
         let mut req =
-            __internal_request::Request::new(hyper::Method::GET, "/toolchains".to_string());
+            __internal_request::Request::new(hyper::Method::GET, "/toolchains".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))
@@ -324,7 +429,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         dyn Future<Output = Result<crate::models::SessionToken, Error<serde_json::Value>>> + Unpin,
     > {
         let mut req =
-            __internal_request::Request::new(hyper::Method::POST, "/auth/simple".to_string());
+            __internal_request::Request::new(hyper::Method::POST, "/auth/simple".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_body_param(simple_auth_params);
 
         // TODO: do not box here
@@ -338,7 +450,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>
     {
         let mut req =
-            __internal_request::Request::new(hyper::Method::PATCH, "/runs/{id}".to_string());
+            __internal_request::Request::new(hyper::Method::PATCH, "/runs/{id}".to_string())
+                .with_auth(__internal_request::Auth::ApiKey(
+                    __internal_request::ApiKey {
+                        in_header: true,
+                        in_query: false,
+                        param_name: "Authorization".to_owned(),
+                    },
+                ));
         req = req.with_path_param("id".to_string(), id.to_string());
         req = req.with_body_param(run_patch);
 
@@ -351,7 +470,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         run_simple_submit_params: crate::models::RunSimpleSubmitParams,
     ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>
     {
-        let mut req = __internal_request::Request::new(hyper::Method::POST, "/runs".to_string());
+        let mut req = __internal_request::Request::new(hyper::Method::POST, "/runs".to_string())
+            .with_auth(__internal_request::Auth::ApiKey(
+                __internal_request::ApiKey {
+                    in_header: true,
+                    in_query: false,
+                    param_name: "Authorization".to_owned(),
+                },
+            ));
         req = req.with_body_param(run_simple_submit_params);
 
         // TODO: do not box here

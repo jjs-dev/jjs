@@ -3,8 +3,8 @@ mod tasks;
 
 use crate::worker::{InvokeOutcome, InvokeRequest, Request, Response};
 use anyhow::Context;
+use log::{debug, error, info, warn};
 use notify::Notifier;
-use slog_scope::{debug, error, info, warn};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},

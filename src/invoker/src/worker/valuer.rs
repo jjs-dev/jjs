@@ -1,7 +1,7 @@
 use crate::worker::InvokeRequest;
 use anyhow::{bail, Context};
 use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
-use slog_scope::warn;
+use log::warn;
 use std::os::unix::io::IntoRawFd;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 pub(crate) struct Valuer {

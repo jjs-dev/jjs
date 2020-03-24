@@ -30,10 +30,10 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**get_contest**](docs/DefaultApi.md#get_contest) | **GET** /contests/{name} | Finds contest by name
 *DefaultApi* | [**get_contest_standings**](docs/DefaultApi.md#get_contest_standings) | **GET** /contests/{name}/standings | Returns standings as JSON object
 *DefaultApi* | [**get_run**](docs/DefaultApi.md#get_run) | **GET** /runs/{id} | Loads run by id
-*DefaultApi* | [**get_run_binary**](docs/DefaultApi.md#get_run_binary) | **GET** /runs/<id>/binary | Returns run build artifact as base64-encoded JSON string
-*DefaultApi* | [**get_run_live_status**](docs/DefaultApi.md#get_run_live_status) | **GET** /runs/<id>/live | returns incremental Live Status
-*DefaultApi* | [**get_run_protocol**](docs/DefaultApi.md#get_run_protocol) | **GET** /runs/<id>/protocol | Returns invocation protocol as JSON document
-*DefaultApi* | [**get_run_source**](docs/DefaultApi.md#get_run_source) | **GET** /runs/<id>/source | Returns run source as base64-encoded JSON string
+*DefaultApi* | [**get_run_binary**](docs/DefaultApi.md#get_run_binary) | **GET** /runs/{id}/binary | Returns run build artifact as base64-encoded JSON string
+*DefaultApi* | [**get_run_live_status**](docs/DefaultApi.md#get_run_live_status) | **GET** /runs/{id}/live | returns incremental Live Status
+*DefaultApi* | [**get_run_protocol**](docs/DefaultApi.md#get_run_protocol) | **GET** /runs/{id}/protocol | Returns invocation protocol as JSON document
+*DefaultApi* | [**get_run_source**](docs/DefaultApi.md#get_run_source) | **GET** /runs/{id}/source | Returns run source as base64-encoded JSON string
 *DefaultApi* | [**is_dev**](docs/DefaultApi.md#is_dev) | **GET** /system/is-dev | Returns if JJS is running in development mode.
 *DefaultApi* | [**list_contest_problems**](docs/DefaultApi.md#list_contest_problems) | **GET** /contests/{name}/problems | Lists all problems in contest `name`
 *DefaultApi* | [**list_contests**](docs/DefaultApi.md#list_contests) | **GET** /contests | Lists contests

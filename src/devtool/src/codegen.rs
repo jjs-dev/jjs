@@ -58,7 +58,7 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
     println!("Running client codegen");
     let mut gen = make_docker();
     gen.arg("run");
-    gen.arg("--rm");
+    gen.arg("--interactive").arg("--rm");
 
     gen.arg("--mount").arg(format!(
         "type=bind,source={},target=/input",
@@ -90,6 +90,5 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
     );
     std::fs::write(main_file_path, new_content)?;
     std::fs::remove_file("src/gen-api-client/git_push.sh")?;
-    std::fs::remove_dir_all("src/gen-api-client/docs")?;
     Ok(())
 }

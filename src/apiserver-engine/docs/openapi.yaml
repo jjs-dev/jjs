@@ -167,7 +167,7 @@ paths:
       responses:
         204:
           description: ok
-  "/runs/<id>/live":
+  "/runs/{id}/live":
     get:
       operationId: getRunLiveStatus
       summary: returns incremental Live Status
@@ -180,7 +180,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RunLiveStatusUpdate"
-  "/runs/<id>/source":
+  "/runs/{id}/source":
     get:
       operationId: getRunSource
       summary: Returns run source as base64-encoded JSON string
@@ -195,7 +195,7 @@ paths:
                 type: string
         204:
           description: run source is not available
-  "/runs/<id>/binary":
+  "/runs/{id}/binary":
     get:
       operationId: getRunBinary
       summary: Returns run build artifact as base64-encoded JSON string
@@ -210,7 +210,7 @@ paths:
                 type: string
         204:
           description: run binary is not available
-  "/runs/<id>/protocol":
+  "/runs/{id}/protocol":
     get:
       operationId: getRunProtocol
       summary: Returns invocation protocol as JSON document
@@ -295,7 +295,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+security:
+  - AccessToken: []
+
+
 components:
+  securitySchemes:
+    AccessToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 
+        This token is issued by `/auth/simple` endpoint.
+        If it returned SessionToken `tok`, then AccessToken is "Token ${tok.data}"
+
   parameters:
     contest_name:
       in: path

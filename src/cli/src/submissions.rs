@@ -1,6 +1,6 @@
 use client::Api as _;
+use log::error;
 use serde_json::Value;
-use slog::error;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -30,10 +30,7 @@ pub async fn exec(opt: Opt, params: &super::CommonParams) -> Value {
                     .await
                     .map(drop)
                     .unwrap_or_else(|err| {
-                        error!(
-                            params.logger,
-                            "api error when deleting submission {}: {:?}", id, err
-                        )
+                        error!("api error when deleting submission {}: {:?}", id, err)
                     });
             }
             serde_json::to_value(result).unwrap()
@@ -49,7 +46,7 @@ pub async fn exec(opt: Opt, params: &super::CommonParams) -> Value {
                 };
                 let res = params.client.patch_run(id, Some(patch)).await;
                 if let Err(e) = res {
-                    error!(params.logger, "When rejudging run {}: api error: {}", id, e);
+                    error!("When rejudging run {}: api error: {}", id, e);
                 }
             }
             serde_json::to_value(result).unwrap()

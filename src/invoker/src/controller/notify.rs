@@ -1,5 +1,5 @@
 //! Implements Notifications - messages about run testing updates
-use slog_scope::{debug, warn};
+use log::{debug, warn};
 use std::time::{Duration, Instant};
 #[derive(Debug)]
 pub(crate) struct Notifier {

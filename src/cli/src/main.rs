@@ -4,7 +4,6 @@ mod submissions;
 mod submit;
 
 use client::ApiClient;
-use slog::{o, Drain, Logger};
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -31,7 +30,6 @@ enum SubOpt {
 
 pub struct CommonParams {
     client: ApiClient,
-    logger: Logger,
 }
 
 fn gen_completion() {
@@ -49,21 +47,13 @@ async fn main() {
         gen_completion();
         exit(0);
     }
+    util::log::setup();
 
     let opt: Opt = Opt::from_args();
 
-    let drain =
-        slog_term::CompactFormat::new(slog_term::TermDecorator::new().stderr().build()).build();
-
-    let logger = slog_envlogger::new(drain);
-    let logger = std::sync::Mutex::new(logger);
-    let logger = Logger::root(logger.fuse(), o!()).into_erased();
-    let _guard = slog_scope::set_global_logger(logger.clone());
-    slog_stdlog::init().unwrap();
-
     let client = client::connect();
 
-    let common = CommonParams { client, logger };
+    let common = CommonParams { client };
 
     let data = match opt.sub {
         SubOpt::Submit(sopt) => submit::exec(sopt, &common).await,

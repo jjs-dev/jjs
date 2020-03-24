@@ -34,7 +34,7 @@ pub fn buffer_to_file(buf: &[u8], comment: &str) -> i64 {
 }
 
 // this is bug in clippy: https://github.com/rust-lang/rust-clippy/issues/5368
-#[allow(clippy::verbose_file_reads)]
+// #[allow(clippy::verbose_file_reads)]
 pub fn handle_read_all(h: i64) -> Vec<u8> {
     use std::{io::Read, os::unix::io::FromRawFd};
     let h = h as i32;

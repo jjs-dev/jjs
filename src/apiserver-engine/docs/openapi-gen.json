@@ -295,6 +295,14 @@
         ],
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "AccessToken": {
+        "description": "This token is issued by `/auth/simple` endpoint. If it returned SessionToken `tok`, then AccessToken is \"Token ${tok.data}\"",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -473,136 +481,6 @@
         "summary": "Submit run"
       }
     },
-    "/runs/<id>/binary": {
-      "get": {
-        "operationId": "getRunBinary",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/run_id"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "ok"
-          },
-          "204": {
-            "description": "run binary is not available"
-          }
-        },
-        "summary": "Returns run build artifact as base64-encoded JSON string"
-      }
-    },
-    "/runs/<id>/live": {
-      "get": {
-        "operationId": "getRunLiveStatus",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/run_id"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RunLiveStatusUpdate"
-                }
-              }
-            },
-            "description": "ok"
-          }
-        },
-        "summary": "returns incremental Live Status"
-      }
-    },
-    "/runs/<id>/protocol": {
-      "get": {
-        "operationId": "getRunProtocol",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/run_id"
-          },
-          {
-            "description": "If false, compilation logs will be excluded",
-            "in": "query",
-            "name": "compile_log",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "description": "If false, test data will be excluded for all tests",
-            "in": "query",
-            "name": "test_data",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "description": "If false, solution stdout&stderr will be excluded for all tests",
-            "in": "query",
-            "name": "output",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "description": "If false, correct answer will be excluded for all tests",
-            "in": "query",
-            "name": "answer",
-            "schema": {
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "/application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "ok"
-          }
-        },
-        "summary": "Returns invocation protocol as JSON document"
-      }
-    },
-    "/runs/<id>/source": {
-      "get": {
-        "operationId": "getRunSource",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/run_id"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "ok"
-          },
-          "204": {
-            "description": "run source is not available"
-          }
-        },
-        "summary": "Returns run source as base64-encoded JSON string"
-      }
-    },
     "/runs/{id}": {
       "delete": {
         "operationId": "deleteRun",
@@ -669,6 +547,136 @@
           }
         },
         "summary": "Modifies run"
+      }
+    },
+    "/runs/{id}/binary": {
+      "get": {
+        "operationId": "getRunBinary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "204": {
+            "description": "run binary is not available"
+          }
+        },
+        "summary": "Returns run build artifact as base64-encoded JSON string"
+      }
+    },
+    "/runs/{id}/live": {
+      "get": {
+        "operationId": "getRunLiveStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunLiveStatusUpdate"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "returns incremental Live Status"
+      }
+    },
+    "/runs/{id}/protocol": {
+      "get": {
+        "operationId": "getRunProtocol",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          },
+          {
+            "description": "If false, compilation logs will be excluded",
+            "in": "query",
+            "name": "compile_log",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, test data will be excluded for all tests",
+            "in": "query",
+            "name": "test_data",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, solution stdout&stderr will be excluded for all tests",
+            "in": "query",
+            "name": "output",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If false, correct answer will be excluded for all tests",
+            "in": "query",
+            "name": "answer",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "/application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Returns invocation protocol as JSON document"
+      }
+    },
+    "/runs/{id}/source": {
+      "get": {
+        "operationId": "getRunSource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/run_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "ok"
+          },
+          "204": {
+            "description": "run source is not available"
+          }
+        },
+        "summary": "Returns run source as base64-encoded JSON string"
       }
     },
     "/system/api-version": {
@@ -758,5 +766,10 @@
         "summary": "Creates new user"
       }
     }
-  }
+  },
+  "security": [
+    {
+      "AccessToken": []
+    }
+  ]
 }

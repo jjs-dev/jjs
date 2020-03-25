@@ -4,7 +4,7 @@ use crate::{
 };
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::{ffi::OsString, io::Read, path::PathBuf, time::Duration};
+use std::{ffi::OsString, path::PathBuf, time::Duration};
 use tiny_nix_ipc::Socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -91,11 +91,8 @@ pub(crate) fn dominion_kill_all(zygote_pid: Pid, jail_id: Option<&str>) -> std::
     };
     // now let's wait until kill is done
     let pids_tasks_file_path = super::zygote::cgroup::get_cgroup_tasks_file_path(jail_id);
-    let mut buf = Vec::with_capacity(8);
     loop {
-        buf.clear();
-        let mut f = std::fs::File::open(&pids_tasks_file_path)?;
-        f.read_to_end(&mut buf)?;
+        let buf = std::fs::read(&pids_tasks_file_path)?;
         let has_some = buf.iter().take(8).any(|c| c.is_ascii_digit());
         if !has_some {
             break;

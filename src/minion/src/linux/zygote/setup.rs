@@ -27,7 +27,7 @@ unsafe fn configure_dir(dir_path: &Path) {
         | libc::S_IWOTH
         | libc::S_IXOTH;
     let path = CString::new(dir_path.as_os_str().as_bytes()).unwrap();
-    if libc::chmod(path.clone().as_ptr(), mode) == -1 {
+    if libc::chmod(path.as_ptr(), mode) == -1 {
         err_exit("chmod");
     }
 
@@ -50,7 +50,7 @@ fn expose_dir(jail_root: &Path, system_path: &Path, alias_path: &Path, access: D
     unsafe {
         let mnt_res = libc::mount(
             bind_src.as_ptr(),
-            bind_target.clone().as_ptr(),
+            bind_target.as_ptr(),
             ptr::null(),
             libc::MS_BIND,
             ptr::null(),

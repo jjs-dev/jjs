@@ -12,17 +12,14 @@ use structopt::StructOpt;
 struct Options {
     /// Template files dir
     tpls_dir: PathBuf,
-    /// Out dir
+    /// Out dir (without trailing opt, e.g. /home/jjs)
     out: PathBuf,
     /// Trace log
     #[structopt(long, short = "t")]
     trace: Option<PathBuf>,
-    /// Blacklist: listed toolchains will not be processed
+    /// Only listed toolchains will be processed (overrides `skip`)
     #[structopt(long)]
-    skip: Vec<String>,
-    /// Whitelist: only listed toolchains will be processed (overrides `skip`)
-    #[structopt(long)]
-    only: Vec<String>,
+    toolchains: Vec<String>,
     /// (strategy=trace) Do not treat symlinks like regular files
     #[structopt(long)]
     copy_symlinks: bool,
@@ -94,13 +91,8 @@ fn list_templates(dir: &Path) -> anyhow::Result<Vec<ToolchainSpec>> {
 }
 
 fn select_templates(tpls: &[ToolchainSpec], opt: &Options) -> anyhow::Result<Vec<ToolchainSpec>> {
-    let filter: Box<dyn FnMut(&ToolchainSpec) -> bool> = if !opt.only.is_empty() {
-        Box::new(|tpl| opt.only.contains(&tpl.name) || tpl.cfg.auto)
-    } else if !opt.skip.is_empty() {
-        Box::new(|tpl| !opt.skip.contains(&tpl.name))
-    } else {
-        Box::new(|_tpl| true)
-    };
+    let filter: Box<dyn FnMut(&ToolchainSpec) -> bool> =
+        Box::new(|tpl| opt.toolchains.contains(&tpl.name) || tpl.cfg.auto);
     let roots: Vec<_> = tpls.iter().cloned().filter(filter).collect();
     let mut q = std::collections::HashSet::new();
     let mut used = std::collections::HashSet::new();
@@ -161,6 +153,22 @@ fn make_resolvers(opt: &Options) -> anyhow::Result<Vec<Box<dyn Resolver>>> {
 
 fn main() -> anyhow::Result<()> {
     let opt: Options = Options::from_args();
+    let specs = list_templates(&opt.tpls_dir)?;
+
+    // internal API
+    // If you have usecase where this information is desired, open issue.
+    if std::env::var("__JJS").ok().as_deref() == Some("print-usable-toolchains") {
+        let mut out = Vec::new();
+        for spec in specs {
+            if spec.dir.join("invoke-conf.yaml").exists() {
+                out.push(spec.name);
+            }
+        }
+        println!("{}", serde_json::to_string(&out)?);
+        return Ok(());
+    }
+
+    let specs = select_templates(&specs, &opt)?;
     let mut log_file = match &opt.trace {
         Some(path) => {
             let wr = std::fs::File::create(path).context("failed to open trace log")?;
@@ -173,8 +181,6 @@ fn main() -> anyhow::Result<()> {
 
     let mut resolvers = make_resolvers(&opt).context("failed to create resolvers")?;
 
-    let specs = list_templates(&opt.tpls_dir)?;
-    let specs = select_templates(&specs, &opt)?;
     for spec in specs {
         println!("------ processing {} ------", &spec.name);
         let mut processed = false;

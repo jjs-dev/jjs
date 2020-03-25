@@ -43,7 +43,7 @@ impl Env {
 /// tests that multiple users with same login are not allowed
 #[tokio::test]
 async fn test_user_already_exists() {
-    let env = Env::new("UserOps");
+    let env = Env::new("UserOps").await;
     let res = env
         .req()
         .create_user("JonSnow", "VerySecretPass", EMPTY_GROUPS)
@@ -63,7 +63,7 @@ async fn test_user_already_exists() {
 
 #[tokio::test]
 async fn test_groups() {
-    let env = Env::new("Groups");
+    let env = Env::new("Groups").await;
     let res = env
         .req()
         .create_user("Alice", "pswrd", &["bar"])

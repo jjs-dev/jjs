@@ -115,7 +115,6 @@ EOF
 chmod 755 ../../usr/"$i"
 done
 )
-cp "$DIRNAME/jjs-oneclick" data/usr/bin
 
 mkdir data/usr/lib
 (
@@ -140,7 +139,6 @@ mkdir control
 cp "$DIRNAME/manifest.txt" control/control
 sed -i 's/^Version:.*$/Version: '"$(cat "$DIRNAME/../Version.txt")"'/g' control/control
 sed -i 's/^Architecture:.*$/Architecture: '"$(dpkg --print-architecture)"'/g' control/control
-cp "$DIRNAME"/scripts/* control/ || true
 cd control; tar --owner=root -cvJf ../control.tar.xz .; cd ..
 
 echo '2.0' > debian-binary

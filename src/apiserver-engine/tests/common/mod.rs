@@ -1,9 +1,10 @@
 // This file is included in many tests, and some functions are not used in all tests
 #![allow(dead_code)]
 use apiserver_engine::{config, test_util, ApiServer};
+use setup::Component;
 pub use test_util::check_error;
 
-use std::{env::temp_dir, path::PathBuf, sync::Arc};
+use std::{env::temp_dir, sync::Arc};
 
 pub struct EnvBuilder {
     inner: Option<entity::loader::LoaderBuilder>,
@@ -38,7 +39,7 @@ impl EnvBuilder {
         self
     }
 
-    pub fn build(&mut self, name: &str) -> Env {
+    pub async fn build(&mut self, name: &str) -> Env {
         simple_logger::init().ok();
         // TODO partially duplicates ApiServer::create_embedded()
         let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
@@ -47,25 +48,16 @@ impl EnvBuilder {
 
         std::fs::remove_dir_all(&path).ok();
         std::fs::create_dir(&path).expect("failed create dir for sysroot");
-
-        let runner = util::cmd::Runner::new();
-
-        setup::setup(
-            &setup::SetupParams {
-                toolchains: false,
-                data_dir: Some(path.clone()),
-                config: None,
-                db: None,
-                // dummy value can be used because we don't setup db
-                install_dir: PathBuf::new(),
-                force: false,
-                sample_contest: false,
-            },
-            &runner,
-        )
-        .expect("failed initialize JJS sysroot");
-
-        runner.exit_if_errors();
+        {
+            let cx = setup::data::Context { data_dir: &path };
+            let upgrader = setup::data::analyze(cx)
+                .await
+                .expect("failed to create upgrader");
+            upgrader
+                .upgrade()
+                .await
+                .expect("failed to initialize JJS data_dir");
+        }
 
         let contest = entity::Contest {
             id: "main".to_string(),
@@ -185,8 +177,8 @@ impl RequestBuilder<'_> {
 }
 
 impl Env {
-    pub fn new(name: &str) -> Self {
-        EnvBuilder::new().build(name)
+    pub async fn new(name: &str) -> Self {
+        EnvBuilder::new().build(name).await
     }
 
     pub fn req(&self) -> RequestBuilder {

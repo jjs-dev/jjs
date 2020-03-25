@@ -56,3 +56,11 @@ CREATE table invocations
     -- contains JSON document which maps judge log name to InvocationOutcome. May be partial if not all logs are emitted yet.
     outcome JSONB NOT NULL
 );
+
+-- Special table
+
+CREATE TABLE __revision (
+    revision VARCHAR NOT NULL
+);
+
+INSERT INTO __revision VALUES ('2019-02-13-163254_initial');

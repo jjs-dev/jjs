@@ -75,6 +75,10 @@
       },
       "Problem": {
         "properties": {
+          "name": {
+            "description": "Problem name",
+            "type": "string"
+          },
           "rel_name": {
             "description": "Problem relative name (aka problem code) as contestants see. This is usually one letter or something similar, e.g. 'A' or '3F'.",
             "type": "string"
@@ -85,6 +89,7 @@
           }
         },
         "required": [
+          "name",
           "rel_name",
           "title"
         ],

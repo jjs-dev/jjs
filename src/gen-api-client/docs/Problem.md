@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**name** | **String** | Problem name | 
 **rel_name** | **String** | Problem relative name (aka problem code) as contestants see. This is usually one letter or something similar, e.g. 'A' or '3F'. | 
 **title** | **String** | Problem title as contestants see, e.g. \"Find max flow\". | 
 

@@ -10,6 +10,9 @@
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Problem {
+    /// Problem name
+    #[serde(rename = "name")]
+    pub name: String,
     /// Problem relative name (aka problem code) as contestants see. This is usually one letter or something similar, e.g. 'A' or '3F'.
     #[serde(rename = "rel_name")]
     pub rel_name: String,
@@ -19,7 +22,11 @@ pub struct Problem {
 }
 
 impl Problem {
-    pub fn new(rel_name: String, title: String) -> Problem {
-        Problem { rel_name, title }
+    pub fn new(name: String, rel_name: String, title: String) -> Problem {
+        Problem {
+            name,
+            rel_name,
+            title,
+        }
     }
 }

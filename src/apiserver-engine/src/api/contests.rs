@@ -4,6 +4,8 @@ use super::prelude::*;
 pub(crate) struct Problem {
     /// Problem title as contestants see, e.g. "Find max flow".
     pub title: String,
+    /// Problem name
+    pub name: schema::ProblemId,
     /// Problem relative name (aka problem code) as contestants see. This is usually one letter or
     /// something similar, e.g. 'A' or '3F'.
     pub rel_name: schema::ProblemId,
@@ -70,6 +72,7 @@ pub(crate) fn route_list_problems(ctx: Context, name: String) -> ApiResult<Json<
                 .title
                 .clone(),
             rel_name: p.code.clone(),
+            name: p.name.clone(),
         })
         .collect();
     Ok(Json(problems))

@@ -861,9 +861,13 @@ ul.nav-tabs {
   }
 };
     defs["Problem"] = {
-  "required" : [ "rel_name", "title" ],
+  "required" : [ "name", "rel_name", "title" ],
   "type" : "object",
   "properties" : {
+    "name" : {
+      "type" : "string",
+      "description" : "Problem name"
+    },
     "rel_name" : {
       "type" : "string",
       "description" : "Problem relative name (aka problem code) as contestants see. This is usually one letter or something similar, e.g. 'A' or '3F'."

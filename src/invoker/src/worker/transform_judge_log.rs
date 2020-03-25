@@ -5,6 +5,8 @@ use std::io::Read;
 
 impl Worker {
     /// Go from valuer judge log to invoker judge log
+    // Bug in clippy: https://github.com/rust-lang/rust-clippy/issues/5368
+    #[allow(clippy::verbose_file_reads)]
     pub(super) fn process_judge_log(
         &self,
         valuer_log: &invoker_api::valuer_proto::JudgeLog,

@@ -108,6 +108,9 @@ async fn process_configs(profile: &Profile, action: Subcommand) -> anyhow::Resul
         Some(dd) => dd,
         None => return Ok(SystemHealth::Ok),
     };
+    if !profile.configs {
+        return Ok(SystemHealth::Ok);
+    }
     let cx = setup::config::Context {
         data_dir: &data_dir,
         install_dir: &profile.install_dir,

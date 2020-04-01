@@ -17,8 +17,9 @@ impl DbSource {
     }
 }
 
+#[async_trait::async_trait]
 impl TaskSource for DbSource {
-    fn load_tasks(&self, mut cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
+   async fn load_tasks(&self, mut cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
         let mut new_tasks = Vec::new();
         const WINDOW_SIZE: u32 = 10;
         const WINDOW_STEP: u32 = 9;
@@ -39,10 +40,10 @@ impl TaskSource for DbSource {
                             return Ok(true);
                         }
                         Ok(false)
-                    })?;
+                    }).await?;
             for invocation in chunk {
                 let db_invoke_task = invocation.invoke_task()?;
-                let db_run = self.db.run_load(db_invoke_task.run_id as i32)?;
+                let db_run = self.db.run_load(db_invoke_task.run_id as i32).await?;
                 let invocation_id = Uuid::from_fields(invocation.id as u32, 0, 0, &[0; 8])
                     .expect("this call is always correct");
                 let run_dir = self
@@ -68,7 +69,7 @@ impl TaskSource for DbSource {
         Ok(new_tasks)
     }
 
-    fn set_finished(
+    async fn set_finished(
         &self,
         invocation_id: uuid::Uuid,
         reason: InvocationFinishReason,
@@ -82,16 +83,17 @@ impl TaskSource for DbSource {
         patch.state(state);
         self.db
             .inv_update(invocation_id.as_fields().0 as i32, patch)
+            .await
             .context("failed to store outcome")?;
         Ok(())
     }
 
-    fn add_outcome_header(
+    async fn add_outcome_header(
         &self,
         invocation_id: uuid::Uuid,
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()> {
         self.db
-            .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header)
+            .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header).await
     }
 }

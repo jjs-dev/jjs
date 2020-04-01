@@ -40,7 +40,7 @@ async fn handle_conn(token_mgr: TokenMgr, mut conn: UnixStream) {
         return;
     }
     info!("issuing root credentials");
-    let token = match token_mgr.create_root_token() {
+    let token = match token_mgr.create_root_token().await {
         Ok(tok) => token_mgr.serialize(&tok),
         Err(err) => {
             eprintln!("Error when issuing root credentials: {}", err);

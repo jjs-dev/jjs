@@ -43,7 +43,7 @@ impl ApiObject for UserCreateParams {
 
 // TODO allow creation without password
 #[post("/users", data = "<p>")]
-pub(crate) fn route_create(ctx: Context, mut p: Json<UserCreateParams>) -> ApiResult<Json<User>> {
+pub(crate)async fn route_create(ctx: Context, mut p: Json<UserCreateParams>) -> ApiResult<Json<User>> {
     // TODO transaction
     if !p.groups.is_empty() {
         let access_checker = ctx.access();
@@ -51,7 +51,7 @@ pub(crate) fn route_create(ctx: Context, mut p: Json<UserCreateParams>) -> ApiRe
             return Err(ApiError::access_denied(&ctx));
         }
     }
-    let cur_user = ctx.db().user_try_load_by_login(&p.login).internal(&ctx)?;
+    let cur_user = ctx.db().user_try_load_by_login(&p.login).await.internal(&ctx)?;
     if let Some(..) = cur_user {
         return Err(ApiError::new(&ctx, "UserAlreadyExists"));
     }
@@ -64,7 +64,7 @@ pub(crate) fn route_create(ctx: Context, mut p: Json<UserCreateParams>) -> ApiRe
         groups: std::mem::take(&mut p.groups),
     };
 
-    let user = ctx.db().user_new(new_user).internal(&ctx)?;
+    let user = ctx.db().user_new(new_user).await.internal(&ctx)?;
 
     Ok(Json((&user).into()))
 }

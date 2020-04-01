@@ -57,14 +57,15 @@ pub struct ProgressMessage {
     header: invoker_api::InvokeOutcomeHeader,
 }
 
+#[async_trait::async_trait]
 impl TaskSource for BackgroundSource {
-    fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<InvokeTask>> {
+    async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<InvokeTask>> {
         let mut q = self.state.lock().unwrap();
         let q = &mut q.queue;
         Ok(q.drain(0..cnt.min(q.len())).collect())
     }
 
-    fn set_finished(
+    async fn set_finished(
         &self,
         invocation_id: Uuid,
         reason: InvocationFinishReason,
@@ -83,7 +84,7 @@ impl TaskSource for BackgroundSource {
         Ok(())
     }
 
-    fn add_outcome_header(
+    async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
         header: invoker_api::InvokeOutcomeHeader,

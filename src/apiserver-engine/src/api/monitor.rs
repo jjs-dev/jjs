@@ -29,8 +29,8 @@ fn lower_problem(prob: &pom::Problem) -> ranker::ProblemConfig {
 }
 
 #[get("/contests/<contest_name>/standings")]
-pub(crate) fn route_get(ctx: Context, contest_name: String) -> ApiResult<Json<ranker::Monitor>> {
-    let runs = ctx.db().load_runs_with_last_invocations().internal(&ctx)?;
+pub(crate) async fn route_get(ctx: Context, contest_name: String) -> ApiResult<Json<ranker::Monitor>> {
+    let runs = ctx.db().load_runs_with_last_invocations().await.internal(&ctx)?;
 
     let mut ranker_runs = Vec::new();
     for (db_run, db_inv) in runs {

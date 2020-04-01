@@ -8,7 +8,9 @@ pub use memory::MemoryRepo;
 use crate::schema::*;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use futures::{future::FutureExt as _, stream::StreamExt as _, stream::TryStreamExt as _};
+use futures::{
+    stream::{StreamExt as _, TryStreamExt as _},
+};
 
 #[async_trait]
 pub trait RunsRepo: std::fmt::Debug + Send + Sync {
@@ -35,7 +37,7 @@ pub trait InvocationsRepo: RunsRepo + Send + Sync {
         &self,
         offset: u32,
         count: u32,
-        predicate: &mut dyn FnMut(Invocation) -> Result<bool>,
+        predicate: &mut (dyn FnMut(Invocation) -> Result<bool> + Send + Sync),
     ) -> Result<Vec<Invocation>>;
 
     async fn load_runs_with_last_invocations(&self) -> Result<Vec<(Run, Invocation)>> {
@@ -79,7 +81,7 @@ pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo + KvRepo {}
 
 impl dyn Repo {
     pub async fn kv_get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
-        let maybe_raw_data = self.kv_get_raw(key).context("failed to load value")?;
+        let maybe_raw_data = self.kv_get_raw(key).await.context("failed to load value")?;
         match maybe_raw_data {
             Some(raw_data) => serde_json::from_slice(&raw_data)
                 .context("parse error")

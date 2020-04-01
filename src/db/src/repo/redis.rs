@@ -2,25 +2,8 @@ use super::KvRepo;
 use anyhow::{Context as _, Result};
 use redis::AsyncCommands as _;
 
-fn check_send<T: Send>(_: T) {}
-fn check_sync<T: Sync>(_: T) {}
-
-fn check_conn() {
-    let conn: redis::aio::Connection = panic!();
-    check_send(conn);
-    let conn: redis::aio::Connection = panic!();
-    check_sync(conn);
-}
-
 pub struct RedisRepo {
-    conn: redis::aio::Connection,
-}
-
-fn check_redis_repo() {
-    let rp: RedisRepo = panic!();
-    check_send(rp);
-    let rp: RedisRepo = panic!();
-    check_sync(rp);
+    conn: tokio::sync::Mutex<redis::aio::Connection>,
 }
 
 impl RedisRepo {
@@ -30,6 +13,7 @@ impl RedisRepo {
             .get_async_connection()
             .await
             .context("unable to connect")?;
+        let conn = tokio::sync::Mutex::new(conn);
         Ok(RedisRepo { conn })
     }
 }
@@ -37,10 +21,10 @@ impl RedisRepo {
 #[async_trait::async_trait]
 impl KvRepo for RedisRepo {
     async fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        self.conn.get(key).await.map_err(Into::into)
+        self.conn.lock().await.get(key).await.map_err(Into::into)
     }
 
     async fn kv_put_raw(&self, key: &str, value: &[u8]) -> Result<()> {
-        self.conn.set(key, value).await.map_err(Into::into)
+        self.conn.lock().await.set(key, value).await.map_err(Into::into)
     }
 }

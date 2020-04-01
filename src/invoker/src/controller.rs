@@ -104,44 +104,47 @@ pub enum InvocationFinishReason {
     JudgeDone,
 }
 
+#[async_trait::async_trait]
 pub trait TaskSource {
-    fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
+    async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
 
-    fn set_finished(
+    async fn set_finished(
         &self,
         invocation_id: Uuid,
         reason: InvocationFinishReason,
     ) -> anyhow::Result<()>;
 
-    fn add_outcome_header(
+    async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()>;
 }
 
-impl<S: TaskSource, T: std::ops::Deref<Target = S>> TaskSource for T {
-    fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
-        let inner: &S = self.deref();
-        inner.load_tasks(cnt)
+#[async_trait::async_trait]
+impl<S: TaskSource + Send + Sync + 'static, T: std::ops::Deref<Target = S> + Send + Sync> TaskSource
+    for T
+{
+    async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
+        (**self).load_tasks(cnt).await
     }
 
-    fn set_finished(
+    async fn set_finished(
         &self,
         invocation_id: Uuid,
         reason: InvocationFinishReason,
     ) -> anyhow::Result<()> {
         let inner: &S = self.deref();
-        inner.set_finished(invocation_id, reason)
+        inner.set_finished(invocation_id, reason).await
     }
 
-    fn add_outcome_header(
+    async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()> {
         let inner: &S = self.deref();
-        inner.add_outcome_header(invocation_id, header)
+        inner.add_outcome_header(invocation_id, header).await
     }
 }
 
@@ -220,9 +223,9 @@ impl Controller {
         // did we have any updates?
         let mut flag = false;
         flag = flag || self.tick_poll_workers().await?;
-        flag = flag || self.tick_publish_outcome()?;
+        flag = flag || self.tick_publish_outcome().await?;
         flag = flag || self.tick_send_invoke_request().await?;
-        flag = flag || self.tick_get_tasks()?;
+        flag = flag || self.tick_get_tasks().await?;
         Ok(flag)
     }
 
@@ -243,13 +246,13 @@ impl Controller {
             .position(|worker| worker.state.is_idle())
     }
 
-    fn load_tasks(
+    async fn load_tasks(
         &mut self,
         mut limit: usize,
     ) -> anyhow::Result<Vec<(invoker_api::InvokeTask, usize)>> {
         let mut tasks = Vec::new();
         for (source_id, source) in self.sources.iter().enumerate() {
-            let chunk = source.load_tasks(limit)?;
+            let chunk = source.load_tasks(limit).await?;
             limit -= chunk.len();
             tasks.extend(chunk.into_iter().map(|task| (task, source_id)));
         }
@@ -280,13 +283,13 @@ impl Controller {
         self.workers.len()
     }
 
-    fn tick_get_tasks(&mut self) -> anyhow::Result<bool> {
+    async fn tick_get_tasks(&mut self) -> anyhow::Result<bool> {
         if self.queues.invoke().len() >= self.invoke_queue_size() {
             return Ok(false);
         }
         let cnt = self.invoke_queue_size() - self.queues.invoke().len();
         debug!("Searching for tasks (limit {})", cnt);
-        let new_tasks = self.load_tasks(cnt)?;
+        let new_tasks = self.load_tasks(cnt).await?;
         if new_tasks.is_empty() {
             debug!("No new tasks");
             return Ok(false);
@@ -331,7 +334,8 @@ impl Controller {
             }
             Response::OutcomeHeader(header) => {
                 self.sources[req.task_source_id]
-                    .add_outcome_header(req.inner.invocation_id, header)?;
+                    .add_outcome_header(req.inner.invocation_id, header)
+                    .await?;
                 let dir = req.inner.out_dir.clone();
                 let invocation_dir = req.invocation_dir.clone();
                 worker.state = WorkerState::Invoke(req);
@@ -373,7 +377,7 @@ impl Controller {
         Ok(!emp)
     }
 
-    fn tick_publish_outcome(&mut self) -> anyhow::Result<bool> {
+    async fn tick_publish_outcome(&mut self) -> anyhow::Result<bool> {
         let (invoke_outcome, ext_inv_req) = match self.queues.publish().pop_front() {
             Some(r) => r,
             None => return Ok(false),
@@ -389,6 +393,7 @@ impl Controller {
         };
         self.sources[ext_inv_req.task_source_id]
             .set_finished(ext_inv_req.inner.invocation_id, reason)
+            .await
             .context("failed to set run outcome in DB")?;
 
         Ok(true)

@@ -126,7 +126,7 @@ impl ApiServer {
         let cfg1 = Arc::clone(&apiserver_params);
         let rocket = rocket::custom(rocket_config)
             .manage(graphql_context_factory)
-            .manage(Arc::new(Mutex::new(global::GlobalState::new())))
+            .manage(Arc::new(tokio::sync::Mutex::new(global::GlobalState::new())))
             .manage(apiserver_params)
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(secret_key::SecretKey(cfg1.token_mgr.secret_key().into())))

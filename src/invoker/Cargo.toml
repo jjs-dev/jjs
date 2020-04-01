@@ -34,6 +34,7 @@ uuid = {version = "0.7.4", features = ["v5"]}
 problem-loader = {path = "../problem-loader"}
 tokio = {version = "0.2.13", features = ["rt-core", "process", "io-std"]}
 log = "0.4.8"
+async-trait = "0.1.27"
 [features]
 beautiful_backtrace = ["color-backtrace"]
 default = ["beautiful_backtrace"]

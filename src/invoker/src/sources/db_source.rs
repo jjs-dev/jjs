@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 pub struct DbSource {
-    db: Box<dyn db::DbConn>,
+    db: db::DbConn,
     runs_dir: PathBuf,
 }
 
 impl DbSource {
-    pub fn new(db: Box<dyn db::DbConn>, cfg_data: &util::cfg::CfgData) -> DbSource {
+    pub fn new(db: db::DbConn, cfg_data: &util::cfg::CfgData) -> DbSource {
         DbSource {
             db,
             runs_dir: cfg_data.data_dir.join("var/runs"),

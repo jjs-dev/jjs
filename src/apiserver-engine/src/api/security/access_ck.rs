@@ -6,7 +6,7 @@ use crate::api::schema::{ContestId, RunId};
 pub(crate) struct RawAccessChecker<'a> {
     pub(crate) token: &'a Token,
     pub(crate) cfg: &'a entity::Loader,
-    pub(crate) db: &'a dyn db::DbConn,
+    pub(crate) db: &'a db::DbConn,
 }
 
 impl<'a> RawAccessChecker<'a> {

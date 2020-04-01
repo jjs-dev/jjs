@@ -16,7 +16,7 @@ pub mod test_util;
 pub use api::TokenMgr;
 pub use config::ApiserverParams;
 
-type DbPool = Arc<dyn db::DbConn>;
+type DbPool = Arc< db::DbConn>;
 
 #[catch(400)]
 fn catch_bad_request() -> &'static str {
@@ -59,7 +59,7 @@ pub struct ApiServer {
 
 impl ApiServer {
     pub fn create_embedded() -> ApiServer {
-        let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
+        let db_conn: Arc< db::DbConn> = db::connect::connect_memory().unwrap().into();
         let builder = entity::loader::LoaderBuilder::new();
         let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_APISERVER_INSTANCE")
             .into_boxed_slice()

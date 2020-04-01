@@ -1,7 +1,7 @@
 use super::security::{RawAccessChecker, Token, TokenMgr, TokenMgrError};
 use std::sync::{Arc};
 
-pub(crate) type DbPool = Arc<dyn db::DbConn>;
+pub(crate) type DbPool = Arc<db::DbConn>;
 
 //TODO: Do not clone Context on every request
 pub(crate) struct ContextData {
@@ -29,7 +29,7 @@ impl ContextData {
         self.global.lock().await
     }
 
-    pub(crate) fn db(&self) -> &dyn db::DbConn {
+    pub(crate) fn db(&self) -> &db::DbConn {
         &*self.as_cfg.db_conn
     }
 

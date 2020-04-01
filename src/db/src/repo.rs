@@ -4,6 +4,7 @@ mod redis;
 
 pub use diesel_pg::DieselRepo;
 pub use memory::MemoryRepo;
+pub use self::redis::RedisRepo;
 
 use crate::schema::*;
 use anyhow::{bail, Context, Result};

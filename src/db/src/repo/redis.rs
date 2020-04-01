@@ -6,6 +6,12 @@ pub struct RedisRepo {
     conn: tokio::sync::Mutex<redis::aio::Connection>,
 }
 
+impl std::fmt::Debug for RedisRepo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("RedisRepo").field("conn", &"..").finish()
+    }
+}
+
 impl RedisRepo {
     pub(crate) async fn new(conn_url: &str) -> Result<RedisRepo> {
         let client = redis::Client::open(conn_url).context("invalid connection string")?;
@@ -25,6 +31,11 @@ impl KvRepo for RedisRepo {
     }
 
     async fn kv_put_raw(&self, key: &str, value: &[u8]) -> Result<()> {
-        self.conn.lock().await.set(key, value).await.map_err(Into::into)
+        self.conn
+            .lock()
+            .await
+            .set(key, value)
+            .await
+            .map_err(Into::into)
     }
 }

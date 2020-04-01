@@ -26,11 +26,11 @@ sudo sed -i 's/.*timezone.*//g' "$SYSROOT"/var/lib/postgresql/*/main/postgresql.
 sudo rm -rf tmp
 mkdir tmp
 "$(firstof /usr/lib/postgresql/*/bin/postgres)" -D "$SYSROOT"/var/lib/postgresql/*/main -k "$(pwd)/tmp" &
-sleep 5
+sleep 15
 psql -h "$(pwd)/tmp" -U postgres -c "create role jjs with password 'internal';"
 psql -h "$(pwd)/tmp" -U postgres -c "alter role jjs with login;"
 psql -h "$(pwd)/tmp" -U postgres -c "create database jjs;"
-psql -h "$(pwd)/tmp" -U postgres -d jjs -a -f "$(pwd)/../pkg/ar_data/share/db-setup.sql"
+psql -h "$(pwd)/tmp" -U postgres -d jjs -a -f "$(pwd)/../pkg/ar_data/share/db/*/up.sql"
 psql -h "$(pwd)/tmp" -U postgres -d jjs -c "grant all on all tables in schema public to jjs;"
 psql -h "$(pwd)/tmp" -U postgres -d jjs -c "grant all on all sequences in schema public to jjs;"
 kill %1

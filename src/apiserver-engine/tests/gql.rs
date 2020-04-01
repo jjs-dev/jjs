@@ -5,7 +5,7 @@ use serde_json::json;
 /// Smoke test
 #[tokio::test]
 async fn test_smoke_ops() {
-    let env = common::Env::new("SmokeOps");
+    let env = common::Env::new("SmokeOps").await;
     let res = env
         .req()
         .action("/system/api-version")
@@ -49,7 +49,8 @@ async fn test_runs_ops() {
             judges: vec!["Judges".to_string()],
             unregistered_visible: true,
         })
-        .build("runs_ops");
+        .build("runs_ops")
+        .await;
 
     let res = env.req().action("/runs/0").exec().await.unwrap_ok();
     assert_eq!(res, serde_json::Value::Null);

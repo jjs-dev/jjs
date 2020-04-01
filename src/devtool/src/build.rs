@@ -70,7 +70,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
     if opts.full() || opts.should_build_deb() {
         cmd.arg("--enable-deb");
         let bt = crate::ci::detect_build_type();
-        if bt.is_pr_e2e() {
+        if !bt.is_deploy() {
             cmd.arg("--with-deb-opt=--uncompressed");
         }
     }
@@ -105,16 +105,10 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
 
     if opts.raw().setup {
         println!("running setup");
+        std::fs::remove_dir_all("/tmp/jjs").ok();
         Command::new("/opt/jjs/bin/jjs-setup")
-            .arg("--data-dir=/tmp/jjs")
-            .arg("--install-dir=/opt/jjs")
-            .arg("--db-url=postgres://jjs:internal@localhost:5432/jjs")
-            .arg("--drop-db")
-            .arg("--force")
-            .arg("--sample-contest")
-            .arg("--symlink-config")
-            .arg("--setup-config")
-            .arg("--toolchains")
+            .arg("./basic-setup-profile.yaml")
+            .arg("upgrade")
             .run_on(runner);
     }
     Ok(())

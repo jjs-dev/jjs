@@ -1,0 +1,14 @@
+install-dir: '/opt/jjs'
+data-dir: '/home/jjs'
+pg:
+  db-name: jjs
+  conn-string: 'postgresql://jjs@%2Fvar%2Frun%2Fpostgresql/postgres'
+toolchains: {}
+problems:
+  tasks:
+    - source:
+        path: "/opt/jjs/example-problems/a-plus-b"
+    - source:
+        path: "/opt/jjs/example-problems/array-sum"
+    - source:
+        path: "/opt/jjs/example-problems/sqrt"

@@ -4,6 +4,7 @@ DROP INDEX runs_id_unique_index;
 DROP TABLE invocations;
 DROP TABLE runs;
 DROP TABLE users;
+DROP TABLE __revision;
 -- sequences
 DROP SEQUENCE user_id_seq;
 DROP SEQUENCE run_id_seq;

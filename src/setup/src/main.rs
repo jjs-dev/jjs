@@ -1,72 +1,240 @@
-use std::path::PathBuf;
-use structopt::StructOpt;
+pub mod profile;
 
-#[derive(StructOpt)]
-pub struct Opts {
-    #[structopt(long)]
-    data_dir: Option<PathBuf>,
-    #[structopt(long)]
-    install_dir: PathBuf,
-    /// Connection string for database to setup
-    ///
-    /// If not provided, db setup will be skipped
-    #[structopt(long)]
-    db_url: Option<String>,
-    /// Drop db if it already exists
-    #[structopt(long)]
-    drop_db: bool,
-    #[structopt(long)]
-    symlink_config: bool,
-    #[structopt(long)]
-    setup_config: bool,
-    /// Build sample contest (requires ppc to be available)
-    #[structopt(long)]
-    sample_contest: bool,
-    /// Configure toolchains
-    #[structopt(long)]
-    toolchains: bool,
-    /// Force mode: ignore some errors
-    #[structopt(long)]
-    force: bool,
-    /// Touch file on success
-    #[structopt(long)]
-    touch: Option<PathBuf>,
+use anyhow::Context as _;
+use profile::Profile;
+use setup::Component;
+use std::path::{Path, PathBuf};
+use structopt::StructOpt;
+use tokio::io::AsyncReadExt as _;
+
+#[derive(StructOpt, Copy, Clone)]
+enum Subcommand {
+    Describe,
+    Upgrade,
 }
 
-fn main() {
-    let opts: Opts = Opts::from_args();
+impl Subcommand {
+    fn is_upgrade(self) -> bool {
+        match self {
+            Subcommand::Describe => false,
+            Subcommand::Upgrade => true,
+        }
+    }
+}
+
+#[derive(StructOpt)]
+struct Opts {
+    profile: PathBuf,
+    #[structopt(subcommand)]
+    action: Subcommand,
+}
+
+enum SystemHealth {
+    Ok,
+    Error,
+}
+
+async fn process_component<C: Component>(
+    component: C,
+    upgrade: bool,
+) -> Result<SystemHealth, C::Error> {
+    let kind = component.state().await?;
+    let name = component.name();
+    let health = if matches!(kind, setup::StateKind::Errored) {
+        SystemHealth::Error
+    } else {
+        SystemHealth::Ok
+    };
+    if upgrade {
+        match kind {
+            setup::StateKind::Errored => {
+                eprintln!(
+                    "Skipping {} update, because it's current state is Error",
+                    name
+                );
+            }
+            setup::StateKind::UpToDate => {
+                println!("Skipping {} update: it is up-to-date", name);
+            }
+            setup::StateKind::Upgradable => {
+                println!("Updating {}", name);
+                component.upgrade().await?;
+            }
+        }
+    } else {
+        println!("{} state: {} ({})", name, kind, component);
+    }
+    Ok(health)
+}
+
+async fn process_db(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let pg_settings = match profile.pg.as_ref() {
+        Some(pg) => setup::db::ConnectionSettings {
+            conn_string: pg.conn_string.clone(),
+            db_name: pg.db_name.clone(),
+        },
+        None => return Ok(SystemHealth::Ok),
+    };
+
+    let db_cx = setup::db::DbContext {
+        settings: &pg_settings,
+        install_dir: &profile.install_dir,
+    };
+
+    let db = setup::db::analyze(db_cx)
+        .await
+        .context("failed to analyze db state")?;
+    process_component(db, action.is_upgrade())
+        .await
+        .context("process db")
+}
+
+async fn process_data(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let data_dir = match &profile.data_dir {
+        Some(dd) => dd,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let cx = setup::data::Context { data_dir };
+    let data_dir_layout = setup::data::analyze(cx)
+        .await
+        .context("analyze data dir layout")?;
+    process_component(data_dir_layout, action.is_upgrade())
+        .await
+        .context("process data dir layout")
+}
+
+async fn process_configs(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let data_dir = match &profile.data_dir {
+        Some(dd) => dd,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let cx = setup::config::Context {
+        data_dir: &data_dir,
+        install_dir: &profile.install_dir,
+    };
+    let configs = setup::config::analyze(cx)
+        .await
+        .context("analyze configs")?;
+    process_component(configs, action.is_upgrade())
+        .await
+        .context("process configs")
+}
+
+async fn process_toolchains(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let data_dir = match &profile.data_dir {
+        Some(dd) => dd,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let tcs_profile = match &profile.toolchains {
+        Some(tcs) => tcs,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let mut custom_argv = Vec::new();
+    for arg in &tcs_profile.additional_args {
+        custom_argv.push(std::ffi::OsStr::new(arg));
+    }
+    let mut strategies = Vec::new();
+    for strat in &tcs_profile.strategies {
+        strategies.push(strat.as_str());
+    }
+    let filter = |toolchain: &str| {
+        if tcs_profile
+            .blacklist
+            .iter()
+            .any(|blacklisted| blacklisted == toolchain)
+        {
+            return false;
+        }
+        if tcs_profile.whitelist.is_empty() {
+            true
+        } else {
+            tcs_profile
+                .whitelist
+                .iter()
+                .any(|whitelisted| whitelisted == toolchain)
+        }
+    };
+    let cx = setup::toolchains::Context {
+        data_dir,
+        install_dir: &profile.install_dir,
+        custom_argv: &custom_argv,
+        strategies: &strategies,
+        filter: &filter,
+    };
+    let toolchains = setup::toolchains::analyze(cx)
+        .await
+        .context("analyze toolchains")?;
+    process_component(toolchains, action.is_upgrade())
+        .await
+        .context("process toolchains")
+}
+
+async fn process_problems(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let data_dir = match &profile.data_dir {
+        Some(dd) => dd,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let prof = match &profile.problems {
+        Some(p) => p,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let mut paths = Vec::new();
+    for task in &prof.tasks {
+        let profile::ProblemSource::Path { path } = &task.source;
+        paths.push(path.as_path());
+    }
+    let cx = setup::problems::Context {
+        data_dir,
+        install_dir: &profile.install_dir,
+        paths: &paths,
+    };
+    let problems = setup::problems::analyze(cx)
+        .await
+        .context("analyze problems")?;
+    process_component(problems, action.is_upgrade())
+        .await
+        .context("process problems")
+}
+
+async fn load_profile(path: &Path) -> anyhow::Result<Profile> {
+    let profile_data = if path == Path::new("-") {
+        let mut buf = String::new();
+        tokio::io::stdin()
+            .read_to_string(&mut buf)
+            .await
+            .context("read profile data from stdin")?;
+        buf
+    } else {
+        tokio::fs::read_to_string(path)
+            .await
+            .context("read profile data from given file")?
+    };
+    let profile = serde_yaml::from_str(&profile_data).context("parse profile")?;
+    Ok(profile)
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     util::log::setup();
     util::wait::wait();
-    let params = setup::SetupParams {
-        data_dir: opts.data_dir,
-        install_dir: opts.install_dir,
-        db: if let Some(uri) = opts.db_url {
-            Some(setup::DatabaseParams {
-                uri,
-                drop_existing: opts.drop_db,
-            })
-        } else {
-            None
-        },
-        config: if opts.setup_config {
-            Some(setup::ConfigParams {
-                symlink: opts.symlink_config,
-            })
-        } else {
-            None
-        },
-        toolchains: opts.toolchains,
-        sample_contest: opts.sample_contest,
-        force: opts.force,
-    };
-    let runner = util::cmd::Runner::new();
-    if let Err(e) = setup::setup(&params, &runner) {
-        eprintln!("{:?}", e);
-        std::process::exit(1);
+    let opts: Opts = Opts::from_args();
+    let profile = load_profile(&opts.profile).await.context("load profile")?;
+    std::env::set_var("JJS_PATH", &profile.install_dir);
+    if let Some(data_dir) = &profile.data_dir {
+        std::env::set_var("JJS_DATA", data_dir);
     }
-    runner.exit_if_errors();
-    if let Some(touch) = &opts.touch {
-        log::info!("Touching {}", touch.display());
-        std::fs::File::create(touch).ok();
+    let mut healthes = Vec::new();
+    healthes.push(process_db(&profile, opts.action).await?);
+    healthes.push(process_data(&profile, opts.action).await?);
+    healthes.push(process_configs(&profile, opts.action).await?);
+    healthes.push(process_toolchains(&profile, opts.action).await?);
+    healthes.push(process_problems(&profile, opts.action).await?);
+
+    for h in healthes {
+        if matches!(h, SystemHealth::Error) {
+            return Err(anyhow::anyhow!("some components are errored"));
+        }
     }
+    println!("System is healthy");
+    Ok(())
 }

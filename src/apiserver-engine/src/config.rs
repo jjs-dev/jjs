@@ -123,7 +123,11 @@ fn default_listen_port() -> u16 {
 }
 
 fn default_listen_host() -> String {
-    "127.0.0.1".to_string()
+    if cfg!(debug_assertions) {
+        "127.0.0.1".to_string()
+    } else {
+        "0.0.0.0".to_string()
+    }
 }
 
 fn default_unix_socket_path() -> String {

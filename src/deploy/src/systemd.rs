@@ -22,7 +22,7 @@ pub(crate) fn build(params: &crate::Params) {
                 .join(format!("lib/systemd/system/jjs-{}.service", unit_name));
             std::fs::write(out_path, unit_text).expect("failed emit unit");
         };
-        emit_unit("backend");
+        emit_unit("invoker");
         emit_unit("apiserver");
     } else {
         eprintln!("error: systemd files can not be generated without --install-prefix");

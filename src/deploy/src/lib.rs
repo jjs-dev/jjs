@@ -69,6 +69,13 @@ fn create_registry() -> Registry {
 }
 
 fn build_jjs_components(params: &Params, runner: &Runner) {
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    };
     let proj_root = &params.src;
 
     print_section("Creating directories");
@@ -97,29 +104,14 @@ fn build_jjs_components(params: &Params, runner: &Runner) {
 
     print_section("Generating migration script");
     {
-        let mut migration_script: Vec<_> = fs::read_dir(proj_root.join("src/db/migrations"))
-            .unwrap()
-            .map(|ent| ent.unwrap().path().to_str().unwrap().to_string())
-            .filter(|x| !x.contains(".gitkeep"))
-            .map(|x| format!("{}/up.sql", x))
-            .collect();
-        migration_script.sort();
-        let migration_script = migration_script
-            .into_iter()
-            .map(|path| fs::read(path).unwrap())
-            .map(|bytes| String::from_utf8(bytes).unwrap());
-        let migration_script = migration_script.collect::<Vec<_>>().join("\n\n\n");
-        let src_path = pkg_dir.join("share/db-setup.sql");
-        fs::write(src_path, &migration_script).unwrap();
+        fs_extra::dir::copy(
+            proj_root.join("src/db/migrations"),
+            pkg_dir.join("share/db"),
+            &opts,
+        )
+        .expect("failed to copy migrations");
     }
     print_section("Copying files");
-    let opts = fs_extra::dir::CopyOptions {
-        overwrite: true,
-        skip_exist: false,
-        buffer_size: 64 * 1024,
-        copy_inside: true,
-        depth: 0,
-    };
 
     let copy_dir = |dir_name: &str| {
         fs_extra::dir::copy(proj_root.join(dir_name), pkg_dir.join(dir_name), &opts).unwrap();

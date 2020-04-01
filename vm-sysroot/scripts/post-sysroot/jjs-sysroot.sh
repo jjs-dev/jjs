@@ -3,7 +3,14 @@ ORIG_CWD="$(pwd)"
 
 sudo mkdir -p "$SYSROOT/var/lib/jjs"
 sudo chown "$(whoami):$(whoami)" "$SYSROOT/var/lib/jjs"
-cargo run --offline -p setup -- --data-dir "$SYSROOT/var/lib/jjs" --install-dir ../pkg/ar_data/ --setup-config
+
+
+JJS_SETUP_PROFILE="
+data-dir: $SYSROOT/var/lib/jjs
+install-dir: ../pkg_ar_data
+"
+
+echo "$JJS_SETUP_PROFILE" | cargo run --offline -p setup -- - upgrade
 
 sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
 # shellcheck disable=SC2012

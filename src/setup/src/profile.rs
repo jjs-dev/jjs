@@ -9,6 +9,12 @@ pub(crate) struct Profile {
     pub(crate) pg: Option<PgProfile>,
     pub(crate) toolchains: Option<TcsProfile>,
     pub(crate) problems: Option<ProblemsProfile>,
+    #[serde(default = "default_configs")]
+    pub(crate) configs: bool,
+}
+
+fn default_configs() -> bool {
+    true
 }
 
 #[derive(Deserialize)]

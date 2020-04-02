@@ -30,9 +30,15 @@ sleep 15
 psql -h "$(pwd)/tmp" -U postgres -c "create role jjs with password 'internal';"
 psql -h "$(pwd)/tmp" -U postgres -c "alter role jjs with login;"
 psql -h "$(pwd)/tmp" -U postgres -c "create database jjs;"
-psql -h "$(pwd)/tmp" -U postgres -d jjs -a -f "$(pwd)/../pkg/ar_data/share/db/*/up.sql"
 psql -h "$(pwd)/tmp" -U postgres -d jjs -c "grant all on all tables in schema public to jjs;"
 psql -h "$(pwd)/tmp" -U postgres -d jjs -c "grant all on all sequences in schema public to jjs;"
+echo "postgresql://jjs:internal@$(echo -n "$(pwd)" | xxd -p | sed 's/\(..\)/%\1/g')%2ftmp/jjs"
+cargo run -p setup -- - upgrade << EOF
+install-dir: ../pkg/ar_data
+pg:
+  db-name: jjs
+  conn-string: "postgresql://jjs:internal@$(echo -n "$(pwd)" | xxd -p | tr '\n' ' ' | sed 's/ //g' | sed 's/\(..\)/%\1/g')%2ftmp/jjs"
+EOF
 kill %1
 sleep 1
 sudo rm -rf tmp

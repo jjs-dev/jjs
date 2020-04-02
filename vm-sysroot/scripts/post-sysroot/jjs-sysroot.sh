@@ -4,13 +4,10 @@ ORIG_CWD="$(pwd)"
 sudo mkdir -p "$SYSROOT/var/lib/jjs"
 sudo chown "$(whoami):$(whoami)" "$SYSROOT/var/lib/jjs"
 
-
-JJS_SETUP_PROFILE="
+cargo run --offline -p setup -- - upgrade << EOF
 data-dir: $SYSROOT/var/lib/jjs
-install-dir: ../pkg_ar_data
-"
-
-echo "$JJS_SETUP_PROFILE" | cargo run --offline -p setup -- - upgrade
+install-dir: ../pkg/ar_data
+EOF
 
 sudo mkdir "$SYSROOT/var/lib/jjs/var/problems"
 # shellcheck disable=SC2012
@@ -26,7 +23,7 @@ fi
 
 sudo rm -rf "$SYSROOT/var/lib/jjs/opt"
 #rm -rf tmp
-JJS_PATH="$PWD/../pkg/ar_data" cargo run --offline -p configure-toolchains "$(pwd)/../toolchains" "$SYSROOT/var/lib/jjs"
+( cd ../toolchains && JJS_PATH="$PWD/../pkg/ar_data" cargo run --offline -p configure-toolchains -- "$(pwd)/../toolchains" "$SYSROOT/var/lib/jjs" --toolchains *; )
 echo 'sandbox:x:179:179:sandbox:/:/bin/sh' > "$SYSROOT/var/lib/jjs/opt/etc/passwd"
 echo 'sandbox:x:179:' > "$SYSROOT/var/lib/jjs/opt/etc/group"
 #sudo mv tmp "$SYSROOT/var/lib/jjs/opt"

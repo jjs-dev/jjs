@@ -1,4 +1,7 @@
-use crate::repo::{DieselRepo, MemoryRepo, Repo};
+use crate::{
+    repo::{DieselRepo, MemoryRepo},
+    DbConn,
+};
 use anyhow::{Context, Result};
 use std::env;
 
@@ -18,17 +21,19 @@ impl ConnectOptions {
     }
 }
 
-pub fn connect(options: ConnectOptions) -> Result<Box<dyn Repo>> {
-    if let Some(pg_conn_str) = options.pg {
-        Ok(Box::new(
-            DieselRepo::new(&pg_conn_str).context("failed to connect to postgres")?,
-        ))
-    } else {
-        Ok(Box::new(MemoryRepo::new()))
-    }
+pub fn connect(options: ConnectOptions) -> Result<DbConn> {
+    let mem = MemoryRepo::new();
+    let pg = match options.pg {
+        Some(pg_conn_str) => {
+            Some((DieselRepo::new(&pg_conn_str)).context("cannot connect to postgres")?)
+        }
+        None => None,
+    };
+    let redis = None;
+    Ok(DbConn { mem, pg, redis })
 }
 
-pub fn connect_env() -> Result<Box<dyn Repo>> {
+pub fn connect_env() -> Result<crate::DbConn> {
     let opts = ConnectOptions {
         pg: env::var("DATABASE_URL").ok(),
     };
@@ -36,7 +41,7 @@ pub fn connect_env() -> Result<Box<dyn Repo>> {
     connect(opts)
 }
 
-pub fn connect_memory() -> Result<Box<dyn Repo>> {
+pub fn connect_memory() -> Result<crate::DbConn> {
     let opts = ConnectOptions { pg: None };
     connect(opts)
 }

@@ -105,7 +105,7 @@ pub enum InvocationFinishReason {
 }
 
 #[async_trait::async_trait]
-pub trait TaskSource {
+pub trait TaskSource: Send + Sync {
     async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
 
     async fn set_finished(

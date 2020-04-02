@@ -1,13 +1,16 @@
 use crate::{
-    repo::{DieselRepo, MemoryRepo},
+    repo::{DieselRepo, MemoryRepo, RedisRepo},
     DbConn,
 };
 use anyhow::{Context, Result};
+use futures::future::FutureExt;
 use std::env;
 
 pub struct ConnectOptions {
     /// Postgres connection string
     pg: Option<String>,
+    /// Redis connection string
+    redis: Option<String>,
 }
 
 impl ConnectOptions {
@@ -21,27 +24,40 @@ impl ConnectOptions {
     }
 }
 
-pub fn connect(options: ConnectOptions) -> Result<DbConn> {
+pub async fn connect(options: ConnectOptions) -> Result<DbConn> {
     let mem = MemoryRepo::new();
     let pg = match options.pg {
         Some(pg_conn_str) => {
-            Some((DieselRepo::new(&pg_conn_str)).context("cannot connect to postgres")?)
+            let conn = DieselRepo::new(&pg_conn_str).context("cannot connect to postgres")?;
+            Some(conn)
         }
         None => None,
     };
-    let redis = None;
+    let redis = match options.redis {
+        Some(redis_conn_str) => {
+            let conn = RedisRepo::new(&redis_conn_str)
+                .await
+                .context("cannot connect to redis")?;
+            Some(conn)
+        }
+        None => None,
+    };
     Ok(DbConn { mem, pg, redis })
 }
 
-pub fn connect_env() -> Result<crate::DbConn> {
+pub async fn connect_env() -> Result<crate::DbConn> {
     let opts = ConnectOptions {
         pg: env::var("DATABASE_URL").ok(),
+        redis: env::var("REDIS_URL").ok(),
     };
     opts.warn();
-    connect(opts)
+    connect(opts).await
 }
 
 pub fn connect_memory() -> Result<crate::DbConn> {
-    let opts = ConnectOptions { pg: None };
-    connect(opts)
+    let opts = ConnectOptions {
+        pg: None,
+        redis: None,
+    };
+    connect(opts).now_or_never().unwrap()
 }

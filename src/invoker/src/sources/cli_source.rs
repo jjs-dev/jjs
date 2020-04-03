@@ -3,6 +3,8 @@ use anyhow::Context;
 use invoker_api::{CliInvokeTask, InvokeTask};
 use log::debug;
 use std::sync::Arc;
+use tokio::io::AsyncBufReadExt;
+
 fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
     InvokeTask {
         revision: cli_invoke_task.revision,
@@ -13,13 +15,17 @@ fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
         invocation_dir: cli_invoke_task.invocation_dir,
     }
 }
-async fn read_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
+async fn read_worker_iteration(
+    state: &BackgroundSource,
+    stdin_reader: &mut tokio::io::BufReader<tokio::io::Stdin>,
+) -> anyhow::Result<()> {
     let mut line = String::new();
-    let ret = std::io::stdin()
+    let ret = stdin_reader
         .read_line(&mut line)
+        .await
         .context("failed to read line")?;
     if ret == 0 {
-        std::thread::sleep(std::time::Duration::from_secs(30));
+        tokio::time::delay_for(std::time::Duration::from_secs(30)).await;
     }
     let task = serde_json::from_str(&line).context("unparseable CliInvokeTask")?;
     debug!("got {:?}", &task);
@@ -29,8 +35,9 @@ async fn read_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
 }
 
 async fn read_worker_loop(state: Arc<BackgroundSource>) {
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
     loop {
-        if let Err(err) = read_worker_iteration(&*state).await {
+        if let Err(err) = read_worker_iteration(&*state, &mut reader).await {
             eprintln!("read iteration failed: {:#}", err);
         }
     }

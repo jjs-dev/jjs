@@ -37,7 +37,8 @@ impl MemoryRepo {
             groups: vec![],
         })
         .now_or_never()
-        .unwrap().unwrap();
+        .unwrap()
+        .unwrap();
         this
     }
 }

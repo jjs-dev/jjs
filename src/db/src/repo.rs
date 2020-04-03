@@ -2,16 +2,14 @@ mod diesel_pg;
 mod memory;
 mod redis;
 
+pub use self::redis::RedisRepo;
 pub use diesel_pg::DieselRepo;
 pub use memory::MemoryRepo;
-pub use self::redis::RedisRepo;
 
 use crate::schema::*;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use futures::{
-    stream::{StreamExt as _, TryStreamExt as _},
-};
+use futures::stream::{StreamExt as _, TryStreamExt as _};
 
 #[async_trait]
 pub trait RunsRepo: std::fmt::Debug + Send + Sync {

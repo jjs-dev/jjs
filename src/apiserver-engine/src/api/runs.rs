@@ -135,7 +135,8 @@ async fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
     };
 
     let lsu_webhook_token = ctx
-        .global().await
+        .global()
+        .await
         .live_status_updates
         .make_token(live_status_update_key);
 
@@ -251,7 +252,13 @@ impl ApiObject for RunPatch {
 
 #[patch("/runs/<id>", data = "<p>")]
 pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> ApiResult<()> {
-    if !ctx.access().wrap_run(id).can_modify_run().await.internal(&ctx)? {
+    if !ctx
+        .access()
+        .wrap_run(id)
+        .can_modify_run()
+        .await
+        .internal(&ctx)?
+    {
         return Err(ApiError::access_denied(&ctx));
     }
     if p.score.is_some() {
@@ -271,7 +278,13 @@ pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> A
 
 #[delete("/runs/<id>")]
 pub(crate) async fn route_delete(ctx: Context, id: RunId) -> ApiResult<rocket::http::Status> {
-    if !ctx.access().wrap_run(id).can_modify_run().await.internal(&ctx)? {
+    if !ctx
+        .access()
+        .wrap_run(id)
+        .can_modify_run()
+        .await
+        .internal(&ctx)?
+    {
         return Err(ApiError::access_denied(&ctx));
     }
     ctx.db().run_delete(id).await.internal(&ctx)?;
@@ -301,7 +314,10 @@ impl ApiObject for RunLiveStatusUpdate {
 }
 
 #[get("/runs/<run_id>/live")]
-pub(crate) async fn route_live(ctx: Context, run_id: RunId) -> ApiResult<Json<RunLiveStatusUpdate>> {
+pub(crate) async fn route_live(
+    ctx: Context,
+    run_id: RunId,
+) -> ApiResult<Json<RunLiveStatusUpdate>> {
     let mut lsu = ctx.global().await;
     let lsu = &mut *lsu;
     let lsu = &mut lsu.live_status_updates;
@@ -357,12 +373,14 @@ pub(crate) struct RunProtocolFilterParams {
 }
 
 #[get("/runs/<id>/protocol?<filter..>")]
-pub(crate)async fn route_protocol(
+pub(crate) async fn route_protocol(
     ctx: Context,
     id: RunId,
     filter: rocket::request::Form<RunProtocolFilterParams>,
 ) -> ApiResult<Option<String>> {
-    let run_data = run_lookup(&ctx, id).await.map_err(|_| ApiError::not_found(&ctx))?;
+    let run_data = run_lookup(&ctx, id)
+        .await
+        .map_err(|_| ApiError::not_found(&ctx))?;
     let access_ck = ctx.access().wrap_contest(run_data.contest_id.clone());
     let kind = access_ck.select_judge_log_kind().internal(&ctx)?;
     let path = run_data_dir(&ctx, id)

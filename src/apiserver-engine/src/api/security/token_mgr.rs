@@ -46,7 +46,8 @@ impl TokenMgr {
     pub async fn create_token(&self, username: &str) -> Result<Token, TokenMgrError> {
         let user_data =
             self.db
-                .user_try_load_by_login(username).await?
+                .user_try_load_by_login(username)
+                .await?
                 .ok_or(TokenMgrError::UserMissing {
                     user: username.to_string(),
                 })?;

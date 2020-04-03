@@ -1,5 +1,5 @@
 use super::security::{RawAccessChecker, Token, TokenMgr, TokenMgrError};
-use std::sync::{Arc};
+use std::sync::Arc;
 
 pub(crate) type DbPool = Arc<db::DbConn>;
 

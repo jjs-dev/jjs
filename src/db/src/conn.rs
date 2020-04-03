@@ -12,21 +12,21 @@ impl DbConn {
         if let Some(pg) = &self.pg {
             return &*pg;
         }
-        return &self.mem;
+        &self.mem
     }
 
     fn runs_repo(&self) -> &dyn crate::repo::RunsRepo {
         if let Some(pg) = &self.pg {
             return &*pg;
         }
-        return &self.mem;
+        &self.mem
     }
 
     fn invocations_repo(&self) -> &dyn crate::repo::InvocationsRepo {
         if let Some(pg) = &self.pg {
             return &*pg;
         }
-        return &self.mem;
+        &self.mem
     }
 }
 

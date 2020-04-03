@@ -19,7 +19,7 @@ impl DbSource {
 
 #[async_trait::async_trait]
 impl TaskSource for DbSource {
-   async fn load_tasks(&self, mut cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
+    async fn load_tasks(&self, mut cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
         let mut new_tasks = Vec::new();
         const WINDOW_SIZE: u32 = 10;
         const WINDOW_STEP: u32 = 9;
@@ -31,16 +31,17 @@ impl TaskSource for DbSource {
         let mut offset = 0;
         while cnt > 0 {
             let mut discovered_new_tasks = false;
-            let chunk: Vec<db::schema::Invocation> =
-                self.db
-                    .inv_find_waiting(offset, WINDOW_SIZE, &mut |_invocation| {
-                        if cnt > 0 {
-                            discovered_new_tasks = true;
-                            cnt -= 1;
-                            return Ok(true);
-                        }
-                        Ok(false)
-                    }).await?;
+            let chunk: Vec<db::schema::Invocation> = self
+                .db
+                .inv_find_waiting(offset, WINDOW_SIZE, &mut |_invocation| {
+                    if cnt > 0 {
+                        discovered_new_tasks = true;
+                        cnt -= 1;
+                        return Ok(true);
+                    }
+                    Ok(false)
+                })
+                .await?;
             for invocation in chunk {
                 let db_invoke_task = invocation.invoke_task()?;
                 let db_run = self.db.run_load(db_invoke_task.run_id as i32).await?;
@@ -94,6 +95,7 @@ impl TaskSource for DbSource {
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()> {
         self.db
-            .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header).await
+            .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header)
+            .await
     }
 }

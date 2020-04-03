@@ -105,6 +105,15 @@ impl Dominion for LinuxDominion {
             .map_err(|err| crate::Error::Io { source: err })?;
         Ok(())
     }
+
+    fn resource_usage(&self) -> crate::Result<crate::ResourceUsageData> {
+        let cpu_usage = zygote::cgroup::get_cpu_usage(&self.id);
+        let memory_usage = zygote::cgroup::get_memory_usage(&self.id);
+        Ok(crate::ResourceUsageData {
+            memory: memory_usage,
+            time: Some(cpu_usage),
+        })
+    }
 }
 
 /// Mount options.

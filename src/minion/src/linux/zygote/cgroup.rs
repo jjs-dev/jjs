@@ -207,7 +207,7 @@ pub(super) unsafe fn setup_cgroups(jail_options: &JailOptions) -> Group {
     }
 }
 
-pub(super) fn get_cpu_usage(jail_id: &str) -> u64 {
+pub(in crate::linux) fn get_cpu_usage(jail_id: &str) -> u64 {
     match detect_cgroup_version() {
         CgroupVersion::V1 => {
             let current_usage_file = get_path_for_cgroup_legacy_subsystem("cpuacct", jail_id);
@@ -234,6 +234,24 @@ pub(super) fn get_cpu_usage(jail_id: &str) -> u64 {
             }
             // multiply by 1000 to convert from microseconds to nanoseconds
             val * 1000
+        }
+    }
+}
+
+pub(in crate::linux) fn get_memory_usage(jail_id: &str) -> Option<u64> {
+    match detect_cgroup_version() {
+        // memory cgroup v2 does not provide way to get peak memory usage.
+        // `memory.current` contains only current usage.
+        CgroupVersion::V2 => None,
+        CgroupVersion::V1 => {
+            let mut current_usage_file = get_path_for_cgroup_legacy_subsystem("memory", jail_id);
+            current_usage_file.push("memory.max_usage_in_bytes");
+            let usage = fs::read_to_string(current_usage_file)
+                .expect("cannot read memory usage")
+                .trim()
+                .parse::<u64>()
+                .unwrap();
+            Some(usage)
         }
     }
 }

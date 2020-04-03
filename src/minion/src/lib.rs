@@ -64,7 +64,7 @@ pub struct ResourceUsageData {
     /// Total CPU time usage in nanoseconds
     pub time: Option<u64>,
     /// Max memory usage in bytes
-    pub memory: Option<usize>,
+    pub memory: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -111,6 +111,9 @@ pub trait Dominion: Debug + std::any::Any + 'static {
     /// Kills all processed in dominion.
     /// Probably, subsequent `spawn` requests will fail.
     fn kill(&self) -> Result<()>;
+
+    /// Returns information about resourse usage by total dominion
+    fn resource_usage(&self) -> Result<ResourceUsageData>;
 }
 
 #[derive(Debug)]
@@ -165,6 +168,10 @@ impl Dominion for DominionRef {
 
     fn kill(&self) -> Result<()> {
         self.0.kill()
+    }
+
+    fn resource_usage(&self) -> Result<ResourceUsageData> {
+        self.0.resource_usage()
     }
 }
 

@@ -1,5 +1,6 @@
 use anyhow::Context;
 use log::debug;
+use std::sync::Arc;
 
 fn install_color_backtrace() {
     #[cfg(feature = "beautiful_backtrace")]
@@ -10,17 +11,17 @@ fn is_cli_mode() -> bool {
     std::env::args().count() > 1
 }
 
-fn make_sources(
+async fn make_sources(
     cfg_data: &util::cfg::CfgData,
-) -> anyhow::Result<Vec<Box<dyn invoker::controller::TaskSource>>> {
-    let mut sources: Vec<Box<dyn invoker::controller::TaskSource>> = Vec::new();
+) -> anyhow::Result<Vec<Arc<dyn invoker::controller::TaskSource>>> {
+    let mut sources: Vec<Arc<dyn invoker::controller::TaskSource>> = Vec::new();
     if is_cli_mode() {
         let source = invoker::sources::CliSource::new();
-        sources.push(Box::new(source));
+        sources.push(Arc::new(source));
     } else {
-        let db_conn = db::connect_env().context("db connection failed")?;
+        let db_conn = db::connect_env().await.context("db connection failed")?;
         let source = invoker::sources::DbSource::new(db_conn, cfg_data);
-        sources.push(Box::new(source))
+        sources.push(Arc::new(source))
     }
     Ok(sources)
 }
@@ -45,17 +46,19 @@ fn main() -> anyhow::Result<()> {
     }
     util::log::setup();
     if is_worker() {
+        invoker::init::init().context("failed to initialize")?;
         worker_self_isolate()?;
     } else {
         util::wait::wait();
     }
-    let mut rt = tokio::runtime::Builder::new()
-        .basic_scheduler()
-        .enable_all()
-        .core_threads(1)
-        .max_threads(2)
-        .build()?;
-    rt.block_on(async { real_main().await })
+    let mut rt = tokio::runtime::Builder::new();
+    if is_worker() {
+        rt.basic_scheduler();
+    } else {
+        rt.threaded_scheduler();
+    }
+    let mut rt = rt.enable_all().core_threads(1).max_threads(2).build()?;
+    rt.block_on(async { tokio::task::spawn(real_main()).await.unwrap() })
 }
 
 async fn real_main() -> anyhow::Result<()> {
@@ -65,11 +68,11 @@ async fn real_main() -> anyhow::Result<()> {
 
     let config = util::cfg::load_cfg_data()?;
 
-    invoker::init::init().context("failed to initialize")?;
-
     debug!("system check passed");
 
-    let driver = make_sources(&config).context("failed to initialize driver")?;
+    let driver = make_sources(&config)
+        .await
+        .context("failed to initialize driver")?;
     let controller = invoker::controller::Controller::new(driver, config, 3)
         .context("failed to start controller")?;
 

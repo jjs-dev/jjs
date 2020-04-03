@@ -33,13 +33,18 @@ impl ApiObject for SessionToken {
 }
 
 #[post("/auth/simple", data = "<p>")]
-pub(crate) fn route_simple(
+pub(crate) async fn route_simple(
     ctx: Context,
     p: Json<SimpleAuthParams>,
 ) -> ApiResult<Json<SessionToken>> {
     let mut success = false;
     let mut reject_reason = "";
-    if let Some(user) = ctx.db().user_try_load_by_login(&p.login).internal(&ctx)? {
+    if let Some(user) = ctx
+        .db()
+        .user_try_load_by_login(&p.login)
+        .await
+        .internal(&ctx)?
+    {
         if let Some(password_hash) = user.password_hash {
             success = crate::password::check_password_hash(&p.password, &password_hash);
             if !success {
@@ -52,7 +57,7 @@ pub(crate) fn route_simple(
         reject_reason = "UnknownUser";
     }
     if success {
-        let token = ctx.token_mgr.create_token(&p.login).internal(&ctx)?;
+        let token = ctx.token_mgr.create_token(&p.login).await.internal(&ctx)?;
         let buf = ctx.token_mgr.serialize(&token);
         let sess = SessionToken {
             data: buf,

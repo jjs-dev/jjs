@@ -77,6 +77,14 @@ pub struct NewUser {
     pub groups: Vec<String>,
 }
 
+#[derive(Insertable, Queryable)]
+#[table_name = "kv"]
+pub(crate) struct KvPair {
+    #[column_name = "name"]
+    pub(crate) key: String,
+    pub(crate) value: Vec<u8>,
+}
+
 use diesel::sql_types::*;
 
 include!("./schema_raw.rs");

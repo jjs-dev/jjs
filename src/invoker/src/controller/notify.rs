@@ -1,23 +1,40 @@
 //! Implements Notifications - messages about run testing updates
+use crate::controller::TaskSource;
 use log::{debug, warn};
-use std::time::{Duration, Instant};
-#[derive(Debug)]
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 pub(crate) struct Notifier {
     score: Option<u32>,
     test: Option<u32>,
-    endpoint: Option<String>,
     throttled_until: Instant,
     errored: bool,
+    source: Arc<dyn TaskSource>,
+    invocation_id: uuid::Uuid,
+}
+
+impl std::fmt::Debug for Notifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("Notifier")
+            .field("score", &self.score)
+            .field("test", &self.test)
+            .field("throttled_until", &self.throttled_until)
+            .field("errored", &self.errored)
+            .field("invocation_id", &self.invocation_id)
+            .finish()
+    }
 }
 
 impl Notifier {
-    pub(crate) fn new(endpoint: Option<String>) -> Notifier {
+    pub(crate) fn new(invocation_id: uuid::Uuid, source: Arc<dyn TaskSource>) -> Notifier {
         Notifier {
             score: None,
             test: None,
-            endpoint,
             throttled_until: Instant::now(),
             errored: false,
+            source,
+            invocation_id,
         }
     }
 
@@ -49,20 +66,19 @@ impl Notifier {
 
     async fn drain(&mut self) {
         debug!("Notifier: draining");
-        let endpoint = match self.endpoint.as_ref() {
-            Some(ep) => ep,
-            None => return,
-        };
         let event = invoker_api::LiveStatusUpdate {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };
-        let client = reqwest::ClientBuilder::new()
-            .timeout(std::time::Duration::from_secs(3))
-            .build()
-            .expect("failed to initialize reqwest client");
-        debug!("Sending request to {}", &endpoint);
-        if let Err(err) = client.post(endpoint).json(&event).send().await {
+        debug!(
+            "Sending live status update for invocation {}",
+            self.invocation_id
+        );
+        if let Err(err) = self
+            .source
+            .deliver_live_status_update(self.invocation_id, event)
+            .await
+        {
             warn!("Failed to send live status update: {}", err);
             warn!("Disabling live status updates for this run");
             self.errored = true;
@@ -71,4 +87,4 @@ impl Notifier {
     }
 }
 
-const LIVE_STATUS_UPDATE_THROTTLE: Duration = Duration::from_secs(1);
+const LIVE_STATUS_UPDATE_THROTTLE: Duration = Duration::from_millis(250);

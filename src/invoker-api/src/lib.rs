@@ -90,10 +90,6 @@ pub struct InvokeTask {
     pub run_dir: PathBuf,
     /// Invocation outputs directory
     pub invocation_dir: PathBuf,
-    /// URL of webhook that will receive live status update events.
-    ///
-    /// If None, events will not be sent.
-    pub status_update_callback: Option<String>,
     /// Toolchain id, for lookup in config
     pub toolchain_id: String,
     /// Problem id, for lookup in config
@@ -109,7 +105,6 @@ pub struct InvokeTask {
 pub struct DbInvokeTask {
     pub revision: u32,
     pub run_id: u32,
-    pub status_update_callback: Option<String>,
 }
 
 /// Pass this to invoker running in CLI mode

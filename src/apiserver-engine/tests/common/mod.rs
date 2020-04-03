@@ -42,7 +42,7 @@ impl EnvBuilder {
     pub async fn build(&mut self, name: &str) -> Env {
         simple_logger::init().ok();
         // TODO partially duplicates ApiServer::create_embedded()
-        let db_conn: Arc<dyn db::DbConn> = db::connect::connect_memory().unwrap().into();
+        let db_conn: Arc<db::DbConn> = db::connect::connect_memory().unwrap().into();
 
         let path = temp_dir().join(format!("jjs-fr-eng-integ-test-{}", name));
 

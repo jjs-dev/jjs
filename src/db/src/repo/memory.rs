@@ -1,6 +1,8 @@
-use super::{InvocationsRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, KvRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{bail, Context, Result};
+use async_trait::async_trait;
+use futures::future::FutureExt;
 use std::{convert::TryFrom, sync::Mutex};
 
 #[derive(Debug, Default)]
@@ -9,6 +11,7 @@ struct Data {
     runs: Vec<Option<Run>>,
     invs: Vec<Invocation>,
     users: Vec<User>,
+    kv: std::collections::HashMap<String, Vec<u8>>,
 }
 
 #[derive(Debug, Default)]
@@ -25,19 +28,24 @@ impl MemoryRepo {
             password_hash: None,
             groups: vec![],
         })
+        .now_or_never()
+        .unwrap()
         .unwrap();
         this.user_new(NewUser {
             username: "Global/Guest".to_string(),
             password_hash: None,
             groups: vec![],
         })
+        .now_or_never()
+        .unwrap()
         .unwrap();
         this
     }
 }
 
+#[async_trait]
 impl RunsRepo for MemoryRepo {
-    fn run_new(&self, run_data: NewRun) -> Result<Run> {
+    async fn run_new(&self, run_data: NewRun) -> Result<Run> {
         let mut data = self.conn.lock().unwrap();
         let run_id = data.runs.len() as RunId;
         let run = Run {
@@ -52,13 +60,13 @@ impl RunsRepo for MemoryRepo {
         Ok(run)
     }
 
-    fn run_try_load(&self, run_id: i32) -> Result<Option<Run>> {
+    async fn run_try_load(&self, run_id: i32) -> Result<Option<Run>> {
         let data = self.conn.lock().unwrap();
         let idx = run_id as usize;
         Ok(data.runs.get(idx).cloned().unwrap_or(None))
     }
 
-    fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<()> {
+    async fn run_update(&self, run_id: i32, patch: RunPatch) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         let idx = run_id as usize;
         let cur = match data.runs.get_mut(idx) {
@@ -72,7 +80,7 @@ impl RunsRepo for MemoryRepo {
         Ok(())
     }
 
-    fn run_delete(&self, run_id: i32) -> Result<()> {
+    async fn run_delete(&self, run_id: i32) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         let cur = match data.runs.get_mut(run_id as usize) {
             Some(x) => x,
@@ -85,7 +93,7 @@ impl RunsRepo for MemoryRepo {
         }
     }
 
-    fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
+    async fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
         let lim = limit
             .map(|x| usize::try_from(x).unwrap())
             .unwrap_or(usize::max_value());
@@ -95,6 +103,7 @@ impl RunsRepo for MemoryRepo {
         match with_run_id {
             Some(r) => Ok(self
                 .run_try_load(r)
+                .await
                 .into_iter()
                 .filter_map(std::convert::identity)
                 .collect()),
@@ -107,8 +116,9 @@ impl RunsRepo for MemoryRepo {
     }
 }
 
+#[async_trait]
 impl InvocationsRepo for MemoryRepo {
-    fn inv_new(&self, inv_data: NewInvocation) -> Result<Invocation> {
+    async fn inv_new(&self, inv_data: NewInvocation) -> Result<Invocation> {
         let mut data = self.conn.lock().unwrap();
         let inv_id = data.invs.len() as InvocationId;
         let inv = Invocation {
@@ -122,11 +132,11 @@ impl InvocationsRepo for MemoryRepo {
         Ok(inv)
     }
 
-    fn inv_find_waiting(
+    async fn inv_find_waiting(
         &self,
         offset: u32,
         count: u32,
-        predicate: &mut dyn FnMut(Invocation) -> Result<bool>,
+        predicate: &mut (dyn FnMut(Invocation) -> Result<bool> + Send + Sync),
     ) -> Result<Vec<Invocation>> {
         let data = self.conn.lock().unwrap();
         let items = data.invs.iter().skip(offset as usize).take(count as usize);
@@ -139,7 +149,7 @@ impl InvocationsRepo for MemoryRepo {
         Ok(filtered)
     }
 
-    fn inv_last(&self, run_id: RunId) -> Result<Invocation> {
+    async fn inv_last(&self, run_id: RunId) -> Result<Invocation> {
         let data = self.conn.lock().unwrap();
         data.invs
             .iter()
@@ -149,7 +159,7 @@ impl InvocationsRepo for MemoryRepo {
             .map(Clone::clone)
     }
 
-    fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()> {
+    async fn inv_update(&self, inv_id: InvocationId, patch: InvocationPatch) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         if inv_id >= data.invs.len() as i32 || inv_id < 0 {
             bail!("inv_update: no such invocation");
@@ -162,7 +172,7 @@ impl InvocationsRepo for MemoryRepo {
         Ok(())
     }
 
-    fn inv_add_outcome_header(
+    async fn inv_add_outcome_header(
         &self,
         inv_id: InvocationId,
         header: invoker_api::InvokeOutcomeHeader,
@@ -183,8 +193,9 @@ impl InvocationsRepo for MemoryRepo {
     }
 }
 
+#[async_trait]
 impl UsersRepo for MemoryRepo {
-    fn user_new(&self, user_data: NewUser) -> Result<User> {
+    async fn user_new(&self, user_data: NewUser) -> Result<User> {
         let mut data = self.conn.lock().unwrap();
         let user_id = data.users.len();
         let user_id = uuid::Uuid::from_fields(user_id as u32, 0, 0, &[0; 8]).unwrap();
@@ -198,7 +209,7 @@ impl UsersRepo for MemoryRepo {
         Ok(user)
     }
 
-    fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>> {
+    async fn user_try_load_by_login(&self, login: &str) -> Result<Option<User>> {
         let data = self.conn.lock().unwrap();
         let res = data
             .users
@@ -206,6 +217,26 @@ impl UsersRepo for MemoryRepo {
             .find(|user| user.username == login)
             .cloned();
         Ok(res)
+    }
+}
+
+#[async_trait]
+impl KvRepo for MemoryRepo {
+    async fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        let data = self.conn.lock().unwrap();
+        Ok(data.kv.get(key).map(ToOwned::to_owned))
+    }
+
+    async fn kv_put_raw(&self, key: &str, value: &[u8]) -> Result<()> {
+        let mut data = self.conn.lock().unwrap();
+        data.kv.insert(key.to_string(), value.to_vec());
+        Ok(())
+    }
+
+    async fn kv_del(&self, key: &str) -> Result<()> {
+        let mut data = self.conn.lock().unwrap();
+        data.kv.remove(key);
+        Ok(())
     }
 }
 
@@ -223,8 +254,8 @@ mod tests {
             let repo = MemoryRepo::new();
 
             let john_id = uuid::Uuid::new_v4();
-            assert!(repo.run_load(228).is_err());
-            assert!(repo.run_load(0).is_err());
+            assert!(repo.run_load(228).now_or_never().unwrap().is_err());
+            assert!(repo.run_load(0).now_or_never().unwrap().is_err());
             let new_run = NewRun {
                 toolchain_id: "foo".to_string(),
                 problem_id: "quux".to_string(),
@@ -232,9 +263,9 @@ mod tests {
                 user_id: john_id,
                 contest_id: "olymp".to_string(),
             };
-            let inserted_run = repo.run_new(new_run).unwrap();
+            let inserted_run = repo.run_new(new_run).now_or_never().unwrap().unwrap();
             assert_eq!(inserted_run.id, 0);
-            let run_in_db = repo.run_load(0).unwrap();
+            let run_in_db = repo.run_load(0).now_or_never().unwrap().unwrap();
             assert_eq!(inserted_run, run_in_db);
         }
 
@@ -248,12 +279,12 @@ mod tests {
                 user_id: uuid::Uuid::new_v4(),
                 contest_id: "cntst".to_string(),
             };
-            repo.run_new(new_run).unwrap();
+            repo.run_new(new_run).now_or_never().unwrap().unwrap();
             let patch = RunPatch {
                 rejudge_id: Some(4),
             };
-            repo.run_update(0, patch).unwrap();
-            let patched_run = repo.run_load(0).unwrap();
+            repo.run_update(0, patch).now_or_never().unwrap().unwrap();
+            let patched_run = repo.run_load(0).now_or_never().unwrap().unwrap();
             // now let's check that all fields that must be updated are actually updated
             assert_eq!(patched_run.rejudge_id, 4);
         }

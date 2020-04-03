@@ -150,9 +150,11 @@ impl ApiserverConfig {
         Ok(config)
     }
 
-    pub fn into_apiserver_params(self) -> anyhow::Result<ApiserverParams> {
-        let db_conn: Arc<dyn db::DbConn> =
-            db::connect_env().context("db connection failed")?.into();
+    pub async fn into_apiserver_params(self) -> anyhow::Result<ApiserverParams> {
+        let db_conn: Arc<db::DbConn> = db::connect_env()
+            .await
+            .context("db connection failed")?
+            .into();
 
         let secret = std::env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
             if let Env::Dev = self.env {
@@ -175,6 +177,6 @@ impl ApiserverConfig {
 #[derive(Debug)]
 pub struct ApiserverParams {
     pub token_mgr: crate::api::TokenMgr,
-    pub db_conn: Arc<dyn db::DbConn>,
+    pub db_conn: Arc<db::DbConn>,
     pub cfg: ApiserverConfig,
 }

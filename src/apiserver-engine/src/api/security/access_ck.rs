@@ -6,7 +6,7 @@ use crate::api::schema::{ContestId, RunId};
 pub(crate) struct RawAccessChecker<'a> {
     pub(crate) token: &'a Token,
     pub(crate) cfg: &'a entity::Loader,
-    pub(crate) db: &'a dyn db::DbConn,
+    pub(crate) db: &'a db::DbConn,
 }
 
 impl<'a> RawAccessChecker<'a> {
@@ -57,16 +57,18 @@ pub(crate) enum AccessCheckError {
 pub(crate) type AccessResult = Result<bool, AccessCheckError>;
 
 impl AccessChecker<'_, ack_subject::Run> {
-    fn for_contest(&self) -> Result<AccessChecker<ack_subject::Contest>, AccessCheckError> {
-        let run = self.raw.db.run_load(self.obj.0)?;
+    async fn for_contest(
+        &self,
+    ) -> Result<AccessChecker<'_, ack_subject::Contest>, AccessCheckError> {
+        let run = self.raw.db.run_load(self.obj.0).await?;
         Ok(self.raw.wrap_contest(run.contest_id))
     }
 
-    pub(crate) fn can_modify_run(&self) -> AccessResult {
-        if self.for_contest()?.is_contest_sudo()? {
+    pub(crate) async fn can_modify_run(&self) -> AccessResult {
+        if self.for_contest().await?.is_contest_sudo()? {
             return Ok(true);
         }
-        let run = self.raw.db.run_load(self.obj.0)?;
+        let run = self.raw.db.run_load(self.obj.0).await?;
 
         Ok(run.user_id == self.raw.token.user_id())
     }

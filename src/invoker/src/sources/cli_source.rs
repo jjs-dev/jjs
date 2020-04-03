@@ -3,10 +3,11 @@ use anyhow::Context;
 use invoker_api::{CliInvokeTask, InvokeTask};
 use log::debug;
 use std::sync::Arc;
+use tokio::io::AsyncBufReadExt;
+
 fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
     InvokeTask {
         revision: cli_invoke_task.revision,
-        status_update_callback: None,
         toolchain_id: cli_invoke_task.toolchain_id,
         problem_id: cli_invoke_task.problem_id,
         invocation_id: cli_invoke_task.invocation_id,
@@ -14,34 +15,39 @@ fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
         invocation_dir: cli_invoke_task.invocation_dir,
     }
 }
-fn read_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
+async fn read_worker_iteration(
+    state: &BackgroundSource,
+    stdin_reader: &mut tokio::io::BufReader<tokio::io::Stdin>,
+) -> anyhow::Result<()> {
     let mut line = String::new();
-    let ret = std::io::stdin()
+    let ret = stdin_reader
         .read_line(&mut line)
+        .await
         .context("failed to read line")?;
     if ret == 0 {
-        std::thread::sleep(std::time::Duration::from_secs(30));
+        tokio::time::delay_for(std::time::Duration::from_secs(30)).await;
     }
     let task = serde_json::from_str(&line).context("unparseable CliInvokeTask")?;
     debug!("got {:?}", &task);
     let task = convert_task(task);
-    state.add_task(task);
+    state.add_task(task).await;
     Ok(())
 }
 
-fn read_worker_loop(state: Arc<BackgroundSource>) {
+async fn read_worker_loop(state: Arc<BackgroundSource>) {
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
     loop {
-        if let Err(err) = read_worker_iteration(&*state) {
+        if let Err(err) = read_worker_iteration(&*state, &mut reader).await {
             eprintln!("read iteration failed: {:#}", err);
         }
     }
 }
 
-fn print_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
-    let msg = match state.pop_msg() {
+async fn print_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
+    let msg = match state.pop_msg().await {
         Some(m) => m,
         None => {
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
             return Ok(());
         }
     };
@@ -50,9 +56,9 @@ fn print_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_worker_loop(state: Arc<BackgroundSource>) {
+async fn print_worker_loop(state: Arc<BackgroundSource>) {
     loop {
-        if let Err(err) = print_worker_iteration(&*state) {
+        if let Err(err) = print_worker_iteration(&*state).await {
             eprintln!("print iteration failed: {:#}", err);
         }
     }
@@ -65,11 +71,11 @@ impl CliSource {
         let state = Arc::new(BackgroundSource::new());
         let st1 = state.clone();
         let st2 = state.clone();
-        std::thread::spawn(move || {
-            read_worker_loop(st1);
+        tokio::task::spawn(async move {
+            read_worker_loop(st1).await;
         });
-        std::thread::spawn(move || {
-            print_worker_loop(st2);
+        tokio::task::spawn(async move {
+            print_worker_loop(st2).await;
         });
         CliSource(state)
     }

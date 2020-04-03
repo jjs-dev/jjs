@@ -1,7 +1,7 @@
 use super::security::{RawAccessChecker, Token, TokenMgr, TokenMgrError};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-pub(crate) type DbPool = Arc<dyn db::DbConn>;
+pub(crate) type DbPool = Arc<db::DbConn>;
 
 //TODO: Do not clone Context on every request
 pub(crate) struct ContextData {
@@ -11,7 +11,6 @@ pub(crate) struct ContextData {
     pub(crate) token: Token,
     pub(crate) problem_loader: Arc<problem_loader::Loader>,
     pub(crate) data_dir: Arc<std::path::Path>,
-    global: Arc<Mutex<crate::global::GlobalState>>,
 }
 
 impl ContextData {
@@ -23,11 +22,7 @@ impl ContextData {
         }
     }
 
-    pub(crate) fn global(&self) -> std::sync::MutexGuard<crate::global::GlobalState> {
-        self.global.lock().unwrap()
-    }
-
-    pub(crate) fn db(&self) -> &dyn db::DbConn {
+    pub(crate) fn db(&self) -> &db::DbConn {
         &*self.as_cfg.db_conn
     }
 
@@ -75,21 +70,21 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .next()
             .ok_or(TokenMgrError::TokenMissing);
 
-        let global = request
-            .guard::<rocket::State<Arc<Mutex<crate::global::GlobalState>>>>()
-            .await
-            .expect("State<Arc<Mutex<Global>>> missing");
-
         let secret_key = Arc::clone(&(*secret_key).0);
         let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key);
+        let token = match token {
+            Ok(header) => {
+                token_mgr
+                    .deserialize(header.as_bytes(), apiserver_config.cfg.env.is_dev())
+                    .await
+            }
+            Err(err) => Err(err),
+        };
 
-        let token = token.and_then(|header| {
-            token_mgr.deserialize(header.as_bytes(), apiserver_config.cfg.env.is_dev())
-        });
         let token = match token {
             Ok(tok) => tok,
             Err(e) => match e {
-                TokenMgrError::TokenMissing => match token_mgr.create_guest_token() {
+                TokenMgrError::TokenMissing => match token_mgr.create_guest_token().await {
                     Ok(guest_token) => guest_token,
                     Err(err) => {
                         return rocket::request::Outcome::Failure((
@@ -112,7 +107,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             as_cfg: apiserver_config.clone(),
             token_mgr,
             token,
-            global: (*global).clone(),
             problem_loader: factory.problem_loader.clone(),
             data_dir: factory.data_dir.clone(),
         })

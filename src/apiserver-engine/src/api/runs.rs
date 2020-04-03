@@ -2,6 +2,7 @@ use super::{
     prelude::*,
     schema::{ContestId, RunId},
 };
+use futures::stream::{StreamExt, TryStreamExt};
 use slog_scope::debug;
 use std::path::PathBuf;
 
@@ -26,8 +27,8 @@ fn run_data_dir(ctx: &Context, id: RunId) -> PathBuf {
     ctx.data_dir.join("var/runs").join(format!("run.{}", id))
 }
 
-fn run_lookup(ctx: &Context, id: RunId) -> ApiResult<db::schema::Run> {
-    ctx.db().run_load(id).internal(ctx)
+async fn run_lookup(ctx: &Context, id: RunId) -> ApiResult<db::schema::Run> {
+    ctx.db().run_load(id).await.internal(ctx)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -71,8 +72,8 @@ fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParam
     }
 }
 
-fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
-    let last_inv = ctx.db().inv_last(run.id).internal(ctx)?;
+async fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
+    let last_inv = ctx.db().inv_last(run.id).await.internal(ctx)?;
     let kind = ctx
         .access()
         .wrap_contest(run.contest_id.clone())
@@ -101,48 +102,30 @@ fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
 }
 
 #[get("/runs?<limit>")]
-pub(crate) fn route_list(ctx: Context, limit: Option<i32>) -> ApiResult<Json<Vec<Run>>> {
+pub(crate) async fn route_list(ctx: Context, limit: Option<i32>) -> ApiResult<Json<Vec<Run>>> {
     let user_runs = ctx
         .db()
         .run_select(
             None, /* TODO: remove this param */
             limit.map(|x| x as u32),
         )
+        .await
         .internal(&ctx)?;
     Ok(Json(
-        user_runs
-            .iter()
-            .map(|s| describe_run(&ctx, s))
-            .collect::<Result<Vec<_>, _>>()?,
+        futures::stream::iter(user_runs.iter())
+            .then(|s| describe_run(&ctx, s))
+            .try_collect::<Vec<_>>()
+            .await?,
     ))
 }
 
 #[get("/runs/<id>")]
-pub(crate) fn route_get(ctx: Context, id: i32) -> ApiResult<Json<Option<Run>>> {
-    let db_run = ctx.db().run_try_load(id).internal(&ctx)?;
+pub(crate) async fn route_get(ctx: Context, id: i32) -> ApiResult<Json<Option<Run>>> {
+    let db_run = ctx.db().run_try_load(id).await.internal(&ctx)?;
     match db_run {
-        Some(db_run) => Ok(Json(Some(describe_run(&ctx, &db_run)?))),
+        Some(db_run) => Ok(Json(Some(describe_run(&ctx, &db_run).await?))),
         None => Ok(Json(None)),
     }
-}
-
-fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
-    let live_status_update_key = crate::global::LsuKey {
-        user: ctx.token.user_id(),
-        run: run_id,
-    };
-
-    let lsu_webhook_token = ctx
-        .global()
-        .live_status_updates
-        .make_token(live_status_update_key);
-
-    Some(format!(
-        "http://{}:{}/internal/lsu-webhook?token={}",
-        ctx.config().external_addr.as_ref()?,
-        ctx.config().listen.port,
-        lsu_webhook_token
-    ))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -164,7 +147,7 @@ impl ApiObject for RunSimpleSubmitParams {
 }
 
 #[post("/runs", data = "<p>")]
-pub(crate) fn route_submit_simple(
+pub(crate) async fn route_submit_simple(
     ctx: Context,
     p: Json<RunSimpleSubmitParams>,
 ) -> ApiResult<Json<Run>> {
@@ -205,7 +188,7 @@ pub(crate) fn route_submit_simple(
         contest_id: contest.id.to_string(),
     };
 
-    let run = ctx.db().run_new(new_run).internal(&ctx)?;
+    let run = ctx.db().run_new(new_run).await.internal(&ctx)?;
 
     // Put run in sysroot
     let run_dir = ctx
@@ -221,14 +204,13 @@ pub(crate) fn route_submit_simple(
     let invoke_task = invoker_api::DbInvokeTask {
         revision: 0,
         run_id: run.id as u32,
-        status_update_callback: get_lsu_webhook_url(&ctx, run.id as u32),
     };
 
     let new_inv = NewInvocation::new(&invoke_task).internal(&ctx)?;
 
-    ctx.db().inv_new(new_inv).internal(&&ctx)?;
+    ctx.db().inv_new(new_inv).await.internal(&&ctx)?;
 
-    describe_run(&ctx, &run).map(Json)
+    describe_run(&ctx, &run).await.map(Json)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -248,31 +230,43 @@ impl ApiObject for RunPatch {
 }
 
 #[patch("/runs/<id>", data = "<p>")]
-pub(crate) fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> ApiResult<()> {
-    if !ctx.access().wrap_run(id).can_modify_run().internal(&ctx)? {
+pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> ApiResult<()> {
+    if !ctx
+        .access()
+        .wrap_run(id)
+        .can_modify_run()
+        .await
+        .internal(&ctx)?
+    {
         return Err(ApiError::access_denied(&ctx));
     }
     if p.score.is_some() {
         return Err(ApiError::not_implemented(&ctx));
     }
-    let current_run = ctx.db().run_load(id).report(&ctx)?;
+    let current_run = ctx.db().run_load(id).await.report(&ctx)?;
 
     let mut patch = db::schema::RunPatch::default();
     if p.rejudge {
         patch.rejudge_id = Some(current_run.rejudge_id + 1);
         // TODO enqueue
     }
-    ctx.db().run_update(id, patch).internal(&ctx)?;
+    ctx.db().run_update(id, patch).await.internal(&ctx)?;
 
     Ok(())
 }
 
 #[delete("/runs/<id>")]
-pub(crate) fn route_delete(ctx: Context, id: RunId) -> ApiResult<rocket::http::Status> {
-    if !ctx.access().wrap_run(id).can_modify_run().internal(&ctx)? {
+pub(crate) async fn route_delete(ctx: Context, id: RunId) -> ApiResult<rocket::http::Status> {
+    if !ctx
+        .access()
+        .wrap_run(id)
+        .can_modify_run()
+        .await
+        .internal(&ctx)?
+    {
         return Err(ApiError::access_denied(&ctx));
     }
-    ctx.db().run_delete(id).internal(&ctx)?;
+    ctx.db().run_delete(id).await.internal(&ctx)?;
 
     Ok(rocket::http::Status::NoContent)
 }
@@ -299,24 +293,27 @@ impl ApiObject for RunLiveStatusUpdate {
 }
 
 #[get("/runs/<run_id>/live")]
-pub(crate) fn route_live(ctx: Context, run_id: RunId) -> ApiResult<Json<RunLiveStatusUpdate>> {
-    let mut lsu = ctx.global();
-    let lsu = &mut *lsu;
-    let lsu = &mut lsu.live_status_updates;
-    let key = crate::global::LsuKey {
-        user: ctx.token.user_id(),
-        run: run_id as u32,
-    };
-    let upd = lsu.extract(key);
-    debug!("Found update {:?} in cache", &upd);
-    if let Some(upd) = upd {
+pub(crate) async fn route_live(
+    ctx: Context,
+    run_id: RunId,
+) -> ApiResult<Json<RunLiveStatusUpdate>> {
+    let lsu_key = format!("lsu-{}", run_id);
+    let lsu: Option<invoker_api::LiveStatusUpdate> =
+        ctx.db().kv_get(&lsu_key).await.internal(&ctx)?;
+
+    debug!(
+        "Found update {:?} in KV storage, with key {}",
+        &lsu, lsu_key
+    );
+    if let Some(upd) = lsu {
+        ctx.db().kv_del(&lsu_key).await.internal(&ctx)?;
         return Ok(Json(RunLiveStatusUpdate {
             live_score: upd.score,
             current_test: upd.current_test.map(|t| t as i32),
             finish: false,
         }));
     }
-    let invocation = ctx.db().inv_last(run_id).internal(&ctx)?;
+    let invocation = ctx.db().inv_last(run_id).await.internal(&ctx)?;
     Ok(Json(RunLiveStatusUpdate {
         live_score: None,
         current_test: None,
@@ -355,12 +352,14 @@ pub(crate) struct RunProtocolFilterParams {
 }
 
 #[get("/runs/<id>/protocol?<filter..>")]
-pub(crate) fn route_protocol(
+pub(crate) async fn route_protocol(
     ctx: Context,
     id: RunId,
     filter: rocket::request::Form<RunProtocolFilterParams>,
 ) -> ApiResult<Option<String>> {
-    let run_data = run_lookup(&ctx, id).map_err(|_| ApiError::not_found(&ctx))?;
+    let run_data = run_lookup(&ctx, id)
+        .await
+        .map_err(|_| ApiError::not_found(&ctx))?;
     let access_ck = ctx.access().wrap_contest(run_data.contest_id.clone());
     let kind = access_ck.select_judge_log_kind().internal(&ctx)?;
     let path = run_data_dir(&ctx, id)

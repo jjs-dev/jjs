@@ -4,7 +4,7 @@ use std::sync::Arc;
 /// Token Manager - entity manipulating tokens
 #[derive(Clone, Debug)]
 pub struct TokenMgr {
-    db: Arc<dyn db::DbConn>,
+    db: Arc<db::DbConn>,
     secret_key: Arc<[u8]>,
 }
 
@@ -34,7 +34,7 @@ pub enum TokenMgrError {
 }
 
 impl TokenMgr {
-    pub fn new(db: Arc<dyn db::DbConn>, secret_key: Arc<[u8]>) -> Self {
+    pub fn new(db: Arc<db::DbConn>, secret_key: Arc<[u8]>) -> Self {
         Self { db, secret_key }
     }
 
@@ -43,10 +43,11 @@ impl TokenMgr {
     }
 
     // TODO: use custom errors
-    pub fn create_token(&self, username: &str) -> Result<Token, TokenMgrError> {
+    pub async fn create_token(&self, username: &str) -> Result<Token, TokenMgrError> {
         let user_data =
             self.db
-                .user_try_load_by_login(username)?
+                .user_try_load_by_login(username)
+                .await?
                 .ok_or(TokenMgrError::UserMissing {
                     user: username.to_string(),
                 })?;
@@ -60,12 +61,12 @@ impl TokenMgr {
         })
     }
 
-    pub fn create_guest_token(&self) -> Result<Token, TokenMgrError> {
-        self.create_token("Global/Guest")
+    pub async fn create_guest_token(&self) -> Result<Token, TokenMgrError> {
+        self.create_token("Global/Guest").await
     }
 
-    pub fn create_root_token(&self) -> Result<Token, TokenMgrError> {
-        self.create_token("Global/Root")
+    pub async fn create_root_token(&self) -> Result<Token, TokenMgrError> {
+        self.create_token("Global/Root").await
     }
 
     pub fn serialize(&self, token: &Token) -> String {
@@ -78,7 +79,7 @@ impl TokenMgr {
         format!("Branca::{}", branca_data)
     }
 
-    pub fn deserialize(&self, data: &[u8], allow_dev: bool) -> Result<Token, TokenMgrError> {
+    pub async fn deserialize(&self, data: &[u8], allow_dev: bool) -> Result<Token, TokenMgrError> {
         let data = match std::str::from_utf8(data) {
             Ok(d) => d,
             Err(_) => return Err(TokenMgrError::BadFormat),
@@ -101,11 +102,11 @@ impl TokenMgr {
             if allow_dev {
                 let data = &data[TOKEN_PREFIX_DEV.len()..];
                 if data == "root" {
-                    return Ok(self.create_root_token()?);
+                    return Ok(self.create_root_token().await?);
                 }
                 if data.starts_with("User:") {
                     let data = data.trim_start_matches("User:");
-                    return Ok(self.create_token(data)?);
+                    return Ok(self.create_token(data).await?);
                 }
                 return Err(TokenMgrError::BadFormat);
             } else {
@@ -113,7 +114,7 @@ impl TokenMgr {
             }
         }
         if data.starts_with(TOKEN_PREFIX_GUEST) {
-            return Ok(self.create_guest_token()?);
+            return Ok(self.create_guest_token().await?);
         }
 
         Err(TokenMgrError::UnknownKind)

@@ -13,7 +13,7 @@ async fn launch_api(
     rocket::shutdown::ShutdownHandle,
     tokio::task::JoinHandle<()>,
 )> {
-    let pool = db::connect_env().context("DB connection failed")?;
+    let pool = db::connect_env().await.context("DB connection failed")?;
     let rocket = apiserver_engine::ApiServer::create(
         frcfg,
         entity_loader,
@@ -91,6 +91,7 @@ async fn main() -> anyhow::Result<()> {
         .context("failed to load apiserver config")?;
     let apiserver_cfg = raw_config
         .into_apiserver_params()
+        .await
         .context("failed to create ApiserverParams")?;
     let apiserver_cfg = Arc::new(apiserver_cfg);
     info!("starting apiserver");

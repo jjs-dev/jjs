@@ -128,26 +128,6 @@ pub(crate) async fn route_get(ctx: Context, id: i32) -> ApiResult<Json<Option<Ru
     }
 }
 
-async fn get_lsu_webhook_url(ctx: &Context, run_id: u32) -> Option<String> {
-    let live_status_update_key = crate::global::LsuKey {
-        user: ctx.token.user_id(),
-        run: run_id,
-    };
-
-    let lsu_webhook_token = ctx
-        .global()
-        .await
-        .live_status_updates
-        .make_token(live_status_update_key);
-
-    Some(format!(
-        "http://{}:{}/internal/lsu-webhook?token={}",
-        ctx.config().external_addr.as_ref()?,
-        ctx.config().listen.port,
-        lsu_webhook_token
-    ))
-}
-
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub(crate) struct RunSimpleSubmitParams {
     /// Toolchain to use when judging this run
@@ -224,7 +204,6 @@ pub(crate) async fn route_submit_simple(
     let invoke_task = invoker_api::DbInvokeTask {
         revision: 0,
         run_id: run.id as u32,
-        status_update_callback: get_lsu_webhook_url(&ctx, run.id as u32).await,
     };
 
     let new_inv = NewInvocation::new(&invoke_task).internal(&ctx)?;
@@ -313,21 +292,19 @@ impl ApiObject for RunLiveStatusUpdate {
     }
 }
 
+
 #[get("/runs/<run_id>/live")]
 pub(crate) async fn route_live(
     ctx: Context,
     run_id: RunId,
 ) -> ApiResult<Json<RunLiveStatusUpdate>> {
-    let mut lsu = ctx.global().await;
-    let lsu = &mut *lsu;
-    let lsu = &mut lsu.live_status_updates;
-    let key = crate::global::LsuKey {
-        user: ctx.token.user_id(),
-        run: run_id as u32,
-    };
-    let upd = lsu.extract(key);
-    debug!("Found update {:?} in cache", &upd);
-    if let Some(upd) = upd {
+    let lsu_key = format!("lsu-{}", run_id);
+    let lsu: Option<invoker_api::LiveStatusUpdate> =
+        ctx.db().kv_get(&lsu_key).await.internal(&ctx)?;
+        
+    debug!("Found update {:?} in KV storage, with key {}", &lsu, lsu_key);
+    if let Some(upd) = lsu {
+        ctx.db().kv_del(&lsu_key).await.internal(&ctx)?;
         return Ok(Json(RunLiveStatusUpdate {
             live_score: upd.score,
             current_test: upd.current_test.map(|t| t as i32),

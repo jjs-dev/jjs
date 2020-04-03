@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub struct DbSource {
     db: db::DbConn,
     runs_dir: PathBuf,
+    run_mapping: tokio::sync::Mutex<std::collections::HashMap<uuid::Uuid, db::schema::RunId>>,
 }
 
 impl DbSource {
@@ -13,6 +14,7 @@ impl DbSource {
         DbSource {
             db,
             runs_dir: cfg_data.data_dir.join("var/runs"),
+            run_mapping: tokio::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
 }
@@ -42,6 +44,7 @@ impl TaskSource for DbSource {
                     Ok(false)
                 })
                 .await?;
+            let mut mapping = self.run_mapping.lock().await;
             for invocation in chunk {
                 let db_invoke_task = invocation.invoke_task()?;
                 let db_run = self.db.run_load(db_invoke_task.run_id as i32).await?;
@@ -53,13 +56,13 @@ impl TaskSource for DbSource {
                 let invocation_dir = run_dir.join(&format!("inv.{}", db_invoke_task.revision));
                 let invoke_task = invoker_api::InvokeTask {
                     revision: db_invoke_task.revision,
-                    status_update_callback: db_invoke_task.status_update_callback,
                     toolchain_id: db_run.toolchain_id,
                     problem_id: db_run.problem_id,
                     invocation_id,
                     run_dir,
                     invocation_dir,
                 };
+                mapping.insert(invocation_id, db_invoke_task.run_id as i32);
                 new_tasks.push(invoke_task);
             }
             if !discovered_new_tasks {
@@ -75,6 +78,7 @@ impl TaskSource for DbSource {
         invocation_id: uuid::Uuid,
         reason: InvocationFinishReason,
     ) -> anyhow::Result<()> {
+        self.run_mapping.lock().await.remove(&invocation_id);
         let mut patch = db::schema::InvocationPatch::default();
         let state = match reason {
             InvocationFinishReason::CompileError => db::schema::InvocationState::CompileError,
@@ -97,5 +101,20 @@ impl TaskSource for DbSource {
         self.db
             .inv_add_outcome_header(invocation_id.as_fields().0 as i32, header)
             .await
+    }
+
+    async fn deliver_live_status_update(
+        &self,
+        invocation_id: Uuid,
+        lsu: invoker_api::LiveStatusUpdate,
+    ) -> anyhow::Result<()> {
+        let run_id = match self.run_mapping.lock().await.get(&invocation_id) {
+            Some(id) => *id,
+            None => {
+                anyhow::bail!("warning: invocation_id {} not found", invocation_id);
+            }
+        };
+        let key = format!("lsu-{}", run_id);
+        self.db.kv_put(&key, lsu).await
     }
 }

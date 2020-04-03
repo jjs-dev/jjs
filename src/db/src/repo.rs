@@ -7,7 +7,7 @@ pub use diesel_pg::DieselRepo;
 pub use memory::MemoryRepo;
 
 use crate::schema::*;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use async_trait::async_trait;
 use futures::stream::{StreamExt as _, TryStreamExt as _};
 
@@ -74,18 +74,12 @@ pub trait KvRepo: Send + Sync {
     async fn kv_put_raw(&self, key: &str, value: &[u8]) -> Result<()>;
 
     async fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>>;
+
+    async fn kv_del(&self, key:&str) -> Result<()>;
 }
 
 pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo + KvRepo {}
 
 impl dyn Repo {
-    pub async fn kv_get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
-        let maybe_raw_data = self.kv_get_raw(key).await.context("failed to load value")?;
-        match maybe_raw_data {
-            Some(raw_data) => serde_json::from_slice(&raw_data)
-                .context("parse error")
-                .map(Some),
-            None => Ok(None),
-        }
-    }
+    
 }

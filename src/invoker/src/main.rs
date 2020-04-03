@@ -1,5 +1,6 @@
 use anyhow::Context;
 use log::debug;
+use std::sync::Arc;
 
 fn install_color_backtrace() {
     #[cfg(feature = "beautiful_backtrace")]
@@ -12,15 +13,15 @@ fn is_cli_mode() -> bool {
 
 async fn make_sources(
     cfg_data: &util::cfg::CfgData,
-) -> anyhow::Result<Vec<Box<dyn invoker::controller::TaskSource>>> {
-    let mut sources: Vec<Box<dyn invoker::controller::TaskSource>> = Vec::new();
+) -> anyhow::Result<Vec<Arc<dyn invoker::controller::TaskSource>>> {
+    let mut sources: Vec<Arc<dyn invoker::controller::TaskSource>> = Vec::new();
     if is_cli_mode() {
         let source = invoker::sources::CliSource::new();
-        sources.push(Box::new(source));
+        sources.push(Arc::new(source));
     } else {
         let db_conn = db::connect_env().await.context("db connection failed")?;
         let source = invoker::sources::DbSource::new(db_conn, cfg_data);
-        sources.push(Box::new(source))
+        sources.push(Arc::new(source))
     }
     Ok(sources)
 }

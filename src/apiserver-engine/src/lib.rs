@@ -1,12 +1,11 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-use rocket::{catch, catchers, fairing::AdHoc, get, post, routes, Rocket, State};
-use std::sync::{Arc, Mutex};
+use rocket::{catch, catchers, fairing::AdHoc, get, routes, Rocket};
+use std::sync::Arc;
 use thiserror::Error;
 
 mod api;
 pub mod config;
-mod global;
 pub mod introspect;
 mod password;
 pub mod root_auth;
@@ -31,20 +30,6 @@ Possible reasons:
 #[get("/")]
 fn route_ping() -> &'static str {
     "JJS apiserver: pong"
-}
-
-#[post("/internal/lsu-webhook?<token>", data = "<lsu>")]
-fn route_lsu_webhook(
-    global_state: State<Arc<Mutex<global::GlobalState>>>,
-    lsu: rocket_contrib::json::Json<invoker_api::LiveStatusUpdate>,
-    token: String,
-) -> &'static str {
-    global_state
-        .lock()
-        .unwrap()
-        .live_status_updates
-        .webhook_handler(lsu.into_inner(), token);
-    "ok"
 }
 
 #[derive(Error, Debug)]
@@ -126,9 +111,6 @@ impl ApiServer {
         let cfg1 = Arc::clone(&apiserver_params);
         let rocket = rocket::custom(rocket_config)
             .manage(graphql_context_factory)
-            .manage(Arc::new(
-                tokio::sync::Mutex::new(global::GlobalState::new()),
-            ))
             .manage(apiserver_params)
             .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
                 Ok(rocket.manage(secret_key::SecretKey(cfg1.token_mgr.secret_key().into())))
@@ -137,7 +119,6 @@ impl ApiServer {
                 "/",
                 routes![
                     route_ping,
-                    route_lsu_webhook,
                     api::misc::route_get_api_version,
                     api::misc::route_is_dev,
                     api::contests::route_get,

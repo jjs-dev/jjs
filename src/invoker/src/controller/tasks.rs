@@ -166,13 +166,13 @@ impl Controller {
             global_dir: self.global_files_dir.to_path_buf(),
             toolchains_dir: self.toolchains_dir.to_path_buf(),
         };
-
+        let source = self.sources[task_source_id].clone();
         let req = ExtendedInvokeRequest {
             inner: inv_req,
             revision: invoke_task.revision,
-            notifier: Notifier::new(invoke_task.status_update_callback.clone()),
+            notifier: Notifier::new(invoke_task.invocation_id, source.clone()),
             invocation_dir: invoke_task.invocation_dir.clone(),
-            task_source_id,
+            task_source: source,
         };
         Ok(req)
     }

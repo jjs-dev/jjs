@@ -1,9 +1,9 @@
 use crate::controller::{InvocationFinishReason, TaskSource};
-use anyhow::Context;
 use invoker_api::InvokeTask;
 use serde::Serialize;
-use std::{collections::VecDeque, sync::Mutex};
+use std::{collections::VecDeque, };
 use uuid::Uuid;
+use tokio::sync::Mutex;
 
 struct BackgroundSourceState {
     queue: VecDeque<InvokeTask>,
@@ -23,13 +23,13 @@ impl BackgroundSource {
         BackgroundSource { state }
     }
 
-    pub fn add_task(&self, task: InvokeTask) {
-        let mut st = self.state.lock().unwrap();
+    pub async fn add_task(&self, task: InvokeTask) {
+        let mut st = self.state.lock().await;
         st.queue.push_back(task);
     }
 
-    pub fn pop_msg(&self) -> Option<Message> {
-        let mut st = self.state.lock().unwrap();
+    pub async fn pop_msg(&self) -> Option<Message> {
+        let mut st = self.state.lock().await;
         st.messages.pop_front()
     }
 }
@@ -44,6 +44,7 @@ impl Default for BackgroundSource {
 pub enum Message {
     Finish(FinishedMessage),
     Progress(ProgressMessage),
+    LiveStatusUpdate(LsuMessage)
 }
 #[derive(Serialize)]
 pub struct FinishedMessage {
@@ -57,10 +58,16 @@ pub struct ProgressMessage {
     header: invoker_api::InvokeOutcomeHeader,
 }
 
+#[derive(Serialize)]
+pub struct LsuMessage {
+    invocation_id: Uuid,
+    update: invoker_api::LiveStatusUpdate
+}
+
 #[async_trait::async_trait]
 impl TaskSource for BackgroundSource {
     async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<InvokeTask>> {
-        let mut q = self.state.lock().unwrap();
+        let mut q = self.state.lock().await;
         let q = &mut q.queue;
         Ok(q.drain(0..cnt.min(q.len())).collect())
     }
@@ -79,8 +86,7 @@ impl TaskSource for BackgroundSource {
             reason,
             invocation_id,
         };
-        let msg = serde_json::to_string(&msg).context("serialization error")?;
-        println!("{}", msg);
+        self.state.lock().await.messages.push_back(Message::Finish(msg));
         Ok(())
     }
 
@@ -93,8 +99,16 @@ impl TaskSource for BackgroundSource {
             invocation_id,
             header,
         };
-        let msg = serde_json::to_string(&msg).context("serialization error")?;
-        println!("{} ", msg);
+        self.state.lock().await.messages.push_back(Message::Progress(msg));
+        Ok(())
+    }
+
+    async fn deliver_live_status_update(&self, invocation_id: Uuid, update: invoker_api::LiveStatusUpdate) -> anyhow::Result<()> {
+        let msg = LsuMessage {
+            update,
+            invocation_id
+        };
+        self.state.lock().await.messages.push_back(Message::LiveStatusUpdate(msg));
         Ok(())
     }
 }

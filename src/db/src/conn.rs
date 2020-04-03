@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 
 #[derive(Debug)]
 pub struct DbConn {
@@ -23,6 +23,16 @@ impl DbConn {
     }
 
     fn invocations_repo(&self) -> &dyn crate::repo::InvocationsRepo {
+        if let Some(pg) = &self.pg {
+            return &*pg;
+        }
+        &self.mem
+    }
+
+    fn kv_repo(&self) -> &dyn crate::repo::KvRepo {
+        if let Some(redis) = &self.redis {
+            return &*redis;
+        }
         if let Some(pg) = &self.pg {
             return &*pg;
         }
@@ -124,4 +134,27 @@ impl DbConn {
             .inv_add_outcome_header(inv_id, header)
             .await
     }
+
+    pub async fn kv_get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+        let maybe_raw_data = self
+            .kv_repo()
+            .kv_get_raw(key)
+            .await
+            .context("failed to load value")?;
+        match maybe_raw_data {
+            Some(raw_data) => serde_json::from_slice(&raw_data)
+                .context("parse error")
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn kv_put<T: serde::ser::Serialize>(&self, key: &str, value: T) -> Result<()> {
+        let raw_data = serde_json::to_vec(&value).context("serialize error")?;
+        self.kv_repo().kv_put_raw(key, &raw_data).await
+    }
+
+    pub async fn kv_del(&self,key:&str) -> Result<()> {
+        self.kv_repo().kv_del(key).await
+    } 
 }

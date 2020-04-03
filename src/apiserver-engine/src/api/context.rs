@@ -11,7 +11,6 @@ pub(crate) struct ContextData {
     pub(crate) token: Token,
     pub(crate) problem_loader: Arc<problem_loader::Loader>,
     pub(crate) data_dir: Arc<std::path::Path>,
-    global: Arc<tokio::sync::Mutex<crate::global::GlobalState>>,
 }
 
 impl ContextData {
@@ -21,12 +20,6 @@ impl ContextData {
             cfg: &self.cfg,
             db: &*self.db(),
         }
-    }
-
-    pub(crate) async fn global<'a>(
-        &'a self,
-    ) -> tokio::sync::MutexGuard<'a, crate::global::GlobalState> {
-        self.global.lock().await
     }
 
     pub(crate) fn db(&self) -> &db::DbConn {
@@ -77,11 +70,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             .next()
             .ok_or(TokenMgrError::TokenMissing);
 
-        let global = request
-            .guard::<rocket::State<Arc<tokio::sync::Mutex<crate::global::GlobalState>>>>()
-            .await
-            .expect("State<Arc<Mutex<Global>>> missing");
-
         let secret_key = Arc::clone(&(*secret_key).0);
         let token_mgr = TokenMgr::new(factory.pool.clone(), secret_key);
         let token = match token {
@@ -119,7 +107,6 @@ impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for ContextData {
             as_cfg: apiserver_config.clone(),
             token_mgr,
             token,
-            global: (*global).clone(),
             problem_loader: factory.problem_loader.clone(),
             data_dir: factory.data_dir.clone(),
         })

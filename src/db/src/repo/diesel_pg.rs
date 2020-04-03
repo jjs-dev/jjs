@@ -255,6 +255,16 @@ mod impl_kv {
                     .map(drop)
             })
         }
+
+        async fn kv_del(&self,key:&str) ->Result<()>{
+            tokio::task::block_in_place(move||{
+                diesel::delete(kv)
+                .filter(name.eq(key))
+                .execute(&self.conn()?)
+                .map(drop)
+                .map_err(Into::into)
+            })
+        }
     }
 }
 

@@ -67,13 +67,24 @@ impl WorkerInfo {
 }
 
 /// Contains `RunInfo` for worker + stuff for controller itself
-#[derive(Debug)]
 struct ExtendedInvokeRequest {
     inner: InvokeRequest,
     revision: u32,
     notifier: Notifier,
     invocation_dir: PathBuf,
-    task_source_id: usize,
+    task_source: Arc<dyn TaskSource>,
+}
+
+impl std::fmt::Debug for ExtendedInvokeRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("ExtendedInvokeRequest")
+            .field("inner", &self.inner)
+            .field("revision", &self.revision)
+            .field("notifier", &self.notifier)
+            .field("invocation_dir", &self.invocation_dir.display())
+            .field("task_source", &"..")
+            .finish()
+    }
 }
 
 struct ControllerQueues {
@@ -119,6 +130,12 @@ pub trait TaskSource: Send + Sync {
         invocation_id: Uuid,
         header: invoker_api::InvokeOutcomeHeader,
     ) -> anyhow::Result<()>;
+
+    async fn deliver_live_status_update(
+        &self,
+        invocation_id: Uuid,
+        lsu: invoker_api::LiveStatusUpdate,
+    ) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -126,7 +143,8 @@ impl<S: TaskSource + Send + Sync + 'static, T: std::ops::Deref<Target = S> + Sen
     for T
 {
     async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
-        (**self).load_tasks(cnt).await
+        let inner: &S = self.deref();
+        inner.load_tasks(cnt).await
     }
 
     async fn set_finished(
@@ -146,11 +164,20 @@ impl<S: TaskSource + Send + Sync + 'static, T: std::ops::Deref<Target = S> + Sen
         let inner: &S = self.deref();
         inner.add_outcome_header(invocation_id, header).await
     }
+
+    async fn deliver_live_status_update(
+        &self,
+        invocation_id: Uuid,
+        lsu: invoker_api::LiveStatusUpdate,
+    ) -> anyhow::Result<()> {
+        let inner: &S = self.deref();
+        inner.deliver_live_status_update(invocation_id, lsu).await
+    }
 }
 
 pub struct Controller {
     workers: Vec<WorkerInfo>,
-    sources: Vec<Box<dyn TaskSource>>,
+    sources: Vec<Arc<dyn TaskSource>>,
     entity_loader: Arc<entity::Loader>,
     stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
@@ -161,7 +188,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        sources: Vec<Box<dyn TaskSource>>,
+        sources: Vec<Arc<dyn TaskSource>>,
         cfg_data: util::cfg::CfgData,
         worker_count: usize,
     ) -> anyhow::Result<Controller> {
@@ -333,7 +360,7 @@ impl Controller {
                 worker.state = WorkerState::Invoke(req);
             }
             Response::OutcomeHeader(header) => {
-                self.sources[req.task_source_id]
+                req.task_source
                     .add_outcome_header(req.inner.invocation_id, header)
                     .await?;
                 let dir = req.inner.out_dir.clone();
@@ -391,7 +418,8 @@ impl Controller {
             InvokeOutcome::Judge => InvocationFinishReason::JudgeDone,
             InvokeOutcome::CompileError(_) => InvocationFinishReason::CompileError,
         };
-        self.sources[ext_inv_req.task_source_id]
+        ext_inv_req
+            .task_source
             .set_finished(ext_inv_req.inner.invocation_id, reason)
             .await
             .context("failed to set run outcome in DB")?;

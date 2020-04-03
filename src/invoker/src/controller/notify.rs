@@ -1,10 +1,10 @@
 //! Implements Notifications - messages about run testing updates
+use crate::controller::TaskSource;
 use log::{debug, warn};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use crate::controller::TaskSource;
 pub(crate) struct Notifier {
     score: Option<u32>,
     test: Option<u32>,
@@ -17,24 +17,24 @@ pub(crate) struct Notifier {
 impl std::fmt::Debug for Notifier {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("Notifier")
-        .field("score", &self.score)
-        .field("test", &self.test)
-        .field("throttled_until", &self.throttled_until)
-        .field("errored", &self.errored)
-        .field("invocation_id", &self.invocation_id)
-        .finish()
+            .field("score", &self.score)
+            .field("test", &self.test)
+            .field("throttled_until", &self.throttled_until)
+            .field("errored", &self.errored)
+            .field("invocation_id", &self.invocation_id)
+            .finish()
     }
 }
 
 impl Notifier {
-    pub(crate) fn new(invocation_id: uuid::Uuid, source: Arc<dyn TaskSource>,) -> Notifier {
+    pub(crate) fn new(invocation_id: uuid::Uuid, source: Arc<dyn TaskSource>) -> Notifier {
         Notifier {
             score: None,
             test: None,
             throttled_until: Instant::now(),
             errored: false,
             source,
-            invocation_id
+            invocation_id,
         }
     }
 
@@ -70,8 +70,15 @@ impl Notifier {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };
-        debug!("Sending live status update for invocation {}", self.invocation_id);
-        if let Err(err) = self.source.deliver_live_status_update(self.invocation_id, event).await {
+        debug!(
+            "Sending live status update for invocation {}",
+            self.invocation_id
+        );
+        if let Err(err) = self
+            .source
+            .deliver_live_status_update(self.invocation_id, event)
+            .await
+        {
             warn!("Failed to send live status update: {}", err);
             warn!("Disabling live status updates for this run");
             self.errored = true;

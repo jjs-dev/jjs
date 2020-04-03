@@ -75,11 +75,9 @@ pub trait KvRepo: Send + Sync {
 
     async fn kv_get_raw(&self, key: &str) -> Result<Option<Vec<u8>>>;
 
-    async fn kv_del(&self, key:&str) -> Result<()>;
+    async fn kv_del(&self, key: &str) -> Result<()>;
 }
 
 pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo + KvRepo {}
 
-impl dyn Repo {
-    
-}
+impl dyn Repo {}

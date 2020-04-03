@@ -57,9 +57,9 @@ pub(crate) enum AccessCheckError {
 pub(crate) type AccessResult = Result<bool, AccessCheckError>;
 
 impl AccessChecker<'_, ack_subject::Run> {
-    async fn for_contest<'a>(
-        &'a self,
-    ) -> Result<AccessChecker<'a, ack_subject::Contest>, AccessCheckError> {
+    async fn for_contest(
+        &self,
+    ) -> Result<AccessChecker<'_, ack_subject::Contest>, AccessCheckError> {
         let run = self.raw.db.run_load(self.obj.0).await?;
         Ok(self.raw.wrap_contest(run.contest_id))
     }

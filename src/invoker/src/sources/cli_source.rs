@@ -67,7 +67,7 @@ impl CliSource {
         tokio::task::spawn(async move {
             read_worker_loop(st1).await;
         });
-        tokio::task::spawn( async move {
+        tokio::task::spawn(async move {
             print_worker_loop(st2).await;
         });
         CliSource(state)

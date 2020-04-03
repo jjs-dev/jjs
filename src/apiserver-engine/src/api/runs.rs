@@ -292,7 +292,6 @@ impl ApiObject for RunLiveStatusUpdate {
     }
 }
 
-
 #[get("/runs/<run_id>/live")]
 pub(crate) async fn route_live(
     ctx: Context,
@@ -301,8 +300,11 @@ pub(crate) async fn route_live(
     let lsu_key = format!("lsu-{}", run_id);
     let lsu: Option<invoker_api::LiveStatusUpdate> =
         ctx.db().kv_get(&lsu_key).await.internal(&ctx)?;
-        
-    debug!("Found update {:?} in KV storage, with key {}", &lsu, lsu_key);
+
+    debug!(
+        "Found update {:?} in KV storage, with key {}",
+        &lsu, lsu_key
+    );
     if let Some(upd) = lsu {
         ctx.db().kv_del(&lsu_key).await.internal(&ctx)?;
         return Ok(Json(RunLiveStatusUpdate {

@@ -233,8 +233,7 @@ impl KvRepo for MemoryRepo {
         Ok(())
     }
 
-    async fn kv_del(&self, key:&str) ->Result<() > 
-    {
+    async fn kv_del(&self, key: &str) -> Result<()> {
         let mut data = self.conn.lock().unwrap();
         data.kv.remove(key);
         Ok(())

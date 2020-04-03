@@ -39,9 +39,7 @@ impl KvRepo for RedisRepo {
             .map_err(Into::into)
     }
 
-    async fn kv_del(&self, key:&str)->Result<()>{
-self.conn.lock()
-.await.del(key)
-.await.map_err(Into::into)
+    async fn kv_del(&self, key: &str) -> Result<()> {
+        self.conn.lock().await.del(key).await.map_err(Into::into)
     }
 }

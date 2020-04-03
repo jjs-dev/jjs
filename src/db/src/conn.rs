@@ -154,7 +154,7 @@ impl DbConn {
         self.kv_repo().kv_put_raw(key, &raw_data).await
     }
 
-    pub async fn kv_del(&self,key:&str) -> Result<()> {
+    pub async fn kv_del(&self, key: &str) -> Result<()> {
         self.kv_repo().kv_del(key).await
-    } 
+    }
 }

@@ -1,9 +1,9 @@
 use crate::controller::{InvocationFinishReason, TaskSource};
 use invoker_api::InvokeTask;
 use serde::Serialize;
-use std::{collections::VecDeque, };
-use uuid::Uuid;
+use std::collections::VecDeque;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 struct BackgroundSourceState {
     queue: VecDeque<InvokeTask>,
@@ -44,7 +44,7 @@ impl Default for BackgroundSource {
 pub enum Message {
     Finish(FinishedMessage),
     Progress(ProgressMessage),
-    LiveStatusUpdate(LsuMessage)
+    LiveStatusUpdate(LsuMessage),
 }
 #[derive(Serialize)]
 pub struct FinishedMessage {
@@ -61,7 +61,7 @@ pub struct ProgressMessage {
 #[derive(Serialize)]
 pub struct LsuMessage {
     invocation_id: Uuid,
-    update: invoker_api::LiveStatusUpdate
+    update: invoker_api::LiveStatusUpdate,
 }
 
 #[async_trait::async_trait]
@@ -86,7 +86,11 @@ impl TaskSource for BackgroundSource {
             reason,
             invocation_id,
         };
-        self.state.lock().await.messages.push_back(Message::Finish(msg));
+        self.state
+            .lock()
+            .await
+            .messages
+            .push_back(Message::Finish(msg));
         Ok(())
     }
 
@@ -99,16 +103,28 @@ impl TaskSource for BackgroundSource {
             invocation_id,
             header,
         };
-        self.state.lock().await.messages.push_back(Message::Progress(msg));
+        self.state
+            .lock()
+            .await
+            .messages
+            .push_back(Message::Progress(msg));
         Ok(())
     }
 
-    async fn deliver_live_status_update(&self, invocation_id: Uuid, update: invoker_api::LiveStatusUpdate) -> anyhow::Result<()> {
+    async fn deliver_live_status_update(
+        &self,
+        invocation_id: Uuid,
+        update: invoker_api::LiveStatusUpdate,
+    ) -> anyhow::Result<()> {
         let msg = LsuMessage {
             update,
-            invocation_id
+            invocation_id,
         };
-        self.state.lock().await.messages.push_back(Message::LiveStatusUpdate(msg));
+        self.state
+            .lock()
+            .await
+            .messages
+            .push_back(Message::LiveStatusUpdate(msg));
         Ok(())
     }
 }

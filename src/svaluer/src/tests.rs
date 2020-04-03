@@ -200,7 +200,8 @@ mod simple {
         contestant_log.kind = JudgeLogKind::Contestant;
         contestant_log.subtasks.pop();
         contestant_log.tests.pop();
-        contestant_log.tests[0].components = TestVisibleComponents::STATUS;
+        contestant_log.tests[0].components =
+            TestVisibleComponents::STATUS | TestVisibleComponents::RESOURCE_USAGE;
         contestant_log.score = 64;
         MockDriver::new(ProblemInfo {
             tests: vec!["online".to_string(), "offline".to_string()],

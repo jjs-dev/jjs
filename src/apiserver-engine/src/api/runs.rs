@@ -66,6 +66,10 @@ fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParam
                     if !filter.answer {
                         test.remove("test_answer");
                     }
+                    if !filter.resource_usage {
+                        test.remove("time_usage");
+                        test.remove("memory_usage");
+                    }
                 }
             }
         }
@@ -349,6 +353,7 @@ pub(crate) struct RunProtocolFilterParams {
     test_data: bool,
     output: bool,
     answer: bool,
+    resource_usage: bool,
 }
 
 #[get("/runs/<id>/protocol?<filter..>")]

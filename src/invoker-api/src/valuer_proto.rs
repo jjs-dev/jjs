@@ -15,6 +15,8 @@ bitflags! {
         const ANSWER = 4;
         /// Test status
         const STATUS = 8;
+        /// Resource usage
+        const RESOURCE_USAGE = 16;
     }
 }
 

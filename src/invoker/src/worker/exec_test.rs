@@ -4,6 +4,7 @@ use crate::worker::{invoke_util, os_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use log::error;
+use minion::Dominion as _;
 use std::{fs, io::Write, path::PathBuf};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
@@ -13,6 +14,7 @@ pub(crate) struct ExecRequest<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct ExecOutcome {
     pub(crate) status: Status,
+    pub(crate) resource_usage: minion::ResourceUsageData,
 }
 
 /// Runs Artifact on one test and produces output
@@ -22,9 +24,14 @@ pub(crate) struct TestExecutor<'a> {
     pub(crate) minion: &'a dyn minion::Backend,
 }
 
-enum RunOutcome {
+enum RunOutcomeVar {
     Success { out_data_path: PathBuf },
     Fail(Status),
+}
+
+struct RunOutcome {
+    var: RunOutcomeVar,
+    resource_usage: minion::ResourceUsageData,
 }
 
 fn map_checker_outcome_to_status(out: checker_proto::Output) -> Status {
@@ -78,10 +85,14 @@ impl<'a> TestExecutor<'a> {
                 if err.is_system() {
                     Err(err).context("failed to spawn solution")?
                 } else {
-                    return Ok(RunOutcome::Fail(Status {
+                    let run_outcome_var = RunOutcomeVar::Fail(Status {
                         kind: StatusKind::Rejected,
                         code: status_codes::LAUNCH_ERROR.to_string(),
-                    }));
+                    });
+                    return Ok(RunOutcome {
+                        var: run_outcome_var,
+                        resource_usage: Default::default(),
+                    });
                 }
             }
         };
@@ -93,12 +104,20 @@ impl<'a> TestExecutor<'a> {
             .wait_for_exit(None)
             .context("failed to wait for child")?;
 
+        let resource_usage = sandbox
+            .dominion
+            .resource_usage()
+            .context("cannot get resource usage")?;
+
         match wait_result {
             minion::WaitOutcome::Timeout => {
-                return Ok(RunOutcome::Fail(Status {
-                    kind: StatusKind::Rejected,
-                    code: status_codes::TIME_LIMIT_EXCEEDED.to_string(),
-                }));
+                return Ok(RunOutcome {
+                    var: RunOutcomeVar::Fail(Status {
+                        kind: StatusKind::Rejected,
+                        code: status_codes::TIME_LIMIT_EXCEEDED.to_string(),
+                    }),
+                    resource_usage,
+                });
             }
             minion::WaitOutcome::AlreadyFinished => unreachable!("not expected other to wait"),
             minion::WaitOutcome::Exited => {
@@ -108,16 +127,22 @@ impl<'a> TestExecutor<'a> {
                     .unwrap()
                     != 0
                 {
-                    return Ok(RunOutcome::Fail(Status {
-                        kind: StatusKind::Rejected,
-                        code: status_codes::RUNTIME_ERROR.to_string(),
-                    }));
+                    return Ok(RunOutcome {
+                        var: RunOutcomeVar::Fail(Status {
+                            kind: StatusKind::Rejected,
+                            code: status_codes::RUNTIME_ERROR.to_string(),
+                        }),
+                        resource_usage,
+                    });
                 }
             }
         }
 
-        Ok(RunOutcome::Success {
-            out_data_path: stdout_path,
+        Ok(RunOutcome {
+            var: RunOutcomeVar::Success {
+                out_data_path: stdout_path,
+            },
+            resource_usage,
         })
     }
 
@@ -125,10 +150,15 @@ impl<'a> TestExecutor<'a> {
         use std::os::unix::io::IntoRawFd;
         let input_file = self.req.resolve_asset(&self.exec.test.path);
         let test_data = std::fs::read(input_file).context("failed to read test")?;
-
-        let sol_file_path = match self.run_solution(&test_data, self.exec.test_id)? {
-            RunOutcome::Success { out_data_path } => out_data_path,
-            RunOutcome::Fail(status) => return Ok(ExecOutcome { status }),
+        let run_outcome = self.run_solution(&test_data, self.exec.test_id)?;
+        let sol_file_path = match run_outcome.var {
+            RunOutcomeVar::Success { out_data_path } => out_data_path,
+            RunOutcomeVar::Fail(status) => {
+                return Ok(ExecOutcome {
+                    status,
+                    resource_usage: run_outcome.resource_usage,
+                });
+            }
         };
         // run checker
         let step_dir = self.req.step_dir(Some(self.exec.test_id));
@@ -181,6 +211,7 @@ impl<'a> TestExecutor<'a> {
                 kind: StatusKind::InternalError,
                 code: status_codes::JUDGE_FAULT.to_string(),
             },
+            resource_usage: Default::default(),
         });
 
         let succ = st.status.success();
@@ -206,6 +237,9 @@ impl<'a> TestExecutor<'a> {
 
         let status = map_checker_outcome_to_status(parsed_out);
 
-        Ok(ExecOutcome { status })
+        Ok(ExecOutcome {
+            status,
+            resource_usage: run_outcome.resource_usage,
+        })
     }
 }

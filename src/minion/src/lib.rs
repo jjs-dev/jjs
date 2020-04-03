@@ -60,6 +60,7 @@ pub struct PathExpositionOptions {
 /// This struct is returned by `Dominion::query_usage_data`
 /// It represents various resource usage
 /// Some items can be absent or rounded
+#[derive(Debug, Copy, Clone, Default)]
 pub struct ResourceUsageData {
     /// Total CPU time usage in nanoseconds
     pub time: Option<u64>,

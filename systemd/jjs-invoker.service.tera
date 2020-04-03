@@ -1,6 +1,5 @@
 [Unit]
 Description=JJS invoker
-Requires=postgresql.service
 After=postgresql.service
 
 [Service]

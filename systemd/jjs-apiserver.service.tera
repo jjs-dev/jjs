@@ -1,6 +1,5 @@
 [Unit]
 Description=JJS API server
-Requires=postgresql.service
 After=postgresql.service
 
 [Service]

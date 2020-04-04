@@ -1,4 +1,4 @@
-use super::{InvocationsRepo, KvRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, KvRepo, ParticipationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -12,6 +12,7 @@ struct Data {
     invs: Vec<Invocation>,
     users: Vec<User>,
     kv: std::collections::HashMap<String, Vec<u8>>,
+    parts: Vec<Participation>,
 }
 
 #[derive(Debug, Default)]
@@ -240,6 +241,40 @@ impl KvRepo for MemoryRepo {
     }
 }
 
+#[async_trait]
+impl ParticipationsRepo for MemoryRepo {
+    async fn part_new(&self, part_data: NewParticipation) -> Result<Participation> {
+        let mut data = self.conn.lock().unwrap();
+        let part_id = data.parts.len() as ParticipationId;
+        let part = Participation {
+            id: part_id,
+            user_id: part_data.user_id,
+            contest_id: part_data.contest_id,
+            phase: part_data.phase,
+            virtual_contest_start_time: part_data.virtual_contest_start_time,
+        };
+        data.parts.push(part.clone());
+        Ok(part)
+    }
+
+    async fn part_find(&self, id: ParticipationId) -> Result<Option<Participation>> {
+        let data = self.conn.lock().unwrap();
+        Ok(data.parts.get(id as usize).cloned())
+    }
+
+    async fn part_lookup(
+        &self,
+        user_id: UserId,
+        contest_id: &str,
+    ) -> Result<Option<Participation>> {
+        let data = self.conn.lock().unwrap();
+        Ok(data
+            .parts
+            .iter()
+            .find(|item| item.contest_id == *contest_id && item.user_id == user_id)
+            .cloned())
+    }
+}
 impl Repo for MemoryRepo {}
 
 #[cfg(test)]

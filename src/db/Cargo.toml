@@ -5,7 +5,6 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-diesel = { git = "https://github.com/diesel-rs/diesel", rev = "8cad08f", default-features = false, features = ["postgres", "uuid", "r2d2", "serde_json"] }
 serde = { version = "1.0.104", features = ["derive"] }
 uuid = { version = "0.7.4", features = ["serde", "v4"] }
 r2d2 = "0.8.8"
@@ -16,4 +15,11 @@ serde_json = "1.0.44"
 redis = {version = "0.15.1", default-features = false, features = []}
 async-trait = "0.1.27"
 futures = "0.3.4"
-tokio = {version = "0.2.13",features = ["rt-threaded", "blocking"]}
+tokio = {version = "0.2.13", features = ["rt-threaded", "blocking"]}
+chrono = {version = "0.4.11", features = ["serde"]}
+
+[dependencies.diesel]
+git = "https://github.com/diesel-rs/diesel"
+rev = "8cad08f"
+default-features = false
+features = ["postgres", "uuid", "r2d2", "serde_json", "chrono"]

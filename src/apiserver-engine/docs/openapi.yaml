@@ -54,6 +54,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contest"
+  "/contests/{name}/participation":
+    get:
+      operationId: getContestParticipation
+      summary: Get information about current user participation
+      description: |-
+        You should check that status is "ACTIVE". If it is not, you need register to contest (see updateContestParticipation).
+        Otherwise, you will not be able to submit runs
+      parameters:
+        - $ref: "#/components/parameters/contest_name"
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participation"
+    patch:
+      operationId: updateContestParticipation
+      summary: Update current user participation
+      description: |-
+        Using this operation you can start patricipating in contest
+      parameters:
+        - $ref: "#/components/parameters/contest_name"
+      responses:
+        204:
+          description: ok
   "/contests/{name}/problems":
     get:
       operationId: listContestProblems

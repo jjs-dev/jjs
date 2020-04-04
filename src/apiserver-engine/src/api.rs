@@ -25,11 +25,15 @@ impl ErrorExtension {
         let trace = backtrace::Backtrace::new();
 
         let trace = format!("{:?}", trace);
-
-        self.0.insert(
-            Self::KEY_DEV_BACKTRACE.to_string(),
-            serde_json::Value::String(trace),
+        let trace = serde_json::Value::Array(
+            trace
+                .lines()
+                .map(ToString::to_string)
+                .map(serde_json::Value::String)
+                .collect(),
         );
+
+        self.0.insert(Self::KEY_DEV_BACKTRACE.to_string(), trace);
     }
 
     fn set_error_code(&mut self, error_code: &str) {
@@ -57,9 +61,14 @@ impl ApiError {
             self.extension.set_backtrace();
             if let Some(err) = &self.cause {
                 let backtrace = format!("{:?}", err.backtrace());
+                let backtrace: Vec<_> = backtrace
+                    .lines()
+                    .map(ToString::to_string)
+                    .map(serde_json::Value::String)
+                    .collect();
                 self.extension.0.insert(
                     ErrorExtension::KEY_DEV_ERROR_BACKTRACE.to_string(),
-                    serde_json::Value::String(backtrace),
+                    serde_json::Value::Array(backtrace),
                 );
             }
         }
@@ -145,7 +154,17 @@ impl<'req> rocket::response::Responder<'req> for ApiError {
         _request: &'req rocket::request::Request<'a>,
     ) -> rocket::response::Result<'req> {
         let mut builder = rocket::response::Response::build();
-        builder.status(rocket::http::Status::BadRequest);
+        let status = match self
+            .extension
+            .0
+            .get("errorCode")
+            .and_then(|val| val.as_str())
+        {
+            Some("NotFound") => rocket::http::Status::NotFound,
+            Some("AccessDenied") => rocket::http::Status::Forbidden,
+            _ => rocket::http::Status::BadRequest,
+        };
+        builder.status(status);
         let error = match self.cause {
             Some(err) if self.is_visible() => (format!("{:#}", err)),
             _ => "error".to_string(),

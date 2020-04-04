@@ -28,6 +28,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**create_user**](docs/DefaultApi.md#create_user) | **POST** /users | Creates new user
 *DefaultApi* | [**delete_run**](docs/DefaultApi.md#delete_run) | **DELETE** /runs/{id} | Deletes run
 *DefaultApi* | [**get_contest**](docs/DefaultApi.md#get_contest) | **GET** /contests/{name} | Finds contest by name
+*DefaultApi* | [**get_contest_participation**](docs/DefaultApi.md#get_contest_participation) | **GET** /contests/{name}/participation | Get information about current user participation
 *DefaultApi* | [**get_contest_standings**](docs/DefaultApi.md#get_contest_standings) | **GET** /contests/{name}/standings | Returns standings as JSON object
 *DefaultApi* | [**get_run**](docs/DefaultApi.md#get_run) | **GET** /runs/{id} | Loads run by id
 *DefaultApi* | [**get_run_binary**](docs/DefaultApi.md#get_run_binary) | **GET** /runs/{id}/binary | Returns run build artifact as base64-encoded JSON string
@@ -42,6 +43,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**log_in**](docs/DefaultApi.md#log_in) | **POST** /auth/simple | Login using login and password
 *DefaultApi* | [**patch_run**](docs/DefaultApi.md#patch_run) | **PATCH** /runs/{id} | Modifies run
 *DefaultApi* | [**submit_run**](docs/DefaultApi.md#submit_run) | **POST** /runs | Submit run
+*DefaultApi* | [**update_contest_participation**](docs/DefaultApi.md#update_contest_participation) | **PATCH** /contests/{name}/participation | Update current user participation
 
 
 ## Documentation For Models
@@ -49,6 +51,7 @@ Class | Method | HTTP request | Description
  - [ApiVersion](docs/ApiVersion.md)
  - [Contest](docs/Contest.md)
  - [InvokeStatus](docs/InvokeStatus.md)
+ - [Participation](docs/Participation.md)
  - [Problem](docs/Problem.md)
  - [Run](docs/Run.md)
  - [RunLiveStatusUpdate](docs/RunLiveStatusUpdate.md)

@@ -8,6 +8,7 @@ Method | HTTP request | Description
 [**create_user**](DefaultApi.md#create_user) | **POST** /users | Creates new user
 [**delete_run**](DefaultApi.md#delete_run) | **DELETE** /runs/{id} | Deletes run
 [**get_contest**](DefaultApi.md#get_contest) | **GET** /contests/{name} | Finds contest by name
+[**get_contest_participation**](DefaultApi.md#get_contest_participation) | **GET** /contests/{name}/participation | Get information about current user participation
 [**get_contest_standings**](DefaultApi.md#get_contest_standings) | **GET** /contests/{name}/standings | Returns standings as JSON object
 [**get_run**](DefaultApi.md#get_run) | **GET** /runs/{id} | Loads run by id
 [**get_run_binary**](DefaultApi.md#get_run_binary) | **GET** /runs/{id}/binary | Returns run build artifact as base64-encoded JSON string
@@ -22,6 +23,7 @@ Method | HTTP request | Description
 [**log_in**](DefaultApi.md#log_in) | **POST** /auth/simple | Login using login and password
 [**patch_run**](DefaultApi.md#patch_run) | **PATCH** /runs/{id} | Modifies run
 [**submit_run**](DefaultApi.md#submit_run) | **POST** /runs | Submit run
+[**update_contest_participation**](DefaultApi.md#update_contest_participation) | **PATCH** /contests/{name}/participation | Update current user participation
 
 
 
@@ -125,6 +127,36 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**crate::models::Contest**](Contest.md)
+
+### Authorization
+
+[AccessToken](../README.md#AccessToken)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_contest_participation
+
+> crate::models::Participation get_contest_participation(name)
+Get information about current user participation
+
+You should check that status is \"ACTIVE\". If it is not, you need register to contest (see updateContestParticipation). Otherwise, you will not be able to submit runs
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**name** | **String** |  | [required] |
+
+### Return type
+
+[**crate::models::Participation**](Participation.md)
 
 ### Authorization
 
@@ -526,6 +558,36 @@ Name | Type | Description  | Required | Notes
 
 - **Content-Type**: application/json
 - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## update_contest_participation
+
+> update_contest_participation(name)
+Update current user participation
+
+Using this operation you can start patricipating in contest
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**name** | **String** |  | [required] |
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+[AccessToken](../README.md#AccessToken)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

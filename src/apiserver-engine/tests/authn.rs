@@ -23,6 +23,14 @@ impl<'a> RequestBuilder<'a> {
                     .collect::<Vec<_>>(),
             )
     }
+
+    fn submit_staff(&mut self) -> &mut Self {
+        self.action("/runs")
+            .var("toolchain", "cpp")
+            .var("code", "")
+            .var("problem", "A")
+            .var("contest", "main")
+    }
 }
 
 impl Env {
@@ -80,4 +88,64 @@ async fn test_groups() {
         .await
         .unwrap_err();
     common::check_error(&err, "AccessDenied");
+}
+
+#[tokio::test]
+async fn test_contests_participations_restrictions() {
+    let env = common::EnvBuilder::new()
+        .toolchain(entity::Toolchain {
+            title: "C++".to_string(),
+            name: "cpp".to_string(),
+            filename: "source.cpp".to_string(),
+            build_commands: vec![],
+            run_command: Default::default(),
+            limits: Default::default(),
+            env: std::collections::HashMap::new(),
+            env_blacklist: vec![],
+            env_passing: true,
+        })
+        .build("ContestTime")
+        .await;
+    env.req()
+        .create_user("Alice", "", &["Participants"])
+        .exec()
+        .await
+        .unwrap_ok();
+    env.req()
+        .create_user("Bob", "", &["Participants"])
+        .exec()
+        .await
+        .unwrap_ok();
+    let alice_token = env.login("Alice", "").await;
+    let bob_token = env.login("Bob", "").await;
+    let err = env
+        .req()
+        .submit_staff()
+        .auth(&alice_token)
+        .exec()
+        .await
+        .unwrap_err();
+    common::check_error(&err, "AccessDenied");
+    env.req()
+        .auth(&bob_token)
+        .action("/contests/main/participation")
+        .method(apiserver_engine::test_util::Method::Patch)
+        .var("phase", "ACTIVE")
+        .exec()
+        .await
+        .unwrap_ok();
+    let err = env
+        .req()
+        .submit_staff()
+        .auth(&alice_token)
+        .exec()
+        .await
+        .unwrap_err();
+    common::check_error(&err, "AccessDenied");
+    env.req()
+        .auth(&bob_token)
+        .submit_staff()
+        .exec()
+        .await
+        .unwrap_ok();
 }

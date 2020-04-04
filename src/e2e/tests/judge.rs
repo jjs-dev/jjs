@@ -1,5 +1,13 @@
 use std::convert::TryInto;
 
+fn participate() {
+    e2e::RequestBuilder::new()
+        .method(apiserver_engine::test_util::Method::Patch)
+        .action("/contests/trial/participation")
+        .var("phase", "ACTIVE")
+        .exec();
+}
+
 fn submit(code: &str) -> i32 {
     let code = base64::encode(code);
 
@@ -49,6 +57,7 @@ fn send_check_status(run_code: &str, correct_status: &str) {
 
 #[test]
 fn test_correct_solution_is_accepted() {
+    participate();
     send_check_status(
         r#"
  #include <cstdio>
@@ -64,6 +73,7 @@ fn test_correct_solution_is_accepted() {
 
 #[test]
 fn test_wrong_solution_is_rejected() {
+    participate();
     send_check_status(
         r#"
  #include <cstdio>
@@ -79,6 +89,7 @@ fn test_wrong_solution_is_rejected() {
 
 #[test]
 fn test_non_privileged_user_cannot_see_non_their_runs() {
+    participate();
     e2e::RequestBuilder::new()
         .action("/users")
         .var("login", "cersei")
@@ -103,6 +114,7 @@ fn test_non_privileged_user_cannot_see_non_their_runs() {
 
 #[test]
 fn test_heavy_load() {
+    participate();
     let count = 20;
     let mut codes = Vec::new();
     println!("making {} submits", count);

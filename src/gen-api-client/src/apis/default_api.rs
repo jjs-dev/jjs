@@ -44,6 +44,12 @@ pub trait DefaultApi {
         &self,
         name: &str,
     ) -> Box<dyn Future<Output = Result<crate::models::Contest, Error<serde_json::Value>>> + Unpin>;
+    fn get_contest_participation(
+        &self,
+        name: &str,
+    ) -> Box<
+        dyn Future<Output = Result<crate::models::Participation, Error<serde_json::Value>>> + Unpin,
+    >;
     fn get_contest_standings(
         &self,
         name: &str,
@@ -112,6 +118,10 @@ pub trait DefaultApi {
         &self,
         run_simple_submit_params: crate::models::RunSimpleSubmitParams,
     ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>;
+    fn update_contest_participation(
+        &self,
+        name: &str,
+    ) -> Box<dyn Future<Output = Result<(), Error<serde_json::Value>>> + Unpin>;
 }
 
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> DefaultApi
@@ -188,6 +198,29 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
                         param_name: "Authorization".to_owned(),
                     },
                 ));
+        req = req.with_path_param("name".to_string(), name.to_string());
+
+        // TODO: do not box here
+        Box::new(req.execute(self.configuration.borrow()))
+    }
+
+    fn get_contest_participation(
+        &self,
+        name: &str,
+    ) -> Box<
+        dyn Future<Output = Result<crate::models::Participation, Error<serde_json::Value>>> + Unpin,
+    > {
+        let mut req = __internal_request::Request::new(
+            hyper::Method::GET,
+            "/contests/{name}/participation".to_string(),
+        )
+        .with_auth(__internal_request::Auth::ApiKey(
+            __internal_request::ApiKey {
+                in_header: true,
+                in_query: false,
+                param_name: "Authorization".to_owned(),
+            },
+        ));
         req = req.with_path_param("name".to_string(), name.to_string());
 
         // TODO: do not box here
@@ -484,6 +517,28 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
                 },
             ));
         req = req.with_body_param(run_simple_submit_params);
+
+        // TODO: do not box here
+        Box::new(req.execute(self.configuration.borrow()))
+    }
+
+    fn update_contest_participation(
+        &self,
+        name: &str,
+    ) -> Box<dyn Future<Output = Result<(), Error<serde_json::Value>>> + Unpin> {
+        let mut req = __internal_request::Request::new(
+            hyper::Method::PATCH,
+            "/contests/{name}/participation".to_string(),
+        )
+        .with_auth(__internal_request::Auth::ApiKey(
+            __internal_request::ApiKey {
+                in_header: true,
+                in_query: false,
+                param_name: "Authorization".to_owned(),
+            },
+        ));
+        req = req.with_path_param("name".to_string(), name.to_string());
+        req = req.returns_nothing();
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))

@@ -73,6 +73,17 @@
         ],
         "type": "object"
       },
+      "Participation": {
+        "properties": {
+          "phase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase"
+        ],
+        "type": "object"
+      },
       "Problem": {
         "properties": {
           "name": {
@@ -388,6 +399,45 @@
           }
         },
         "summary": "Finds contest by name"
+      }
+    },
+    "/contests/{name}/participation": {
+      "get": {
+        "description": "You should check that status is \"ACTIVE\". If it is not, you need register to contest (see updateContestParticipation).\nOtherwise, you will not be able to submit runs",
+        "operationId": "getContestParticipation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest_name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Participation"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get information about current user participation"
+      },
+      "patch": {
+        "description": "Using this operation you can start patricipating in contest",
+        "operationId": "updateContestParticipation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest_name"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "ok"
+          }
+        },
+        "summary": "Update current user participation"
       }
     },
     "/contests/{name}/problems": {

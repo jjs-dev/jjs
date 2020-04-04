@@ -4,6 +4,8 @@ pub mod contest;
 pub use self::contest::Contest;
 pub mod invoke_status;
 pub use self::invoke_status::InvokeStatus;
+pub mod participation;
+pub use self::participation::Participation;
 pub mod problem;
 pub use self::problem::Problem;
 pub mod run;

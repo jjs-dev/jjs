@@ -79,10 +79,10 @@ fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParam
 async fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
     let last_inv = ctx.db().inv_last(run.id).await.internal(ctx)?;
     let kind = ctx
-        .access()
-        .wrap_contest(run.contest_id.clone())
-        .select_judge_log_kind()
-        .internal(ctx)?;
+        .access_contest(&run.contest_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
+        .select_judge_log_kind();
     let inv_out_header = last_inv
         .invoke_outcome_headers()
         .internal(ctx)?
@@ -125,6 +125,14 @@ pub(crate) async fn route_list(ctx: Context, limit: Option<i32>) -> ApiResult<Js
 
 #[get("/runs/<id>")]
 pub(crate) async fn route_get(ctx: Context, id: i32) -> ApiResult<Json<Option<Run>>> {
+    if !ctx
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
+        .can_view_run()
+    {
+        return Err(ApiError::access_denied(&ctx));
+    }
     let db_run = ctx.db().run_try_load(id).await.internal(&ctx)?;
     match db_run {
         Some(db_run) => Ok(Json(Some(describe_run(&ctx, &db_run).await?))),
@@ -155,7 +163,6 @@ pub(crate) async fn route_submit_simple(
     ctx: Context,
     p: Json<RunSimpleSubmitParams>,
 ) -> ApiResult<Json<Run>> {
-    use db::schema::NewInvocation;
     let toolchain = ctx.cfg.find::<entity::Toolchain>(&p.toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
@@ -166,10 +173,10 @@ pub(crate) async fn route_submit_simple(
         None => return Err(ApiError::new(&ctx, "ContestUnknown")),
     };
     if !ctx
-        .access()
-        .wrap_contest(contest.id.clone())
+        .access_contest(&contest.id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
         .can_submit()
-        .internal(&ctx)?
     {
         return Err(ApiError::access_denied(&ctx));
     }
@@ -210,7 +217,7 @@ pub(crate) async fn route_submit_simple(
         run_id: run.id as u32,
     };
 
-    let new_inv = NewInvocation::new(&invoke_task).internal(&ctx)?;
+    let new_inv = db::schema::NewInvocation::new(&invoke_task).internal(&ctx)?;
 
     ctx.db().inv_new(new_inv).await.internal(&&ctx)?;
 
@@ -236,11 +243,10 @@ impl ApiObject for RunPatch {
 #[patch("/runs/<id>", data = "<p>")]
 pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> ApiResult<()> {
     if !ctx
-        .access()
-        .wrap_run(id)
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
         .can_modify_run()
-        .await
-        .internal(&ctx)?
     {
         return Err(ApiError::access_denied(&ctx));
     }
@@ -262,11 +268,10 @@ pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> A
 #[delete("/runs/<id>")]
 pub(crate) async fn route_delete(ctx: Context, id: RunId) -> ApiResult<rocket::http::Status> {
     if !ctx
-        .access()
-        .wrap_run(id)
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
         .can_modify_run()
-        .await
-        .internal(&ctx)?
     {
         return Err(ApiError::access_denied(&ctx));
     }
@@ -326,23 +331,39 @@ pub(crate) async fn route_live(
 }
 
 #[get("/runs/<id>/source")]
-pub(crate) fn route_source(
+pub(crate) async fn route_source(
     ctx: Context,
     id: RunId,
 ) -> ApiResult<Result<Json<String>, rocket::http::Status>> {
+    if !ctx
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
+        .can_view_run()
+    {
+        return Err(ApiError::access_denied(&ctx));
+    }
     let source_path = run_data_dir(&ctx, id).join("source");
-    let source = std::fs::read(source_path).ok();
+    let source = tokio::fs::read(source_path).await.ok();
     let source = source.as_ref().map(base64::encode);
     Ok(source.ok_or(rocket::http::Status::NoContent).map(Json))
 }
 
 #[get("/runs/<id>/binary")]
-pub(crate) fn route_binary(
+pub(crate) async fn route_binary(
     ctx: Context,
     id: RunId,
 ) -> ApiResult<Result<Json<String>, rocket::http::Status>> {
+    if !ctx
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
+        .can_view_run()
+    {
+        return Err(ApiError::access_denied(&ctx));
+    }
     let binary_path = run_data_dir(&ctx, id).join("build");
-    let binary = std::fs::read(binary_path).ok();
+    let binary = tokio::fs::read(binary_path).await.ok();
     let binary = binary.as_ref().map(base64::encode);
     Ok(binary.ok_or(rocket::http::Status::NoContent).map(Json))
 }
@@ -362,11 +383,20 @@ pub(crate) async fn route_protocol(
     id: RunId,
     filter: rocket::request::Form<RunProtocolFilterParams>,
 ) -> ApiResult<Option<String>> {
-    let run_data = run_lookup(&ctx, id)
-        .await
-        .map_err(|_| ApiError::not_found(&ctx))?;
-    let access_ck = ctx.access().wrap_contest(run_data.contest_id.clone());
-    let kind = access_ck.select_judge_log_kind().internal(&ctx)?;
+    if !ctx
+        .access_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?
+        .can_view_run()
+    {
+        return Err(ApiError::access_denied(&ctx));
+    }
+    let run_data = run_lookup(&ctx, id).await?;
+    let access_ck = ctx
+        .access_contest(&run_data.contest_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found(&ctx))?;
+    let kind = access_ck.select_judge_log_kind();
     let path = run_data_dir(&ctx, id)
         .join(format!("inv.{}", run_data.rejudge_id))
         .join(format!("protocol-{}.json", kind.as_str()));

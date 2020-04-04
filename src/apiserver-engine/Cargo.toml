@@ -33,6 +33,7 @@ thiserror = "1.0.13"
 schemars = "0.6.5"
 tokio = {version = "0.2.13", features = ["rt-threaded", "macros", "uds", "stream"]}
 futures = "0.3.4"
+chrono = "0.4.11"
 
 [dev-dependencies]
 toml = "0.5.6"

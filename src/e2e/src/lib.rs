@@ -47,9 +47,12 @@ impl RequestBuilder {
                 self.client.get(&url)
             }
         } else {
-            self.client
-                .post(&url)
-                .body(serde_json::to_string(&self.builder.body).expect("failed to serialize body"))
+            if self.builder.method == Some(apiserver_engine::test_util::Method::Patch) {
+                self.client.patch(&url)
+            } else {
+                self.client.post(&url)
+            }
+            .body(serde_json::to_string(&self.builder.body).expect("failed to serialize body"))
         };
 
         let request = request
@@ -62,6 +65,9 @@ impl RequestBuilder {
             .header("Content-Type", "application/json");
 
         let response = request.send().unwrap();
+        if response.status().as_u16() == 204 {
+            return apiserver_engine::test_util::Response(serde_json::Value::Null);
+        }
         if response
             .headers()
             .get("Content-Type")

@@ -1,4 +1,4 @@
-use super::{InvocationsRepo, KvRepo, Repo, RunsRepo, UsersRepo};
+use super::{InvocationsRepo, KvRepo, ParticipationsRepo, Repo, RunsRepo, UsersRepo};
 use crate::schema::*;
 use anyhow::{Context, Result};
 use diesel::{dsl::*, prelude::*, r2d2::ConnectionManager};
@@ -267,5 +267,39 @@ mod impl_kv {
         }
     }
 }
+mod impl_regs {
+    use super::*;
+    use crate::schema::participations::dsl::*;
+    #[async_trait::async_trait]
+    impl ParticipationsRepo for DieselRepo {
+        async fn part_new(&self, part_data: NewParticipation) -> Result<Participation> {
+            tokio::task::block_in_place(|| {
+                diesel::insert_into(participations)
+                    .values(&part_data)
+                    .get_result(&self.conn()?)
+                    .map_err(Into::into)
+            })
+        }
 
+        async fn part_find(&self, reg_id: ParticipationId) -> Result<Option<Participation>> {
+            tokio::task::block_in_place(|| {
+                Ok(participations
+                    .filter(id.eq(reg_id))
+                    .load::<Participation>(&self.conn()?)?
+                    .into_iter()
+                    .next())
+            })
+        }
+
+        async fn part_lookup(&self, uid: UserId, cid: &str) -> Result<Option<Participation>> {
+            tokio::task::block_in_place(|| {
+                Ok(participations
+                    .filter(contest_id.eq(cid).and(user_id.eq(uid)))
+                    .load::<Participation>(&self.conn()?)?
+                    .into_iter()
+                    .next())
+            })
+        }
+    }
+}
 impl Repo for DieselRepo {}

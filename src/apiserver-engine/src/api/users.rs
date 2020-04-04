@@ -49,8 +49,8 @@ pub(crate) async fn route_create(
 ) -> ApiResult<Json<User>> {
     // TODO transaction
     if !p.groups.is_empty() {
-        let access_checker = ctx.access();
-        if !access_checker.is_sudo().internal(&ctx)? {
+        let access_checker = ctx.access_generic();
+        if !access_checker.is_sudo() {
             return Err(ApiError::access_denied(&ctx));
         }
     }

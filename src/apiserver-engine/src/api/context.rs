@@ -1,4 +1,7 @@
-use super::security::{RawAccessChecker, Token, TokenMgr, TokenMgrError};
+use super::{
+    security::{AccessChecker, Subjects, Token, TokenMgr, TokenMgrError},
+    ApiResult, ResultToApiUtil as _,
+};
 use std::sync::Arc;
 
 pub(crate) type DbPool = Arc<db::DbConn>;
@@ -13,12 +16,110 @@ pub(crate) struct ContextData {
     pub(crate) data_dir: Arc<std::path::Path>,
 }
 
+async fn append_participation_to_subjects(
+    ctx: &Arc<ContextData>,
+    subj: &mut Subjects,
+) -> ApiResult<()> {
+    let participation = ctx
+        .load_participation(&subj.contest.as_ref().unwrap().id)
+        .await?;
+    subj.participation = participation;
+    Ok(())
+}
+
 impl ContextData {
-    pub(crate) fn access(&self) -> RawAccessChecker {
-        RawAccessChecker {
+    async fn build_subjects_for_contest(
+        self: &Arc<Self>,
+        contest_id: &str,
+    ) -> ApiResult<Option<Subjects>> {
+        match self.cfg.find::<entity::Contest>(contest_id) {
+            Some(c) => {
+                let mut subjs = Subjects {
+                    contest: Some(c.clone()),
+                    run: None,
+                    participation: None,
+                };
+                append_participation_to_subjects(self, &mut subjs).await?;
+                Ok(Some(subjs))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn build_subjects_for_run(
+        self: &Arc<Self>,
+        run_id: db::schema::RunId,
+    ) -> ApiResult<Option<Subjects>> {
+        let run = match self
+            .db()
+            .run_try_load(run_id)
+            .await
+            .internal(&Context(self.clone()))?
+        {
+            Some(r) => r,
+            None => return Ok(None),
+        };
+        let contest = match self.cfg.find::<entity::Contest>(&run.contest_id) {
+            Some(contest) => contest.clone(),
+            None => return Ok(None),
+        };
+        Ok(Some(Subjects {
+            contest: Some(contest),
+            run: Some(run),
+            // not needed so we don't look up for it
+            participation: None,
+        }))
+    }
+
+    pub(crate) async fn load_participation(
+        self: &Arc<Self>,
+        contest_id: &str,
+    ) -> ApiResult<Option<db::schema::Participation>> {
+        self.db()
+            .part_lookup(self.token.user_id(), &contest_id)
+            .await
+            .internal(&Context(self.clone()))
+    }
+
+    pub(crate) async fn access_contest<'a>(
+        self: &'a Arc<Self>,
+        contest_id: &str,
+    ) -> ApiResult<Option<AccessChecker<'a>>> {
+        let subjects = match self.build_subjects_for_contest(contest_id).await? {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+        Ok(Some(AccessChecker {
             token: &self.token,
             cfg: &self.cfg,
-            db: &*self.db(),
+            subjects,
+        }))
+    }
+
+    pub(crate) async fn access_run<'a>(
+        self: &'a Arc<Self>,
+        run_id: db::schema::RunId,
+    ) -> ApiResult<Option<AccessChecker<'a>>> {
+        let subjects = match self.build_subjects_for_run(run_id).await? {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+        Ok(Some(AccessChecker {
+            token: &self.token,
+            cfg: &self.cfg,
+            subjects: (subjects),
+        }))
+    }
+
+    pub(crate) fn access_generic(&self) -> AccessChecker {
+        AccessChecker {
+            token: &self.token,
+            cfg: &self.cfg,
+            subjects: (Subjects {
+                contest: None,
+                run: None,
+                participation: None,
+            }),
         }
     }
 
@@ -35,10 +136,10 @@ impl ContextData {
 pub(crate) struct Context(pub(crate) Arc<ContextData>);
 
 impl std::ops::Deref for Context {
-    type Target = ContextData;
+    type Target = Arc<ContextData>;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 

@@ -48,12 +48,16 @@ async fn test_runs_ops() {
             group: vec!["Participants".to_string()],
             judges: vec!["Judges".to_string()],
             unregistered_visible: true,
+            duration: None,
+            start_time: None,
+            end_time: None,
+            is_virtual: false,
         })
         .build("runs_ops")
         .await;
 
-    let res = env.req().action("/runs/0").exec().await.unwrap_ok();
-    assert_eq!(res, serde_json::Value::Null);
+    let res = env.req().action("/runs/0").exec().await.unwrap_err();
+    assert_eq!(res["detail"]["errorCode"], "NotFound");
 
     static RUN_TEXT: &str = r#"
 #include <cstdio>
@@ -63,6 +67,13 @@ int main() {
     printf("%d", a + b);
 }
 "#;
+    env.req()
+        .action("/contests/main/participation")
+        .method(apiserver_engine::test_util::Method::Patch)
+        .var("phase", "ACTIVE")
+        .exec()
+        .await
+        .unwrap_ok();
     let run_encoded = base64::encode(RUN_TEXT);
 
     let res = env

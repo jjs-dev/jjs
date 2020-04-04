@@ -4074,7 +4074,7 @@ pub fn main() {
 
                         <div class="tab-content">
                           <div class="tab-pane active" id="examples-Default-getRunProtocol-0-curl">
-                            <pre class="prettyprint"><code class="language-bsh">curl -X GET -H "Authorization: [[apiKey]]" "http://localhost/runs/{id}/protocol?compile_log=&test_data=&output=&answer="</code></pre>
+                            <pre class="prettyprint"><code class="language-bsh">curl -X GET -H "Authorization: [[apiKey]]" "http://localhost/runs/{id}/protocol?compile_log=&test_data=&output=&answer=&resource_usage="</code></pre>
                           </div>
                           <div class="tab-pane" id="examples-Default-getRunProtocol-0-java">
                             <pre class="prettyprint"><code class="language-java">import org.openapitools.client.*;
@@ -4102,8 +4102,9 @@ public class DefaultApiExample {
         Boolean testData = true; // Boolean | If false, test data will be excluded for all tests
         Boolean output = true; // Boolean | If false, solution stdout&stderr will be excluded for all tests
         Boolean answer = true; // Boolean | If false, correct answer will be excluded for all tests
+        Boolean resourceUsage = true; // Boolean | If false, resource usage will be excluded for all tests
         try {
-            Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer);
+            Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer, resourceUsage);
             System.out.println(result);
         } catch (ApiException e) {
             System.err.println("Exception when calling DefaultApi#getRunProtocol");
@@ -4126,8 +4127,9 @@ public class DefaultApiExample {
         Boolean testData = true; // Boolean | If false, test data will be excluded for all tests
         Boolean output = true; // Boolean | If false, solution stdout&stderr will be excluded for all tests
         Boolean answer = true; // Boolean | If false, correct answer will be excluded for all tests
+        Boolean resourceUsage = true; // Boolean | If false, resource usage will be excluded for all tests
         try {
-            Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer);
+            Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer, resourceUsage);
             System.out.println(result);
         } catch (ApiException e) {
             System.err.println("Exception when calling DefaultApi#getRunProtocol");
@@ -4153,6 +4155,7 @@ Boolean *compileLog = true; // If false, compilation logs will be excluded (opti
 Boolean *testData = true; // If false, test data will be excluded for all tests (optional) (default to null)
 Boolean *output = true; // If false, solution stdout&stderr will be excluded for all tests (optional) (default to null)
 Boolean *answer = true; // If false, correct answer will be excluded for all tests (optional) (default to null)
+Boolean *resourceUsage = true; // If false, resource usage will be excluded for all tests (optional) (default to null)
 
 DefaultApi *apiInstance = [[DefaultApi alloc] init];
 
@@ -4162,6 +4165,7 @@ DefaultApi *apiInstance = [[DefaultApi alloc] init];
     testData:testData
     output:output
     answer:answer
+    resourceUsage:resourceUsage
               completionHandler: ^(Object output, NSError* error) {
                             if (output) {
                                 NSLog(@"%@", output);
@@ -4189,7 +4193,8 @@ var opts = {
   'compileLog': true, // {Boolean} If false, compilation logs will be excluded
   'testData': true, // {Boolean} If false, test data will be excluded for all tests
   'output': true, // {Boolean} If false, solution stdout&stderr will be excluded for all tests
-  'answer': true // {Boolean} If false, correct answer will be excluded for all tests
+  'answer': true, // {Boolean} If false, correct answer will be excluded for all tests
+  'resourceUsage': true // {Boolean} If false, resource usage will be excluded for all tests
 };
 
 var callback = function(error, data, response) {
@@ -4231,11 +4236,12 @@ namespace Example
             var testData = true;  // Boolean | If false, test data will be excluded for all tests (optional)  (default to null)
             var output = true;  // Boolean | If false, solution stdout&stderr will be excluded for all tests (optional)  (default to null)
             var answer = true;  // Boolean | If false, correct answer will be excluded for all tests (optional)  (default to null)
+            var resourceUsage = true;  // Boolean | If false, resource usage will be excluded for all tests (optional)  (default to null)
 
             try
             {
                 // Returns invocation protocol as JSON document
-                Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer);
+                Object result = apiInstance.getRunProtocol(id, compileLog, testData, output, answer, resourceUsage);
                 Debug.WriteLine(result);
             }
             catch (Exception e)
@@ -4263,9 +4269,10 @@ $compileLog = true; // Boolean | If false, compilation logs will be excluded
 $testData = true; // Boolean | If false, test data will be excluded for all tests
 $output = true; // Boolean | If false, solution stdout&stderr will be excluded for all tests
 $answer = true; // Boolean | If false, correct answer will be excluded for all tests
+$resourceUsage = true; // Boolean | If false, resource usage will be excluded for all tests
 
 try {
-    $result = $api_instance->getRunProtocol($id, $compileLog, $testData, $output, $answer);
+    $result = $api_instance->getRunProtocol($id, $compileLog, $testData, $output, $answer, $resourceUsage);
     print_r($result);
 } catch (Exception $e) {
     echo 'Exception when calling DefaultApi->getRunProtocol: ', $e->getMessage(), PHP_EOL;
@@ -4289,9 +4296,10 @@ my $compileLog = true; # Boolean | If false, compilation logs will be excluded
 my $testData = true; # Boolean | If false, test data will be excluded for all tests
 my $output = true; # Boolean | If false, solution stdout&stderr will be excluded for all tests
 my $answer = true; # Boolean | If false, correct answer will be excluded for all tests
+my $resourceUsage = true; # Boolean | If false, resource usage will be excluded for all tests
 
 eval { 
-    my $result = $api_instance->getRunProtocol(id => $id, compileLog => $compileLog, testData => $testData, output => $output, answer => $answer);
+    my $result = $api_instance->getRunProtocol(id => $id, compileLog => $compileLog, testData => $testData, output => $output, answer => $answer, resourceUsage => $resourceUsage);
     print Dumper($result);
 };
 if ($@) {
@@ -4318,10 +4326,11 @@ compileLog = true # Boolean | If false, compilation logs will be excluded (optio
 testData = true # Boolean | If false, test data will be excluded for all tests (optional) (default to null)
 output = true # Boolean | If false, solution stdout&stderr will be excluded for all tests (optional) (default to null)
 answer = true # Boolean | If false, correct answer will be excluded for all tests (optional) (default to null)
+resourceUsage = true # Boolean | If false, resource usage will be excluded for all tests (optional) (default to null)
 
 try: 
     # Returns invocation protocol as JSON document
-    api_response = api_instance.get_run_protocol(id, compileLog=compileLog, testData=testData, output=output, answer=answer)
+    api_response = api_instance.get_run_protocol(id, compileLog=compileLog, testData=testData, output=output, answer=answer, resourceUsage=resourceUsage)
     pprint(api_response)
 except ApiException as e:
     print("Exception when calling DefaultApi->getRunProtocol: %s\n" % e)</code></pre>
@@ -4336,9 +4345,10 @@ pub fn main() {
     let testData = true; // Boolean
     let output = true; // Boolean
     let answer = true; // Boolean
+    let resourceUsage = true; // Boolean
 
     let mut context = DefaultApi::Context::default();
-    let result = client.getRunProtocol(id, compileLog, testData, output, answer, &context).wait();
+    let result = client.getRunProtocol(id, compileLog, testData, output, answer, resourceUsage, &context).wait();
     println!("{:?}", result);
 
 }
@@ -4466,6 +4476,26 @@ If false, solution stdout&amp;stderr will be excluded for all tests
 
                     <div class="inner description marked">
 If false, correct answer will be excluded for all tests
+                    </div>
+            </div>
+        </div>
+    </div>
+</td>
+</tr>
+
+                                <tr><td style="width:150px;">resource_usage</td>
+<td>
+
+
+    <div id="d2e199_getRunProtocol_resourceUsage">
+        <div class="json-schema-view">
+            <div class="primitive">
+                <span class="type">
+                    Boolean
+                </span>
+
+                    <div class="inner description marked">
+If false, resource usage will be excluded for all tests
                     </div>
             </div>
         </div>

@@ -70,6 +70,7 @@ pub trait DefaultApi {
         test_data: Option<bool>,
         output: Option<bool>,
         answer: Option<bool>,
+        resource_usage: Option<bool>,
     ) -> Box<dyn Future<Output = Result<serde_json::Value, Error<serde_json::Value>>> + Unpin>;
     fn get_run_source(
         &self,
@@ -282,6 +283,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         test_data: Option<bool>,
         output: Option<bool>,
         answer: Option<bool>,
+        resource_usage: Option<bool>,
     ) -> Box<dyn Future<Output = Result<serde_json::Value, Error<serde_json::Value>>> + Unpin> {
         let mut req =
             __internal_request::Request::new(hyper::Method::GET, "/runs/{id}/protocol".to_string())
@@ -303,6 +305,9 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
         }
         if let Some(ref s) = answer {
             req = req.with_query_param("answer".to_string(), s.to_string());
+        }
+        if let Some(ref s) = resource_usage {
+            req = req.with_query_param("resource_usage".to_string(), s.to_string());
         }
         req = req.with_path_param("id".to_string(), id.to_string());
 

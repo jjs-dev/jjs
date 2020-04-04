@@ -1,6 +1,8 @@
 use crate::worker::{InvokeRequest, Worker};
 use anyhow::Context;
-use invoker_api::{judge_log, status_codes, Status, StatusKind};
+use invoker_api::{
+    judge_log, status_codes, valuer_proto::TestVisibleComponents, Status, StatusKind,
+};
 use std::io::Read;
 
 impl Worker {
@@ -11,8 +13,15 @@ impl Worker {
         &self,
         valuer_log: &invoker_api::valuer_proto::JudgeLog,
         req: &InvokeRequest,
+        test_results: &[(pom::TestId, crate::worker::exec_test::ExecOutcome)],
     ) -> anyhow::Result<judge_log::JudgeLog> {
-        use invoker_api::valuer_proto::TestVisibleComponents;
+        let resource_usage_by_test = {
+            let mut map = std::collections::HashMap::new();
+            for (k, v) in test_results {
+                map.insert(*k, v.resource_usage);
+            }
+            map
+        };
         let mut persistent_judge_log = judge_log::JudgeLog::default();
         let status = if valuer_log.is_full {
             Status {
@@ -63,6 +72,8 @@ impl Worker {
                     test_stderr: None,
                     test_stdin: None,
                     status: None,
+                    time_usage: None,
+                    memory_usage: None,
                 };
                 let test_local_dir = req.step_dir(Some(item.test_id.get()));
                 if item.components.contains(TestVisibleComponents::TEST_DATA) {
@@ -97,6 +108,15 @@ impl Worker {
                 }
                 if item.components.contains(TestVisibleComponents::STATUS) {
                     new_item.status = Some(item.status.clone());
+                }
+                if let Some(resource_usage) = resource_usage_by_test.get(&item.test_id) {
+                    if item
+                        .components
+                        .contains(TestVisibleComponents::RESOURCE_USAGE)
+                    {
+                        new_item.memory_usage = resource_usage.memory;
+                        new_item.time_usage = resource_usage.time;
+                    }
                 }
                 persistent_judge_log.tests.push(new_item);
             }

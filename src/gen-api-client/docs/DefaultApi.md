@@ -252,7 +252,7 @@ Name | Type | Description  | Required | Notes
 
 ## get_run_protocol
 
-> serde_json::Value get_run_protocol(id, compile_log, test_data, output, answer)
+> serde_json::Value get_run_protocol(id, compile_log, test_data, output, answer, resource_usage)
 Returns invocation protocol as JSON document
 
 ### Parameters
@@ -265,6 +265,7 @@ Name | Type | Description  | Required | Notes
 **test_data** | Option<**bool**> | If false, test data will be excluded for all tests |  |
 **output** | Option<**bool**> | If false, solution stdout&stderr will be excluded for all tests |  |
 **answer** | Option<**bool**> | If false, correct answer will be excluded for all tests |  |
+**resource_usage** | Option<**bool**> | If false, resource usage will be excluded for all tests |  |
 
 ### Return type
 

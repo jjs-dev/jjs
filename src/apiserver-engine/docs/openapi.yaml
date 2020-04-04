@@ -243,7 +243,11 @@ paths:
           description: If false, correct answer will be excluded for all tests
           schema:
             type: boolean
-
+        - in: query
+          name: resource_usage
+          description: If false, resource usage will be excluded for all tests
+          schema:
+            type: boolean
   "/toolchains":
     get:
       operationId: listToolchains
@@ -298,15 +302,13 @@ paths:
 security:
   - AccessToken: []
 
-
 components:
   securitySchemes:
     AccessToken:
       type: apiKey
       in: header
       name: Authorization
-      description: 
-        This token is issued by `/auth/simple` endpoint.
+      description: This token is issued by `/auth/simple` endpoint.
         If it returned SessionToken `tok`, then AccessToken is "Token ${tok.data}"
 
   parameters:

@@ -641,6 +641,14 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "description": "If false, resource usage will be excluded for all tests",
+            "in": "query",
+            "name": "resource_usage",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

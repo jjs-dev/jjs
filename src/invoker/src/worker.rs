@@ -159,7 +159,7 @@ impl Worker {
                         score: 0,
                         is_full: false,
                     };
-                    let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req)?;
+                    let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req, &[])?;
                     protocol.status = st.clone();
                     self.put_protocol(req, protocol).await?;
                 }
@@ -254,7 +254,7 @@ impl Worker {
                 }
                 ValuerResponse::JudgeLog(judge_log) => {
                     let converted_judge_log = self
-                        .process_judge_log(&judge_log, req)
+                        .process_judge_log(&judge_log, req, &test_results)
                         .context("failed to convert valuer judge log to invoker judge log")?;
                     self.put_protocol(req, converted_judge_log)
                         .await

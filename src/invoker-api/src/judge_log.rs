@@ -10,6 +10,8 @@ pub struct JudgeLogTestRow {
     pub test_stdout: Option<String>,
     pub test_stderr: Option<String>,
     pub test_answer: Option<String>,
+    pub time_usage: Option<u64>,
+    pub memory_usage: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -59,7 +59,7 @@ impl GroupVisPreset {
             out |= TestVisibleComponents::all();
         }
         if self == GroupVisPreset::Brief {
-            out |= TestVisibleComponents::STATUS;
+            out |= TestVisibleComponents::STATUS | TestVisibleComponents::RESOURCE_USAGE;
         }
         out
     }

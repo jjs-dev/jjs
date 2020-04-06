@@ -860,6 +860,15 @@ ul.nav-tabs {
     }
   }
 };
+    defs["Participation"] = {
+  "required" : [ "phase" ],
+  "type" : "object",
+  "properties" : {
+    "phase" : {
+      "type" : "string"
+    }
+  }
+};
     defs["Problem"] = {
   "required" : [ "name", "rel_name", "title" ],
   "type" : "object",
@@ -1080,6 +1089,9 @@ ul.nav-tabs {
                     <li data-group="Default" data-name="getContest" class="">
                       <a href="#api-Default-getContest">getContest</a>
                     </li>
+                    <li data-group="Default" data-name="getContestParticipation" class="">
+                      <a href="#api-Default-getContestParticipation">getContestParticipation</a>
+                    </li>
                     <li data-group="Default" data-name="getContestStandings" class="">
                       <a href="#api-Default-getContestStandings">getContestStandings</a>
                     </li>
@@ -1121,6 +1133,9 @@ ul.nav-tabs {
                     </li>
                     <li data-group="Default" data-name="submitRun" class="">
                       <a href="#api-Default-submitRun">submitRun</a>
+                    </li>
+                    <li data-group="Default" data-name="updateContestParticipation" class="">
+                      <a href="#api-Default-updateContestParticipation">updateContestParticipation</a>
                     </li>
           </ul>
         </nav>
@@ -2537,6 +2552,374 @@ pub fn main() {
                                     </script>
                                   </div>
                                   <input id='responses-Default-getContest-200-schema-data' type='hidden' value=''></input>
+                                </div>
+                            </div>
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-Default-getContestParticipation">
+                      <article id="api-Default-getContestParticipation-0" data-group="User" data-name="getContestParticipation" data-version="0">
+                        <div class="pull-left">
+                          <h1>getContestParticipation</h1>
+                          <p>Get information about current user participation</p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked">You should check that status is &quot;ACTIVE&quot;. If it is not, you need register to contest (see updateContestParticipation).
+Otherwise, you will not be able to submit runs</p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/contests/{name}/participation</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-Default-getContestParticipation-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-java">Java</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-Default-getContestParticipation-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-Default-getContestParticipation-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-python">Python</a></li>
+                          <li class=""><a href="#examples-Default-getContestParticipation-0-rust">Rust</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-Default-getContestParticipation-0-curl">
+                            <pre class="prettyprint"><code class="language-bsh">curl -X GET -H "Authorization: [[apiKey]]" "http://localhost/contests/{name}/participation"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-Default-getContestParticipation-0-java">
+                            <pre class="prettyprint"><code class="language-java">import org.openapitools.client.*;
+import org.openapitools.client.auth.*;
+import org.openapitools.client.model.*;
+import org.openapitools.client.api.DefaultApi;
+
+import java.io.File;
+import java.util.*;
+
+public class DefaultApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+        
+        // Configure API key authorization: AccessToken
+        ApiKeyAuth AccessToken = (ApiKeyAuth) defaultClient.getAuthentication("AccessToken");
+        AccessToken.setApiKey("YOUR API KEY");
+        // Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
+        //AccessToken.setApiKeyPrefix("Token");
+
+        DefaultApi apiInstance = new DefaultApi();
+        String name = name_example; // String | 
+        try {
+            Participation result = apiInstance.getContestParticipation(name);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling DefaultApi#getContestParticipation");
+            e.printStackTrace();
+        }
+    }
+}
+</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-Default-getContestParticipation-0-android">
+                            <pre class="prettyprint"><code class="language-java">import org.openapitools.client.api.DefaultApi;
+
+public class DefaultApiExample {
+
+    public static void main(String[] args) {
+        DefaultApi apiInstance = new DefaultApi();
+        String name = name_example; // String | 
+        try {
+            Participation result = apiInstance.getContestParticipation(name);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling DefaultApi#getContestParticipation");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-Default-getContestParticipation-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+// Configure API key authorization: (authentication scheme: AccessToken)
+[apiConfig setApiKey:@"YOUR_API_KEY" forApiKeyIdentifier:@"Authorization"];
+// Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+//[apiConfig setApiKeyPrefix:@"Bearer" forApiKeyIdentifier:@"Authorization"];
+
+String *name = name_example; //  (default to null)
+
+DefaultApi *apiInstance = [[DefaultApi alloc] init];
+
+// Get information about current user participation
+[apiInstance getContestParticipationWith:name
+              completionHandler: ^(Participation output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var JjsMainApi = require('jjs_main_api');
+var defaultClient = JjsMainApi.ApiClient.instance;
+
+// Configure API key authorization: AccessToken
+var AccessToken = defaultClient.authentications['AccessToken'];
+AccessToken.apiKey = "YOUR API KEY"
+// Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
+//AccessToken.apiKeyPrefix['Authorization'] = "Token"
+
+var api = new JjsMainApi.DefaultApi()
+var name = name_example; // {String} 
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.getContestParticipation(name, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-Default-getContestParticipation-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using Org.OpenAPITools.Api;
+using Org.OpenAPITools.Client;
+using Org.OpenAPITools.Model;
+
+namespace Example
+{
+    public class getContestParticipationExample
+    {
+        public void main()
+        {
+            
+            // Configure API key authorization: AccessToken
+            Configuration.Default.ApiKey.Add("Authorization", "YOUR_API_KEY");
+            // Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+            // Configuration.Default.ApiKeyPrefix.Add("Authorization", "Bearer");
+
+            var apiInstance = new DefaultApi();
+            var name = name_example;  // String |  (default to null)
+
+            try
+            {
+                // Get information about current user participation
+                Participation result = apiInstance.getContestParticipation(name);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling DefaultApi.getContestParticipation: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+// Configure API key authorization: AccessToken
+OpenAPITools\Client\Configuration::getDefaultConfiguration()->setApiKey('Authorization', 'YOUR_API_KEY');
+// Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+// OpenAPITools\Client\Configuration::getDefaultConfiguration()->setApiKeyPrefix('Authorization', 'Bearer');
+
+$api_instance = new OpenAPITools\Client\Api\DefaultApi();
+$name = name_example; // String | 
+
+try {
+    $result = $api_instance->getContestParticipation($name);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling DefaultApi->getContestParticipation: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::OPenAPIClient::Configuration;
+use WWW::OPenAPIClient::DefaultApi;
+
+# Configure API key authorization: AccessToken
+$WWW::OPenAPIClient::Configuration::api_key->{'Authorization'} = 'YOUR_API_KEY';
+# uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+#$WWW::OPenAPIClient::Configuration::api_key_prefix->{'Authorization'} = "Bearer";
+
+my $api_instance = WWW::OPenAPIClient::DefaultApi->new();
+my $name = name_example; # String | 
+
+eval { 
+    my $result = $api_instance->getContestParticipation(name => $name);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling DefaultApi->getContestParticipation: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import openapi_client
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Configure API key authorization: AccessToken
+openapi_client.configuration.api_key['Authorization'] = 'YOUR_API_KEY'
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# openapi_client.configuration.api_key_prefix['Authorization'] = 'Bearer'
+
+# create an instance of the API class
+api_instance = openapi_client.DefaultApi()
+name = name_example # String |  (default to null)
+
+try: 
+    # Get information about current user participation
+    api_response = api_instance.get_contest_participation(name)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling DefaultApi->getContestParticipation: %s\n" % e)</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-getContestParticipation-0-rust">
+                              <pre class="prettyprint"><code class="language-rust">extern crate DefaultApi;
+
+pub fn main() {
+    let name = name_example; // String
+
+    let mut context = DefaultApi::Context::default();
+    let result = client.getContestParticipation(name, &context).wait();
+    println!("{:?}", result);
+
+}
+</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Scopes</h2>
+                          <table>
+                            
+                          </table>
+
+                          <h2>Parameters</h2>
+
+                            <div class="methodsubtabletitle">Path parameters</div>
+                            <table id="methodsubtable">
+                                <tr>
+                                  <th width="150px">Name</th>
+                                  <th>Description</th>
+                                </tr>
+                                  <tr><td style="width:150px;">name*</td>
+<td>
+
+
+    <div id="d2e199_getContestParticipation_name">
+        <div class="json-schema-view">
+            <div class="primitive">
+                <span class="type">
+                    String
+                </span>
+
+            </div>
+                <div class="inner required">
+                    Required
+                </div>
+        </div>
+    </div>
+</td>
+</tr>
+
+                            </table>
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3 id="examples-Default-getContestParticipation-title-200"></h3>
+                            <p id="examples-Default-getContestParticipation-description-200" class="marked"></p>
+                            <script>
+                              var responseDefault200_description = `ok`;
+                              var responseDefault200_description_break = responseDefault200_description.indexOf('\n');
+                              if (responseDefault200_description_break == -1) {
+                                $("#examples-Default-getContestParticipation-title-200").text("Status: 200 - " + responseDefault200_description);
+                              } else {
+                                $("#examples-Default-getContestParticipation-title-200").text("Status: 200 - " + responseDefault200_description.substring(0, responseDefault200_description_break));
+                                $("#examples-Default-getContestParticipation-description-200").html(responseDefault200_description.substring(responseDefault200_description_break));
+                              }
+                            </script>
+
+
+                            <ul id="responses-detail-Default-getContestParticipation-200" class="nav nav-tabs nav-tabs-examples" >
+                                <li class="active">
+                                  <a data-toggle="tab" href="#responses-Default-getContestParticipation-200-schema">Schema</a>
+                                </li>
+
+
+
+
+                            </ul>
+
+
+                            <div class="tab-content" id="responses-Default-getContestParticipation-200-wrapper" style='margin-bottom: 10px;'>
+                                <div class="tab-pane active" id="responses-Default-getContestParticipation-200-schema">
+                                  <div id="responses-Default-getContestParticipation-schema-200" class="exampleStyle">
+                                    <script>
+                                      $(document).ready(function() {
+                                        var schemaWrapper = {
+  "description" : "ok",
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "$ref" : "#/components/schemas/Participation"
+      }
+    }
+  }
+};
+                                        var schema = schemaWrapper.schema;
+                                        if (schema.$ref != null) {
+                                          schema = defsParser.$refs.get(schema.$ref);
+                                        } else {
+                                          schemaWrapper.definitions = Object.assign({}, defs);
+                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                            console.log(err);
+                                          });
+                                        }
+
+                                        var view = new JSONSchemaView(schema, 3);
+                                        $('#responses-Default-getContestParticipation-200-schema-data').val(JSON.stringify(schema));
+                                        var result = $('#responses-Default-getContestParticipation-schema-200');
+                                        result.empty();
+                                        result.append(view.render());
+                                      });
+                                    </script>
+                                  </div>
+                                  <input id='responses-Default-getContestParticipation-200-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
                         </article>
@@ -7824,6 +8207,325 @@ $(document).ready(function() {
                                   </div>
                                   <input id='responses-Default-submitRun-200-schema-data' type='hidden' value=''></input>
                                 </div>
+                            </div>
+                        </article>
+                      </div>
+                      <hr>
+                    <div id="api-Default-updateContestParticipation">
+                      <article id="api-Default-updateContestParticipation-0" data-group="User" data-name="updateContestParticipation" data-version="0">
+                        <div class="pull-left">
+                          <h1>updateContestParticipation</h1>
+                          <p>Update current user participation</p>
+                        </div>
+                        <div class="pull-right"></div>
+                        <div class="clearfix"></div>
+                        <p></p>
+                        <p class="marked">Using this operation you can start patricipating in contest</p>
+                        <p></p>
+                        <br />
+                        <pre class="prettyprint language-html prettyprinted" data-type="patch"><code><span class="pln">/contests/{name}/participation</span></code></pre>
+                        <p>
+                          <h3>Usage and SDK Samples</h3>
+                        </p>
+                        <ul class="nav nav-tabs nav-tabs-examples">
+                          <li class="active"><a href="#examples-Default-updateContestParticipation-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-java">Java</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-Default-updateContestParticipation-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-Default-updateContestParticipation-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-python">Python</a></li>
+                          <li class=""><a href="#examples-Default-updateContestParticipation-0-rust">Rust</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="examples-Default-updateContestParticipation-0-curl">
+                            <pre class="prettyprint"><code class="language-bsh">curl -X PATCH -H "Authorization: [[apiKey]]" "http://localhost/contests/{name}/participation"</code></pre>
+                          </div>
+                          <div class="tab-pane" id="examples-Default-updateContestParticipation-0-java">
+                            <pre class="prettyprint"><code class="language-java">import org.openapitools.client.*;
+import org.openapitools.client.auth.*;
+import org.openapitools.client.model.*;
+import org.openapitools.client.api.DefaultApi;
+
+import java.io.File;
+import java.util.*;
+
+public class DefaultApiExample {
+
+    public static void main(String[] args) {
+        ApiClient defaultClient = Configuration.getDefaultApiClient();
+        
+        // Configure API key authorization: AccessToken
+        ApiKeyAuth AccessToken = (ApiKeyAuth) defaultClient.getAuthentication("AccessToken");
+        AccessToken.setApiKey("YOUR API KEY");
+        // Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
+        //AccessToken.setApiKeyPrefix("Token");
+
+        DefaultApi apiInstance = new DefaultApi();
+        String name = name_example; // String | 
+        try {
+            apiInstance.updateContestParticipation(name);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling DefaultApi#updateContestParticipation");
+            e.printStackTrace();
+        }
+    }
+}
+</code></pre>
+                          </div>
+
+                          <div class="tab-pane" id="examples-Default-updateContestParticipation-0-android">
+                            <pre class="prettyprint"><code class="language-java">import org.openapitools.client.api.DefaultApi;
+
+public class DefaultApiExample {
+
+    public static void main(String[] args) {
+        DefaultApi apiInstance = new DefaultApi();
+        String name = name_example; // String | 
+        try {
+            apiInstance.updateContestParticipation(name);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling DefaultApi#updateContestParticipation");
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                          </div>
+  <!--
+  <div class="tab-pane" id="examples-Default-updateContestParticipation-0-groovy">
+  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+  </div> -->
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">Configuration *apiConfig = [Configuration sharedConfig];
+
+// Configure API key authorization: (authentication scheme: AccessToken)
+[apiConfig setApiKey:@"YOUR_API_KEY" forApiKeyIdentifier:@"Authorization"];
+// Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+//[apiConfig setApiKeyPrefix:@"Bearer" forApiKeyIdentifier:@"Authorization"];
+
+String *name = name_example; //  (default to null)
+
+DefaultApi *apiInstance = [[DefaultApi alloc] init];
+
+// Update current user participation
+[apiInstance updateContestParticipationWith:name
+              completionHandler: ^(NSError* error) {
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-javascript">
+                              <pre class="prettyprint"><code class="language-js">var JjsMainApi = require('jjs_main_api');
+var defaultClient = JjsMainApi.ApiClient.instance;
+
+// Configure API key authorization: AccessToken
+var AccessToken = defaultClient.authentications['AccessToken'];
+AccessToken.apiKey = "YOUR API KEY"
+// Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
+//AccessToken.apiKeyPrefix['Authorization'] = "Token"
+
+var api = new JjsMainApi.DefaultApi()
+var name = name_example; // {String} 
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully.');
+  }
+};
+api.updateContestParticipation(name, callback);
+</code></pre>
+                            </div>
+
+                            <!--<div class="tab-pane" id="examples-Default-updateContestParticipation-0-angular">
+              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
+            </div>-->
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-csharp">
+                              <pre class="prettyprint"><code class="language-cs">using System;
+using System.Diagnostics;
+using Org.OpenAPITools.Api;
+using Org.OpenAPITools.Client;
+using Org.OpenAPITools.Model;
+
+namespace Example
+{
+    public class updateContestParticipationExample
+    {
+        public void main()
+        {
+            
+            // Configure API key authorization: AccessToken
+            Configuration.Default.ApiKey.Add("Authorization", "YOUR_API_KEY");
+            // Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+            // Configuration.Default.ApiKeyPrefix.Add("Authorization", "Bearer");
+
+            var apiInstance = new DefaultApi();
+            var name = name_example;  // String |  (default to null)
+
+            try
+            {
+                // Update current user participation
+                apiInstance.updateContestParticipation(name);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling DefaultApi.updateContestParticipation: " + e.Message );
+            }
+        }
+    }
+}
+</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-php">
+                              <pre class="prettyprint"><code class="language-php"><&#63;php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+// Configure API key authorization: AccessToken
+OpenAPITools\Client\Configuration::getDefaultConfiguration()->setApiKey('Authorization', 'YOUR_API_KEY');
+// Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+// OpenAPITools\Client\Configuration::getDefaultConfiguration()->setApiKeyPrefix('Authorization', 'Bearer');
+
+$api_instance = new OpenAPITools\Client\Api\DefaultApi();
+$name = name_example; // String | 
+
+try {
+    $api_instance->updateContestParticipation($name);
+} catch (Exception $e) {
+    echo 'Exception when calling DefaultApi->updateContestParticipation: ', $e->getMessage(), PHP_EOL;
+}
+?></code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-perl">
+                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
+use WWW::OPenAPIClient::Configuration;
+use WWW::OPenAPIClient::DefaultApi;
+
+# Configure API key authorization: AccessToken
+$WWW::OPenAPIClient::Configuration::api_key->{'Authorization'} = 'YOUR_API_KEY';
+# uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+#$WWW::OPenAPIClient::Configuration::api_key_prefix->{'Authorization'} = "Bearer";
+
+my $api_instance = WWW::OPenAPIClient::DefaultApi->new();
+my $name = name_example; # String | 
+
+eval { 
+    $api_instance->updateContestParticipation(name => $name);
+};
+if ($@) {
+    warn "Exception when calling DefaultApi->updateContestParticipation: $@\n";
+}</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-python">
+                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
+import time
+import openapi_client
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Configure API key authorization: AccessToken
+openapi_client.configuration.api_key['Authorization'] = 'YOUR_API_KEY'
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# openapi_client.configuration.api_key_prefix['Authorization'] = 'Bearer'
+
+# create an instance of the API class
+api_instance = openapi_client.DefaultApi()
+name = name_example # String |  (default to null)
+
+try: 
+    # Update current user participation
+    api_instance.update_contest_participation(name)
+except ApiException as e:
+    print("Exception when calling DefaultApi->updateContestParticipation: %s\n" % e)</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="examples-Default-updateContestParticipation-0-rust">
+                              <pre class="prettyprint"><code class="language-rust">extern crate DefaultApi;
+
+pub fn main() {
+    let name = name_example; // String
+
+    let mut context = DefaultApi::Context::default();
+    let result = client.updateContestParticipation(name, &context).wait();
+    println!("{:?}", result);
+
+}
+</code></pre>
+                            </div>
+                          </div>
+
+                          <h2>Scopes</h2>
+                          <table>
+                            
+                          </table>
+
+                          <h2>Parameters</h2>
+
+                            <div class="methodsubtabletitle">Path parameters</div>
+                            <table id="methodsubtable">
+                                <tr>
+                                  <th width="150px">Name</th>
+                                  <th>Description</th>
+                                </tr>
+                                  <tr><td style="width:150px;">name*</td>
+<td>
+
+
+    <div id="d2e199_updateContestParticipation_name">
+        <div class="json-schema-view">
+            <div class="primitive">
+                <span class="type">
+                    String
+                </span>
+
+            </div>
+                <div class="inner required">
+                    Required
+                </div>
+        </div>
+    </div>
+</td>
+</tr>
+
+                            </table>
+
+
+
+
+
+                          <h2>Responses</h2>
+                            <h3 id="examples-Default-updateContestParticipation-title-204"></h3>
+                            <p id="examples-Default-updateContestParticipation-description-204" class="marked"></p>
+                            <script>
+                              var responseDefault204_description = `ok`;
+                              var responseDefault204_description_break = responseDefault204_description.indexOf('\n');
+                              if (responseDefault204_description_break == -1) {
+                                $("#examples-Default-updateContestParticipation-title-204").text("Status: 204 - " + responseDefault204_description);
+                              } else {
+                                $("#examples-Default-updateContestParticipation-title-204").text("Status: 204 - " + responseDefault204_description.substring(0, responseDefault204_description_break));
+                                $("#examples-Default-updateContestParticipation-description-204").html(responseDefault204_description.substring(responseDefault204_description_break));
+                              }
+                            </script>
+
+
+                            <ul id="responses-detail-Default-updateContestParticipation-204" class="nav nav-tabs nav-tabs-examples" >
+
+
+                            </ul>
+
+
+                            <div class="tab-content" id="responses-Default-updateContestParticipation-204-wrapper" style='margin-bottom: 10px;'>
                             </div>
                         </article>
                       </div>

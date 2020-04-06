@@ -66,10 +66,14 @@ impl EnvBuilder {
                 name: "dev-problem".to_string(),
                 code: "A".to_string(),
             }],
-            group: Vec::new(),
+            group: vec!["Participants".to_string()],
             unregistered_visible: false,
             anon_visible: false,
-            judges: Vec::new(),
+            judges: vec!["Judges".to_string()],
+            is_virtual: false,
+            start_time: None,
+            end_time: None,
+            duration: None,
         };
 
         self.get().put(contest);
@@ -143,15 +147,30 @@ impl RequestBuilder<'_> {
         self
     }
 
+    pub fn method(&mut self, m: apiserver_engine::test_util::Method) -> &mut Self {
+        self.builder.method(m);
+        self
+    }
+
     pub async fn exec(&self) -> test_util::Response {
         let url = self.builder.action.clone().expect("no action was provided");
-        let request = if self.builder.body.is_empty() {
-            self.client.get(url)
+        let mut request = if self.builder.body.is_empty() {
+            match self.builder.method {
+                Some(apiserver_engine::test_util::Method::Delete) => self.client.delete(url),
+                None => self.client.get(url),
+                _ => unreachable!(),
+            }
         } else {
-            self.client
-                .post(url)
-                .body(serde_json::to_string(&self.builder.body).expect("serialize request body"))
+            match self.builder.method {
+                Some(apiserver_engine::test_util::Method::Patch) => self.client.patch(url),
+                None => self.client.post(url),
+                _ => unreachable!(),
+            }
         };
+        if !self.builder.body.is_empty() {
+            request = request
+                .body(serde_json::to_string(&self.builder.body).expect("serialize request body"));
+        }
         let request = request
             .header(rocket::http::Header::new(
                 "Authorization",
@@ -162,6 +181,9 @@ impl RequestBuilder<'_> {
             .header(rocket::http::ContentType::JSON);
 
         let mut response = request.dispatch().await;
+        if response.status().code == 204 {
+            return test_util::Response(serde_json::Value::Null);
+        }
         if response.content_type() != Some("application/json".parse().unwrap()) {
             eprintln!("Apiserver returned non-json: {:?}", response.content_type());
             eprintln!(

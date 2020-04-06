@@ -53,6 +53,10 @@ pub(super) fn import(
         group: vec![],
         unregistered_visible: false,
         anon_visible: false,
+        duration: None,
+        end_time: None,
+        start_time: None,
+        is_virtual: false,
     };
     go(doc.root(), &mut cfg)?;
     Ok(cfg)

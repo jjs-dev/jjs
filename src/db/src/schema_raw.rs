@@ -22,6 +22,18 @@ table! {
 table! {
     use super::*;
 
+    participations (id) {
+        id -> Int4,
+        user_id -> Uuid,
+        contest_id -> Varchar,
+        phase -> Int2,
+        virtual_contest_start_time -> Nullable<Timestamp>,
+    }
+}
+
+table! {
+    use super::*;
+
     runs (id) {
         id -> Int4,
         toolchain_id -> Varchar,
@@ -44,11 +56,13 @@ table! {
 }
 
 joinable!(invocations -> runs (run_id));
+joinable!(participations -> users (user_id));
 joinable!(runs -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     invocations,
     kv,
+    participations,
     runs,
     users,
 );

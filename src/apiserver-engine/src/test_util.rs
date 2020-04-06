@@ -5,6 +5,7 @@ pub struct Response(pub serde_json::Value);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Method {
     Delete,
+    Patch,
 }
 
 impl std::ops::Deref for Response {
@@ -24,13 +25,10 @@ impl Response {
         if self.is_ok() {
             self.0
         } else {
-            let err = self
-                .0
-                .get("error")
-                .expect("error missing on failed request");
+            let err = self.0.get("message").expect("message missing on response");
             eprintln!(
                 "Error: query failed with error {}",
-                err.as_str().expect("'error' field missing")
+                err.as_str().expect("'message' field is not string")
             );
             eprintln!(
                 "Server response contains error: {}",
@@ -64,7 +62,11 @@ impl std::fmt::Display for ErrorPrettyPrinter<'_> {
                 writeln!(f, "error code: {}", error_code.to_string())?;
             }
             if let Some(backtrace) = ext.get("trace") {
-                writeln!(f, "backtrace: {}", backtrace.as_str().unwrap())?;
+                writeln!(
+                    f,
+                    "backtrace: {}",
+                    serde_json::to_string_pretty(&backtrace).unwrap()
+                )?;
             }
         }
         Ok(())

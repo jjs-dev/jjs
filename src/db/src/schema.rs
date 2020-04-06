@@ -1,6 +1,9 @@
 mod invocation;
+mod participation;
 
-// use anyhow::{Context, Result};
+pub use invocation::InvocationState;
+pub use participation::ParticipationPhase;
+
 use serde::{Deserialize, Serialize};
 
 pub type RunId = i32;
@@ -8,6 +11,7 @@ pub type InvocationId = i32;
 pub type UserId = uuid::Uuid;
 pub type ProblemId = String;
 pub type ContestId = String;
+pub type ParticipationId = i32;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Queryable, PartialEq, Eq)]
 pub struct Run {
@@ -35,7 +39,6 @@ pub struct RunPatch {
     #[column_name = "rejudge_id"]
     pub rejudge_id: Option<i32>,
 }
-pub use invocation::InvocationState;
 
 #[derive(Queryable, QueryableByName, Debug, Clone, Serialize, Deserialize)]
 #[table_name = "invocations"]
@@ -83,6 +86,24 @@ pub(crate) struct KvPair {
     #[column_name = "name"]
     pub(crate) key: String,
     pub(crate) value: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Queryable)]
+pub struct Participation {
+    pub id: ParticipationId,
+    pub user_id: UserId,
+    pub contest_id: ContestId,
+    pub(crate) phase: i16,
+    pub(crate) virtual_contest_start_time: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Insertable, Default)]
+#[table_name = "participations"]
+pub struct NewParticipation {
+    pub user_id: UserId,
+    pub contest_id: ContestId,
+    pub(crate) phase: i16,
+    pub(crate) virtual_contest_start_time: Option<chrono::NaiveDateTime>,
 }
 
 use diesel::sql_types::*;

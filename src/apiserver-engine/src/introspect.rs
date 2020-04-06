@@ -52,6 +52,7 @@ pub fn introspect() -> Introspection {
         .add_object::<crate::api::auth::SimpleAuthParams>()
         .add_object::<crate::api::contests::Contest>()
         .add_object::<crate::api::contests::Problem>()
+        .add_object::<crate::api::contests::Participation>()
         .add_object::<crate::api::misc::ApiVersion>()
         .add_object::<crate::api::runs::Run>()
         .add_object::<crate::api::runs::InvokeStatus>()

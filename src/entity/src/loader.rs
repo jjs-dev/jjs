@@ -9,6 +9,7 @@ use std::{
 
 use crate::entities::Entity;
 
+#[derive(Debug)]
 pub struct Loader {
     entities: HashMap<TypeId, HashMap<String, Box<dyn Any + Send + Sync>>>,
 }

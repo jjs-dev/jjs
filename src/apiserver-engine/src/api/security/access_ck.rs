@@ -1,121 +1,157 @@
 use super::Token;
-use crate::api::schema::{ContestId, RunId};
+
+#[derive(Clone, Debug)]
+pub(crate) struct Subjects {
+    pub(crate) contest: Option<entity::Contest>,
+    pub(crate) participation: Option<db::schema::Participation>,
+    pub(crate) run: Option<db::schema::Run>,
+}
 
 /// Access check service
-#[derive(Copy, Clone)]
-pub(crate) struct RawAccessChecker<'a> {
+#[derive(Clone, Debug)]
+pub(crate) struct AccessChecker<'a> {
     pub(crate) token: &'a Token,
     pub(crate) cfg: &'a entity::Loader,
-    pub(crate) db: &'a db::DbConn,
+    pub(crate) subjects: Subjects,
 }
 
-impl<'a> RawAccessChecker<'a> {
-    fn wrap<T>(&self, obj: T) -> AccessChecker<'a, T> {
-        AccessChecker { raw: *self, obj }
-    }
-
-    pub(crate) fn wrap_contest(
-        &self,
-        contest_id: ContestId,
-    ) -> AccessChecker<'a, ack_subject::Contest> {
-        self.wrap(ack_subject::Contest(contest_id))
-    }
-
-    pub(crate) fn wrap_run(&self, run_id: RunId) -> AccessChecker<'a, ack_subject::Run> {
-        self.wrap(ack_subject::Run(run_id))
-    }
-
-    pub(crate) fn is_sudo(&self) -> AccessResult {
-        // When namespaces are introduced, this function will account for that
-        Ok(self.token.user_info.name == "Global/Root")
+impl AccessChecker<'_> {
+    pub(crate) fn is_sudo(&self) -> bool {
+        self.token.user_info.name == "Global/Root"
     }
 }
 
-pub(crate) mod ack_subject {
-    use super::*;
-    pub(crate) struct Contest(pub(super) ContestId);
-
-    pub(crate) struct Run(pub(super) RunId);
-}
-
-pub(crate) struct AccessChecker<'a, T> {
-    raw: RawAccessChecker<'a>,
-    obj: T,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum AccessCheckError {
-    #[error("subject not found")]
-    NotFound,
-    #[error("database query error: {source}")]
-    Db {
-        #[from]
-        source: db::Error,
-    },
-}
-
-pub(crate) type AccessResult = Result<bool, AccessCheckError>;
-
-impl AccessChecker<'_, ack_subject::Run> {
-    async fn for_contest(
-        &self,
-    ) -> Result<AccessChecker<'_, ack_subject::Contest>, AccessCheckError> {
-        let run = self.raw.db.run_load(self.obj.0).await?;
-        Ok(self.raw.wrap_contest(run.contest_id))
-    }
-
-    pub(crate) async fn can_modify_run(&self) -> AccessResult {
-        if self.for_contest().await?.is_contest_sudo()? {
-            return Ok(true);
+impl AccessChecker<'_> {
+    pub(crate) fn can_modify_run(&self) -> bool {
+        if self.is_contest_sudo() {
+            return true;
         }
-        let run = self.raw.db.run_load(self.obj.0).await?;
 
-        Ok(run.user_id == self.raw.token.user_id())
+        self.subjects.run.as_ref().unwrap().user_id == self.token.user_id()
+    }
+
+    pub(crate) fn can_view_run(&self) -> bool {
+        if self.is_contest_sudo() {
+            return true;
+        }
+        self.subjects.run.as_ref().unwrap().user_id == self.token.user_id()
     }
 }
 
-impl AccessChecker<'_, ack_subject::Contest> {
-    pub(crate) fn can_submit(&self) -> AccessResult {
-        let contest = self
-            .raw
-            .cfg
-            .find::<entity::Contest>(&self.obj.0)
-            .ok_or(AccessCheckError::NotFound)?;
-        if self.is_contest_sudo()? {
-            return Ok(true);
+impl AccessChecker<'_> {
+    pub(crate) fn can_participate(&self) -> bool {
+        if self.is_contest_sudo() {
+            return true;
         }
-        for registered_group in &contest.group {
-            if self.raw.token.user_info.groups.contains(registered_group) {
-                return Ok(true);
+        let mut is_registered = false;
+        for registered_group in &self.subjects.contest.as_ref().unwrap().group {
+            if self.token.user_info.groups.contains(registered_group) {
+                is_registered = true;
+                break;
             }
         }
-        Ok(false)
+        is_registered
     }
 
-    fn is_contest_sudo(&self) -> AccessResult {
-        if self.raw.is_sudo()? {
-            return Ok(true);
+    pub(crate) fn can_submit(&self) -> bool {
+        if self.is_contest_sudo() {
+            return true;
         }
-        let contest = self
-            .raw
-            .cfg
-            .find::<entity::Contest>(&self.obj.0)
-            .ok_or(AccessCheckError::NotFound)?;
-        for judges_group in &contest.judges {
-            if self.raw.token.user_info.groups.contains(judges_group) {
-                return Ok(true);
+        match &self.subjects.participation {
+            None => false,
+            Some(p) => match p.phase() {
+                db::schema::ParticipationPhase::Active => is_contest_running_at(
+                    self.subjects.contest.as_ref().unwrap(),
+                    chrono::Utc::now(),
+                    self.subjects.participation.as_ref().unwrap(),
+                ),
+                db::schema::ParticipationPhase::__Last => unreachable!(),
+            },
+        }
+    }
+
+    fn is_contest_sudo(&self) -> bool {
+        if self.is_sudo() {
+            return true;
+        }
+        for judges_group in &self.subjects.contest.as_ref().unwrap().judges {
+            if self.token.user_info.groups.contains(judges_group) {
+                return true;
             }
         }
-        Ok(false)
+        false
     }
 
-    pub(crate) fn select_judge_log_kind(
-        &self,
-    ) -> Result<invoker_api::valuer_proto::JudgeLogKind, AccessCheckError> {
+    pub(crate) fn select_judge_log_kind(&self) -> invoker_api::valuer_proto::JudgeLogKind {
         use invoker_api::valuer_proto::JudgeLogKind;
-        if self.is_contest_sudo()? {
-            return Ok(JudgeLogKind::Full);
+        if self.is_contest_sudo() {
+            return JudgeLogKind::Full;
         }
-        Ok(JudgeLogKind::Contestant)
+        JudgeLogKind::Contestant
+    }
+}
+
+fn is_contest_running_at(
+    contest: &entity::Contest,
+    moment: chrono::DateTime<chrono::Utc>,
+    participation: &db::schema::Participation,
+) -> bool {
+    if contest.is_virtual {
+        let time_since_beginning = moment - participation.virtual_contest_start_time().unwrap();
+        match contest.duration {
+            Some(contest_duration) => {
+                time_since_beginning <= chrono::Duration::from_std(contest_duration).unwrap()
+                    && time_since_beginning.num_milliseconds() >= 0
+            }
+            None => true,
+        }
+    } else {
+        match contest.end_time {
+            Some(end_time) => moment < end_time,
+            None => true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use db::schema::Participation;
+    use entity::Contest;
+
+    fn mktime(h: u32, m: u32, s: u32) -> chrono::DateTime<chrono::Utc> {
+        chrono::DateTime::from_utc(
+            chrono::NaiveDate::from_ymd(2001, 1, 1).and_hms(h, m, s),
+            chrono::Utc,
+        )
+    }
+
+    fn mkpart_nonvirt() -> Participation {
+        Participation::mock_new()
+    }
+
+    #[test]
+    fn test_is_contest_running_at() {
+        assert!(is_contest_running_at(
+            &Contest {
+                is_virtual: false,
+                start_time: Some(mktime(10, 0, 0)),
+                end_time: Some(mktime(14, 0, 0)),
+                ..Default::default()
+            },
+            mktime(12, 0, 0),
+            &mkpart_nonvirt()
+        ));
+
+        assert!(!is_contest_running_at(
+            &Contest {
+                is_virtual: false,
+                start_time: Some(mktime(10, 0, 0)),
+                end_time: Some(mktime(14, 0, 0)),
+                ..Default::default()
+            },
+            mktime(16, 0, 0),
+            &mkpart_nonvirt()
+        ));
     }
 }

@@ -78,6 +78,13 @@ pub trait KvRepo: Send + Sync {
     async fn kv_del(&self, key: &str) -> Result<()>;
 }
 
-pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo + KvRepo {}
+#[async_trait]
+pub trait ParticipationsRepo: Send + Sync {
+    async fn part_new(&self, part_data: NewParticipation) -> Result<Participation>;
+    async fn part_find(&self, id: ParticipationId) -> Result<Option<Participation>>;
+    async fn part_lookup(&self, user_id: UserId, contest_id: &str)
+    -> Result<Option<Participation>>;
+}
+pub trait Repo: RunsRepo + InvocationsRepo + UsersRepo + KvRepo + ParticipationsRepo {}
 
 impl dyn Repo {}

@@ -124,6 +124,8 @@ impl ApiServer {
                     api::contests::route_get,
                     api::contests::route_list,
                     api::contests::route_list_problems,
+                    api::contests::route_get_participation,
+                    api::contests::route_update_participation,
                     api::runs::route_list,
                     api::runs::route_get,
                     api::runs::route_submit_simple,

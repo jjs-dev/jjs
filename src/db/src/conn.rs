@@ -38,6 +38,13 @@ impl DbConn {
         }
         &self.mem
     }
+
+    fn participations_repo(&self) -> &dyn crate::repo::ParticipationsRepo {
+        if let Some(pg) = &self.pg {
+            return &*pg;
+        }
+        &self.mem
+    }
 }
 
 impl DbConn {
@@ -156,5 +163,22 @@ impl DbConn {
 
     pub async fn kv_del(&self, key: &str) -> Result<()> {
         self.kv_repo().kv_del(key).await
+    }
+
+    pub async fn part_lookup(
+        &self,
+        user_id: crate::schema::UserId,
+        contest_id: &str,
+    ) -> Result<Option<crate::schema::Participation>> {
+        self.participations_repo()
+            .part_lookup(user_id, contest_id)
+            .await
+    }
+
+    pub async fn part_new(
+        &self,
+        data: crate::schema::NewParticipation,
+    ) -> Result<crate::schema::Participation> {
+        self.participations_repo().part_new(data).await
     }
 }

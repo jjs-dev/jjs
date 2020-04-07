@@ -1,0 +1,19 @@
+- name: Install APT packages
+  apt:
+    name: libpq-dev
+- name: Copy JJS package
+  copy:
+    dest: /tmp/
+    src: "{{ pkg_path }}"
+- name: "TODO: hack"
+  apt:
+    name: jjs
+    state: absent
+- name: Install JJS package
+  apt:
+    deb: /tmp/jjs.deb
+    state: present
+- name: Setup JJS user
+  user:
+    create_home: true
+    name: jjs

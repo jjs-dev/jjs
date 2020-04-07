@@ -35,6 +35,7 @@ pub struct ComponentsConfig {
     pub core: bool,
     pub extras: bool,
     pub json_schema: bool,
+    pub example_problems: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

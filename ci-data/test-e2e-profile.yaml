@@ -5,10 +5,6 @@ pg:
   conn-string: "postgresql://jjs:internal@localhost:5432/jjs"
 toolchains: {}
 problems:
-  tasks:
-    - source:
-        path: "/opt/jjs/example-problems/a-plus-b"
-    - source:
-        path: "/opt/jjs/example-problems/array-sum"
-    - source:
-        path: "/opt/jjs/example-problems/sqrt"
+  archive:
+    sources:
+      - path: "/opt/jjs/pkg/problems.tgz"

@@ -38,9 +38,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.26"
+version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7825f6833612eb2414095684fcf6c635becf3ce97fe48cf6421321e93bfbd53c"
+checksum = "d9a60d744a80c30fcb657dfe2c1b22bcb3e814c1a1e3674f32bf5820b570fbff"
 
 [[package]]
 name = "apiserver"
@@ -668,7 +668,9 @@ dependencies = [
 name = "deploy"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "console",
+ "flate2",
  "fs_extra",
  "log",
  "serde",
@@ -918,6 +920,20 @@ checksum = "b1260d61e4fe2a6ab845ffdc426a0bd68ffb240b91cf0ec5a8d1170cec535bd8"
 dependencies = [
  "lazy_static",
  "libc",
+]
+
+[[package]]
+name = "flate2"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cfff41391129e0a856d6d822600b8d71179d46879e310417eb9c762eb178b42"
+dependencies = [
+ "cfg-if",
+ "crc32fast",
+ "futures 0.1.29",
+ "libc",
+ "miniz_oxide",
+ "tokio-io",
 ]
 
 [[package]]
@@ -1631,6 +1647,15 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "minion",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa679ff6578b1cddee93d7e82e263b94a575e0bfced07284eb0c037c1d2416a5"
+dependencies = [
+ "adler32",
 ]
 
 [[package]]
@@ -2937,6 +2962,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "backtrace",
+ "flate2",
  "fs_extra",
  "futures 0.3.4",
  "log",
@@ -2944,6 +2970,7 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.8.11",
  "structopt",
+ "tar",
  "thiserror",
  "tokio 0.2.13",
  "tokio-postgres",

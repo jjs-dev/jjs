@@ -1,0 +1,33 @@
+- name: Install APT packages
+  apt:
+    name:
+      - "libpq-dev"
+      - "python3-setuptools"
+      - "python3-pip"
+    update_cache: true
+- block:
+    - name: Install PG 11 APT packages
+      apt:
+        name:
+          - "postgresql-client-11"
+          - "postgresql-11"
+  rescue:
+    - name: Install PG 10 APT packages
+      apt:
+        name:
+          - "postgresql-client-10"
+          - "postgresql-10"
+- name: Create JJS database
+  postgresql_db:
+    name: jjs
+  become: true
+  become_user: postgres
+- name: Setup JJS postgres user
+  postgresql_user:
+    db: jjs
+    name: jjs
+    # TODO: take variable
+    password: internal
+    role_attr_flags: "SUPERUSER"
+  become: true
+  become_user: postgres

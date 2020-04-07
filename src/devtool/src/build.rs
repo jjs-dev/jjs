@@ -93,6 +93,9 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
     } else {
         cmd.arg("--disable-man");
     }
+    if opts.raw().setup || detect_build_type().is_pr_e2e() {
+        cmd.arg("--enable-compile-trial-contest");
+    }
 
     for opt in &opts.raw().configure {
         cmd.arg(opt);
@@ -105,7 +108,7 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
 
     if opts.raw().setup {
         println!("running setup");
-        std::fs::remove_dir_all("/tmp/jjs").ok();
+        // std::fs::remove_dir_all("/tmp/jjs").ok();
         Command::new("/opt/jjs/bin/jjs-setup")
             .arg("./basic-setup-profile.yaml")
             .arg("upgrade")

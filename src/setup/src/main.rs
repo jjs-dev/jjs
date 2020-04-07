@@ -181,15 +181,21 @@ async fn process_problems(profile: &Profile, action: Subcommand) -> anyhow::Resu
         Some(p) => p,
         None => return Ok(SystemHealth::Ok),
     };
-    let mut paths = Vec::new();
-    for task in &prof.tasks {
-        let profile::ProblemSource::Path { path } = &task.source;
-        paths.push(path.as_path());
+    let mut compile_paths = Vec::new();
+    let mut archive_paths = Vec::new();
+    for source in &prof.compile.sources {
+        let profile::Source::Path { path } = &source;
+        compile_paths.push(path.as_path());
+    }
+    for archive in &prof.archive.sources {
+        let profile::Source::Path { path } = &archive;
+        archive_paths.push(path.as_path());
     }
     let cx = setup::problems::Context {
         data_dir,
         install_dir: &profile.install_dir,
-        paths: &paths,
+        compile_paths: &compile_paths,
+        archive_paths: &archive_paths,
     };
     let problems = setup::problems::analyze(cx)
         .await

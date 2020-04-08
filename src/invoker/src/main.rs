@@ -58,15 +58,29 @@ async fn real_main() -> anyhow::Result<()> {
         return invoker::worker::main().await;
     }
 
-    let config = util::cfg::load_cfg_data()?;
+    let system_config_data = util::cfg::load_cfg_data()?;
 
     debug!("system check passed");
 
-    let driver = make_sources(&config)
+    let driver = make_sources(&system_config_data)
         .await
         .context("failed to initialize driver")?;
-    let controller = invoker::controller::Controller::new(driver, config, 3)
-        .context("failed to start controller")?;
+
+    let invoker_config_file_path = system_config_data.data_dir.join("etc/invoker.yaml");
+    let invoker_config_data = tokio::fs::read(&invoker_config_file_path)
+        .await
+        .with_context(|| {
+            format!(
+                "unable to read config from {}",
+                invoker_config_file_path.display()
+            )
+        })?;
+    let invoker_config =
+        serde_yaml::from_slice(&invoker_config_data).context("config parse error")?;
+
+    let controller =
+        invoker::controller::Controller::new(driver, system_config_data, invoker_config)
+            .context("failed to start controller")?;
 
     util::daemon_notify_ready();
     controller.run_forever().await;

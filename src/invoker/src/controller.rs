@@ -184,15 +184,33 @@ pub struct Controller {
     problem_loader: Arc<problem_loader::Loader>,
     global_files_dir: Arc<Path>,
     toolchains_dir: Arc<Path>,
+    config: crate::config::InvokerConfig,
+}
+
+fn get_num_cpus() -> usize {
+    static CACHE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let old = CACHE.load(std::sync::atomic::Ordering::Relaxed);
+    if old != 0 {
+        return old;
+    }
+    let corr = num_cpus::get();
+    assert_ne!(corr, 0);
+    CACHE.store(corr, std::sync::atomic::Ordering::Relaxed);
+    corr
 }
 
 impl Controller {
     pub fn new(
         sources: Vec<Arc<dyn TaskSource>>,
         cfg_data: util::cfg::CfgData,
-        worker_count: usize,
+        config: crate::config::InvokerConfig,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();
+        let worker_count = match config.workers {
+            Some(cnt) => cnt,
+            None => get_num_cpus(),
+        };
+        info!("Using {} workers", worker_count);
         for _ in 0..worker_count {
             let mut child = tokio::process::Command::new(std::env::current_exe()?)
                 .env("__JJS_WORKER", "1")
@@ -219,6 +237,7 @@ impl Controller {
             queues: Arc::new(ControllerQueues::new()),
             global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
+            config,
         })
     }
 
@@ -226,6 +245,7 @@ impl Controller {
         if let Err(err) = self.setup_signal() {
             error!("SIGTERM handler is not registered: {}", err);
         }
+        let mut sleep_duration = 0;
         loop {
             if !self.should_run() {
                 break;
@@ -238,9 +258,12 @@ impl Controller {
                 Ok(flag) => !flag,
             };
             if sleep {
-                // TODO adaptive sleep duration
-                let sleep_time = std::time::Duration::from_secs(2);
+                sleep_duration += self.config.sleep.step_ms;
+                sleep_duration = std::cmp::min(sleep_duration, self.config.sleep.max_ms);
+                let sleep_time = std::time::Duration::from_millis(sleep_duration.into());
                 std::thread::sleep(sleep_time);
+            } else {
+                sleep_duration = 0;
             }
         }
     }

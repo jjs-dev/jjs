@@ -32,3 +32,5 @@ problem-loader = {path = "../problem-loader"}
 tokio = {version = "0.2.13", features = ["rt-core", "process", "io-std"]}
 log = "0.4.8"
 async-trait = "0.1.27"
+num_cpus = "1.12.0"
+serde_yaml = "0.8.11"

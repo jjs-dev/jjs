@@ -78,6 +78,9 @@ struct Opt {
     /// If enabled, json schemas will be emitted
     #[structopt(long = "enable-json-schema")]
     json_schema: bool,
+    /// If enabled, trial contest problems will be compiled and packaged into archive
+    #[structopt(long = "enable-compile-trial-contest")]
+    compile_trial_contest: bool,
 }
 
 impl Opt {
@@ -222,6 +225,7 @@ fn main() {
         extras: opt.extras,
         api_doc: opt.apidoc,
         json_schema: opt.json_schema,
+        example_problems: opt.compile_trial_contest,
     };
     let packaging = cfg::PackagingConfig {
         deb: if opt.deb {

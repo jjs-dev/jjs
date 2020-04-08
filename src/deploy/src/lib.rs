@@ -21,6 +21,7 @@ use crate::{
     util::print_section,
 };
 use ::util::cmd::{CommandExt, Runner};
+use anyhow::Context as _;
 use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
 
 pub struct Params {
@@ -140,6 +141,12 @@ pub fn package(params: &Params, runner: &Runner) {
     }
     if params.cfg.components.json_schema {
         generate_json_schema(params);
+    }
+    if params.cfg.components.example_problems {
+        if let Err(err) = compile_sample_contest(params) {
+            eprintln!("error: {:#}", err);
+            runner.error();
+        }
     }
     runner.exit_if_errors();
 
@@ -290,6 +297,33 @@ fn generate_json_schema(params: &Params) {
     assert!(apiserver_out.status.success());
     fs::write(out_dir.join("apiserver-config.json"), apiserver_out.stdout)
         .expect("failed to write schema");
+}
+
+fn compile_sample_contest(params: &Params) -> anyhow::Result<()> {
+    print_section("Compiling sample contest");
+    let items = std::fs::read_dir(params.src.join("example-problems"))?;
+    let intermediate_problems_dir = params.build.join("compiled-problems");
+    for item in items {
+        let item = item?;
+        let mut cmd = std::process::Command::new(params.artifacts.join("bin/jjs-ppc"));
+        cmd.arg("compile");
+        cmd.arg("--pkg").arg(item.path());
+        let dir = intermediate_problems_dir.join(item.file_name());
+
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).ok();
+        cmd.env("JJS_PATH", &params.artifacts);
+        cmd.arg("--out").arg(dir);
+        cmd.try_exec().context("can not execute jjs-ppc")?;
+    }
+    let out_file = std::fs::File::create(params.artifacts.join("pkg/problems.tgz"))?;
+    let out_file = flate2::write::GzEncoder::new(out_file, flate2::Compression::best());
+    let mut tarball_builder = tar::Builder::new(out_file);
+    tarball_builder
+        .append_dir_all("", intermediate_problems_dir)
+        .context("write problem packages to archive")?;
+    tarball_builder.into_inner()?;
+    Ok(())
 }
 
 fn env_add(var_name: &str, prepend: &str) -> String {

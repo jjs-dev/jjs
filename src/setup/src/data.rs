@@ -62,6 +62,7 @@ impl<'a> crate::Component for DataLayout<'a> {
         tokio::fs::create_dir(base.join("etc/objects/toolchains")).await?;
         tokio::fs::create_dir(base.join("etc/objects/contests")).await?;
         tokio::fs::create_dir(base.join("opt")).await?;
+        tokio::fs::create_dir(base.join("tmp")).await?;
         Ok(())
     }
 }

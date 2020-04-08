@@ -1,3 +1,4 @@
+#![feature(backtrace)]
 // for async-trait
 #![allow(clippy::needless_lifetimes)]
 pub mod config;

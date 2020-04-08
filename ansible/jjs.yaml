@@ -1,6 +1,5 @@
 ---
-- remote_user: root
-  hosts: all
+- hosts: all
   vars:
     setup_profile: "{{ lookup('template', './profile-template.yaml.j2') }}"
   vars_prompt:
@@ -8,62 +7,28 @@
       prompt: "Where on local host jjs package is located?"
       private: false
       default: "/opt/jjs/pkg/jjs.deb"
+    - name: db_addr
+      prompt: "Database address (must include port; can be urlencoded unix socket path instead)"
+      private: false
+      default: "%2Fvar%2Frun%2Fpostgresql"
+  roles:
+    - db
+    - role: jjs_common
   tasks:
     - name: Install required APT packages
       apt:
-        name:
-          [
-            "postgresql-client-10",
-            "postgresql-10",
-            "g++",
-            "unzip",
-            "python3-setuptools",
-            "python3-pip",
-            "libpq-dev",
-          ]
+        name: ["g++"]
         update_cache: true
-    - name: Install python packages
-      pip:
-        name: psycopg2
-    - name: Copy JJS package
-      copy:
-        dest: /tmp/
-        src: "{{ pkg_path }}"
-    - name: "TODO: hack"
-      apt:
-        name: jjs
-        state: absent
-    - name: Install JJS package
-      apt:
-        deb: /tmp/jjs.deb
-        state: present
-    - name: Setup JJS user
-      user:
-        create_home: true
-        name: jjs
-    - name: Create JJS database
-      postgresql_db:
-        name: jjs
-      become: true
-      become_user: postgres
-    - name: Setup JJS postgres user
-      postgresql_user:
-        db: jjs
-        name: jjs
-        # TODO: take variable 
-        password: internal
-        role_attr_flags: SUPERUSER
-      become: true
-      become_user: postgres
     - name: Setup JJS
       command:
         # Note that "-" is passed as profile path. It tells `jjs-setup` to read profile from stdin.
-        cmd: jjs-setup - upgrade 
+        cmd: jjs-setup - upgrade
         stdin: "{{ setup_profile }}"
       become: true
       become_user: jjs
     - name: Reload SystemD
-      command: systemctl daemon-reload
+      systemd:
+        daemon_reload: true
     - name: Start JJS invoker
       service:
         name: jjs-invoker

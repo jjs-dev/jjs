@@ -24,3 +24,5 @@ shell-escape = "0.1.4"
 tera = "1.0.2"
 util = {path = "../util"}
 log = "0.4.8"
+anyhow = "1.0.28"
+flate2 = "1.0.14"

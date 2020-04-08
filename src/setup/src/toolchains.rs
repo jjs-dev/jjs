@@ -12,6 +12,8 @@ pub enum Error {
     ListTcs(#[from] ListTcsError),
     #[error("jjs-configure-toolchains failed: code={code:?}")]
     ConfigureTcs { code: Option<i32> },
+    #[error("illegal file name")]
+    BadFileName,
 }
 
 #[derive(Copy, Clone)]
@@ -38,6 +40,7 @@ impl std::fmt::Display for Toolchains<'_> {
     }
 }
 
+#[derive(Debug)]
 struct TcsState {
     installed: Vec<String>,
     extra: Vec<String>,
@@ -127,12 +130,13 @@ async fn detect_state(cx: Context<'_>) -> Result<TcsState, Error> {
     if toolchains_config_dir.exists() {
         let mut dir_contents = tokio::fs::read_dir(&toolchains_config_dir).await?;
         while let Some(item) = dir_contents.next().await {
-            let name = item?.file_name();
-            let name = match name.into_string() {
-                Ok(name) => name,
-                Err(bad_name) => return Err(Error::Utf8(bad_name)),
+            let name = item?.path();
+            let name = name.file_stem().ok_or(Error::BadFileName)?;
+            let name = match name.to_str() {
+                Some(name) => name,
+                None => return Err(Error::Utf8(name.to_os_string())),
             };
-            installed_toolchains.push(name);
+            installed_toolchains.push(name.to_string());
         }
     }
     let available_toolchains = list_all_toolchains(cx).await?;

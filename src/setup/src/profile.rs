@@ -44,18 +44,27 @@ pub(crate) struct TcsProfile {
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) struct ProblemsProfile {
-    pub(crate) tasks: Vec<ProblemTask>,
+    #[serde(default)]
+    pub(crate) compile: ProblemsCompileProfile,
+    #[serde(default)]
+    pub(crate) archive: ProblemsArchiveProfile,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) struct ProblemTask {
-    pub(crate) source: ProblemSource,
+pub(crate) struct ProblemsArchiveProfile {
+    pub(crate) sources: Vec<Source>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) struct ProblemsCompileProfile {
+    pub(crate) sources: Vec<Source>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(untagged)]
-pub(crate) enum ProblemSource {
+pub(crate) enum Source {
     Path { path: std::path::PathBuf },
 }

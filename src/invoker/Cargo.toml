@@ -19,10 +19,8 @@ nix = "0.16.1"
 strum = "0.17.1"
 strum_macros = "0.17.1"
 chrono = "0.4.10"
-color-backtrace = { version = "0.3.0", optional = true }
 tempfile = "3.1.0"
 fs_extra = "1.1.0"
-atty = "0.2.14"
 base64 = "0.11.0"
 bitflags = "1.2.1"
 util = {path = "../util"}
@@ -35,6 +33,3 @@ problem-loader = {path = "../problem-loader"}
 tokio = {version = "0.2.13", features = ["rt-core", "process", "io-std"]}
 log = "0.4.8"
 async-trait = "0.1.27"
-[features]
-beautiful_backtrace = ["color-backtrace"]
-default = ["beautiful_backtrace"]

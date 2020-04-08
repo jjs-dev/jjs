@@ -2,11 +2,6 @@ use anyhow::Context;
 use log::debug;
 use std::sync::Arc;
 
-fn install_color_backtrace() {
-    #[cfg(feature = "beautiful_backtrace")]
-    color_backtrace::install();
-}
-
 fn is_cli_mode() -> bool {
     std::env::args().count() > 1
 }
@@ -41,9 +36,6 @@ fn is_worker() -> bool {
 
 fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    if atty::is(atty::Stream::Stderr) {
-        install_color_backtrace();
-    }
     util::log::setup();
     if is_worker() {
         invoker::init::init().context("failed to initialize")?;

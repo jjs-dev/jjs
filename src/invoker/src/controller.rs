@@ -261,7 +261,7 @@ impl Controller {
                 sleep_duration += self.config.sleep.step_ms;
                 sleep_duration = std::cmp::min(sleep_duration, self.config.sleep.max_ms);
                 let sleep_time = std::time::Duration::from_millis(sleep_duration.into());
-                std::thread::sleep(sleep_time);
+                tokio::time::delay_for(sleep_time).await;
             } else {
                 sleep_duration = 0;
             }

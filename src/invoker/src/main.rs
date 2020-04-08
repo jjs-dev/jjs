@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
         rt.threaded_scheduler();
     }
     let mut rt = rt.enable_all().core_threads(1).max_threads(2).build()?;
-    rt.block_on(async { tokio::task::spawn(real_main()).await.unwrap() })
+    rt.block_on( real_main())
 }
 
 async fn real_main() -> anyhow::Result<()> {

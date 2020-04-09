@@ -52,12 +52,13 @@ impl<'a> crate::Component for DataLayout<'a> {
     }
 
     async fn upgrade(&self) -> Result<(), Error> {
-        let base = &self.cx.data_dir;
+        let base = self.cx.data_dir;
         tokio::fs::create_dir_all(base).await?;
         tokio::fs::create_dir(base.join("var")).await?;
         tokio::fs::create_dir(base.join("var/runs")).await?;
         tokio::fs::create_dir(base.join("var/problems")).await?;
         tokio::fs::create_dir(base.join("etc")).await?;
+        tokio::fs::create_dir(base.join("etc/pki")).await?;
         tokio::fs::create_dir(base.join("etc/objects")).await?;
         tokio::fs::create_dir(base.join("etc/objects/toolchains")).await?;
         tokio::fs::create_dir(base.join("etc/objects/contests")).await?;

@@ -1,8 +1,7 @@
-use super::background_source::BackgroundSource;
+use super::background_source::{BackgroundSourceHandle};
 use anyhow::Context;
 use invoker_api::{CliInvokeTask, InvokeTask};
 use log::debug;
-use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
 
 fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
@@ -16,7 +15,7 @@ fn convert_task(cli_invoke_task: CliInvokeTask) -> InvokeTask {
     }
 }
 async fn read_worker_iteration(
-    state: &BackgroundSource,
+    state: &BackgroundSourceHandle,
     stdin_reader: &mut tokio::io::BufReader<tokio::io::Stdin>,
 ) -> anyhow::Result<()> {
     let mut line = String::new();
@@ -34,16 +33,16 @@ async fn read_worker_iteration(
     Ok(())
 }
 
-async fn read_worker_loop(state: Arc<BackgroundSource>) {
+async fn read_worker_loop(state: BackgroundSourceHandle) {
     let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
     loop {
-        if let Err(err) = read_worker_iteration(&*state, &mut reader).await {
+        if let Err(err) = read_worker_iteration(&state, &mut reader).await {
             eprintln!("read iteration failed: {:#}", err);
         }
     }
 }
 
-async fn print_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> {
+async fn print_worker_iteration(state: &BackgroundSourceHandle) -> anyhow::Result<()> {
     let msg = match state.pop_msg().await {
         Some(m) => m,
         None => {
@@ -56,41 +55,21 @@ async fn print_worker_iteration(state: &BackgroundSource) -> anyhow::Result<()> 
     Ok(())
 }
 
-async fn print_worker_loop(state: Arc<BackgroundSource>) {
+async fn print_worker_loop(state: BackgroundSourceHandle) {
     loop {
-        if let Err(err) = print_worker_iteration(&*state).await {
+        if let Err(err) = print_worker_iteration(&state).await {
             eprintln!("print iteration failed: {:#}", err);
         }
     }
 }
 
-pub struct CliSource(Arc<BackgroundSource>);
-
-impl CliSource {
-    pub fn new() -> CliSource {
-        let state = Arc::new(BackgroundSource::new());
-        let st1 = state.clone();
-        let st2 = state.clone();
-        tokio::task::spawn(async move {
-            read_worker_loop(st1).await;
-        });
-        tokio::task::spawn(async move {
-            print_worker_loop(st2).await;
-        });
-        CliSource(state)
-    }
-}
-
-impl Default for CliSource {
-    fn default() -> Self {
-        CliSource::new()
-    }
-}
-
-impl std::ops::Deref for CliSource {
-    type Target = BackgroundSource;
-
-    fn deref(&self) -> &BackgroundSource {
-        &self.0
-    }
+pub fn start(bg_source: BackgroundSourceHandle) {
+    let st1 = bg_source.clone();
+    let st2 = bg_source.clone();
+    tokio::task::spawn(async move {
+        read_worker_loop(st1).await;
+    });
+    tokio::task::spawn(async move {
+        print_worker_loop(st2).await;
+    });
 }

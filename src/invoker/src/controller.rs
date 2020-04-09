@@ -8,7 +8,7 @@ use notify::Notifier;
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -179,7 +179,6 @@ pub struct Controller {
     workers: Vec<WorkerInfo>,
     sources: Vec<Arc<dyn TaskSource>>,
     entity_loader: Arc<entity::Loader>,
-    stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
     problem_loader: Arc<problem_loader::Loader>,
     global_files_dir: Arc<Path>,
@@ -233,7 +232,6 @@ impl Controller {
             workers,
             entity_loader: Arc::new(cfg_data.entity_loader),
             problem_loader: Arc::new(cfg_data.problem_loader),
-            stop_flag: Arc::new(AtomicBool::new(false)),
             queues: Arc::new(ControllerQueues::new()),
             global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
@@ -241,14 +239,18 @@ impl Controller {
         })
     }
 
-    pub async fn run_forever(mut self) {
-        if let Err(err) = self.setup_signal() {
-            error!("SIGTERM handler is not registered: {}", err);
-        }
+    pub async fn run_forever(mut self, mut stop_token: tokio::sync::broadcast::Receiver<!>) {
         let mut sleep_duration = 0;
         loop {
-            if !self.should_run() {
-                break;
+            match stop_token.try_recv() {
+                // sender should never send something, so we use ! to prove it
+                Ok(never) => match never {},
+                // sender was dropped; we should exit
+                Err(tokio::sync::broadcast::TryRecvError::Closed) => break,
+                // continue running
+                Err(tokio::sync::broadcast::TryRecvError::Empty) => (),
+                // should not happen, because no sends() can be done
+                Err(tokio::sync::broadcast::TryRecvError::Lagged(_)) => unreachable!()
             }
             let sleep = match self.tick().await {
                 Err(e) => {
@@ -277,17 +279,6 @@ impl Controller {
         flag = flag || self.tick_send_invoke_request().await?;
         flag = flag || self.tick_get_tasks().await?;
         Ok(flag)
-    }
-
-    fn should_run(&self) -> bool {
-        !self.stop_flag.load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    fn setup_signal(&mut self) -> anyhow::Result<()> {
-        let sigterm_sig_id = nix::sys::signal::SIGTERM as i32;
-        signal_hook::flag::register(sigterm_sig_id, Arc::clone(&self.stop_flag))
-            .context("Failed to registrer SIGTERM handler")?;
-        Ok(())
     }
 
     fn find_free_worker(&self) -> Option<usize> {

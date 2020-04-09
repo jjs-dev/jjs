@@ -1,1 +1,3 @@
 workers: 4
+sleep:
+  max-ms: 15000

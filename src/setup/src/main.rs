@@ -205,6 +205,25 @@ async fn process_problems(profile: &Profile, action: Subcommand) -> anyhow::Resu
         .context("process problems")
 }
 
+async fn process_certs(profile: &Profile, action: Subcommand) -> anyhow::Result<SystemHealth> {
+    let data_dir = match &profile.data_dir {
+        Some(dd) => dd,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let prof = match &profile.pki {
+        Some(p) => p,
+        None => return Ok(SystemHealth::Ok),
+    };
+    let cx = setup::certs::Context {
+        data_dir,
+        can_create_ca: prof.create_ca,
+    };
+    let certs = setup::certs::analyze(cx).await.context("analyze certs")?;
+    process_component(certs, action.is_upgrade())
+        .await
+        .context("process certificates")
+}
+
 async fn load_profile(path: &Path) -> anyhow::Result<Profile> {
     let profile_data = if path == Path::new("-") {
         let mut buf = String::new();
@@ -238,6 +257,7 @@ async fn main() -> anyhow::Result<()> {
     healthes.push(process_configs(&profile, opts.action).await?);
     healthes.push(process_toolchains(&profile, opts.action).await?);
     healthes.push(process_problems(&profile, opts.action).await?);
+    healthes.push(process_certs(&profile, opts.action).await?);
 
     for h in healthes {
         if matches!(h, SystemHealth::Error) {

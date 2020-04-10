@@ -59,7 +59,7 @@ fn merge_limits(limits_set: &[Limits]) -> Limits {
 
 // TODO: remove duplicated code
 impl<'a> ProblemBuilder<'a> {
-    fn do_build(&self, src: &Path, dest: &Path) -> Command {
+    async fn do_build(&self, src: &Path, dest: &Path) -> Command {
         fs::create_dir_all(dest).expect("failed to create dir");
 
         let build_id = std::time::SystemTime::now()
@@ -71,11 +71,11 @@ impl<'a> ProblemBuilder<'a> {
         fs::create_dir(&build_dir).expect("couldn't create build dir");
 
         let task = build::Task {
-            src,
-            dest,
-            tmp: Path::new(&build_dir),
+            src: src.to_path_buf(),
+            dest: dest.to_path_buf(),
+            tmp: Path::new(&build_dir).to_path_buf(),
         };
-        match self.build_backend.process_task(task) {
+        match self.build_backend.process_task(task.clone()).await {
             Ok(cmd) => cmd.command,
             Err(err) => {
                 eprintln!("Build error: unable to run build task: {}", err);
@@ -108,7 +108,7 @@ impl<'a> ProblemBuilder<'a> {
         .collect()
     }
 
-    fn build_solution(&self, sol_path: PathBuf) -> (String, Command) {
+    async fn build_solution(&self, sol_path: PathBuf) -> (String, Command) {
         let sol_id = sol_path
             .file_stem()
             .unwrap()
@@ -117,29 +117,32 @@ impl<'a> ProblemBuilder<'a> {
             .to_owned();
         println!("Building solution {}", &sol_id);
         let out_path = format!("{}/assets/sol-{}", self.out_dir.display(), &sol_id);
-        (sol_id, self.do_build(&sol_path, &PathBuf::from(&out_path)))
+        (
+            sol_id,
+            self.do_build(&sol_path, &PathBuf::from(&out_path)).await,
+        )
     }
 
-    fn build_solutions(&self) -> HashMap<String, Command> {
+    async fn build_solutions(&self) -> HashMap<String, Command> {
         let mut out = HashMap::new();
         for solution_path in self.glob("solutions/*") {
-            let (sol_id, cmd) = self.build_solution(solution_path);
+            let (sol_id, cmd) = self.build_solution(solution_path).await;
             out.insert(sol_id, cmd);
         }
         out
     }
 
-    fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> Command {
+    async fn build_testgen(&self, testgen_path: &Path, testgen_name: &str) -> Command {
         println!("Building generator {}", testgen_name);
         let out_path = format!("{}/assets/testgen-{}", self.out_dir.display(), testgen_name);
-        self.do_build(testgen_path, &Path::new(&out_path))
+        self.do_build(testgen_path, &Path::new(&out_path)).await
     }
 
-    fn build_testgens(&self) -> HashMap<String, Command> {
+    async fn build_testgens(&self) -> HashMap<String, Command> {
         let mut out = HashMap::new();
         for testgen in self.glob("generators/*") {
             let testgen_name = testgen.file_stem().unwrap().to_str().expect("utf8 error");
-            let testgen_launch_cmd = self.build_testgen(&testgen, testgen_name);
+            let testgen_launch_cmd = self.build_testgen(&testgen, testgen_name).await;
             out.insert(testgen_name.to_string(), testgen_launch_cmd);
         }
         out
@@ -272,18 +275,19 @@ impl<'a> ProblemBuilder<'a> {
         out
     }
 
-    fn build_checkers(&self) -> FileRef {
+    async fn build_checkers(&self) -> FileRef {
         // TODO: support multi-file checkers
         let checker_path = format!("{}/checkers/main.cpp", self.problem_dir.display());
-        self.build_checker(&checker_path)
+        self.build_checker(&checker_path).await
     }
 
-    fn build_checker(&self, checker_path: &str) -> FileRef {
+    async fn build_checker(&self, checker_path: &str) -> FileRef {
         let out_path = format!("{}/assets/checker", self.out_dir.display());
 
         match self.cfg.check {
             crate::manifest::Check::Custom(_) => {
-                self.do_build(Path::new(checker_path), Path::new(&out_path));
+                self.do_build(Path::new(checker_path), Path::new(&out_path))
+                    .await;
                 FileRef {
                     path: "checker/bin".to_string(),
                     root: FileRefRoot::Problem,
@@ -296,14 +300,14 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
-    fn build_modules(&self) {
+    async fn build_modules(&self) {
         for module in self.glob("modules/*") {
             let module_name = module.file_name().unwrap().to_str().expect("utf8 error");
             let output_path = self
                 .out_dir
                 .join("assets")
                 .join(format!("module-{}", module_name));
-            self.do_build(&module, Path::new(&output_path));
+            self.do_build(&module, Path::new(&output_path)).await;
         }
     }
 
@@ -324,12 +328,12 @@ impl<'a> ProblemBuilder<'a> {
         Ok(())
     }
 
-    pub fn build(&self) {
-        self.build_modules();
-        let solutions = self.build_solutions();
-        let testgen_launch_info = self.build_testgens();
+    pub async fn build(&self) {
+        self.build_modules().await;
+        let solutions = self.build_solutions().await;
+        let testgen_launch_info = self.build_testgens().await;
 
-        let checker_ref = self.build_checkers();
+        let checker_ref = self.build_checkers().await;
 
         let checker_cmd = self.cfg.check_options.args.clone();
 

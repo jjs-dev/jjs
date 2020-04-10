@@ -1,4 +1,5 @@
 #![feature(is_sorted)]
+#![allow(clippy::needless_lifetimes)]
 
 mod command;
 mod compile;
@@ -80,7 +81,7 @@ fn check_dir(path: &Path, allow_nonempty: bool) {
     }
 }
 
-fn compile_problem(args: args::CompileArgs) {
+async fn compile_problem(args: args::CompileArgs) {
     if args.force {
         //std::fs::remove_dir_all(&args.out_path).expect("couldn't remove");
         std::fs::create_dir_all(&args.out_path).ok();
@@ -114,7 +115,7 @@ fn compile_problem(args: args::CompileArgs) {
             jjs_dir: Path::new(&jjs_dir),
         },
     };
-    builder.build();
+    builder.build().await;
 }
 
 #[cfg(target_os = "linux")]
@@ -148,16 +149,17 @@ fn tune_resourece_limits() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     use structopt::StructOpt;
     tune_resourece_limits()?;
     let args = Args::from_args();
 
     match args {
         Args::Compile(compile_args) => {
-            compile_problem(compile_args);
+            compile_problem(compile_args).await;
             Ok(())
         }
-        Args::Import(import_args) => import::exec(import_args),
+        Args::Import(import_args) => import::exec(import_args).await,
     }
 }

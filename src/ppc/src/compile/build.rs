@@ -52,7 +52,7 @@ impl CommandExt for tokio::process::Command {
 }
 
 #[async_trait::async_trait]
-pub(crate) trait BuildBackend {
+pub(crate) trait BuildBackend: Send + Sync {
     async fn process_task(&self, task: Task) -> Result<TaskSuccess, TaskError>;
 }
 

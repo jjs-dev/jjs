@@ -15,7 +15,7 @@ async fn import_one_problem(
     dest: &Path,
     build: bool,
     force: bool,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Option<tokio::task::JoinHandle<()>>> {
     let manifest_path = src.join("problem.xml");
     let manifest = std::fs::read_to_string(manifest_path).context("failed read problem.xml")?;
     let doc = roxmltree::Document::parse(&manifest).context("parse error")?;
@@ -51,15 +51,15 @@ async fn import_one_problem(
             std::fs::remove_dir_all(&out_path).ok();
         }
         std::fs::create_dir(&out_path)?;
-        crate::compile_problem(crate::args::CompileArgs {
+        let handle = tokio::task::spawn(crate::compile_problem(crate::CompileSingleProblemArgs {
             pkg_path: dest.to_path_buf(),
             out_path,
             force,
-            verbose: true,
-        })
-        .await;
+        }));
+        Ok(Some(handle))
+    } else {
+        Ok(None)
     }
-    Ok(())
 }
 
 enum ImportKind {
@@ -82,7 +82,9 @@ fn detect_import_kind(path: &Path) -> anyhow::Result<ImportKind> {
     bail!("unknown src")
 }
 
-pub async fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
+pub async fn exec(
+    args: crate::args::ImportArgs,
+) -> anyhow::Result<Vec<tokio::task::JoinHandle<()>>> {
     if args.force {
         std::fs::remove_dir_all(&args.out_path).ok();
         std::fs::create_dir(&args.out_path).context("create out dir")?;
@@ -93,8 +95,12 @@ pub async fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
     let src = Path::new(&args.in_path);
     let dest = Path::new(&args.out_path);
     let kind = detect_import_kind(src).context("failed to detect import operation kind")?;
+    let mut handles = Vec::new();
     match kind {
-        ImportKind::Problem => import_one_problem(src, dest, args.build, args.force).await?,
+        ImportKind::Problem => {
+            let handle = import_one_problem(src, dest, args.build, args.force).await?;
+            handles.extend(handle);
+        }
         ImportKind::Contest => {
             println!("Importing contest");
             println!("Importing problems");
@@ -109,7 +115,9 @@ pub async fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
                 let problem_dir = item.path();
                 let target_dir = dest.join("problems").join(&problem_name);
                 std::fs::create_dir_all(&target_dir)?;
-                import_one_problem(&problem_dir, &target_dir, args.build, args.force).await?;
+                let handle =
+                    import_one_problem(&problem_dir, &target_dir, args.build, args.force).await?;
+                handles.extend(handle);
             }
             if args.update_cfg {
                 let contest_name = args
@@ -130,5 +138,5 @@ pub async fn exec(args: crate::args::ImportArgs) -> anyhow::Result<()> {
             }
         }
     }
-    Ok(())
+    Ok(handles)
 }

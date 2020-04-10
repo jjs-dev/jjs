@@ -194,18 +194,17 @@ impl<'a> crate::Component for Problems<'a> {
     }
 
     async fn upgrade(&self) -> Result<(), Self::Error> {
+        let mut cmd = tokio::process::Command::new(self.cx.install_dir.join("bin/jjs-ppc"));
+        cmd.arg("compile");
         for problem in self.state.extra_installable() {
-            // TODO: ppc should support parallel build
-            let mut cmd = tokio::process::Command::new(self.cx.install_dir.join("bin/jjs-ppc"));
-            cmd.arg("compile");
             cmd.arg("--pkg").arg(problem.1);
             let out_dir = self.cx.data_dir.join("var/problems").join(problem.0);
             tokio::fs::create_dir(&out_dir).await?;
             cmd.arg("--out").arg(out_dir);
-            let status = cmd.status().await?;
-            if !status.success() {
-                return Err(Error::Ppc);
-            }
+        }
+        let status = cmd.status().await?;
+        if !status.success() {
+            return Err(Error::Ppc);
         }
         for problem in self.state.extra_copyable() {
             let out_dir = self.cx.data_dir.join("var/problems");

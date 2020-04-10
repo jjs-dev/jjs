@@ -1,11 +1,10 @@
 #![feature(is_sorted)]
+#![allow(clippy::needless_lifetimes)]
 
 mod command;
 mod compile;
 mod import;
 mod manifest;
-
-use std::env;
 
 mod args {
     use std::path::PathBuf;
@@ -15,16 +14,13 @@ mod args {
     pub struct CompileArgs {
         /// Path to problem package root
         #[structopt(long = "pkg", short = "P")]
-        pub pkg_path: PathBuf,
+        pub pkg_path: Vec<PathBuf>,
         /// Output path
         #[structopt(long = "out", short = "O")]
-        pub out_path: PathBuf,
+        pub out_path: Vec<PathBuf>,
         /// Rewrite dir
         #[structopt(long, short = "F")]
         pub force: bool,
-        /// Verbose
-        #[structopt(long, short = "V")]
-        pub verbose: bool,
     }
 
     #[derive(StructOpt)]
@@ -61,7 +57,8 @@ mod args {
 
 use args::Args;
 use std::{
-    path::Path,
+    env,
+    path::{Path, PathBuf},
     process::{exit, Stdio},
 };
 
@@ -80,7 +77,13 @@ fn check_dir(path: &Path, allow_nonempty: bool) {
     }
 }
 
-fn compile_problem(args: args::CompileArgs) {
+struct CompileSingleProblemArgs {
+    pkg_path: PathBuf,
+    out_path: PathBuf,
+    force: bool,
+}
+
+async fn compile_problem(args: CompileSingleProblemArgs) {
     if args.force {
         //std::fs::remove_dir_all(&args.out_path).expect("couldn't remove");
         std::fs::create_dir_all(&args.out_path).ok();
@@ -114,7 +117,7 @@ fn compile_problem(args: args::CompileArgs) {
             jjs_dir: Path::new(&jjs_dir),
         },
     };
-    builder.build();
+    builder.build().await;
 }
 
 #[cfg(target_os = "linux")]
@@ -148,16 +151,33 @@ fn tune_resourece_limits() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     use structopt::StructOpt;
     tune_resourece_limits()?;
     let args = Args::from_args();
-
+    let mut compile_join_handles = Vec::new();
     match args {
         Args::Compile(compile_args) => {
-            compile_problem(compile_args);
-            Ok(())
+            if compile_args.out_path.len() != compile_args.pkg_path.len() {
+                anyhow::bail!("count(--pkg) != count(--out)");
+            }
+            for (out_path, pkg_path) in compile_args.out_path.iter().zip(&compile_args.pkg_path) {
+                let args = CompileSingleProblemArgs {
+                    out_path: out_path.clone(),
+                    pkg_path: pkg_path.clone(),
+                    force: compile_args.force,
+                };
+                let handle = tokio::task::spawn(compile_problem(args));
+                compile_join_handles.push(handle);
+            }
         }
-        Args::Import(import_args) => import::exec(import_args),
+        Args::Import(import_args) => {
+            compile_join_handles.extend(import::exec(import_args).await?);
+        }
     }
+    for handle in compile_join_handles {
+        handle.await.expect("compile task panicked");
+    }
+    Ok(())
 }

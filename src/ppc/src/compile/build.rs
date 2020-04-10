@@ -1,14 +1,14 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct Task<'a> {
+#[derive(Debug, Clone)]
+pub(crate) struct Task {
     /// Directory with source files, or path to single file
-    pub(crate) src: &'a Path,
+    pub(crate) src: PathBuf,
     /// Directory for build artifacts
-    pub(crate) dest: &'a Path,
+    pub(crate) dest: PathBuf,
     /// Directort for temporary data
-    pub(crate) tmp: &'a Path,
+    pub(crate) tmp: PathBuf,
 }
 
 pub(crate) struct TaskSuccess {
@@ -28,19 +28,21 @@ pub(crate) enum TaskError {
     FeatureNotSupported { feature: &'static str },
 }
 
-impl<'a> Task<'a> {
+impl Task {
     fn multi_file(&self) -> bool {
         self.src.is_dir()
     }
 }
 
+#[async_trait::async_trait]
 trait CommandExt {
-    fn run(&mut self) -> Result<(), TaskError>;
+    async fn run(&mut self) -> Result<(), TaskError>;
 }
 
-impl CommandExt for std::process::Command {
-    fn run(&mut self) -> Result<(), TaskError> {
-        let out = self.output()?;
+#[async_trait::async_trait]
+impl CommandExt for tokio::process::Command {
+    async fn run(&mut self) -> Result<(), TaskError> {
+        let out = self.output().await?;
         if out.status.success() {
             Ok(())
         } else {
@@ -49,8 +51,9 @@ impl CommandExt for std::process::Command {
     }
 }
 
-pub(crate) trait BuildBackend {
-    fn process_task(&self, task: Task) -> Result<TaskSuccess, TaskError>;
+#[async_trait::async_trait]
+pub(crate) trait BuildBackend: Send + Sync {
+    async fn process_task(&self, task: Task) -> Result<TaskSuccess, TaskError>;
 }
 
 /// Ppc-integrated build system
@@ -59,32 +62,36 @@ pub(crate) struct Pibs<'a> {
 }
 
 impl<'a> Pibs<'a> {
-    fn process_cmake_task(&self, task: Task) -> Result<TaskSuccess, TaskError> {
+    async fn process_cmake_task(&self, task: Task) -> Result<TaskSuccess, TaskError> {
         //    let cmake_lists = task.src.join("CMakeLists.txt");
-        std::process::Command::new("cmake")
+        tokio::process::Command::new("cmake")
             .arg("-S")
-            .arg(task.src)
+            .arg(&task.src)
             .arg("-B")
-            .arg(task.tmp)
-            .run()?;
+            .arg(&task.tmp)
+            .run()
+            .await?;
 
-        std::process::Command::new("cmake")
+        tokio::process::Command::new("cmake")
             .arg("--build")
-            .arg(task.tmp)
-            .run()?;
+            .arg(&task.tmp)
+            .run()
+            .await?;
 
         let dst = task.dest.join("bin");
-        std::fs::copy(task.tmp.join("Out"), &dst)?;
+        tokio::fs::copy(task.tmp.join("Out"), &dst).await?;
         let run_cmd = crate::command::Command::new(dst);
         Ok(TaskSuccess { command: run_cmd })
     }
 }
+
+#[async_trait::async_trait]
 impl<'a> BuildBackend for Pibs<'a> {
-    fn process_task(&self, task: Task) -> Result<TaskSuccess, TaskError> {
+    async fn process_task(&self, task: Task) -> Result<TaskSuccess, TaskError> {
         if task.multi_file() {
             let cmake_lists_path = task.src.join("CMakeLists.txt");
             if cmake_lists_path.exists() {
-                return self.process_cmake_task(task);
+                return self.process_cmake_task(task).await;
             }
             let python_path = task.src.join("main.py");
             if python_path.exists() {
@@ -103,7 +110,7 @@ impl<'a> BuildBackend for Pibs<'a> {
         let link_arg = format!("-L{}/lib", self.jjs_dir.display());
 
         let dest_file = task.dest.join("bin");
-        std::process::Command::new("g++")
+        tokio::process::Command::new("g++")
             .arg("-std=c++17")
             .arg(incl_arg)
             .arg(link_arg)
@@ -114,7 +121,8 @@ impl<'a> BuildBackend for Pibs<'a> {
             .arg("-ljtl")
             .arg("-lpthread")
             .arg("-ldl")
-            .run()?;
+            .run()
+            .await?;
 
         let command = crate::command::Command::new(&dest_file);
         Ok(TaskSuccess { command })

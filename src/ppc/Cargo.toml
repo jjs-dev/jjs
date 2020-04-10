@@ -26,3 +26,5 @@ pest = "2.1.3"
 pest_derive = "2.1.0"
 serde_yaml = "0.8.11"
 entity = {path = "../entity"}
+tokio = {version = "0.2.16", features = ["process", "macros", "rt-threaded", "fs"]}
+async-trait = "0.1.30"

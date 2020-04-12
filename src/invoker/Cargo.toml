@@ -33,10 +33,6 @@ log = "0.4.8"
 async-trait = "0.1.27"
 num_cpus = "1.12.0"
 serde_yaml = "0.8.11"
-# rocket = {git = "https://github.com/SergioBenitez/Rocket", branch = "async", default-features = false}
-# rocket_contrib = {git = "https://github.com/SergioBenitez/Rocket", branch = "async"}
-# hyper-openssl = "0.8.0"
-# tokio-openssl = "0.4.0"
 openssl = "0.10.29"
 actix-web = {version = "2.0.0", features = ["openssl"]}
 actix-rt = "1.1.0"

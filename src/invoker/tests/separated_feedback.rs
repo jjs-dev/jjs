@@ -1,6 +1,6 @@
 #[tokio::test]
 async fn separated_feedback() {
-    let driver = invoker::sources::BackgroundSourceManager::new()
+    let driver = invoker::sources::BackgroundSourceManager::create()
         .fork()
         .await;
 

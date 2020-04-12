@@ -65,7 +65,7 @@ async fn print_worker_loop(state: BackgroundSourceHandle) {
 
 pub fn start(bg_source: BackgroundSourceHandle) {
     let st1 = bg_source.clone();
-    let st2 = bg_source.clone();
+    let st2 = bg_source;
     tokio::task::spawn(async move {
         read_worker_loop(st1).await;
     });

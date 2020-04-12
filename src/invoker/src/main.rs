@@ -99,7 +99,7 @@ async fn real_main() -> anyhow::Result<()> {
         .parse()
         .with_context(|| format!("invalid bind address {}", bind_address))?;
 
-    let bg_source = invoker::sources::BackgroundSourceManager::new();
+    let bg_source = invoker::sources::BackgroundSourceManager::create();
 
     let (mut shutdown_trigger_tx, mut shutdown_trigger_rx) = tokio::sync::mpsc::channel(1);
     invoker::api::start(

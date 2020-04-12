@@ -48,7 +48,7 @@ pub struct Handle(u8);
 pub struct BackgroundSourceManager(Arc<Mutex<Inner>>);
 
 impl BackgroundSourceManager {
-    pub fn new() -> BackgroundSourceManager {
+    pub fn create() -> BackgroundSourceManager {
         let state = Inner::new();
         let state = Arc::new(Mutex::new(state));
         BackgroundSourceManager(state)
@@ -75,7 +75,7 @@ impl BackgroundSourceManager {
 pub struct BackgroundSource(Arc<Mutex<Inner>>);
 
 impl BackgroundSource {
-    async fn push_message(&self, msg: Message) -> () {
+    async fn push_message(&self, msg: Message) {
         let mut st = self.0.lock().await;
         let handle = st.invocation_owner[&msg.get_id()].clone();
         st.messages.entry(handle).or_default().push_back(msg);

@@ -8,3 +8,5 @@ problems:
   archive:
     sources:
       - path: "/opt/jjs/pkg/problems.tgz"
+pki:
+  create-ca: true

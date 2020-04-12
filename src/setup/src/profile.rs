@@ -3,6 +3,7 @@ use std::path::PathBuf;
 /// Profile contains all settings and other data, representing desired state
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Profile {
     pub(crate) data_dir: Option<PathBuf>,
     pub(crate) install_dir: PathBuf,
@@ -11,6 +12,7 @@ pub(crate) struct Profile {
     pub(crate) problems: Option<ProblemsProfile>,
     #[serde(default = "default_configs")]
     pub(crate) configs: bool,
+    pub(crate) pki: Option<CertsProfile>,
 }
 
 fn default_configs() -> bool {
@@ -19,6 +21,7 @@ fn default_configs() -> bool {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(deny_unknown_fields)]
 pub(crate) struct PgProfile {
     pub(crate) conn_string: String,
     pub(crate) db_name: String,
@@ -26,6 +29,7 @@ pub(crate) struct PgProfile {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(deny_unknown_fields)]
 pub(crate) struct TcsProfile {
     /// All toolchains from this list will be skipped
     #[serde(default)]
@@ -43,6 +47,7 @@ pub(crate) struct TcsProfile {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ProblemsProfile {
     #[serde(default)]
     pub(crate) compile: ProblemsCompileProfile,
@@ -51,12 +56,14 @@ pub(crate) struct ProblemsProfile {
 }
 
 #[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) struct ProblemsArchiveProfile {
     pub(crate) sources: Vec<Source>,
 }
 
 #[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) struct ProblemsCompileProfile {
     pub(crate) sources: Vec<Source>,
@@ -64,7 +71,16 @@ pub(crate) struct ProblemsCompileProfile {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(deny_unknown_fields)]
 #[serde(untagged)]
 pub(crate) enum Source {
     Path { path: std::path::PathBuf },
+}
+
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) struct CertsProfile {
+    #[serde(default)]
+    pub(crate) create_ca: bool,
 }

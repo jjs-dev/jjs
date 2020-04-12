@@ -8,7 +8,7 @@ use notify::Notifier;
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -179,20 +179,37 @@ pub struct Controller {
     workers: Vec<WorkerInfo>,
     sources: Vec<Arc<dyn TaskSource>>,
     entity_loader: Arc<entity::Loader>,
-    stop_flag: Arc<AtomicBool>,
     queues: Arc<ControllerQueues>,
     problem_loader: Arc<problem_loader::Loader>,
     global_files_dir: Arc<Path>,
     toolchains_dir: Arc<Path>,
+    config: crate::config::InvokerConfig,
+}
+
+fn get_num_cpus() -> usize {
+    static CACHE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let old = CACHE.load(std::sync::atomic::Ordering::Relaxed);
+    if old != 0 {
+        return old;
+    }
+    let corr = num_cpus::get();
+    assert_ne!(corr, 0);
+    CACHE.store(corr, std::sync::atomic::Ordering::Relaxed);
+    corr
 }
 
 impl Controller {
     pub fn new(
         sources: Vec<Arc<dyn TaskSource>>,
         cfg_data: util::cfg::CfgData,
-        worker_count: usize,
+        config: crate::config::InvokerConfig,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();
+        let worker_count = match config.workers {
+            Some(cnt) => cnt,
+            None => get_num_cpus(),
+        };
+        info!("Using {} workers", worker_count);
         for _ in 0..worker_count {
             let mut child = tokio::process::Command::new(std::env::current_exe()?)
                 .env("__JJS_WORKER", "1")
@@ -215,20 +232,25 @@ impl Controller {
             workers,
             entity_loader: Arc::new(cfg_data.entity_loader),
             problem_loader: Arc::new(cfg_data.problem_loader),
-            stop_flag: Arc::new(AtomicBool::new(false)),
             queues: Arc::new(ControllerQueues::new()),
             global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
+            config,
         })
     }
 
-    pub async fn run_forever(mut self) {
-        if let Err(err) = self.setup_signal() {
-            error!("SIGTERM handler is not registered: {}", err);
-        }
+    pub async fn run_forever(mut self, mut stop_token: tokio::sync::broadcast::Receiver<!>) {
+        let mut sleep_duration = 0;
         loop {
-            if !self.should_run() {
-                break;
+            match stop_token.try_recv() {
+                // sender should never send something, so we use ! to prove it
+                Ok(never) => match never {},
+                // sender was dropped; we should exit
+                Err(tokio::sync::broadcast::TryRecvError::Closed) => break,
+                // continue running
+                Err(tokio::sync::broadcast::TryRecvError::Empty) => (),
+                // should not happen, because no sends() can be done
+                Err(tokio::sync::broadcast::TryRecvError::Lagged(_)) => unreachable!(),
             }
             let sleep = match self.tick().await {
                 Err(e) => {
@@ -238,9 +260,12 @@ impl Controller {
                 Ok(flag) => !flag,
             };
             if sleep {
-                // TODO adaptive sleep duration
-                let sleep_time = std::time::Duration::from_secs(2);
-                std::thread::sleep(sleep_time);
+                sleep_duration += self.config.sleep.step_ms;
+                sleep_duration = std::cmp::min(sleep_duration, self.config.sleep.max_ms);
+                let sleep_time = std::time::Duration::from_millis(sleep_duration.into());
+                tokio::time::delay_for(sleep_time).await;
+            } else {
+                sleep_duration = 0;
             }
         }
     }
@@ -254,17 +279,6 @@ impl Controller {
         flag = flag || self.tick_send_invoke_request().await?;
         flag = flag || self.tick_get_tasks().await?;
         Ok(flag)
-    }
-
-    fn should_run(&self) -> bool {
-        !self.stop_flag.load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    fn setup_signal(&mut self) -> anyhow::Result<()> {
-        let sigterm_sig_id = nix::sys::signal::SIGTERM as i32;
-        signal_hook::flag::register(sigterm_sig_id, Arc::clone(&self.stop_flag))
-            .context("Failed to registrer SIGTERM handler")?;
-        Ok(())
     }
 
     fn find_free_worker(&self) -> Option<usize> {

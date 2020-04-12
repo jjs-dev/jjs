@@ -99,7 +99,13 @@ impl Worker {
         let mut buf = String::new();
         let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
         match stdin.read_line(&mut buf).await {
-            Ok(_) => Some(serde_json::from_str(&buf).expect("parse error")),
+            Ok(_) => {
+                if buf.trim().is_empty() {
+                    return None;
+                }
+
+                Some(serde_json::from_str(&buf).expect("parse error"))
+            }
             Err(_) => None,
         }
     }

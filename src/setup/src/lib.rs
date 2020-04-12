@@ -1,6 +1,7 @@
-#![feature(backtrace)]
+#![feature(backtrace, or_patterns)]
 // for async-trait
 #![allow(clippy::needless_lifetimes)]
+pub mod certs;
 pub mod config;
 pub mod data;
 pub mod db;

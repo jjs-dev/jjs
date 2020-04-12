@@ -8,7 +8,7 @@
 
 mod verify;
 
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context as _;
 use log::error;
 use std::path::PathBuf;
@@ -16,16 +16,41 @@ use std::path::PathBuf;
 #[derive(Clone)]
 struct State {
     task_source: crate::sources::BackgroundSourceHandle,
+    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
 }
 
 /// invoker.{crt,key} - authorize invoker
 /// ca.crt - authorize requests
 const REQUIRED_PATHS: &[&str] = &["invoker.crt", "invoker.key", "ca.crt"];
 
-async fn route_ping(_req: HttpRequest) -> impl Responder {
+async fn route_ping() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/plain")
         .body("hello, authenticated world!")
+}
+
+async fn route_health() -> impl Responder {
+    // TODO account for real health here
+    let health = serde_json::json!({
+        "summary": "Ok"
+    });
+    serde_json::to_string(&health)
+}
+
+async fn route_shutdown(state: web::Data<State>) -> impl Responder {
+    log::info!("invoker api: got shutdown request");
+    state
+        .shutdown_trigger
+        .clone()
+        .send(())
+        .await
+        .map(|_| "shutdown requested successfully")
+        .map_err(|send_error| {
+            actix_web::error::InternalError::new(
+                anyhow::anyhow!("channel error: {}", send_error),
+                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })
 }
 
 fn verify_client_certificate(
@@ -41,12 +66,11 @@ fn verify_client_certificate(
     };
     let cert = match cert.iter().next() {
         Some(c) => c,
-        None => return false
+        None => return false,
     };
     let subject_names = cert.subject_name();
-    for name in subject_names.entries() {
+    for name in subject_names.entries_by_nid(openssl::nid::Nid::COMMONNAME) {
         let data = name.data().as_slice();
-        dbg!(String::from_utf8_lossy(data));
         if data == b"root" {
             return true;
         }
@@ -59,8 +83,13 @@ async fn exec(
     mut stop_token: tokio::sync::broadcast::Receiver<!>,
     bind_addr: std::net::SocketAddr,
     task_source: crate::sources::BackgroundSourceHandle,
+    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
     pki_base: PathBuf,
 ) -> anyhow::Result<()> {
+    let state = State {
+        task_source,
+        shutdown_trigger,
+    };
     let mut some_pki_files_missing = false;
     for &path in REQUIRED_PATHS {
         let p = pki_base.join(path);
@@ -101,10 +130,13 @@ async fn exec(
     // disallow legacy (and potentially insecure) TLS versions
     ssl_builder.set_min_proto_version(Some(openssl::ssl::SslVersion::TLS1_2))?;
 
-    let srv = HttpServer::new(|| {
+    let srv = HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(state.clone()))
             .wrap(actix_web::middleware::Logger::default())
             .route("/", web::get().to(route_ping))
+            .route("/health", web::get().to(route_health))
+            .route("/state/shutdown", web::post().to(route_shutdown))
     })
     .workers(1)
     .disable_signals()
@@ -127,10 +159,17 @@ pub async fn start(
     stop_token: tokio::sync::broadcast::Receiver<!>,
     bind_addr: std::net::SocketAddr,
     task_source: crate::sources::BackgroundSourceHandle,
+    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
     pki_base: PathBuf,
 ) -> Result<(), anyhow::Error> {
     tokio::task::spawn_blocking(move || {
-        if let Err(err) = exec(stop_token, bind_addr, task_source, pki_base) {
+        if let Err(err) = exec(
+            stop_token,
+            bind_addr,
+            task_source,
+            shutdown_trigger,
+            pki_base,
+        ) {
             eprintln!("Invoker api service: serve error: {:#}", err);
         }
     });

@@ -68,7 +68,7 @@ async fn start_controller(
 
     let controller = invoker::controller::Controller::new(driver, system_config_data, cfg)
         .context("failed to start controller")?;
-    controller.run_forever(stop_token).await;
+    tokio::task::spawn(controller.run_forever(stop_token));
     Ok(())
 }
 
@@ -101,10 +101,12 @@ async fn real_main() -> anyhow::Result<()> {
 
     let bg_source = invoker::sources::BackgroundSourceManager::new();
 
+    let (mut shutdown_trigger_tx, mut shutdown_trigger_rx) = tokio::sync::mpsc::channel(1);
     invoker::api::start(
         invoker_stop_token.subscribe(),
         bind_address,
         bg_source.fork().await,
+        shutdown_trigger_tx.clone(),
         system_config_data.data_dir.join("etc/pki"),
     )
     .await
@@ -119,8 +121,18 @@ async fn real_main() -> anyhow::Result<()> {
     .context("can not start controller")?;
 
     util::daemon_notify_ready();
-    tokio::signal::ctrl_c().await?;
-    log::info!("Received ctrl-c; exiting gracefully");
+    tokio::task::spawn(async move {
+        log::debug!("Installing signal hook");
+        match tokio::signal::ctrl_c().await {
+            Ok(_) => {
+                log::info!("Received ctrl-c");
+                shutdown_trigger_tx.send(()).await.ok();
+            }
+            Err(err) => log::warn!("Failed to wait for signal: {}", err),
+        }
+    });
+    shutdown_trigger_rx.recv().await;
+    log::info!("Received shutdown request; exiting gracefully");
     drop(invoker_stop_token);
     Ok(())
 }

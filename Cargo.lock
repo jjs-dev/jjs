@@ -289,12 +289,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "antidote"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34fde25430d87a9388dadbe6e34d7f72a462c8b43ac8d309b42b0a8505d7e2a5"
-
-[[package]]
 name = "anyhow"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1642,24 +1636,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyper-openssl"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed123fc8c1833f305468df3c3a6a837c34a7ae616567d40a5e3c2bf3cac2e31d"
-dependencies = [
- "antidote",
- "bytes 0.5.3",
- "http",
- "hyper",
- "linked_hash_set",
- "once_cell",
- "openssl",
- "openssl-sys",
- "tokio 0.2.16",
- "tokio-openssl",
-]
-
-[[package]]
 name = "hyper-tls"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1756,7 +1732,6 @@ dependencies = [
  "dotenv",
  "entity",
  "fs_extra",
- "hyper-openssl",
  "invoker-api",
  "libc",
  "log",
@@ -1766,8 +1741,6 @@ dependencies = [
  "openssl",
  "pom",
  "problem-loader",
- "rocket",
- "rocket_contrib",
  "serde",
  "serde_json",
  "serde_yaml 0.8.11",
@@ -1776,7 +1749,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio 0.2.16",
- "tokio-openssl",
  "util",
  "uuid",
 ]
@@ -1903,15 +1875,6 @@ name = "linked-hash-map"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae91b68aebc4ddb91978b11a1b02ddd8602a05ec19002801c5666000e05e0f83"
-
-[[package]]
-name = "linked_hash_set"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c7c91c4c7bbeb4f2f7c4e5be11e6a05bd6830bc37249c47ce1ad86ad453ff9c"
-dependencies = [
- "linked-hash-map",
-]
 
 [[package]]
 name = "lock_api"
@@ -2272,12 +2235,6 @@ dependencies = [
  "hermit-abi",
  "libc",
 ]
-
-[[package]]
-name = "once_cell"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c601810575c99596d4afc46f78a678c80105117c379eb3650cf99b8a21ce5b"
 
 [[package]]
 name = "opaque-debug"

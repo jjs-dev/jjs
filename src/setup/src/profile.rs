@@ -77,7 +77,7 @@ pub(crate) enum Source {
     Path { path: std::path::PathBuf },
 }
 
-#[derive(Deserialize , Default)]
+#[derive(Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) struct CertsProfile {

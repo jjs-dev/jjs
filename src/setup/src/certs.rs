@@ -26,7 +26,11 @@ enum ItemKind {
 
 impl ItemKind {
     fn all() -> impl Iterator<Item = ItemKind> {
-        const ALL: &[ItemKind] = &[ItemKind::CertificateAuthority, ItemKind::Invoker, ItemKind::Root];
+        const ALL: &[ItemKind] = &[
+            ItemKind::CertificateAuthority,
+            ItemKind::Invoker,
+            ItemKind::Root,
+        ];
         ALL.iter().copied()
     }
 
@@ -34,7 +38,7 @@ impl ItemKind {
         match self {
             ItemKind::CertificateAuthority => "ca",
             ItemKind::Invoker => "invoker",
-            ItemKind::Root => "root"
+            ItemKind::Root => "root",
         }
     }
 }

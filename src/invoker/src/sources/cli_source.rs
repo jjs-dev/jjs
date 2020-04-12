@@ -1,4 +1,4 @@
-use super::background_source::{BackgroundSourceHandle};
+use super::background_source::BackgroundSourceHandle;
 use anyhow::Context;
 use invoker_api::{CliInvokeTask, InvokeTask};
 use log::debug;

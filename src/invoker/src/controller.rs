@@ -250,7 +250,7 @@ impl Controller {
                 // continue running
                 Err(tokio::sync::broadcast::TryRecvError::Empty) => (),
                 // should not happen, because no sends() can be done
-                Err(tokio::sync::broadcast::TryRecvError::Lagged(_)) => unreachable!()
+                Err(tokio::sync::broadcast::TryRecvError::Lagged(_)) => unreachable!(),
             }
             let sleep = match self.tick().await {
                 Err(e) => {

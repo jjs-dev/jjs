@@ -11,7 +11,6 @@ entity = {path = "../entity"}
 db = {path = "../db"}
 dotenv = "0.15.0"
 util = {path = "../util"}
-slog-scope = "4.3.0"
 problem-loader = {path = "../problem-loader"}
 anyhow = "1.0.28"
 serde = { version = "1.0.106", features = ["derive"] }
@@ -20,3 +19,4 @@ schemars = "0.7.1"
 serde_json = "1.0.51"
 tokio = { version = "0.2.18", features = ["signal"] }
 futures = "0.3.4"
+log = "0.4.8"

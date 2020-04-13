@@ -888,7 +888,7 @@ ul.nav-tabs {
   }
 };
     defs["Run"] = {
-  "required" : [ "contest_id", "id", "problem_name", "score", "status", "toolchain_name" ],
+  "required" : [ "contest_id", "id", "problem_name", "toolchain_name" ],
   "type" : "object",
   "properties" : {
     "contest_id" : {
@@ -919,7 +919,7 @@ ul.nav-tabs {
   "description" : "Represents a run."
 };
     defs["RunLiveStatusUpdate"] = {
-  "required" : [ "current_test", "finish", "live_score" ],
+  "required" : [ "finish" ],
   "type" : "object",
   "properties" : {
     "current_test" : {
@@ -980,7 +980,7 @@ ul.nav-tabs {
   }
 };
     defs["SessionToken"] = {
-  "required" : [ "data", "raw_data" ],
+  "required" : [ "data" ],
   "type" : "object",
   "properties" : {
     "data" : {

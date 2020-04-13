@@ -208,8 +208,6 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-vmsysroot-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-vmsysroot-${{ steps.rustc_version.outputs.version }}-
       - name: build jjs
         run: |
           mkdir -p target

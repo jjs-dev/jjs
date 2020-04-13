@@ -85,7 +85,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: cargo-udeps
-        run: cargo jjs-check --no-default --udeps || true #FIXME
+        run: cargo jjs-check --no-default --udeps
   codegen:
     name: codegen
     runs-on: "ubuntu-18.04"

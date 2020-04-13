@@ -210,9 +210,12 @@ impl Controller {
             None => get_num_cpus(),
         };
         info!("Using {} workers", worker_count);
+        let serialized_config =
+            serde_json::to_string(&config).context("failed to serialize InvokerConfig")?;
         for _ in 0..worker_count {
             let mut child = tokio::process::Command::new(std::env::current_exe()?)
                 .env("__JJS_WORKER", "1")
+                .env("__JJS_WORKER_INVOKER_CONFIG", &serialized_config)
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .spawn()

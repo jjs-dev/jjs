@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate diesel;
-
 mod conn;
 pub mod connect;
 pub mod repo;

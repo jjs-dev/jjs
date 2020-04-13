@@ -9,28 +9,28 @@ pom = {path = "../pom"}
 digest = "0.8.1"
 db = {path = "../db"}
 rand = "0.7.3"
-uuid = "0.7.4"
+uuid = "0.8.1"
 rocket = {git = "https://github.com/SergioBenitez/rocket", branch = "async"}
-serde = "1.0.104"
+serde = "1.0.106"
 sha3 = "0.8.2"
-rand_chacha = "0.2.1"
+rand_chacha = "0.2.2"
 entity = {path = "../entity"}
-base64 = "0.11.0"
+base64 = "0.12.0"
 constant_time_eq = "0.1.5"
-libc = "0.2.66"
-serde_json = "1.0.44"
+libc = "0.2.68"
+serde_json = "1.0.51"
 branca = "0.9.0"
-backtrace = "0.3.43"
+backtrace = "0.3.46"
 ranker = {path = "../ranker"}
 slog-scope = "4.3.0"
-anyhow = "1.0.26"
+anyhow = "1.0.28"
 invoker-api = {path = "../invoker-api"}
 rocket_contrib = {git = "https://github.com/SergioBenitez/rocket", branch = "async"}
 problem-loader = {path = "../problem-loader"}
 serde_yaml = "0.8.11"
-thiserror = "1.0.13"
-schemars = "0.6.5"
-tokio = {version = "0.2.13", features = ["rt-threaded", "macros", "uds", "stream"]}
+thiserror = "1.0.15"
+schemars = "0.7.1"
+tokio = { version = "0.2.18", features = ["rt-threaded", "macros", "uds", "stream"] }
 futures = "0.3.4"
 chrono = "0.4.11"
 

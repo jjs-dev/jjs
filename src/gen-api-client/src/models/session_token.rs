@@ -16,13 +16,16 @@ pub struct SessionToken {
     #[serde(rename = "data")]
     pub data: String,
     /// in dev mode, contains session data in unencrypted form
-    #[serde(rename = "raw_data")]
+    #[serde(rename = "raw_data", skip_serializing_if = "Option::is_none")]
     pub raw_data: Option<String>,
 }
 
 impl SessionToken {
     /// Type that represents session You shouldn't do any assumptions about this type representation
-    pub fn new(data: String, raw_data: Option<String>) -> SessionToken {
-        SessionToken { data, raw_data }
+    pub fn new(data: String) -> SessionToken {
+        SessionToken {
+            data,
+            raw_data: None,
+        }
     }
 }

@@ -6,11 +6,11 @@ edition = "2018"
 
 [dependencies]
 invoker-api = {path = "../invoker-api"}
-anyhow = "1.0.26"
+anyhow = "1.0.28"
 pom  = {path = "../pom"}
 crossbeam = "0.7.3"
-serde_json = "1.0.44"
-serde = "1.0.104"
+serde_json = "1.0.51"
+serde = "1.0.106"
 util = {path = "../util"}
 serde_yaml = "0.8.11"
 log = "0.4.8"

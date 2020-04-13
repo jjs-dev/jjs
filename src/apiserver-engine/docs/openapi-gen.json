@@ -140,8 +140,6 @@
           "contest_id",
           "id",
           "problem_name",
-          "score",
-          "status",
           "toolchain_name"
         ],
         "type": "object"
@@ -167,9 +165,7 @@
           }
         },
         "required": [
-          "current_test",
-          "finish",
-          "live_score"
+          "finish"
         ],
         "type": "object"
       },
@@ -231,8 +227,7 @@
           }
         },
         "required": [
-          "data",
-          "raw_data"
+          "data"
         ],
         "type": "object"
       },

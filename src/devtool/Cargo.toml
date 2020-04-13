@@ -5,15 +5,15 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.3.8"
-serde = { version = "1.0.104", features = ["derive"] }
+structopt = "0.3.13"
+serde = { version = "1.0.106", features = ["derive"] }
 log = "0.4.8"
 env_logger = "0.7.1"
-ignore = "0.4.11"
+ignore = "0.4.14"
 toml = "0.5.6"
 atty = "0.2.14"
 util = {path = "../util"}
 lazy_static = "1.4.0"
-anyhow = "1.0.26"
-serde_json = "1.0.48"
+anyhow = "1.0.28"
+serde_json = "1.0.51"
 serde_yaml = "0.8.11"

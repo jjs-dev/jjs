@@ -4,6 +4,7 @@ mod participation;
 pub use invocation::InvocationState;
 pub use participation::ParticipationPhase;
 
+use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub type RunId = i32;

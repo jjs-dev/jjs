@@ -18,9 +18,9 @@ pub struct Run {
     pub id: i32,
     #[serde(rename = "problem_name")]
     pub problem_name: String,
-    #[serde(rename = "score")]
+    #[serde(rename = "score", skip_serializing_if = "Option::is_none")]
     pub score: Option<i32>,
-    #[serde(rename = "status")]
+    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::models::InvokeStatus>,
     #[serde(rename = "toolchain_name")]
     pub toolchain_name: String,
@@ -28,20 +28,13 @@ pub struct Run {
 
 impl Run {
     /// Represents a run.
-    pub fn new(
-        contest_id: String,
-        id: i32,
-        problem_name: String,
-        score: Option<i32>,
-        status: Option<crate::models::InvokeStatus>,
-        toolchain_name: String,
-    ) -> Run {
+    pub fn new(contest_id: String, id: i32, problem_name: String, toolchain_name: String) -> Run {
         Run {
             contest_id,
             id,
             problem_name,
-            score,
-            status,
+            score: None,
+            status: None,
             toolchain_name,
         }
     }

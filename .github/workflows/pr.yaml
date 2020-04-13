@@ -225,6 +225,7 @@ jobs:
           sudo image/build-image.sh
           sudo image/build-full.sh
           sudo rm -rvf sysroot # otherwise it will fail to push build cache
+        timeout-minutes: 5
       - name: build UML
         run: |
           mkdir uml

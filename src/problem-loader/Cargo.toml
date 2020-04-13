@@ -7,5 +7,5 @@ edition = "2018"
 
 [dependencies]
 pom = {path = "../pom"}
-anyhow = "1.0.26"
-serde_json = "1.0.48"
+anyhow = "1.0.28"
+serde_json = "1.0.51"

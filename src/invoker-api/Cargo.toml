@@ -5,9 +5,9 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0.104", features = ["derive"] }
-strum = "0.17.1"
-strum_macros = "0.17.1"
+serde = { version = "1.0.106", features = ["derive"] }
+strum = "0.18.0"
+strum_macros = "0.18.0"
 bitflags = "1.2.1"
 pom = {path = "../pom"}
-uuid = "0.7.4"
+uuid = { version = "0.8.1", features = ["serde"] }

@@ -1,5 +1,6 @@
 use super::{Invocation, InvocationPatch, NewInvocation};
 use anyhow::Context;
+use diesel::expression::AsExpression;
 use std::convert::{TryFrom, TryInto};
 #[derive(Copy, Clone, AsExpression)]
 #[repr(i16)]

@@ -1,7 +1,7 @@
 use anyhow::Context;
 use apiserver_engine::ApiserverParams;
 use futures::stream::StreamExt;
-use slog_scope::info;
+use log::info;
 use std::sync::Arc;
 
 async fn launch_api(
@@ -28,7 +28,7 @@ async fn launch_api(
 
     let join = tokio::task::spawn(async {
         if let Err(err) = launch_fut.await {
-            slog_scope::crit!("Serve error: {}", err);
+            log::error!("Serve error: {}", err);
         }
     });
 

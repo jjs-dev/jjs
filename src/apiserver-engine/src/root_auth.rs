@@ -2,7 +2,7 @@
 // it implements tcp service, which provides some platform-specific authentification options
 use crate::{ApiserverParams, TokenMgr};
 use futures::future::FutureExt;
-use slog_scope::{error, info};
+use log::{error, info};
 use std::{ffi::c_void, mem, os::unix::io::AsRawFd, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,
@@ -70,7 +70,7 @@ async fn do_start(cfg: Config, as_cfg: Arc<ApiserverParams>) {
     let listener = match UnixListener::bind(&cfg.socket_path) {
         Ok(l) => l,
         Err(err) => {
-            error!("couldn't bind unix socket server due to {:?}",  err; "err" => ?err);
+            error!("couldn't bind unix socket server: {}", err);
             return;
         }
     };

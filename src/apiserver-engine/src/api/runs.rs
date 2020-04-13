@@ -3,7 +3,7 @@ use super::{
     schema::{ContestId, RunId},
 };
 use futures::stream::{StreamExt, TryStreamExt};
-use slog_scope::debug;
+use log::debug;
 use std::path::PathBuf;
 
 /// Represents a run.

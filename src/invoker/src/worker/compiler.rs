@@ -12,11 +12,12 @@ pub(crate) enum BuildOutcome {
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a InvokeRequest,
     pub(crate) minion: &'a dyn minion::Backend,
+    pub(crate) config: &'a crate::config::InvokerConfig,
 }
 
 impl<'a> Compiler<'a> {
     pub(crate) fn compile(&self) -> anyhow::Result<BuildOutcome> {
-        let sandbox = invoke_util::create_sandbox(self.req, None, self.minion)
+        let sandbox = invoke_util::create_sandbox(self.req, None, self.minion, self.config)
             .context("failed to create sandbox")?;
         let step_dir = self.req.step_dir(None);
         fs::copy(

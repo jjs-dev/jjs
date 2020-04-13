@@ -22,6 +22,7 @@ pub(crate) struct TestExecutor<'a> {
     pub(crate) exec: ExecRequest<'a>,
     pub(crate) req: &'a InvokeRequest,
     pub(crate) minion: &'a dyn minion::Backend,
+    pub(crate) config: &'a crate::config::InvokerConfig,
 }
 
 enum RunOutcomeVar {
@@ -59,7 +60,8 @@ impl<'a> TestExecutor<'a> {
     fn run_solution(&self, test_data: &[u8], test_id: u32) -> anyhow::Result<RunOutcome> {
         let step_dir = self.req.step_dir(Some(test_id));
 
-        let sandbox = invoke_util::create_sandbox(self.req, Some(test_id), self.minion)?;
+        let sandbox =
+            invoke_util::create_sandbox(self.req, Some(test_id), self.minion, self.config)?;
 
         fs::copy(self.req.out_dir.join("build"), step_dir.join("data/build"))
             .context("failed to copy build artifact to share dir")?;

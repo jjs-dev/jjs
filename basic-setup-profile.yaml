@@ -3,7 +3,6 @@ data-dir: "/tmp/jjs"
 pg:
   db-name: jjs
   conn-string: "postgresql://jjs:internal@localhost:5432/jjs"
-toolchains: {}
 problems:
   archive:
     sources:

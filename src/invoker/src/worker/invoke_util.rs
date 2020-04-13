@@ -26,33 +26,61 @@ impl Drop for Sandbox {
     }
 }
 
+static DEFAULT_HOST_MOUNTS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync::Lazy::new(|| {
+    vec![
+        "usr".to_string(),
+        "bin".to_string(),
+        "lib".to_string(),
+        "lib64".to_string(),
+    ]
+});
+
 pub(crate) fn create_sandbox(
     req: &InvokeRequest,
     test_id: Option<u32>,
     backend: &dyn minion::Backend,
+    config: &crate::config::InvokerConfig,
 ) -> anyhow::Result<Sandbox> {
     let mut exposed_paths = vec![];
-    let toolchains_dir = &req.toolchains_dir;
-    let opt_items = fs::read_dir(&toolchains_dir).context("failed to list toolchains sysroot")?;
-    for item in opt_items {
-        let item = item.context("failed to stat toolchains sysroot item")?;
-        let item_type = item
-            .file_type()
-            .context("failed to get toolchain sysroot item file type")?;
-        if !item_type.is_dir() {
-            bail!(
-                "couldn't link child chroot, because it contains toplevel item `{}`, which is not directory",
-                item.file_name().to_string_lossy()
-            );
+    if config.host_toolchains {
+        let dirs = config
+            .expose_host_dirs
+            .as_ref()
+            .unwrap_or_else(|| &*DEFAULT_HOST_MOUNTS);
+        for item in dirs {
+            let item = format!("/{}", item);
+            let peo = minion::PathExpositionOptions {
+                src: item.clone().into(),
+                dest: item.into(),
+                access: minion::DesiredAccess::Readonly,
+            };
+            exposed_paths.push(peo)
         }
-        let name = item.file_name();
-        let peo = minion::PathExpositionOptions {
-            src: toolchains_dir.join(&name),
-            dest: PathBuf::from(&name),
-            access: minion::DesiredAccess::Readonly,
-        };
-        exposed_paths.push(peo)
+    } else {
+        let toolchains_dir = &req.toolchains_dir;
+        let opt_items =
+            fs::read_dir(&toolchains_dir).context("failed to list toolchains sysroot")?;
+        for item in opt_items {
+            let item = item.context("failed to stat toolchains sysroot item")?;
+            let item_type = item
+                .file_type()
+                .context("failed to get toolchain sysroot item file type")?;
+            if !item_type.is_dir() {
+                bail!(
+                    "couldn't link child chroot, because it contains toplevel item `{}`, which is not directory",
+                    item.file_name().to_string_lossy()
+                );
+            }
+            let name = item.file_name();
+            let peo = minion::PathExpositionOptions {
+                src: toolchains_dir.join(&name),
+                dest: PathBuf::from(&name),
+                access: minion::DesiredAccess::Readonly,
+            };
+            exposed_paths.push(peo)
+        }
     }
+
     let limits = if let Some(test_id) = test_id {
         req.problem.tests[(test_id - 1) as usize].limits
     } else {

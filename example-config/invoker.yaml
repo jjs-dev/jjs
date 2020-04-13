@@ -1,3 +1,6 @@
 workers: 4
 sleep:
   max-ms: 5000
+
+# uncomment if you don't want separate toolchains dir. 
+# host-toolchains: true

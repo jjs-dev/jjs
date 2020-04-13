@@ -86,12 +86,15 @@ pub(crate) enum Response {
 pub(crate) struct Worker {
     /// Minion backend to use for invocations
     minion: Arc<dyn minion::Backend>,
+    /// Invoker configuration
+    config: crate::config::InvokerConfig,
 }
 
 impl Worker {
-    pub(crate) fn new() -> Worker {
+    pub(crate) fn new(config: crate::config::InvokerConfig) -> Worker {
         Worker {
             minion: minion::setup().into(),
+            config,
         }
     }
 
@@ -140,6 +143,7 @@ impl Worker {
         let compiler = Compiler {
             req,
             minion: &*self.minion,
+            config: &self.config,
         };
 
         if !req.run_source.exists() {
@@ -236,6 +240,7 @@ impl Worker {
                         exec: judge_request,
                         req,
                         minion: &*self.minion,
+                        config: &self.config,
                     };
 
                     let judge_response = test_exec
@@ -286,7 +291,10 @@ pub(crate) enum InvokeOutcome {
 }
 
 pub async fn main() -> anyhow::Result<()> {
-    let w = Worker::new();
+    let config_data = std::env::var("__JJS_WORKER_INVOKER_CONFIG")
+        .context("__JJS_WORKER_INVOKER_CONFIG missing")?;
+    let config = serde_json::from_str(&config_data)?;
+    let w = Worker::new(config);
     w.main_loop().await;
     Ok(())
 }

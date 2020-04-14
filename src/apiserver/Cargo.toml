@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 apiserver-engine = {path = "../apiserver-engine"}
-rocket = {git = "https://github.com/SergioBenitez/rocket", branch = "async", features = []} # TODO: features = ["tls"]
 entity = {path = "../entity"}
 db = {path = "../db"}
 dotenv = "0.15.0"
@@ -20,3 +19,5 @@ serde_json = "1.0.51"
 tokio = { version = "0.2.18", features = ["signal"] }
 futures = "0.3.4"
 log = "0.4.8"
+actix-rt = "1.1.0"
+daemons = {path = "../daemons"}

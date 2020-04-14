@@ -82,76 +82,13 @@ impl AccessChecker<'_> {
         false
     }
 
-    pub(crate) fn select_judge_log_kind(&self) -> invoker_api::valuer_proto::JudgeLogKind {
+    pub(crate) fn select_judge_log_kind(
+        &self,
+    ) -> invoker_api::valuer_proto::JudgeLogKind {
         use invoker_api::valuer_proto::JudgeLogKind;
         if self.is_contest_sudo() {
             return JudgeLogKind::Full;
         }
         JudgeLogKind::Contestant
-    }
-}
-
-fn is_contest_running_at(
-    contest: &entity::Contest,
-    moment: chrono::DateTime<chrono::Utc>,
-    participation: &db::schema::Participation,
-) -> bool {
-    if contest.is_virtual {
-        let time_since_beginning = moment - participation.virtual_contest_start_time().unwrap();
-        match contest.duration {
-            Some(contest_duration) => {
-                time_since_beginning <= chrono::Duration::from_std(contest_duration).unwrap()
-                    && time_since_beginning.num_milliseconds() >= 0
-            }
-            None => true,
-        }
-    } else {
-        match contest.end_time {
-            Some(end_time) => moment < end_time,
-            None => true,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use db::schema::Participation;
-    use entity::Contest;
-
-    fn mktime(h: u32, m: u32, s: u32) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::from_utc(
-            chrono::NaiveDate::from_ymd(2001, 1, 1).and_hms(h, m, s),
-            chrono::Utc,
-        )
-    }
-
-    fn mkpart_nonvirt() -> Participation {
-        Participation::mock_new()
-    }
-
-    #[test]
-    fn test_is_contest_running_at() {
-        assert!(is_contest_running_at(
-            &Contest {
-                is_virtual: false,
-                start_time: Some(mktime(10, 0, 0)),
-                end_time: Some(mktime(14, 0, 0)),
-                ..Default::default()
-            },
-            mktime(12, 0, 0),
-            &mkpart_nonvirt()
-        ));
-
-        assert!(!is_contest_running_at(
-            &Contest {
-                is_virtual: false,
-                start_time: Some(mktime(10, 0, 0)),
-                end_time: Some(mktime(14, 0, 0)),
-                ..Default::default()
-            },
-            mktime(16, 0, 0),
-            &mkpart_nonvirt()
-        ));
     }
 }

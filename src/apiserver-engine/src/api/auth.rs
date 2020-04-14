@@ -19,7 +19,8 @@ impl ApiObject for SimpleAuthParams {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub(crate) struct SessionToken {
     /// Opaque string that represents session data
-    /// On all subsequent requests, put this string as value of header `X-Jjs-Auth`
+    /// On all subsequent requests, put this string as value of header
+    /// `X-Jjs-Auth`
     pub data: String,
 
     /// in dev mode, contains session data in unencrypted form
@@ -32,19 +33,14 @@ impl ApiObject for SessionToken {
     }
 }
 
-#[post("/auth/simple", data = "<p>")]
-pub(crate) async fn route_simple(
-    ctx: Context,
+async fn route_simple(
+    tmcx: TokenManageContext,
+    dcx: DbContext,
     p: Json<SimpleAuthParams>,
 ) -> ApiResult<Json<SessionToken>> {
     let mut success = false;
     let mut reject_reason = "";
-    if let Some(user) = ctx
-        .db()
-        .user_try_load_by_login(&p.login)
-        .await
-        .internal(&ctx)?
-    {
+    if let Some(user) = dcx.db().user_try_load_by_login(&p.login).await.internal()? {
         if let Some(password_hash) = user.password_hash {
             success = crate::password::check_password_hash(&p.password, &password_hash);
             if !success {
@@ -57,8 +53,12 @@ pub(crate) async fn route_simple(
         reject_reason = "UnknownUser";
     }
     if success {
-        let token = ctx.token_mgr.create_token(&p.login).await.internal(&ctx)?;
-        let buf = ctx.token_mgr.serialize(&token);
+        let token = tmcx
+            .token_manager()
+            .create_token(&p.login)
+            .await
+            .internal()?;
+        let buf = tmcx.token_manager().serialize(&token);
         let sess = SessionToken {
             data: buf,
             raw_data: None, //TODO
@@ -71,8 +71,11 @@ pub(crate) async fn route_simple(
             visible: true,
             extension: ext,
             cause: None,
-            ctx,
         };
         Err(err)
     }
+}
+
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/auth/simple", web::post().to(route_simple));
 }

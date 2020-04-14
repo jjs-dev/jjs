@@ -10,7 +10,7 @@ pub struct DbSource {
 }
 
 impl DbSource {
-    pub fn new(db: db::DbConn, cfg_data: &util::cfg::CfgData) -> DbSource {
+    pub fn new(db: db::DbConn, cfg_data: &daemons::cfg::CfgData) -> DbSource {
         DbSource {
             db,
             runs_dir: cfg_data.data_dir.join("var/runs"),

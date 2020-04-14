@@ -13,7 +13,8 @@ pub enum ErrorCode {
     Ok,
     /// passed arguments didn't pass some basic checks
     /// examples:
-    /// - provided buffer was expected to be null-terminated utf8-encoded string, but wasn't
+    /// - provided buffer was expected to be null-terminated utf8-encoded
+    ///   string, but wasn't
     /// - something was expected to be unique, but wasn't, and so on
     /// these errors usually imply bug exists in caller code
     InvalidInput,
@@ -21,9 +22,10 @@ pub enum ErrorCode {
     Unknown,
 }
 
-/// Get string description of given `error_code`, returned by minion-ffi previously.
-/// Returns char const* pointer with static lifetime. This pointer must not be freed.
-/// Description is guaranteed to be null-terminated ASCII string
+/// Get string description of given `error_code`, returned by minion-ffi
+/// previously. Returns char const* pointer with static lifetime. This pointer
+/// must not be freed. Description is guaranteed to be null-terminated ASCII
+/// string
 #[no_mangle]
 pub extern "C" fn minion_describe_status(error_code: ErrorCode) -> *const u8 {
     match error_code {
@@ -392,7 +394,8 @@ pub unsafe extern "C" fn minion_cp_exitcode(
 }
 
 /// # Safety
-/// `cp` must be valid pointer to ChildProcess object, allocated by `minion_cp_spawn`
+/// `cp` must be valid pointer to ChildProcess object, allocated by
+/// `minion_cp_spawn`
 #[no_mangle]
 #[must_use]
 pub unsafe extern "C" fn minion_cp_free(cp: *mut ChildProcess) -> ErrorCode {

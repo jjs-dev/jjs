@@ -244,7 +244,6 @@ async fn load_profile(path: &Path) -> anyhow::Result<Profile> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     util::log::setup();
-    util::wait::wait();
     let opts: Opts = Opts::from_args();
     let profile = load_profile(&opts.profile).await.context("load profile")?;
     std::env::set_var("JJS_PATH", &profile.install_dir);

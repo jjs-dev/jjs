@@ -38,7 +38,8 @@ pub struct Cell {
     /// Score gained
     pub score: Score,
     /// True if cell should be highlighted
-    /// For example, in ICPC contest run will be `marked` probably if it is first full solution for problem
+    /// For example, in ICPC contest run will be `marked` probably if it is
+    /// first full solution for problem
     pub marked: bool,
     /// Count of non-ignored attempts which should be displayed
     ///
@@ -51,8 +52,8 @@ pub struct Cell {
 pub struct PartyStats {
     /// This is used to distinguish groups of parties
     ///
-    /// E.g.: participants who solved 8 problems, get `color == 0`; participants who solved 7
-    /// problems get `color == 1`, and so on.
+    /// E.g.: participants who solved 8 problems, get `color == 0`; participants
+    /// who solved 7 problems get `color == 1`, and so on.
     ///
     /// Probably, you will want to use not color, but `color % 2`.
     pub color: u32,
@@ -70,12 +71,13 @@ pub struct PartyRow {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct ProblemStats {
     pub total_runs: u32,
-    /// How many runs are accepted. If one party made two accepted runs, both are counted.
+    /// How many runs are accepted. If one party made two accepted runs, both
+    /// are counted.
     pub accepted_runs: u32,
     /// Max party score gained on this problem.
     ///
-    /// Note: if `merge_subtasks` mode is enabled, it is possible that e.g. max_score is 100
-    /// but every particular run got <=90 points.
+    /// Note: if `merge_subtasks` mode is enabled, it is possible that e.g.
+    /// max_score is 100 but every particular run got <=90 points.
     pub max_score: Score,
 }
 
@@ -86,7 +88,8 @@ pub struct StatsRow {
 
 /// Determines which runs will be used to calculate total score for problem.
 ///
-/// Note that exact way of calculating score depends on [`RunScoreAggregation`](RunScoreAggregation)
+/// Note that exact way of calculating score depends on
+/// [`RunScoreAggregation`](RunScoreAggregation)
 #[derive(Debug)]
 pub enum RunScoreAggregationTarget {
     /// All runs will be used
@@ -94,7 +97,8 @@ pub enum RunScoreAggregationTarget {
     /// `k` latest (later = id is greater) will be used
     Latest(u32),
     /// Run with max score will be used
-    /// If there are several runs with max score, run with greatest id will be used
+    /// If there are several runs with max score, run with greatest id will be
+    /// used
     Best,
 }
 
@@ -286,7 +290,8 @@ fn build_party_stats(mon: &mut Monitor, parties: &[PartyId]) {
         .collect();
     distinct_color_keys.sort_unstable();
     distinct_color_keys.dedup_by_key(|x| *x);
-    // and now, color of party is position of it's coloring key in `distinct_color_keys`
+    // and now, color of party is position of it's coloring key in
+    // `distinct_color_keys`
     for &party in parties {
         let color = distinct_color_keys
             .binary_search(&std::cmp::Reverse(coloring_key[&party]))

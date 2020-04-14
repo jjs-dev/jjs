@@ -37,7 +37,8 @@ pub(crate) struct TcsProfile {
     /// If non-empty, all toolchains not from this list will be skipped
     #[serde(default)]
     pub(crate) whitelist: Vec<String>,
-    /// Strategies used by `jjs-configure-toolchains`. If empty, default list will be used.
+    /// Strategies used by `jjs-configure-toolchains`. If empty, default list
+    /// will be used.
     #[serde(default)]
     pub(crate) strategies: Vec<String>,
     /// Will be appended to `jjs-configure-toolchains` argv.

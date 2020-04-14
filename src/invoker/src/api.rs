@@ -53,6 +53,7 @@ async fn route_shutdown(state: web::Data<State>) -> impl Responder {
         })
 }
 
+// TODO: use `daemons::ssl` here instead
 fn verify_client_certificate(
     openssl_validation_succeeded: bool,
     chain: &mut openssl::x509::X509StoreContextRef,
@@ -130,6 +131,8 @@ async fn exec(
     // disallow legacy (and potentially insecure) TLS versions
     ssl_builder.set_min_proto_version(Some(openssl::ssl::SslVersion::TLS1_2))?;
 
+    let listener = std::net::TcpListener::bind(&bind_addr)?;
+
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
@@ -140,7 +143,7 @@ async fn exec(
     })
     .workers(1)
     .disable_signals()
-    .bind_openssl(bind_addr, ssl_builder)
+    .listen_openssl(listener, ssl_builder)
     .context("unable to bind")?
     .run();
     loop {
@@ -162,6 +165,7 @@ pub async fn start(
     shutdown_trigger: tokio::sync::mpsc::Sender<()>,
     pki_base: PathBuf,
 ) -> Result<(), anyhow::Error> {
+    // TODO reuse existing runtime
     tokio::task::spawn_blocking(move || {
         if let Err(err) = exec(
             stop_token,

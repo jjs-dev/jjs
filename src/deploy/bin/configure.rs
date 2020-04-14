@@ -56,8 +56,8 @@ struct Opt {
     systemd: bool,
     /// Destination JJS will be installed to
     ///
-    /// Some JJS components can not be built or work properly without this option
-    /// By default, same as prefix.
+    /// Some JJS components can not be built or work properly without this
+    /// option By default, same as prefix.
     #[structopt(long)]
     install_prefix: Option<PathBuf>,
     /// Build docker images
@@ -72,13 +72,15 @@ struct Opt {
     /// Build apiserver API documentation. Requires npx
     #[structopt(long = "enable-api-doc")]
     apidoc: bool,
-    /// Name or path to Docker or other tool which can run containers (e.g. Podman)
+    /// Name or path to Docker or other tool which can run containers (e.g.
+    /// Podman)
     #[structopt(long = "with-docker")]
     docker_name: Option<String>,
     /// If enabled, json schemas will be emitted
     #[structopt(long = "enable-json-schema")]
     json_schema: bool,
-    /// If enabled, trial contest problems will be compiled and packaged into archive
+    /// If enabled, trial contest problems will be compiled and packaged into
+    /// archive
     #[structopt(long = "enable-compile-trial-contest")]
     compile_trial_contest: bool,
     /// If enabled, Rust API documentation will be generated for all crates

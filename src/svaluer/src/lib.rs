@@ -16,7 +16,8 @@ use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification,
 use log::debug;
 use pom::TestId;
 use std::collections::HashSet;
-/// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting with environment, such as JJS invoker.
+/// SValuer is pure. Only `ValuerDriver` actually performs some IO, interacting
+/// with environment, such as JJS invoker.
 pub trait ValuerDriver: std::fmt::Debug {
     /// Retrieves `ProblemInfo`. Will be called once.
     fn problem_info(&mut self) -> Result<ProblemInfo>;

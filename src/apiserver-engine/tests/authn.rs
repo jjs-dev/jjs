@@ -5,7 +5,7 @@ use serde_json::json;
 
 const EMPTY_GROUPS: &[String; 0] = &[];
 
-impl<'a> RequestBuilder<'a> {
+impl RequestBuilder {
     fn create_user(
         &mut self,
         name: &str,
@@ -51,7 +51,7 @@ impl Env {
 /// tests that multiple users with same login are not allowed
 #[tokio::test]
 async fn test_user_already_exists() {
-    let env = Env::new("UserOps").await;
+    let env = Env::new().await;
     let res = env
         .req()
         .create_user("JonSnow", "VerySecretPass", EMPTY_GROUPS)
@@ -71,7 +71,7 @@ async fn test_user_already_exists() {
 
 #[tokio::test]
 async fn test_groups() {
-    let env = Env::new("Groups").await;
+    let env = Env::new().await;
     let res = env
         .req()
         .create_user("Alice", "pswrd", &["bar"])
@@ -104,7 +104,7 @@ async fn test_contests_participations_restrictions() {
             env_blacklist: vec![],
             env_passing: true,
         })
-        .build("ContestTime")
+        .build()
         .await;
     env.req()
         .create_user("Alice", "", &["Participants"])

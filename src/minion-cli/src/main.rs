@@ -86,7 +86,8 @@ struct ExecOpt {
     #[structopt(short = "r", long = "root")]
     isolation_root: String,
 
-    /// Exposed paths (/source/path:MASK:/dest/path), MASK is r-x for readonly access and rwx for full access
+    /// Exposed paths (/source/path:MASK:/dest/path), MASK is r-x for readonly
+    /// access and rwx for full access
     #[structopt(
         short = "x",
         long = "expose",

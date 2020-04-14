@@ -23,7 +23,8 @@ pub trait RunsRepo: std::fmt::Debug + Send + Sync {
     }
     async fn run_update(&self, run_id: RunId, patch: RunPatch) -> Result<()>;
     async fn run_delete(&self, run_id: RunId) -> Result<()>;
-    async fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>>;
+    async fn run_select(&self, user_id: Option<uuid::Uuid>, limit: Option<u32>)
+    -> Result<Vec<Run>>;
 }
 
 #[async_trait]

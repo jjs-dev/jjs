@@ -1,10 +1,9 @@
 use super::{token::UserInfo, Token};
 use std::sync::Arc;
-
 /// Token Manager - entity manipulating tokens
 #[derive(Clone, Debug)]
 pub struct TokenMgr {
-    db: Arc<db::DbConn>,
+    db: db::DbConn,
     secret_key: Arc<[u8]>,
 }
 
@@ -34,7 +33,7 @@ pub enum TokenMgrError {
 }
 
 impl TokenMgr {
-    pub fn new(db: Arc<db::DbConn>, secret_key: Arc<[u8]>) -> Self {
+    pub fn new(db: db::DbConn, secret_key: Arc<[u8]>) -> Self {
         Self { db, secret_key }
     }
 

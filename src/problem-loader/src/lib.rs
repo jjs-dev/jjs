@@ -2,6 +2,7 @@ use anyhow::Context;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 struct ProblemItem {
@@ -15,9 +16,12 @@ impl ProblemItem {
     }
 }
 
-pub struct Loader {
+struct ProblemsData {
     data: HashMap<String, ProblemItem>,
 }
+
+#[derive(Clone)]
+pub struct Loader(Arc<ProblemsData>);
 
 fn load_problem_from_dir(dir: &Path) -> anyhow::Result<pom::Problem> {
     let problem_manifest_path = dir.join("manifest.json");
@@ -32,11 +36,11 @@ fn load_problem_from_dir(dir: &Path) -> anyhow::Result<pom::Problem> {
 
 impl Loader {
     pub fn list(&self) -> impl Iterator<Item = (&pom::Problem, &Path)> {
-        self.data.values().map(ProblemItem::borrow)
+        self.0.data.values().map(ProblemItem::borrow)
     }
 
     pub fn find(&self, name: &str) -> Option<(&pom::Problem, &Path)> {
-        self.data.get(name).map(|item| item.borrow())
+        self.0.data.get(name).map(|item| item.borrow())
     }
 
     pub fn from_dir(dir: &Path) -> anyhow::Result<Loader> {
@@ -50,7 +54,7 @@ impl Loader {
             let item = ProblemItem { problem, path };
             data.insert(item.problem.name.clone(), item);
         }
-        Ok(Loader { data })
+        Ok(Loader(Arc::new(ProblemsData { data })))
     }
 
     pub fn load_from_data_dir(jjs_data_dir: &Path) -> anyhow::Result<Loader> {
@@ -58,8 +62,8 @@ impl Loader {
     }
 
     pub fn empty() -> Loader {
-        Loader {
+        Loader(Arc::new(ProblemsData {
             data: HashMap::new(),
-        }
+        }))
     }
 }

@@ -34,7 +34,8 @@ mod term_driver {
                 .context("failed to read line")?;
             let user_input = user_input.trim();
             match user_input.parse() {
-                // These are different Ok's: one is anyhow::Result::Ok, other is Result<.., <T as FromStr>::Err>>
+                // These are different Ok's: one is anyhow::Result::Ok, other is
+                // Result<.., <T as FromStr>::Err>>
                 Ok(x) => break Ok(x),
                 Err(err) => {
                     eprintln!("failed to parse your input: {}. Please, enter again.", err);

@@ -139,9 +139,9 @@ impl InvocationsRepo for PgRepo {
         let mut to_del = Vec::new();
         for inv in invs {
             let inv_id = inv.id;
-            if predicate(inv.clone())
-                .with_context(|| format!("predicate failed on invocation with id={}", inv_id))?
-            {
+            let passed = predicate(inv.clone())
+                .with_context(|| format!("predicate failed on invocation with id={}", inv_id))?;
+            if passed {
                 filtered.push(inv);
                 to_del.push(inv_id);
             }
@@ -247,14 +247,14 @@ impl RunsRepo for PgRepo {
         Ok(())
     }
 
-    async fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
+    async fn run_select(&self, user_id: Option<UserId>, limit: Option<u32>) -> Result<Vec<Run>> {
         let limit = limit.map(|x| x as i32).unwrap_or(i32::max_value());
         let rows = self
             .conn()
             .await?
             .query(
-                "SELECT * FROM runs WHERE COALESCE(id = $1, TRUE) LIMIT $2",
-                &[&with_run_id, &limit],
+                "SELECT * FROM runs WHERE COALESCE(user_id = $1, TRUE) LIMIT $2",
+                &[&user_id, &limit],
             )
             .await?;
         Ok(rows.into_iter().map(Run::from_pg_row).collect())

@@ -1,49 +1,51 @@
 use anyhow::Context;
-use apiserver_engine::ApiserverParams;
 use futures::stream::StreamExt;
 use log::info;
-use std::sync::Arc;
 
 async fn launch_api(
-    frcfg: Arc<ApiserverParams>,
+    config: apiserver_engine::config::ApiserverConfig,
     entity_loader: entity::Loader,
     problem_loader: problem_loader::Loader,
-    data_dir: &std::path::Path,
-) -> anyhow::Result<(
-    rocket::shutdown::ShutdownHandle,
-    tokio::task::JoinHandle<()>,
-)> {
-    let pool = db::connect_env().await.context("DB connection failed")?;
-    let rocket = apiserver_engine::ApiServer::create(
-        frcfg,
+    data_dir: std::path::PathBuf,
+    db_conn: db::DbConn,
+) -> anyhow::Result<apiserver_engine::ShutdownHandle> {
+    let token_manager = {
+        let db_conn = db_conn.clone();
+        let secret_key = apiserver_engine::config::read_secret_from_env(config.env.is_prod());
+        apiserver_engine::TokenMgr::new(db_conn, secret_key.into())
+    };
+    let params = apiserver_engine::ApiserverParams {
+        token_manager,
+        config,
         entity_loader,
-        pool.into(),
         problem_loader,
         data_dir,
-    )
-    .context("failed to create ApiServer")?
-    .take_rocket();
-    let shutdown = rocket.get_shutdown_handle();
-    let launch_fut = rocket.serve();
+        db_conn,
+        tls_mode: apiserver_engine::TlsMode::Enabled,
+    };
+    let server = apiserver_engine::ApiServer::create(params)
+        .await
+        .context("failed to create ApiServer")?;
+    let shutdown = server.get_shutdown_handle().clone();
 
-    let join = tokio::task::spawn(async {
-        if let Err(err) = launch_fut.await {
-            log::error!("Serve error: {}", err);
-        }
-    });
-
-    Ok((shutdown, join))
+    Ok(shutdown)
 }
 
 async fn launch_root_login_server(
-    params: Arc<ApiserverParams>,
+    db_conn: db::DbConn,
+    config: apiserver_engine::config::ApiserverConfig,
     close: tokio::sync::oneshot::Receiver<()>,
 ) -> tokio::task::JoinHandle<()> {
     let cfg = apiserver_engine::root_auth::Config {
-        socket_path: params.cfg.unix_socket_path.clone(),
+        socket_path: config.unix_socket_path.clone(),
     };
-    tokio::task::spawn(async {
-        apiserver_engine::root_auth::exec(cfg, params, close).await;
+    let token_manager = apiserver_engine::TokenMgr::new(
+        db_conn,
+        apiserver_engine::config::read_secret_from_env(config.env.is_prod()).into(),
+    );
+
+    tokio::task::spawn(async move {
+        apiserver_engine::root_auth::exec(cfg, token_manager, close).await;
     })
 }
 
@@ -64,7 +66,7 @@ async fn should_shutdown() -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     util::log::setup();
-    util::wait::wait();
+    daemons::wait::wait();
     // private api
     // if you want schema, you can find it in distribuition dir
     match std::env::var("__JJS_SPEC").ok().as_deref() {
@@ -86,25 +88,24 @@ async fn main() -> anyhow::Result<()> {
         Some(other) => panic!("unknown __JJS_SPEC request: {}", other),
         None => (),
     }
-    let cfg_data = util::cfg::load_cfg_data().context("failed to load configuration")?;
-    let raw_config = apiserver_engine::config::ApiserverConfig::obtain(&cfg_data.data_dir)
+    let cfg_data = daemons::cfg::load_cfg_data().context("failed to load configuration")?;
+    let apiserver_cfg = apiserver_engine::config::ApiserverConfig::obtain(&cfg_data.data_dir)
         .context("failed to load apiserver config")?;
-    let apiserver_cfg = raw_config
-        .into_apiserver_params()
-        .await
-        .context("failed to create ApiserverParams")?;
-    let apiserver_cfg = Arc::new(apiserver_cfg);
     info!("starting apiserver");
 
     let (login_send, login_recv) = tokio::sync::oneshot::channel();
 
-    let login_join = launch_root_login_server(apiserver_cfg.clone(), login_recv).await;
-    util::daemon_notify_ready();
-    let (api_shutdown, api_join) = launch_api(
+    let db_conn = db::connect_env().await.context("DB connection failed")?;
+
+    let login_join =
+        launch_root_login_server(db_conn.clone(), apiserver_cfg.clone(), login_recv).await;
+    daemons::daemon_notify_ready();
+    let api_shutdown = launch_api(
         apiserver_cfg,
         cfg_data.entity_loader,
         cfg_data.problem_loader,
-        &cfg_data.data_dir,
+        cfg_data.data_dir.clone(),
+        db_conn,
     )
     .await
     .context("failed to start api service")?;
@@ -117,10 +118,6 @@ async fn main() -> anyhow::Result<()> {
         Err(_elapsed) => anyhow::bail!("Timeout waiting for login service shutdown"),
     }
     api_shutdown.shutdown();
-    match tokio::time::timeout(std::time::Duration::from_secs(15), api_join).await {
-        Ok(ret) => ret?,
-        Err(_elapsed) => anyhow::bail!("Timeout waiting for API service shutdown"),
-    }
 
     Ok(())
 }

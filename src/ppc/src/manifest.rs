@@ -262,7 +262,8 @@ impl RawProblem {
             name: self.name,
             random_seed,
             check_options: self.check_options.unwrap_or_else(|| CheckOptions {
-                args: vec![], // do not pass additional argv to checker it they are not provided
+                args: vec![], /* do not pass additional argv to checker it they are not
+                               * provided */
             }),
             valuer: self.valuer,
             valuer_cfg: self.valuer_cfg,

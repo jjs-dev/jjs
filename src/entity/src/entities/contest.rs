@@ -27,7 +27,8 @@ pub struct Contest {
     /// Which group members are considered registered for contest
     pub group: Vec<String>,
 
-    /// Whether contest is visible for users that are not included in contestants
+    /// Whether contest is visible for users that are not included in
+    /// contestants
     #[serde(rename = "vis-unreg")]
     pub unregistered_visible: bool,
 
@@ -53,9 +54,9 @@ pub struct Contest {
 
     /// If enabled, contest is virtual
     /// Virtual contest is started by user.
-    /// User will not be able to interact with contest until they `takePart` in it.
-    /// For virtual contest, `start_time` and `end_time` define a period of time when user can
-    /// start their participation.
+    /// User will not be able to interact with contest until they `takePart` in
+    /// it. For virtual contest, `start_time` and `end_time` define a period
+    /// of time when user can start their participation.
     #[serde(rename = "virtual")]
     #[serde(default)]
     pub is_virtual: bool,

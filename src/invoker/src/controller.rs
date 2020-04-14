@@ -201,7 +201,7 @@ fn get_num_cpus() -> usize {
 impl Controller {
     pub fn new(
         sources: Vec<Arc<dyn TaskSource>>,
-        cfg_data: util::cfg::CfgData,
+        cfg_data: daemons::cfg::CfgData,
         config: crate::config::InvokerConfig,
     ) -> anyhow::Result<Controller> {
         let mut workers = Vec::new();

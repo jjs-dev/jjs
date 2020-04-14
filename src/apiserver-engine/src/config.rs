@@ -1,7 +1,7 @@
 use anyhow::Context as _;
 use schemars::JsonSchema;
 use serde::{de::Error as _, Deserialize, Serialize};
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 #[derive(Copy, Clone, Debug, Serialize, JsonSchema)]
 pub enum Env {
     Prod,
@@ -10,11 +10,11 @@ pub enum Env {
 
 impl Env {
     pub fn is_dev(self) -> bool {
-        use Env::*;
-        match self {
-            Dev => true,
-            Prod => false,
-        }
+        matches!(self, Env::Dev)
+    }
+
+    pub fn is_prod(self) -> bool {
+        matches!(self, Env::Prod)
     }
 }
 
@@ -40,7 +40,7 @@ pub fn derive_key_512(secret: &str) -> Vec<u8> {
     out
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct TlsConfig {
@@ -48,7 +48,7 @@ pub struct TlsConfig {
     pub key_path: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct ListenConfig {
@@ -89,7 +89,7 @@ fn default_env() -> Env {
     }
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct ApiserverConfig {
@@ -149,34 +149,16 @@ impl ApiserverConfig {
 
         Ok(config)
     }
-
-    pub async fn into_apiserver_params(self) -> anyhow::Result<ApiserverParams> {
-        let db_conn: Arc<db::DbConn> = db::connect_env()
-            .await
-            .context("db connection failed")?
-            .into();
-
-        let secret = std::env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
-            if let Env::Dev = self.env {
-                String::from("DEVEL_HARDCODED_TOKEN")
-            } else {
-                panic!("Error: running in production mode, but JJS_SECRET_KEY not specified");
-            }
-        });
-        let secret = derive_key_512(&secret);
-        let token_mgr = crate::TokenMgr::new(db_conn.clone(), secret.into());
-        Ok(ApiserverParams {
-            cfg: self,
-            db_conn,
-            token_mgr,
-        })
-    }
 }
 
-// TODO: needs refactoring. Probably should be deleted.
-#[derive(Debug)]
-pub struct ApiserverParams {
-    pub token_mgr: crate::api::TokenMgr,
-    pub db_conn: Arc<db::DbConn>,
-    pub cfg: ApiserverConfig,
+pub fn read_secret_from_env(require: bool) -> Vec<u8> {
+    let secret = std::env::var("JJS_SECRET_KEY").unwrap_or_else(|_| {
+        if require {
+            eprintln!("Error: running in production mode, but JJS_SECRET_KEY not specified");
+            std::process::exit(1);
+        } else {
+            String::from("HARDCODED_TOKEN")
+        }
+    });
+    derive_key_512(&secret)
 }

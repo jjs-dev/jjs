@@ -13,7 +13,6 @@ fs_extra = "1.1.0"
 structopt = "0.3.13"
 util = {path = "../util"}
 log = "0.4.8"
-url = "2.1.1"
 anyhow = "1.0.28"
 tokio-postgres = "0.5.3"
 tokio = { version = "0.2.18", features = ["macros", "fs", "process", "io-std"] }

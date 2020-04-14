@@ -177,7 +177,7 @@ jobs:
           sudo systemctl start jjs-invoker
           sudo systemctl start jjs-apiserver
       - name: wait for launch
-        run: cargo run --package util
+        run: cargo run --package daemons
         env:
           JJS_WAIT: tcp://localhost:1779
           RUST_LOG: util::wait=debug

@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 #[derive(Clone)]
-pub struct SecretKey(pub Arc<[u8]>);
+pub struct SecretKey(pub Rc<[u8]>);
 
 impl std::ops::Deref for SecretKey {
     type Target = [u8];

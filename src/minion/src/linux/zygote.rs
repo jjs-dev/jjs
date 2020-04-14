@@ -82,7 +82,8 @@ fn duplicate_string_list(v: &[OsString]) -> *mut *mut c_char {
 
 const WAIT_MESSAGE_CLASS_EXECVE_PERMITTED: &[u8] = b"EXECVE";
 
-// This function is called, when execve() returned ENOENT, to provide additional information on best effort basis.
+// This function is called, when execve() returned ENOENT, to provide additional
+// information on best effort basis.
 fn print_diagnostics(path: &OsStr, out: &mut dyn Write) {
     let mut path = std::path::PathBuf::from(path);
     let existing_prefix;
@@ -141,11 +142,12 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         let envp = duplicate_string_list(&environ);
 
         // Join cgroups.
-        // This doesn't require any additional capablities, because we just write some stuff
-        // to preopened handle.
+        // This doesn't require any additional capablities, because we just write some
+        // stuff to preopened handle.
         arg.cgroups_tasks.join_self();
 
-        // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed process
+        // Now we need mark all FDs as CLOEXEC for not to expose them to sandboxed
+        // process
         let fd_list;
         {
             let fd_list_path = "/proc/self/fd".to_string();
@@ -178,7 +180,8 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
                 nix::errno::from_i32(code).desc()
             )
             .ok();
-            // It is not error from security PoV if chdir failed: chroot isolation works even if current dir is outside of chroot.
+            // It is not error from security PoV if chdir failed: chroot
+            // isolation works even if current dir is outside of chroot.
         }
 
         if libc::setgid(SANDBOX_INTERNAL_UID as u32) != 0 {
@@ -188,10 +191,12 @@ extern "C" fn do_exec(mut arg: DoExecArg) -> ! {
         if libc::setuid(SANDBOX_INTERNAL_UID as u32) != 0 {
             err_exit("setuid");
         }
-        // Now we pause ourselves until parent process places us into appropriate groups.
+        // Now we pause ourselves until parent process places us into appropriate
+        // groups.
         arg.sock.lock(WAIT_MESSAGE_CLASS_EXECVE_PERMITTED).unwrap();
 
-        // Call dup2 as late as possible for all panics to write to normal stdio instead of pipes.
+        // Call dup2 as late as possible for all panics to write to normal stdio instead
+        // of pipes.
         libc::dup2(arg.stdio.stdin, libc::STDIN_FILENO);
         libc::dup2(arg.stdio.stdout, libc::STDOUT_FILENO);
         libc::dup2(arg.stdio.stderr, libc::STDERR_FILENO);
@@ -393,7 +398,8 @@ pub(crate) unsafe fn start_zygote(
     }
 
     if f != 0 {
-        // Thread A it is thread that entered start_zygote() normally, returns from function
+        // Thread A it is thread that entered start_zygote() normally, returns from
+        // function
         write!(
             logger,
             "dominion {}: thread A (main)",
@@ -416,7 +422,8 @@ pub(crate) unsafe fn start_zygote(
         return Ok(startup_info);
     }
     let my_euid = nix::unistd::geteuid();
-    // why we use unshare(PID) here, and not in setup_namespace()? See pid_namespaces(7) and unshare(2)
+    // why we use unshare(PID) here, and not in setup_namespace()? See
+    // pid_namespaces(7) and unshare(2)
     let unshare_ns =
         libc::CLONE_NEWUSER | libc::CLONE_NEWPID | libc::CLONE_NEWNS | libc::CLONE_NEWNET;
     if libc::unshare(unshare_ns) == -1 {

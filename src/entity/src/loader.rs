@@ -5,19 +5,27 @@ pub use builder::LoaderBuilder;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    sync::Arc,
 };
 
 use crate::entities::Entity;
 
 #[derive(Debug)]
-pub struct Loader {
+pub(crate) struct EntitiesData {
     entities: HashMap<TypeId, HashMap<String, Box<dyn Any + Send + Sync>>>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Loader(Arc<EntitiesData>);
+
 impl Loader {
+    fn from_inner(data: Arc<EntitiesData>) -> Loader {
+        Self(data)
+    }
+
     pub fn list<T: Entity>(&self) -> impl Iterator<Item = &T> {
         let key = TypeId::of::<T>();
-        match self.entities.get(&key) {
+        match self.0.entities.get(&key) {
             Some(map) => {
                 let iter = map
                     .values()
@@ -30,7 +38,8 @@ impl Loader {
 
     pub fn find<T: Entity>(&self, name: &str) -> Option<&T> {
         let key = TypeId::of::<T>();
-        self.entities
+        self.0
+            .entities
             .get(&key)
             .and_then(|map| map.get(name))
             .map(|any_box| any_box.downcast_ref().expect("corrupted typemap in Loader"))

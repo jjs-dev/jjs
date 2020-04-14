@@ -286,7 +286,8 @@ pub(crate) enum InvokeOutcome {
     /// All protocols were sent already
     Judge,
     /// Run was not judged, because of invocation fault
-    /// Maybe, several protocols were emitted, but results are neither precise nor complete
+    /// Maybe, several protocols were emitted, but results are neither precise
+    /// nor complete
     Fault,
 }
 

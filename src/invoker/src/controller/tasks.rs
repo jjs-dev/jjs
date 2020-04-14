@@ -1,4 +1,5 @@
-//! Implements Controller functionality related to getting tasks and publishing results
+//! Implements Controller functionality related to getting tasks and publishing
+//! results
 use super::{notify::Notifier, Controller, ExtendedInvokeRequest};
 use crate::worker::{self, InvokeRequest};
 use anyhow::Context;
@@ -98,12 +99,13 @@ pub(crate) fn get_common_interpolation_dict(
 }
 
 impl Controller {
-    /// This functions queries all related data about run and returns InvokeRequest
+    /// This functions queries all related data about run and returns
+    /// InvokeRequest
     ///
-    /// InvokeTask is not single source of trust, and some information needs to be taken from
-    /// config.
-    /// But ExtendedInvokeRequest **is** SSoT, and worker is completely isolated from other
-    /// components.
+    /// InvokeTask is not single source of trust, and some information needs to
+    /// be taken from config.
+    /// But ExtendedInvokeRequest **is** SSoT, and worker is completely isolated
+    /// from other components.
     pub(super) fn fetch_run_info(
         &self,
         invoke_task: &InvokeTask,

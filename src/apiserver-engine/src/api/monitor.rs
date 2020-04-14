@@ -28,23 +28,24 @@ fn lower_problem(prob: &pom::Problem) -> ranker::ProblemConfig {
     }
 }
 
-#[get("/contests/<contest_name>/standings")]
-pub(crate) async fn route_get(
-    ctx: Context,
-    contest_name: String,
+async fn route_get(
+    dcx: DbContext,
+    ecx: EntityContext,
+    path_params: web::Path<String>,
 ) -> ApiResult<Json<ranker::Monitor>> {
-    let runs = ctx
+    let contest_name = path_params.into_inner();
+    let runs = dcx
         .db()
         .load_runs_with_last_invocations()
         .await
-        .internal(&ctx)?;
+        .internal()?;
 
     let mut ranker_runs = Vec::new();
     for (db_run, db_inv) in runs {
         if db_run.contest_id != contest_name {
             continue;
         }
-        let headers = db_inv.invoke_outcome_headers().internal(&ctx)?;
+        let headers = db_inv.invoke_outcome_headers().internal()?;
         let header = headers
             .into_iter()
             .find(|header| header.kind == invoker_api::valuer_proto::JudgeLogKind::Contestant);
@@ -54,8 +55,8 @@ pub(crate) async fn route_get(
         };
         ranker_runs.push(lower_run(&db_run, &header));
     }
-    let mut ranker_problems = ctx
-        .problem_loader
+    let mut ranker_problems = ecx
+        .problems()
         .list()
         .map(|problem| (lower_problem(problem.0)))
         .collect::<Vec<_>>();
@@ -81,4 +82,8 @@ pub(crate) async fn route_get(
     );
 
     Ok(Json(monitor))
+}
+
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/contests/{name}/standings", web::get().to(route_get));
 }

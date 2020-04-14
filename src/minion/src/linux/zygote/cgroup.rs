@@ -143,7 +143,8 @@ unsafe fn setup_chroups_legacy(jail_options: &JailOptions) -> Vec<Handle> {
     }
 
     // we return handles to tasksfiles for main cgroups
-    // so, though zygote itself and children are in chroot, and cannot access cgroupfs, they will be able to add themselves to cgroups
+    // so, though zygote itself and children are in chroot, and cannot access
+    // cgroupfs, they will be able to add themselves to cgroups
     ["cpuacct", "memory", "pids"]
         .iter()
         .map(|subsys_name| {

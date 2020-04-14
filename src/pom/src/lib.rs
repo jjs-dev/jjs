@@ -85,7 +85,8 @@ pub struct TestId(pub std::num::NonZeroU32);
 impl TestId {
     /// Creates `TestId` from `id`
     /// # Panics
-    /// Will panic if `id` is 0. Only use this function when you can prove `id` is non-null.
+    /// Will panic if `id` is 0. Only use this function when you can prove `id`
+    /// is non-null.
     pub fn make(id: u32) -> Self {
         Self(std::num::NonZeroU32::new(id).expect("TestId must be non-null"))
     }

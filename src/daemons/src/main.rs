@@ -4,5 +4,5 @@ fn main() {
         "wait spec: {}",
         std::env::var("JJS_WAIT").unwrap_or_default()
     );
-    util::wait::wait();
+    daemons::wait::wait();
 }

@@ -13,7 +13,8 @@ mod args {
     pub struct Add {
         /// File to add users from. see `Userlist` man page
         pub file: String,
-        /// Auth token. If not set, will be read from JJS_AUTH environment variable
+        /// Auth token. If not set, will be read from JJS_AUTH environment
+        /// variable
         #[structopt(long = "auth", short = "a")]
         pub token: Option<String>,
         /// JJS apiserver host or IP

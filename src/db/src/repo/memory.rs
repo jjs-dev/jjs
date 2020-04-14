@@ -3,7 +3,10 @@ use crate::schema::*;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use futures::future::FutureExt;
-use std::{convert::TryFrom, sync::Mutex};
+use std::{
+    convert::TryFrom,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, Default)]
 struct Data {
@@ -15,9 +18,9 @@ struct Data {
     parts: Vec<Participation>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct MemoryRepo {
-    conn: Mutex<Data>,
+    conn: Arc<Mutex<Data>>,
 }
 
 impl MemoryRepo {
@@ -94,26 +97,26 @@ impl RunsRepo for MemoryRepo {
         }
     }
 
-    async fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
+    async fn run_select(&self, user_id: Option<UserId>, limit: Option<u32>) -> Result<Vec<Run>> {
         let lim = limit
             .map(|x| usize::try_from(x).unwrap())
             .unwrap_or(usize::max_value());
         if lim == 0 {
             return Ok(Vec::new());
         }
-        match with_run_id {
-            Some(r) => Ok(self
-                .run_try_load(r)
-                .await
-                .into_iter()
-                .filter_map(std::convert::identity)
-                .collect()),
-            None => {
-                let data = self.conn.lock().unwrap();
-                let cnt = std::cmp::min(lim, data.runs.len());
-                Ok(data.runs[..cnt].iter().filter_map(|x| x.clone()).collect())
-            }
-        }
+
+        let data = self.conn.lock().unwrap();
+        let cnt = std::cmp::min(lim, data.runs.len());
+        Ok(data
+            .runs
+            .iter()
+            .filter_map(|x| x.clone())
+            .filter(|run| match user_id {
+                Some(user_id) => user_id == run.user_id,
+                None => true,
+            })
+            .take(cnt)
+            .collect())
     }
 }
 

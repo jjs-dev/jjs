@@ -46,7 +46,8 @@ fn merge_option<T: Copy>(place: &mut Option<T>, other: Option<T>) {
     }
 }
 
-/// Merges several `Limits` object. Last element of slice will have maximal proirity.
+/// Merges several `Limits` object. Last element of slice will have maximal
+/// proirity.
 fn merge_limits(limits_set: &[Limits]) -> Limits {
     let mut res = Limits::default();
     for lim in limits_set {

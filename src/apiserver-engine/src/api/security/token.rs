@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserInfo {
-    pub(super) id: uuid::Uuid,
+    pub id: uuid::Uuid,
     /// TODO: name should have hierarchical type
-    pub(super) name: String,
-    pub(super) groups: Vec<String>,
+    pub name: String,
+    pub groups: Vec<String>,
 }
 
 /// Struct representing API session
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
-    pub(super) session_id: uuid::Uuid,
-    pub(super) user_info: UserInfo,
+    pub session_id: uuid::Uuid,
+    pub user_info: UserInfo,
 }
 
 impl Token {
@@ -21,13 +21,5 @@ impl Token {
             user_info: UserInfo { id, name, groups },
             session_id: uuid::Uuid::new_v4(),
         }
-    }
-
-    pub fn user_id(&self) -> uuid::Uuid {
-        self.user_info.id
-    }
-
-    pub fn session_id(&self) -> uuid::Uuid {
-        self.session_id
     }
 }

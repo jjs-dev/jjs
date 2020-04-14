@@ -1,5 +1,6 @@
 //! This module implements support for systemd config generation
-//! Templates are in systemd/*, we just want to compile them and put to appropriate place
+//! Templates are in systemd/*, we just want to compile them and put to
+//! appropriate place
 use serde::Serialize;
 
 #[derive(Serialize)]

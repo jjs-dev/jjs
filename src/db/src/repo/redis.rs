@@ -1,9 +1,11 @@
 use super::KvRepo;
 use anyhow::{Context as _, Result};
 use redis::AsyncCommands as _;
+use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct RedisRepo {
-    conn: tokio::sync::Mutex<redis::aio::Connection>,
+    conn: Arc<tokio::sync::Mutex<redis::aio::Connection>>,
 }
 
 impl std::fmt::Debug for RedisRepo {
@@ -19,7 +21,7 @@ impl RedisRepo {
             .get_async_connection()
             .await
             .context("unable to connect")?;
-        let conn = tokio::sync::Mutex::new(conn);
+        let conn = Arc::new(tokio::sync::Mutex::new(conn));
         Ok(RedisRepo { conn })
     }
 }

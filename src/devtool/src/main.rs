@@ -23,7 +23,8 @@ enum CliArgs {
     Clean,
     /// Perform build & install
     Build(build::RawBuildOpts),
-    /// remove target files, related to JJS. This should prevent cache invalidation
+    /// remove target files, related to JJS. This should prevent cache
+    /// invalidation
     CiClean,
     /// Format C++ code
     FmtCpp,

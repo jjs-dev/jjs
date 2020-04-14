@@ -1,39 +1,33 @@
 pub(crate) mod auth;
 pub(crate) mod contests;
-mod context;
+pub(crate) mod context;
 pub(crate) mod misc;
 pub(crate) mod monitor;
+mod prelude;
 pub(crate) mod runs;
 mod schema;
-mod security;
+pub mod security;
 pub(crate) mod toolchains;
 pub(crate) mod users;
 
-#[derive(Debug)]
+use log::warn;
+
+pub(crate) struct ApiError {
+    visible: bool,
+    extension: ErrorExtension,
+    cause: Option<anyhow::Error>,
+}
+
+pub use security::TokenMgr;
+
+#[derive(Debug, Clone)]
 struct ErrorExtension(serde_json::Map<String, serde_json::Value>);
 
 impl ErrorExtension {
-    const KEY_DEV_BACKTRACE: &'static str = "trace";
-    const KEY_DEV_ERROR_BACKTRACE: &'static str = "errorTrace";
     const KEY_ERROR_CODE: &'static str = "errorCode";
 
     fn new() -> Self {
         Self(serde_json::Map::new())
-    }
-
-    fn set_backtrace(&mut self) {
-        let trace = backtrace::Backtrace::new();
-
-        let trace = format!("{:?}", trace);
-        let trace = serde_json::Value::Array(
-            trace
-                .lines()
-                .map(ToString::to_string)
-                .map(serde_json::Value::String)
-                .collect(),
-        );
-
-        self.0.insert(Self::KEY_DEV_BACKTRACE.to_string(), trace);
     }
 
     fn set_error_code(&mut self, error_code: &str) {
@@ -48,59 +42,37 @@ impl ErrorExtension {
     }
 }
 
-pub(crate) struct ApiError {
-    visible: bool,
-    extension: ErrorExtension,
-    cause: Option<anyhow::Error>,
-    ctx: Context,
+impl std::fmt::Debug for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiError")
+            .field("visible", &self.visible)
+            .field("extension", &self.extension)
+            .field("cause", &self.cause)
+            .finish()
+    }
 }
 
 impl ApiError {
-    fn dev_backtrace(&mut self) {
-        if self.ctx.config().env.is_dev() {
-            self.extension.set_backtrace();
-            if let Some(err) = &self.cause {
-                let backtrace = format!("{:?}", err.backtrace());
-                let backtrace: Vec<_> = backtrace
-                    .lines()
-                    .map(ToString::to_string)
-                    .map(serde_json::Value::String)
-                    .collect();
-                self.extension.0.insert(
-                    ErrorExtension::KEY_DEV_ERROR_BACKTRACE.to_string(),
-                    serde_json::Value::Array(backtrace),
-                );
-            }
-        }
-    }
-
-    pub fn new(ctx: &Context, error_code: &str) -> Self {
+    pub fn new(error_code: &str) -> Self {
         let mut extension = ErrorExtension::new();
         extension.set_error_code(error_code);
-        let mut s = Self {
+        ApiError {
             visible: true,
             extension,
             cause: None,
-            ctx: ctx.clone(),
-        };
-        s.dev_backtrace();
-        s
+        }
     }
 
-    pub fn access_denied(ctx: &Context) -> Self {
-        Self::new(ctx, "AccessDenied")
+    pub fn access_denied() -> Self {
+        Self::new("AccessDenied")
     }
 
-    pub fn not_found(ctx: &Context) -> Self {
-        Self::new(ctx, "NotFound")
+    pub fn not_found() -> Self {
+        Self::new("NotFound")
     }
 
-    pub fn not_implemented(ctx: &Context) -> Self {
-        Self::new(ctx, "NotImplemented")
-    }
-
-    fn is_visible(&self) -> bool {
-        self.visible || self.ctx.config().env.is_dev()
+    pub fn not_implemented() -> Self {
+        Self::new("NotImplemented")
     }
 }
 
@@ -147,94 +119,82 @@ impl std::fmt::Display for AnyhowAlternateWrapper<'_> {
 
 type ApiResult<T> = Result<T, ApiError>;
 
-#[rocket::async_trait]
-impl<'req> rocket::response::Responder<'req> for ApiError {
-    async fn respond_to<'a>(
-        self,
-        _request: &'req rocket::request::Request<'a>,
-    ) -> rocket::response::Result<'req> {
-        let mut builder = rocket::response::Response::build();
-        let status = match self
+impl actix_web::error::ResponseError for ApiError {
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        match self
             .extension
             .0
             .get("errorCode")
             .and_then(|val| val.as_str())
         {
-            Some("NotFound") => rocket::http::Status::NotFound,
-            Some("AccessDenied") => rocket::http::Status::Forbidden,
-            _ => rocket::http::Status::BadRequest,
-        };
-        builder.status(status);
-        let error = match self.cause {
-            Some(err) if self.is_visible() => (format!("{:#}", err)),
-            _ => "error".to_string(),
+            Some("NotFound") => actix_web::http::StatusCode::NOT_FOUND,
+            Some("AccessDenied") => actix_web::http::StatusCode::FORBIDDEN,
+            _ => actix_web::http::StatusCode::BAD_REQUEST,
+        }
+    }
+
+    fn error_response(&self) -> actix_web::web::HttpResponse {
+        let mut resp = actix_web::web::HttpResponse::new(self.status_code());
+        let error = match &self.cause {
+            Some(err) if self.visible => (format!("{:#}", err)),
+            Some(err) => {
+                warn!("internal error: {:#}", err);
+                "unexpected error".to_string()
+            }
+            None => "unexpected error".to_string(),
         };
         let value = serde_json::json!({
-            "detail": self.extension.into_value(),
+            "detail": self.extension.clone().into_value(),
             "message": error,
             "error": true,
         });
         let value = serde_json::to_vec(&value).expect("failed to serialize error");
-        builder.header(rocket::http::ContentType::JSON);
-        builder.sized_body(std::io::Cursor::new(value)).await;
-        Ok(builder.finalize())
+        resp.headers_mut().insert(
+            actix_web::http::header::CONTENT_TYPE,
+            actix_web::http::header::HeaderValue::from_static("application/json"),
+        );
+
+        resp.set_body(actix_web::body::Body::from(value))
     }
 }
 
 trait ResultToApiUtil<T, E> {
     /// Handle error as internal, if any
-    fn internal(self, ctx: &Context) -> Result<T, ApiError>;
+    fn internal(self) -> Result<T, ApiError>;
 
     /// Show error to user, if any
-    fn report(self, ctx: &Context) -> Result<T, ApiError>;
+    fn report(self) -> Result<T, ApiError>;
 
     /// like `report`, but also return extension
-    fn report_ext(self, ctx: &Context, ext: ErrorExtension) -> Result<T, ApiError>;
+    fn report_ext(self, ext: ErrorExtension) -> Result<T, ApiError>;
 
-    /// like 'report_ext', but produce extension from error with supplied callback
-    fn report_with(
-        self,
-        ctx: &Context,
-        make_ext: impl FnOnce(&E) -> ErrorExtension,
-    ) -> Result<T, ApiError>;
+    /// like 'report_ext', but produce extension from error with supplied
+    /// callback
+    fn report_with(self, make_ext: impl FnOnce(&E) -> ErrorExtension) -> Result<T, ApiError>;
 }
 
 impl<T, E: Into<anyhow::Error>> ResultToApiUtil<T, E> for Result<T, E> {
-    fn internal(self, ctx: &Context) -> Result<T, ApiError> {
+    fn internal(self) -> Result<T, ApiError> {
         self.map_err(|err| ApiError {
             visible: false,
             extension: ErrorExtension::new(),
             cause: Some(err.into()),
-            ctx: ctx.clone(),
-        })
-        .map_err(|mut err| {
-            err.dev_backtrace();
-            err
         })
     }
 
-    fn report(self, ctx: &Context) -> Result<T, ApiError> {
-        self.report_ext(ctx, ErrorExtension::new())
+    fn report(self) -> Result<T, ApiError> {
+        self.report_ext(ErrorExtension::new())
     }
 
-    fn report_ext(self, ctx: &Context, ext: ErrorExtension) -> Result<T, ApiError> {
-        self.report_with(ctx, |_| ext)
+    fn report_ext(self, ext: ErrorExtension) -> Result<T, ApiError> {
+        self.report_with(|_| ext)
     }
 
-    fn report_with(
-        self,
-        ctx: &Context,
-        make_ext: impl FnOnce(&E) -> ErrorExtension,
-    ) -> Result<T, ApiError> {
+    fn report_with(self, make_ext: impl FnOnce(&E) -> ErrorExtension) -> Result<T, ApiError> {
         self.map_err(|err| ApiError {
             visible: true,
             extension: make_ext(&err),
             cause: Some(err.into()),
-            ctx: ctx.clone(),
-        })
-        .map_err(|mut err| {
-            err.dev_backtrace();
-            err
         })
     }
 }
@@ -245,15 +205,46 @@ pub(crate) trait ApiObject:
     fn name() -> &'static str;
 }
 
-mod prelude {
-    pub(super) use super::{
-        schema, ApiError, ApiObject, ApiResult, Context, ErrorExtension, ResultToApiUtil as _,
-    };
-    pub(super) use rocket::{delete, get, patch, post};
-    pub(super) use rocket_contrib::json::Json;
-    pub(super) use schemars::JsonSchema;
-    pub(super) use serde::{Deserialize, Serialize};
+struct EmptyResponse;
+
+// TODO: use ! instead
+enum NeverError {}
+
+impl std::fmt::Display for NeverError {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {}
+    }
 }
 
-pub(crate) use context::{Context, ContextFactory};
-pub use security::{TokenMgr, TokenMgrError};
+impl std::fmt::Debug for NeverError {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {}
+    }
+}
+
+impl actix_web::ResponseError for NeverError {}
+
+impl actix_web::Responder for EmptyResponse {
+    type Error = NeverError;
+    type Future = futures::future::Ready<Result<actix_web::HttpResponse, NeverError>>;
+
+    fn respond_to(self, _: &actix_web::HttpRequest) -> Self::Future {
+        futures::future::ok(actix_web::HttpResponse::NoContent().finish())
+    }
+}
+
+#[macro_export]
+macro_rules! make_conditions {
+    () => {
+        anymap::AnyMap::new()
+    };
+    ($val: expr) => {{
+        let mut m = anymap::AnyMap::new();
+        m.insert($val);
+        m
+    }};
+    ($val: expr, $($tail:expr),*) => {{
+        let mut m = make_conditions!($($tail),*);
+        m.insert($val);
+    }};
+}

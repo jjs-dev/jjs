@@ -1,9 +1,9 @@
 // this module is responsible for root user authentication strategies
 // it implements tcp service, which provides some platform-specific authentication options
-use crate::{ApiserverParams, TokenMgr};
+use crate::TokenMgr;
 use futures::future::FutureExt;
 use log::{error, info};
-use std::{ffi::c_void, mem, os::unix::io::AsRawFd, sync::Arc};
+use std::{ffi::c_void, mem, os::unix::io::AsRawFd};
 use tokio::{
     io::AsyncWriteExt,
     net::{UnixListener, UnixStream},
@@ -64,7 +64,7 @@ async fn server_loop(mut sock: UnixListener, token_mgr: TokenMgr) {
     }
 }
 
-async fn do_start(cfg: Config, as_cfg: Arc<ApiserverParams>) {
+async fn do_start(cfg: Config, token_mgr: TokenMgr) {
     info!("binding login server at {}", &cfg.socket_path);
     tokio::fs::remove_file(&cfg.socket_path).await.ok();
     let listener = match UnixListener::bind(&cfg.socket_path) {
@@ -74,14 +74,15 @@ async fn do_start(cfg: Config, as_cfg: Arc<ApiserverParams>) {
             return;
         }
     };
-    server_loop(listener, as_cfg.token_mgr.clone()).await;
+    server_loop(listener, token_mgr).await;
 }
 
-pub async fn exec(cfg: Config, fcfg: Arc<ApiserverParams>, rx: Receiver<()>) {
+pub async fn exec(cfg: Config, token_mgr: TokenMgr, rx: Receiver<()>) {
     let socket_path = cfg.socket_path.clone();
-    let fut = do_start(cfg, fcfg);
+    let fut = do_start(cfg, token_mgr);
+    tokio::pin!(fut);
     futures::future::select(
-        Box::pin(fut),
+        fut,
         rx.map(|res| res.expect("tx disconnected unexpectedly")),
     )
     .await;

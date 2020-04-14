@@ -127,13 +127,14 @@ pub struct InvokeOutcomeHeader {
     pub kind: valuer_proto::JudgeLogKind,
 }
 
-/// Represents Live Status Update. Some fields can be None always, or only in some updates.
+/// Represents Live Status Update. Some fields can be None always, or only in
+/// some updates.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LiveStatusUpdate {
-    /// Current score. Probably, final score will be greater than or equal to `score`,
-    /// but it is not guaranteed.
+    /// Current score. Probably, final score will be greater than or equal to
+    /// `score`, but it is not guaranteed.
     pub score: Option<i32>,
-    /// Id of current test (indexing starts from 1). If solution is executed on several tests, this field will contain
-    /// last.
+    /// Id of current test (indexing starts from 1). If solution is executed on
+    /// several tests, this field will contain last.
     pub current_test: Option<u32>,
 }

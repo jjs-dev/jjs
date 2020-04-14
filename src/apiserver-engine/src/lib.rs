@@ -1,8 +1,5 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-
-use rocket::{catch, catchers, fairing::AdHoc, get, routes, Rocket};
-use std::sync::Arc;
-use thiserror::Error;
+//TODO: remove
+#![feature(proc_macro_hygiene, decl_macro, type_alias_impl_trait)]
 
 mod api;
 pub mod config;
@@ -13,141 +10,188 @@ pub mod secret_key;
 pub mod test_util;
 
 pub use api::TokenMgr;
-pub use config::ApiserverParams;
 
-type DbPool = Arc<db::DbConn>;
+use log::debug;
+use thiserror::Error;
 
-#[catch(400)]
-fn catch_bad_request() -> &'static str {
-    r#"
-Your request is incorrect.
-Possible reasons:
-- Query body is missing or is not valid JSON
-- `Authorization` header does not contain access token
-    "#
-}
-
-#[get("/")]
-fn route_ping() -> &'static str {
+async fn route_ping() -> &'static str {
     "JJS apiserver: pong"
 }
 
 #[derive(Error, Debug)]
 pub enum ApiServerCreateError {
-    #[error("failed to initialize Rocket: {0}")]
-    Rocket(#[from] rocket::config::ConfigError),
+    #[error("bind address '{1}' is invalid: {0}")]
+    Ip(std::net::AddrParseError, String),
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+    #[error("ssl initialization failed")]
+    Ssl(#[from] daemons::ssl::CreateSslBuilderError),
+}
+
+#[derive(Clone)]
+pub struct ShutdownHandle {
+    chan: tokio::sync::mpsc::UnboundedSender<()>,
+}
+
+impl ShutdownHandle {
+    pub fn shutdown(self) {
+        // send error means that server is already shut down.
+        // this is OK.
+        self.chan.send(()).ok();
+    }
 }
 
 pub struct ApiServer {
-    rocket: Option<Rocket>,
+    shutdown: ShutdownHandle,
+}
+
+pub enum TlsMode {
+    Forced,
+    Enabled,
+    Disabled,
+}
+
+pub struct ApiserverParams {
+    pub token_manager: TokenMgr,
+    pub config: config::ApiserverConfig,
+    pub entity_loader: entity::Loader,
+    pub db_conn: db::DbConn,
+    pub problem_loader: problem_loader::Loader,
+    pub data_dir: std::path::PathBuf,
+    pub tls_mode: TlsMode,
 }
 
 impl ApiServer {
-    pub fn create_embedded() -> ApiServer {
-        let db_conn: Arc<db::DbConn> = db::connect::connect_memory().unwrap().into();
-        let builder = entity::loader::LoaderBuilder::new();
-        let secret: Arc<[u8]> = config::derive_key_512("EMBEDDED_APISERVER_INSTANCE")
-            .into_boxed_slice()
-            .into();
-        let token_mgr = crate::api::TokenMgr::new(db_conn.clone(), secret);
-        let apiserver_config = config::ApiserverParams {
-            cfg: config::ApiserverConfig {
-                listen: config::ListenConfig {
-                    host: "127.0.0.1".to_string(),
-                    port: 0,
-                },
-                external_addr: Some("127.0.0.1".to_string()),
-                unix_socket_path: "".to_string(),
-                env: config::Env::Dev,
-                tls: None,
+    #[actix_rt::main]
+    async fn serve(
+        params: ApiserverParams,
+        mut rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+        startup_tx: tokio::sync::oneshot::Sender<()>,
+    ) -> Result<(), ApiServerCreateError> {
+        let listen_address: std::net::IpAddr =
+            params.config.listen.host.parse().map_err(|parse_err| {
+                ApiServerCreateError::Ip(parse_err, params.config.listen.host.clone())
+            })?;
+        let listen_address = std::net::SocketAddr::new(listen_address, params.config.listen.port);
+
+        let listener = std::net::TcpListener::bind(listen_address)?;
+        let ssl_builder = match params.tls_mode {
+            TlsMode::Enabled | TlsMode::Forced => daemons::ssl::create_ssl_acceptor_builder(
+                &params.data_dir.join("etc/pki"),
+                daemons::ssl::MutualAuthentication::Enabled,
+                "apiserver",
+            )
+            .map(Some),
+            TlsMode::Disabled => Ok(None),
+        };
+        let ssl_builder = match ssl_builder {
+            Err(err) => match params.tls_mode {
+                TlsMode::Forced => return Err(ApiServerCreateError::Ssl(err)),
+                TlsMode::Enabled => {
+                    log::warn!("failed to initialize TLS: {}", err);
+                    None
+                }
+                TlsMode::Disabled => None,
             },
-            token_mgr,
-            db_conn: db_conn.clone(),
+
+            Ok(b) => b,
         };
 
-        Self::create(
-            Arc::new(apiserver_config),
-            builder.into_inner(),
-            db_conn,
-            problem_loader::Loader::empty(),
-            std::path::Path::new("/tmp/jjs"),
-        )
-        .expect("failed to create embedded instance")
+        let make_app = {
+            let token_manager = params.token_manager.clone();
+            let entity_loader = params.entity_loader.clone();
+            let problem_loader = params.problem_loader.clone();
+            let db_conn = params.db_conn.clone();
+            let config = params.config.clone();
+            let data_dir: std::sync::Arc<std::path::Path> = params.data_dir.into();
+
+            move || {
+                let token_mgr = token_manager.clone();
+                let entity_loader = entity_loader.clone();
+                let problem_loader = problem_loader.clone();
+                let db_conn = db_conn.clone();
+                let config = config.clone();
+                let data_dir = data_dir.clone();
+
+                let db_cx = crate::api::context::DbContext::create(db_conn.clone());
+                let en_cx = crate::api::context::EntityContext::create(
+                    entity_loader.clone(),
+                    problem_loader.clone(),
+                );
+                let authorizer = create_authorizer(db_cx, en_cx);
+                actix_web::App::new()
+                    .app_data(secret_key::SecretKey(token_mgr.secret_key().into()))
+                    .app_data(token_mgr)
+                    .app_data(entity_loader)
+                    .app_data(problem_loader)
+                    .app_data(db_conn)
+                    .app_data(authorizer)
+                    .app_data(std::rc::Rc::new(config))
+                    .app_data::<std::rc::Rc<std::path::Path>>((*data_dir).into())
+                    .configure(api::misc::register_routes)
+                    .configure(api::contests::register_routes)
+                    .configure(api::runs::register_routes)
+                    .configure(api::monitor::register_routes)
+                    .configure(api::toolchains::register_routes)
+                    .configure(api::auth::register_routes)
+                    .configure(api::users::register_routes)
+                    .route("/", actix_web::web::get().to(route_ping))
+            }
+        };
+
+        let server = actix_web::HttpServer::new(make_app)
+            .disable_signals()
+            .on_connect(daemons::ssl::make_on_connect_hook());
+
+        let server = match ssl_builder {
+            Some(ssl_builder) => server.listen_openssl(listener, ssl_builder)?,
+            None => server.listen(listener)?,
+        };
+
+        let server = server.run();
+        {
+            let server = server.clone();
+            tokio::task::spawn(async move {
+                rx.recv().await;
+                server.stop(true).await;
+            });
+        }
+        startup_tx.send(()).ok();
+
+        if let Err(serve_err) = server.await {
+            eprintln!("Fatal error: {}", serve_err);
+        }
+        Ok(())
     }
 
-    pub fn create(
-        apiserver_params: Arc<config::ApiserverParams>,
-        entity_loader: entity::Loader,
-        pool: DbPool,
-        problem_loader: problem_loader::Loader,
-        data_dir: &std::path::Path,
-    ) -> Result<ApiServer, ApiServerCreateError> {
-        let rocket_cfg_env = match apiserver_params.cfg.env {
-            config::Env::Prod => rocket::config::Environment::Production,
-            config::Env::Dev => rocket::config::Environment::Development,
-        };
-        let mut rocket_config = rocket::Config::new(rocket_cfg_env);
-
-        rocket_config.set_address(apiserver_params.cfg.listen.host.clone())?;
-        rocket_config.set_port(apiserver_params.cfg.listen.port);
-        rocket_config.set_log_level(match apiserver_params.cfg.env {
-            config::Env::Dev => rocket::config::LoggingLevel::Normal,
-            config::Env::Prod => rocket::config::LoggingLevel::Critical,
+    pub async fn create(params: ApiserverParams) -> Result<ApiServer, ApiServerCreateError> {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (startup_tx, startup_rx) = tokio::sync::oneshot::channel();
+        debug!("about to spawn apiserver task");
+        // TODO: do not create second Tokio runtime
+        tokio::task::spawn_blocking(move || {
+            if let Err(err) = Self::serve(params, rx, startup_tx) {
+                eprintln!("Startup error: {:#}", err);
+            }
         });
-        rocket_config
-            .set_secret_key(base64::encode(apiserver_params.token_mgr.secret_key()))
-            .unwrap();
-        if let Some(tls) = &apiserver_params.cfg.tls {
-            rocket_config.set_tls(&tls.cert_path, &tls.key_path)?;
-        }
 
-        let graphql_context_factory = api::ContextFactory {
-            pool: Arc::clone(&pool),
-            cfg: Arc::new(entity_loader),
-            problem_loader: Arc::new(problem_loader),
-            data_dir: data_dir.into(),
-        };
+        startup_rx.await.ok();
 
-        let cfg1 = Arc::clone(&apiserver_params);
-        let rocket = rocket::custom(rocket_config)
-            .manage(graphql_context_factory)
-            .manage(apiserver_params)
-            .attach(AdHoc::on_attach("ProvideSecretKey", move |rocket| {
-                Ok(rocket.manage(secret_key::SecretKey(cfg1.token_mgr.secret_key().into())))
-            }))
-            .mount(
-                "/",
-                routes![
-                    route_ping,
-                    api::misc::route_get_api_version,
-                    api::misc::route_is_dev,
-                    api::contests::route_get,
-                    api::contests::route_list,
-                    api::contests::route_list_problems,
-                    api::contests::route_get_participation,
-                    api::contests::route_update_participation,
-                    api::runs::route_list,
-                    api::runs::route_get,
-                    api::runs::route_submit_simple,
-                    api::runs::route_patch,
-                    api::runs::route_live,
-                    api::runs::route_delete,
-                    api::runs::route_protocol,
-                    api::runs::route_source,
-                    api::runs::route_binary,
-                    api::monitor::route_get,
-                    api::toolchains::route_list,
-                    api::auth::route_simple,
-                    api::users::route_create
-                ],
-            )
-            .register(catchers![catch_bad_request]);
         Ok(ApiServer {
-            rocket: Some(rocket),
+            shutdown: ShutdownHandle { chan: tx },
         })
     }
 
-    pub fn take_rocket(&mut self) -> Rocket {
-        std::mem::take(&mut self.rocket).expect("ApiServer: rocket is already taken")
+    pub fn get_shutdown_handle(&self) -> &ShutdownHandle {
+        &self.shutdown
     }
+}
+
+fn create_authorizer(
+    db_cx: crate::api::context::DbContext,
+    en_cx: crate::api::context::EntityContext,
+) -> crate::api::security::Authorizer {
+    let mut builder = crate::api::security::Authorizer::builder();
+    crate::api::security::rules::install(&mut builder, db_cx, en_cx);
+    builder.build()
 }

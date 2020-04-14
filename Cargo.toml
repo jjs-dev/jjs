@@ -6,3 +6,6 @@ debug = 1
 
 [workspace]
 members=["src/*"]
+
+[patch.crates-io]
+actix-http = {git = "https://github.com/mikailbag/actix-web", rev = "53abd55e1e9aad75f72df8410b77211799d166e5"}

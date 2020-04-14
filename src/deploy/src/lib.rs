@@ -31,7 +31,8 @@ pub struct Params {
     pub src: PathBuf,
     /// jjs build dir
     pub build: PathBuf,
-    /// Intermediate sysroot dir (for compressing / copying), containing only build artifacts
+    /// Intermediate sysroot dir (for compressing / copying), containing only
+    /// build artifacts
     pub artifacts: PathBuf,
     /// Target installation dir, if given (only to generate some paths)
     pub install_prefix: Option<PathBuf>,

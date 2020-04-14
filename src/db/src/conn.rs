@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DbConn {
     pub(crate) mem: crate::repo::MemoryRepo,
     pub(crate) pg: Option<crate::repo::PgRepo>,
@@ -84,10 +84,10 @@ impl DbConn {
 
     pub async fn run_select(
         &self,
-        with_run_id: Option<crate::schema::RunId>,
+        user_id: Option<uuid::Uuid>,
         limit: Option<u32>,
     ) -> Result<Vec<crate::schema::Run>> {
-        self.runs_repo().run_select(with_run_id, limit).await
+        self.runs_repo().run_select(user_id, limit).await
     }
 
     pub async fn run_try_load(
@@ -180,5 +180,18 @@ impl DbConn {
         data: crate::schema::NewParticipation,
     ) -> Result<crate::schema::Participation> {
         self.participations_repo().part_new(data).await
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn check_traits() {
+        fn send<T: Send>() {}
+        fn sync<T: Sync>() {}
+        fn clone<T: Clone>() {}
+        send::<DbConn>();
+        sync::<DbConn>();
+        clone::<DbConn>();
     }
 }

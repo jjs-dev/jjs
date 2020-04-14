@@ -6,6 +6,18 @@ use futures::stream::{StreamExt, TryStreamExt};
 use log::debug;
 use std::path::PathBuf;
 
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/runs", web::get().to(route_list))
+        .route("/runs/{id}", web::get().to(route_get))
+        .route("/runs", web::post().to(route_submit_simple))
+        .route("/runs/{id}", web::patch().to(route_patch))
+        .route("/runs/{id}", web::delete().to(route_delete))
+        .route("/runs/{id}/live", web::get().to(route_live))
+        .route("/runs/{id}/source", web::get().to(route_source))
+        .route("/runs/{id}/binary", web::get().to(route_binary))
+        .route("/runs/{id}/protocol", web::get().to(route_protocol));
+}
+
 /// Represents a run.
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub(crate) struct Run {
@@ -23,12 +35,12 @@ impl ApiObject for Run {
     }
 }
 
-fn run_data_dir(ctx: &Context, id: RunId) -> PathBuf {
-    ctx.data_dir.join("var/runs").join(format!("run.{}", id))
+fn run_data_dir(ccx: &ConfigContext, id: RunId) -> PathBuf {
+    ccx.data_dir().join("var/runs").join(format!("run.{}", id))
 }
 
-async fn run_lookup(ctx: &Context, id: RunId) -> ApiResult<db::schema::Run> {
-    ctx.db().run_load(id).await.internal(ctx)
+async fn run_lookup(cx: &DbContext, id: RunId) -> ApiResult<db::schema::Run> {
+    cx.db().run_load(id).await.internal()
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -76,16 +88,48 @@ fn filter_protocol(proto: &mut serde_json::Value, filter: RunProtocolFilterParam
     }
 }
 
-async fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
-    let last_inv = ctx.db().inv_last(run.id).await.internal(ctx)?;
-    let kind = ctx
-        .access_contest(&run.contest_id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .select_judge_log_kind();
+async fn select_judge_log_kind(
+    contest: &entity::Contest,
+    cx: &SecurityContext,
+) -> ApiResult<Option<invoker_api::judge_log::JudgeLogKind>> {
+    const ORDER: &[invoker_api::judge_log::JudgeLogKind] = &[
+        invoker_api::judge_log::JudgeLogKind::Full,
+        invoker_api::judge_log::JudgeLogKind::Contestant,
+    ];
+    for &kind in ORDER {
+        let outcome = cx
+            .access()
+            .with_action(Action::Get)
+            .with_resource_kind(ResourceKind::RUN_PROTOCOL)
+            .with_conditions(make_conditions![contest.id.clone()])
+            .try_authorize()
+            .await?;
+        if outcome.is_allow() {
+            return Ok(Some(kind));
+        }
+    }
+    Ok(None)
+}
+async fn describe_run(
+    db_cx: &DbContext,
+    scx: &SecurityContext,
+    ecx: &EntityContext,
+    run: &db::schema::Run,
+) -> ApiResult<Run> {
+    let last_inv = db_cx.db().inv_last(run.id).await.internal()?;
+    let contest = match ecx.entities().find(&run.contest_id) {
+        Some(c) => c,
+        None => return Err(ApiError::not_found()),
+    };
+    //scx.access().authorize().await?;
+    let kind = select_judge_log_kind(contest, scx).await?;
+    let kind = match kind {
+        Some(k) => k,
+        None => return Err(ApiError::access_denied()),
+    };
     let inv_out_header = last_inv
         .invoke_outcome_headers()
-        .internal(ctx)?
+        .internal()?
         .into_iter()
         .find(|header| header.kind == kind);
     let status = match inv_out_header.as_ref().and_then(|h| h.status.clone()) {
@@ -104,40 +148,86 @@ async fn describe_run(ctx: &Context, run: &db::schema::Run) -> ApiResult<Run> {
         contest_id: run.contest_id.clone(),
     })
 }
+#[derive(Deserialize)]
+struct RouteListQueryParams {
+    limit: Option<i32>,
+    user: Option<String>,
+}
 
-#[get("/runs?<limit>")]
-pub(crate) async fn route_list(ctx: Context, limit: Option<i32>) -> ApiResult<Json<Vec<Run>>> {
-    let user_runs = ctx
+async fn route_list(
+    db_cx: DbContext,
+    sec_cx: SecurityContext,
+    ent_cx: EntityContext,
+    query_params: web::Query<RouteListQueryParams>,
+) -> ApiResult<Json<Vec<Run>>> {
+    let RouteListQueryParams { limit, user } = query_params.into_inner();
+
+    let user_id = match user.as_deref() {
+        Some(s) => match db_cx.db().user_try_load_by_login(s).await.internal()? {
+            Some(user) => Some(user.id),
+            None => return Err(ApiError::new("UserNotFound")),
+        },
+        None => None,
+    };
+    {
+        let builder = sec_cx.access().with_action(Action::List);
+
+        match user_id {
+            Some(user_id) => {
+                builder
+                    .with_resource_kind(ResourceKind::USER_RUNS_LIST)
+                    .with_conditions(make_conditions![resource_ident::UserId::new(user_id)])
+                    .authorize()
+                    .await?;
+            }
+            None => {
+                builder
+                    .with_resource_kind(ResourceKind::RUNS_LIST)
+                    .with_conditions(make_conditions![])
+                    .authorize()
+                    .await?;
+            }
+        }
+    }
+    let runs = db_cx
         .db()
-        .run_select(
-            None, /* TODO: remove this param */
-            limit.map(|x| x as u32),
-        )
+        .run_select(user_id, limit.map(|x| x as u32))
         .await
-        .internal(&ctx)?;
+        .internal()?;
     Ok(Json(
-        futures::stream::iter(user_runs.iter())
-            .then(|s| describe_run(&ctx, s))
+        futures::stream::iter(runs.iter())
+            .then(|s| describe_run(&db_cx, &sec_cx, &ent_cx, s))
             .try_collect::<Vec<_>>()
             .await?,
     ))
 }
+async fn check_run_exists(db_cx: &DbContext, run_id: RunId) -> ApiResult<()> {
+    let run = db_cx.db().run_try_load(run_id).await.internal()?;
+    match run {
+        Some(_) => Ok(()),
+        None => Err(ApiError::not_found()),
+    }
+}
 
-#[get("/runs/<id>")]
-pub(crate) async fn route_get(ctx: Context, id: i32) -> ApiResult<Json<Option<Run>>> {
-    if !ctx
-        .access_run(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_view_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    let db_run = ctx.db().run_try_load(id).await.internal(&ctx)?;
-    match db_run {
-        Some(db_run) => Ok(Json(Some(describe_run(&ctx, &db_run).await?))),
-        None => Ok(Json(None)),
-    }
+pub(crate) async fn route_get(
+    db_cx: DbContext,
+    sec_cx: SecurityContext,
+    ent_cx: EntityContext,
+    path_params: web::Path<i32>,
+) -> ApiResult<Json<Run>> {
+    let id = path_params.into_inner();
+    check_run_exists(&db_cx, id).await?;
+    let db_run = db_cx.db().run_load(id).await.internal()?;
+    sec_cx
+        .access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            db_run.contest_id.clone()
+        )])
+        .with_action(Action::Get)
+        .with_resource_kind(ResourceKind::RUN)
+        .authorize()
+        .await?;
+    Ok(Json(describe_run(&db_cx, &sec_cx, &ent_cx, &db_run).await?))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -158,28 +248,32 @@ impl ApiObject for RunSimpleSubmitParams {
     }
 }
 
-#[post("/runs", data = "<p>")]
 pub(crate) async fn route_submit_simple(
-    ctx: Context,
+    ecx: EntityContext,
+    scx: SecurityContext,
+    ccx: CredentialsContext,
+    dcx: DbContext,
+    cfg_cx: ConfigContext,
+
     p: Json<RunSimpleSubmitParams>,
 ) -> ApiResult<Json<Run>> {
-    let toolchain = ctx.cfg.find::<entity::Toolchain>(&p.toolchain);
+    let toolchain = ecx.entities().find::<entity::Toolchain>(&p.toolchain);
     let toolchain = match toolchain {
         Some(tc) => tc.clone(),
-        None => return Err(ApiError::new(&ctx, "ToolchainUnknown")),
+        None => return Err(ApiError::new("ToolchainUnknown")),
     };
-    let contest: &entity::Contest = match ctx.cfg.find(&p.contest) {
+    let contest: &entity::Contest = match ecx.entities().find(&p.contest) {
         Some(ent) => ent,
-        None => return Err(ApiError::new(&ctx, "ContestUnknown")),
+        None => return Err(ApiError::new("ContestUnknown")),
     };
-    if !ctx
-        .access_contest(&contest.id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_submit()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            contest.id.clone()
+        )])
+        .with_resource_kind(ResourceKind::RUN)
+        .with_action(Action::Create)
+        .authorize()
+        .await?;
     let problem = contest
         .problems
         .iter()
@@ -187,7 +281,7 @@ pub(crate) async fn route_submit_simple(
         .cloned();
     let problem = match problem {
         Some(p) => p,
-        None => return Err(ApiError::new(&ctx, "ProblemUnknown")),
+        None => return Err(ApiError::new("ProblemUnknown")),
     };
     let prob_name = problem.name;
 
@@ -195,21 +289,23 @@ pub(crate) async fn route_submit_simple(
         toolchain_id: toolchain.name,
         problem_id: prob_name,
         rejudge_id: 0,
-        user_id: ctx.token.user_id(),
+        user_id: ccx.token().user_info.id,
         contest_id: contest.id.to_string(),
     };
 
-    let run = ctx.db().run_new(new_run).await.internal(&ctx)?;
+    let run = dcx.db().run_new(new_run).await.internal()?;
 
     // Put run in sysroot
-    let run_dir = ctx
-        .data_dir
+    let run_dir = cfg_cx
+        .data_dir()
         .join("var/runs")
         .join(&format!("run.{}", run.id));
-    std::fs::create_dir(&run_dir).internal(&ctx)?;
+    tokio::fs::create_dir(&run_dir).await.internal()?;
     let submission_src_path = run_dir.join("source");
-    let decoded_code = base64::decode(&p.code).report(&ctx)?;
-    std::fs::write(submission_src_path, &decoded_code).internal(&ctx)?;
+    let decoded_code = base64::decode(&p.code).report()?;
+    tokio::fs::write(submission_src_path, &decoded_code)
+        .await
+        .internal()?;
 
     // create invocation request
     let invoke_task = invoker_api::DbInvokeTask {
@@ -217,11 +313,11 @@ pub(crate) async fn route_submit_simple(
         run_id: run.id as u32,
     };
 
-    let new_inv = db::schema::NewInvocation::new(&invoke_task).internal(&ctx)?;
+    let new_inv = db::schema::NewInvocation::new(&invoke_task).internal()?;
 
-    ctx.db().inv_new(new_inv).await.internal(&&ctx)?;
+    dcx.db().inv_new(new_inv).await.internal()?;
 
-    describe_run(&ctx, &run).await.map(Json)
+    describe_run(&dcx, &scx, &ecx, &run).await.map(Json)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -240,54 +336,75 @@ impl ApiObject for RunPatch {
     }
 }
 
-#[patch("/runs/<id>", data = "<p>")]
-pub(crate) async fn route_patch(ctx: Context, id: RunId, p: Json<RunPatch>) -> ApiResult<()> {
-    if !ctx
-        .access_run(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_modify_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
+async fn route_patch(
+    dcx: DbContext,
+    scx: SecurityContext,
+    path_params: web::Path<RunId>,
+    p: Json<RunPatch>,
+) -> ApiResult<EmptyResponse> {
+    let id = path_params.into_inner();
     if p.score.is_some() {
-        return Err(ApiError::not_implemented(&ctx));
+        return Err(ApiError::not_implemented());
     }
-    let current_run = ctx.db().run_load(id).await.report(&ctx)?;
+    let current_run = dcx.db().run_try_load(id).await.internal()?;
+    let current_run = match current_run {
+        Some(run) => run,
+        None => return Err(ApiError::not_found()),
+    };
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            current_run.contest_id.clone()
+        )])
+        .with_action(Action::Patch)
+        .with_resource_kind(ResourceKind::RUN)
+        .authorize()
+        .await?;
 
     let mut patch = db::schema::RunPatch::default();
     if p.rejudge {
         patch.rejudge_id = Some(current_run.rejudge_id + 1);
         // TODO enqueue
     }
-    ctx.db().run_update(id, patch).await.internal(&ctx)?;
+    dcx.db().run_update(id, patch).await.internal()?;
 
-    Ok(())
+    Ok(EmptyResponse)
 }
 
-#[delete("/runs/<id>")]
-pub(crate) async fn route_delete(ctx: Context, id: RunId) -> ApiResult<rocket::http::Status> {
-    if !ctx
-        .access_run(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_modify_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    ctx.db().run_delete(id).await.internal(&ctx)?;
+async fn route_delete(
+    scx: SecurityContext,
+    dcx: DbContext,
+    path_params: web::Path<RunId>,
+) -> ApiResult<EmptyResponse> {
+    let id = path_params.into_inner();
+    let run_data = dcx.db().run_try_load(id).await.internal()?;
+    let run_data = match run_data {
+        Some(d) => d,
+        None => return Err(ApiError::not_found()),
+    };
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            run_data.contest_id.clone()
+        )])
+        .with_action(Action::Delete)
+        .with_resource_kind(ResourceKind::RUN)
+        .authorize()
+        .await?;
+    dcx.db().run_delete(id).await.internal()?;
 
-    Ok(rocket::http::Status::NoContent)
+    Ok(EmptyResponse)
 }
 
 /// Represents Live Status Update
 ///
-/// Some fields can be missing for various reasons, it is normal that particular object will look like {liveScore: null, currentTest: null, finish: false}.
-/// Information in all fields except `finish` can be inaccurate, incorrect or outdated.
-/// You can rely on following: if `finish` is true, final judging results are available
+/// Some fields can be missing for various reasons, it is normal that particular
+/// object will look like {liveScore: null, currentTest: null, finish: false}.
+/// Information in all fields except `finish` can be inaccurate, incorrect or
+/// outdated. You can rely on following: if `finish` is true, final judging
+/// results are available
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub(crate) struct RunLiveStatusUpdate {
-    /// Estimation of score. Usually, final score will be greater than or equal to `live_score`
+    /// Estimation of score. Usually, final score will be greater than or equal
+    /// to `live_score`
     live_score: Option<i32>,
     /// Current running test
     current_test: Option<i32>,
@@ -301,74 +418,96 @@ impl ApiObject for RunLiveStatusUpdate {
     }
 }
 
-#[get("/runs/<run_id>/live")]
 pub(crate) async fn route_live(
-    ctx: Context,
-    run_id: RunId,
+    dcx: DbContext,
+    path_params: web::Path<RunId>,
 ) -> ApiResult<Json<RunLiveStatusUpdate>> {
+    let run_id = path_params.into_inner();
     let lsu_key = format!("lsu-{}", run_id);
-    let lsu: Option<invoker_api::LiveStatusUpdate> =
-        ctx.db().kv_get(&lsu_key).await.internal(&ctx)?;
+    let lsu: Option<invoker_api::LiveStatusUpdate> = dcx.db().kv_get(&lsu_key).await.internal()?;
 
     debug!(
         "Found update {:?} in KV storage, with key {}",
         &lsu, lsu_key
     );
     if let Some(upd) = lsu {
-        ctx.db().kv_del(&lsu_key).await.internal(&ctx)?;
+        dcx.db().kv_del(&lsu_key).await.internal()?;
         return Ok(Json(RunLiveStatusUpdate {
             live_score: upd.score,
             current_test: upd.current_test.map(|t| t as i32),
             finish: false,
         }));
     }
-    let invocation = ctx.db().inv_last(run_id).await.internal(&ctx)?;
+    let invocation = dcx.db().inv_last(run_id).await.internal()?;
     Ok(Json(RunLiveStatusUpdate {
         live_score: None,
         current_test: None,
-        finish: invocation.state().internal(&ctx)?.is_finished(),
+        finish: invocation.state().internal()?.is_finished(),
     }))
 }
 
-#[get("/runs/<id>/source")]
-pub(crate) async fn route_source(
-    ctx: Context,
-    id: RunId,
-) -> ApiResult<Result<Json<String>, rocket::http::Status>> {
-    if !ctx
-        .access_run(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_view_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    let source_path = run_data_dir(&ctx, id).join("source");
+async fn route_source(
+    scx: SecurityContext,
+    ccx: ConfigContext,
+    dcx: DbContext,
+    path_params: web::Path<RunId>,
+) -> ApiResult<actix_web::Either<Json<String>, EmptyResponse>> {
+    let id = path_params.into_inner();
+    let run_data = dcx.db().run_try_load(id).await.internal()?;
+    let run_data = match run_data {
+        Some(d) => d,
+        None => return Err(ApiError::not_found()),
+    };
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            run_data.contest_id.clone()
+        )])
+        .with_action(Action::Get)
+        .with_resource_kind(ResourceKind::RUN)
+        .authorize()
+        .await?;
+    let source_path = run_data_dir(&ccx, id).join("source");
     let source = tokio::fs::read(source_path).await.ok();
     let source = source.as_ref().map(base64::encode);
-    Ok(source.ok_or(rocket::http::Status::NoContent).map(Json))
+    let source = match source {
+        Some(s) => actix_web::Either::A(Json(s)),
+        None => actix_web::Either::B(EmptyResponse),
+    };
+    Ok(source)
 }
 
-#[get("/runs/<id>/binary")]
-pub(crate) async fn route_binary(
-    ctx: Context,
-    id: RunId,
-) -> ApiResult<Result<Json<String>, rocket::http::Status>> {
-    if !ctx
-        .access_run(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_view_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    let binary_path = run_data_dir(&ctx, id).join("build");
+async fn route_binary(
+    scx: SecurityContext,
+    ccx: ConfigContext,
+    dcx: DbContext,
+    path_params: web::Path<RunId>,
+) -> ApiResult<actix_web::Either<Json<String>, EmptyResponse>> {
+    let id = path_params.into_inner();
+    let run_data = dcx.db().run_try_load(id).await.internal()?;
+    let run_data = match run_data {
+        Some(d) => d,
+        None => return Err(ApiError::not_found()),
+    };
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            run_data.contest_id.clone()
+        )])
+        .with_action(Action::Get)
+        .with_resource_kind(ResourceKind::RUN)
+        .authorize()
+        .await?;
+
+    let binary_path = run_data_dir(&ccx, id).join("build");
     let binary = tokio::fs::read(binary_path).await.ok();
     let binary = binary.as_ref().map(base64::encode);
-    Ok(binary.ok_or(rocket::http::Status::NoContent).map(Json))
+    let binary = match binary {
+        Some(b) => actix_web::Either::A(Json(b)),
+        None => actix_web::Either::B(EmptyResponse),
+    };
+    Ok(binary)
 }
 
-#[derive(Copy, Clone, rocket::request::FromForm)]
+#[derive(Copy, Clone, Deserialize)]
 pub(crate) struct RunProtocolFilterParams {
     compile_log: bool,
     test_data: bool,
@@ -377,39 +516,44 @@ pub(crate) struct RunProtocolFilterParams {
     resource_usage: bool,
 }
 
-#[get("/runs/<id>/protocol?<filter..>")]
 pub(crate) async fn route_protocol(
-    ctx: Context,
-    id: RunId,
-    filter: rocket::request::Form<RunProtocolFilterParams>,
+    scx: SecurityContext,
+    ccx: ConfigContext,
+    ecx: EntityContext,
+    dcx: DbContext,
+    path_params: web::Path<RunId>,
+    filter: web::Query<RunProtocolFilterParams>,
 ) -> ApiResult<Option<String>> {
-    if !ctx
-        .access_run(id)
+    let id = path_params.into_inner();
+    let run_data = run_lookup(&dcx, id).await?;
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(
+            run_data.contest_id.clone()
+        )])
+        .with_action(Action::Get)
+        .with_resource_kind(ResourceKind::RUN_PROTOCOL)
+        .authorize()
+        .await?;
+    let contest = ecx
+        .entities()
+        .find(&run_data.contest_id)
+        .ok_or_else(|| ApiError::new("ContestGone"))?;
+    let kind = select_judge_log_kind(contest, &scx)
         .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?
-        .can_view_run()
-    {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    let run_data = run_lookup(&ctx, id).await?;
-    let access_ck = ctx
-        .access_contest(&run_data.contest_id)
-        .await?
-        .ok_or_else(|| ApiError::not_found(&ctx))?;
-    let kind = access_ck.select_judge_log_kind();
-    let path = run_data_dir(&ctx, id)
+        .ok_or_else(ApiError::access_denied)?;
+    let path = run_data_dir(&ccx, id)
         .join(format!("inv.{}", run_data.rejudge_id))
         .join(format!("protocol-{}.json", kind.as_str()));
     if !path.exists() {
         return Ok(None);
     }
     debug!("Looking up invocation protocol at {}", path.display());
-    let protocol = std::fs::read(path).internal(&ctx)?;
+    let protocol = std::fs::read(path).internal()?;
 
     let protocol: invoker_api::judge_log::JudgeLog =
-        serde_json::from_slice(&protocol).internal(&ctx)?;
-    let mut protocol = serde_json::to_value(&protocol).internal(&ctx)?;
+        serde_json::from_slice(&protocol).internal()?;
+    let mut protocol = serde_json::to_value(&protocol).internal()?;
     filter_protocol(&mut protocol, *filter);
-    let protocol = serde_json::to_string(&protocol).internal(&ctx)?;
+    let protocol = serde_json::to_string(&protocol).internal()?;
     Ok(Some(protocol))
 }

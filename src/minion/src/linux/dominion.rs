@@ -122,7 +122,8 @@ impl Dominion for LinuxDominion {
 ///
 /// Anyway, SUID-bit will be disabled.
 ///
-/// Warning: this type is __unstable__ (i.e. not covered by SemVer) and __non-portable__
+/// Warning: this type is __unstable__ (i.e. not covered by SemVer) and
+/// __non-portable__
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DesiredAccess {
     Readonly,
@@ -198,7 +199,8 @@ impl LinuxDominion {
     ) -> Option<jail_common::JobStartupInfo> {
         let q = jail_common::Query::Spawn(query.job_query.clone());
 
-        // note that we ignore errors, because zygote can be already killed for some reason
+        // note that we ignore errors, because zygote can be already killed for some
+        // reason
         self.zygote_sock.lock().unwrap().send(&q).ok();
 
         let fds = [query.stdin, query.stdout, query.stderr];

@@ -1,3 +1,20 @@
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/contests", web::get().to(route_list))
+        .route("/contests/{name}", web::get().to(route_get))
+        .route(
+            "/contests/{name}/problems",
+            web::get().to(route_list_problems),
+        )
+        .route(
+            "/contests/{name}/participation",
+            web::get().to(route_get_participation),
+        )
+        .route(
+            "/contests/{name}/participation",
+            web::patch().to(route_update_participation),
+        );
+}
+
 use super::prelude::*;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -6,8 +23,8 @@ pub(crate) struct Problem {
     pub title: String,
     /// Problem name
     pub name: schema::ProblemId,
-    /// Problem relative name (aka problem code) as contestants see. This is usually one letter or
-    /// something similar, e.g. 'A' or '3F'.
+    /// Problem relative name (aka problem code) as contestants see. This is
+    /// usually one letter or something similar, e.g. 'A' or '3F'.
     pub rel_name: schema::ProblemId,
 }
 
@@ -21,7 +38,8 @@ impl ApiObject for Problem {
 pub(crate) struct Contest {
     /// E.g. "Berlandian Olympiad in Informatics. Finals. Day 3."
     pub title: String,
-    /// Configured by human, something readable like 'olymp-2019', or 'test-contest'
+    /// Configured by human, something readable like 'olymp-2019', or
+    /// 'test-contest'
     pub id: schema::ContestId,
 }
 
@@ -38,34 +56,34 @@ fn describe_contest(c: &entity::Contest) -> Contest {
     }
 }
 
-#[get("/contests")]
-pub(crate) fn route_list(ctx: Context) -> ApiResult<Json<Vec<Contest>>> {
-    let res = ctx
-        .cfg
+pub(crate) async fn route_list(cx: EntityContext) -> ApiResult<Json<Vec<Contest>>> {
+    let res = cx
+        .entities()
         .list::<entity::Contest>()
         .map(describe_contest)
         .collect();
     Ok(Json(res))
 }
 
-#[get("/contests/<name>")]
-pub(crate) fn route_get(ctx: Context, name: String) -> ApiResult<Json<Option<Contest>>> {
-    let res = ctx.cfg.find(&name).map(describe_contest);
+pub(crate) async fn route_get(cx: EntityContext, name: String) -> ApiResult<Json<Option<Contest>>> {
+    let res = cx.entities().find(&name).map(describe_contest);
     Ok(Json(res))
 }
 
-#[get("/contests/<name>/problems")]
-pub(crate) fn route_list_problems(ctx: Context, name: String) -> ApiResult<Json<Vec<Problem>>> {
-    let contest_cfg: &entity::Contest = match ctx.cfg.find(&name) {
+pub(crate) async fn route_list_problems(
+    ctx: EntityContext,
+    name: String,
+) -> ApiResult<Json<Vec<Problem>>> {
+    let contest_cfg: &entity::Contest = match ctx.entities().find(&name) {
         Some(contest) => contest,
-        None => return Err(ApiError::not_found(&ctx)),
+        None => return Err(ApiError::not_found()),
     };
     let problems = contest_cfg
         .problems
         .iter()
         .map(|p| Problem {
             title: ctx
-                .problem_loader
+                .problems()
                 .find(&p.name)
                 .expect("problem not found")
                 .0
@@ -96,12 +114,12 @@ fn stringify_participation_phase(phase: db::schema::ParticipationPhase) -> &'sta
     }
 }
 
-#[get("/contests/<name>/participation")]
 pub(crate) async fn route_get_participation(
-    ctx: Context,
+    dbcx: DbContext,
+    ccx: CredentialsContext,
     name: String,
 ) -> ApiResult<Json<Participation>> {
-    let participation = ctx.load_participation(&name).await?;
+    let participation = load_participation(&dbcx, &ccx, &name).await?;
     let desc = match participation {
         Some(p) => stringify_participation_phase(p.phase()),
         None => "MISSING",
@@ -122,30 +140,38 @@ impl ApiObject for PartitipationUpdateRequest {
     }
 }
 
-#[patch("/contests/<name>/participation", data = "<p>")]
-pub(crate) async fn route_update_participation(
-    ctx: Context,
-    name: String,
+async fn route_update_participation(
+    path_params: web::Path<String>,
     p: Json<PartitipationUpdateRequest>,
-) -> ApiResult<rocket::http::Status> {
-    let resp_ok = rocket::http::Status::NoContent;
+    db_cx: DbContext,
+    cred_cx: CredentialsContext,
+    ecx: EntityContext,
+    scx: SecurityContext,
+) -> ApiResult<EmptyResponse> {
+    let name = path_params.into_inner();
     let new_phase = match p.phase.as_deref() {
         Some("ACTIVE") => db::schema::ParticipationPhase::Active,
-        Some(_) => return Err(ApiError::new(&ctx, "UnknownParticipationStatus")),
-        None => return Ok(resp_ok),
+        Some(_) => return Err(ApiError::new("UnknownParticipationStatus")),
+        None => return Ok(EmptyResponse),
     };
-    let contest = match ctx.cfg.find::<entity::Contest>(&name) {
+    let contest = match ecx.entities().find::<entity::Contest>(&name) {
         Some(c) => c,
-        None => return Err(ApiError::not_found(&ctx)),
+        None => return Err(ApiError::not_found()),
     };
-    let access_ck = ctx.access_contest(&name).await?.unwrap();
+    scx.access()
+        .with_conditions(make_conditions![resource_ident::ContestId::new(name)])
+        .with_action(Action::Patch)
+        .with_resource_kind(ResourceKind::CONTEST)
+        .authorize()
+        .await?;
+    /*let access_ck = scx.access_contest(&name).await?.unwrap();
     if !access_ck.can_participate() {
-        return Err(ApiError::access_denied(&ctx));
-    }
-    let current_participation = ctx.load_participation(&contest.id).await?;
+        return Err(ApiError::access_denied());
+    }*/
+    let current_participation = load_participation(&db_cx, &cred_cx, &contest.id).await?;
 
     if current_participation.is_some() {
-        return Err(ApiError::new(&ctx, "AlreadyParticipating"));
+        return Err(ApiError::new("AlreadyParticipating"));
     }
     let mut new_participation = if !contest.is_virtual {
         // for non-virtual contest, we can easily issue Participation, even if
@@ -163,16 +189,27 @@ pub(crate) async fn route_update_participation(
             registration_open = registration_open && (now <= end);
         }
         if !registration_open {
-            return Err(ApiError::new(&ctx, "VirtualContestCanNotBeStartedNow"));
+            return Err(ApiError::new("VirtualContestCanNotBeStartedNow"));
         }
         let mut p = db::schema::NewParticipation::default();
         p.set_virtual_contest_start_time(Some(chrono::Utc::now()));
         p
     };
     new_participation.contest_id = contest.id.clone();
-    new_participation.user_id = ctx.token.user_id();
+    new_participation.user_id = cred_cx.token().user_info.id;
     new_participation.set_phase(new_phase);
 
-    ctx.db().part_new(new_participation).await.internal(&ctx)?;
-    Ok(resp_ok)
+    db_cx.db().part_new(new_participation).await.internal()?;
+    Ok(EmptyResponse)
+}
+
+pub(crate) async fn load_participation(
+    dcx: &DbContext,
+    ccx: &CredentialsContext,
+    contest_id: &str,
+) -> ApiResult<Option<db::schema::Participation>> {
+    dcx.db()
+        .part_lookup(ccx.token().user_info.id, &contest_id)
+        .await
+        .internal()
 }

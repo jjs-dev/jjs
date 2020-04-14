@@ -9,7 +9,7 @@ fn is_cli_mode() -> bool {
 }
 
 async fn make_sources(
-    cfg_data: &util::cfg::CfgData,
+    cfg_data: &daemons::cfg::CfgData,
     background_source_manager: invoker::sources::BackgroundSourceManager,
 ) -> anyhow::Result<Vec<Arc<dyn invoker::controller::TaskSource>>> {
     let mut sources: Vec<Arc<dyn invoker::controller::TaskSource>> = Vec::new();
@@ -27,7 +27,8 @@ async fn make_sources(
 fn worker_self_isolate() -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     {
-        // TODO: unshare NEWNET too. To achieve it, we have to switch to multiprocessing instead of multithreading
+        // TODO: unshare NEWNET too. To achieve it, we have to switch to multiprocessing
+        // instead of multithreading
         nix::sched::unshare(nix::sched::CloneFlags::CLONE_FILES).context("failed to unshare")?;
     }
     Ok(())
@@ -44,7 +45,7 @@ fn main() -> anyhow::Result<()> {
         invoker::init::init().context("failed to initialize")?;
         worker_self_isolate()?;
     } else {
-        util::wait::wait();
+        daemons::wait::wait();
     }
     let mut rt = tokio::runtime::Builder::new();
     rt.basic_scheduler();
@@ -55,7 +56,7 @@ fn main() -> anyhow::Result<()> {
 async fn start_controller(
     cfg: invoker::config::InvokerConfig,
     stop_token: tokio::sync::broadcast::Receiver<!>,
-    system_config_data: util::cfg::CfgData,
+    system_config_data: daemons::cfg::CfgData,
     background_source: invoker::sources::BackgroundSourceManager,
 ) -> anyhow::Result<()> {
     let driver = make_sources(&system_config_data, background_source)
@@ -73,7 +74,7 @@ async fn real_main() -> anyhow::Result<()> {
         return invoker::worker::main().await;
     }
 
-    let system_config_data = util::cfg::load_cfg_data()?;
+    let system_config_data = daemons::cfg::load_cfg_data()?;
 
     debug!("system check passed");
 
@@ -116,7 +117,7 @@ async fn real_main() -> anyhow::Result<()> {
     .await
     .context("can not start controller")?;
 
-    util::daemon_notify_ready();
+    daemons::daemon_notify_ready();
     tokio::task::spawn(async move {
         log::debug!("Installing signal hook");
         match tokio::signal::ctrl_c().await {

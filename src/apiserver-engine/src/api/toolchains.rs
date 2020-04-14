@@ -23,10 +23,9 @@ impl<'a> From<&'a entity::entities::toolchain::Toolchain> for Toolchain {
     }
 }
 
-#[get("/toolchains")]
-pub(crate) fn route_list(ctx: Context) -> ApiResult<Json<Vec<Toolchain>>> {
-    let res = ctx
-        .cfg
+async fn route_list(ecx: EntityContext) -> ApiResult<Json<Vec<Toolchain>>> {
+    let res = ecx
+        .entities()
         .list::<entity::Toolchain>()
         .map(|tc| Toolchain {
             name: tc.title.clone(),
@@ -34,4 +33,8 @@ pub(crate) fn route_list(ctx: Context) -> ApiResult<Json<Vec<Toolchain>>> {
         })
         .collect();
     Ok(Json(res))
+}
+
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/toolchains", web::get().to(route_list));
 }

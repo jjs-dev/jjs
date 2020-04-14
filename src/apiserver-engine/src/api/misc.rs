@@ -14,12 +14,15 @@ impl ApiObject for ApiVersion {
     }
 }
 
-#[get("/system/api-version")]
-pub(crate) fn route_get_api_version() -> Json<ApiVersion> {
+async fn route_get_api_version() -> Json<ApiVersion> {
     Json(ApiVersion { major: 0, minor: 0 })
 }
 
-#[get("/system/is-dev")]
-pub(crate) fn route_is_dev(ctx: Context) -> Json<bool> {
-    Json(matches!(ctx.config().env, crate::config::Env::Dev))
+async fn route_is_dev(cx: ConfigContext) -> Json<bool> {
+    Json(matches!(cx.config().env, crate::config::Env::Dev))
+}
+
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/system/api-version", web::get().to(route_get_api_version))
+        .route("/system/is-dev", web::get().to(route_is_dev));
 }

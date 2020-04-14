@@ -2,8 +2,8 @@
  * This crate provides ability to spawn highly isolated processes
  *
  * # Platform support
- * _warning_: not all features are supported by all backends. See documentation for particular backend
- * to know more
+ * _warning_: not all features are supported by all backends. See
+ * documentation for particular backend to know more
  */
 mod command;
 
@@ -289,7 +289,8 @@ mod errors {
 
     #[derive(Eq, PartialEq)]
     pub enum ErrorKind {
-        /// This error typically means that isolated process tried to break its sandbox
+        /// This error typically means that isolated process tried to break its
+        /// sandbox
         Sandbox,
         /// Bug in code, using minion, or in minion itself
         System,
@@ -351,12 +352,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Returned by [ChildProcess::wait_for_exit]
 ///
-/// [ChildProcess::wait_fot_exit]: trait.ChildProcess.html#tymethod.wait_for_exit
+/// [ChildProcess::wait_fot_exit]:
+/// trait.ChildProcess.html#tymethod.wait_for_exit
 #[derive(Eq, PartialEq, Debug)]
 pub enum WaitOutcome {
     /// Child process has exited during `wait_for_exit`
     Exited,
-    /// Child process has exited before `wait_for_exit` and it is somehow already reported
+    /// Child process has exited before `wait_for_exit` and it is somehow
+    /// already reported
     AlreadyFinished,
     /// Child process hasn't exited during `timeout` period
     Timeout,
@@ -364,13 +367,14 @@ pub enum WaitOutcome {
 
 /// Represents child process.
 pub trait ChildProcess: Debug {
-    /// Returns exit code, if process had exited by the moment of call, or None otherwise.
+    /// Returns exit code, if process had exited by the moment of call, or None
+    /// otherwise.
     fn get_exit_code(&self) -> Result<Option<i64>>;
 
     /// Returns writeable stream, connected to child stdin
     ///
-    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
-    /// Otherwise, None will be returned
+    /// Stream will only be returned, if corresponding `Stdio` item was
+    /// `new_pipe`. Otherwise, None will be returned
     ///
     /// On all subsequent calls, None will be returned
 
@@ -378,16 +382,16 @@ pub trait ChildProcess: Debug {
 
     /// Returns readable stream, connected to child stdoutn
     ///
-    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
-    /// Otherwise, None will be returned
+    /// Stream will only be returned, if corresponding `Stdio` item was
+    /// `new_pipe`. Otherwise, None will be returned
     ///
     /// On all subsequent calls, None will be returned
     fn stdout(&mut self) -> Option<Box<dyn Read + Send + Sync>>;
 
     /// Returns readable stream, connected to child stderr
     ///
-    /// Stream will only be returned, if corresponding `Stdio` item was `new_pipe`.
-    /// Otherwise, None will be returned
+    /// Stream will only be returned, if corresponding `Stdio` item was
+    /// `new_pipe`. Otherwise, None will be returned
     ///
     /// On all subsequent calls, None will be returned
     fn stderr(&mut self) -> Option<Box<dyn Read + Send + Sync>>;

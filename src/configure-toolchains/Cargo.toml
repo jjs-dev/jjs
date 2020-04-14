@@ -14,4 +14,3 @@ copy-ln = { git = "https://github.com/mikailbag/copy-ln", branch = "master" }
 tempfile = "3.1.0"
 tera = "1.2.0"
 serde_yaml = "0.8.11"
-nix = "0.17.0"

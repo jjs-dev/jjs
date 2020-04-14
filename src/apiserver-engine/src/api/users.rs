@@ -42,25 +42,23 @@ impl ApiObject for UserCreateParams {
 }
 
 // TODO allow creation without password
-#[post("/users", data = "<p>")]
-pub(crate) async fn route_create(
-    ctx: Context,
+async fn route_create(
+    scx: SecurityContext,
+    dcx: DbContext,
     mut p: Json<UserCreateParams>,
 ) -> ApiResult<Json<User>> {
     // TODO transaction
     if !p.groups.is_empty() {
-        let access_checker = ctx.access_generic();
-        if !access_checker.is_sudo() {
-            return Err(ApiError::access_denied(&ctx));
-        }
+        scx.access()
+            .with_conditions(make_conditions![])
+            .with_action(Action::Create)
+            .with_resource_kind(ResourceKind::USERS)
+            .authorize()
+            .await?;
     }
-    let cur_user = ctx
-        .db()
-        .user_try_load_by_login(&p.login)
-        .await
-        .internal(&ctx)?;
+    let cur_user = dcx.db().user_try_load_by_login(&p.login).await.internal()?;
     if let Some(..) = cur_user {
-        return Err(ApiError::new(&ctx, "UserAlreadyExists"));
+        return Err(ApiError::new("UserAlreadyExists"));
     }
 
     let provided_password_hash = password::get_password_hash(&p.password);
@@ -71,7 +69,11 @@ pub(crate) async fn route_create(
         groups: std::mem::take(&mut p.groups),
     };
 
-    let user = ctx.db().user_new(new_user).await.internal(&ctx)?;
+    let user = dcx.db().user_new(new_user).await.internal()?;
 
     Ok(Json((&user).into()))
+}
+
+pub(crate) fn register_routes(c: &mut web::ServiceConfig) {
+    c.route("/users", web::post().to(route_create));
 }

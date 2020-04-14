@@ -1,29 +1,23 @@
-use crate::{entities::Entity, Loader};
+use crate::{entities::Entity, loader::EntitiesData, Loader};
 use anyhow::Context;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
     path::Path,
+    sync::Arc,
 };
 
-pub struct LoaderBuilder(Loader);
-
-impl std::ops::Deref for LoaderBuilder {
-    type Target = Loader;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct LoaderBuilder(crate::loader::EntitiesData);
 
 impl LoaderBuilder {
     pub fn new() -> LoaderBuilder {
-        LoaderBuilder(Loader {
-            entities: HashMap::new(),
+        LoaderBuilder(EntitiesData {
+            entities: (HashMap::new()),
         })
     }
 
-    /// Saves new entity or updates existing. Returns true if entity was created.  
+    /// Saves new entity or updates existing. Returns true if entity was
+    /// created.
     ///
     /// Useful for tests
     pub fn put<T: Entity>(&mut self, entity: T) -> bool {
@@ -39,7 +33,7 @@ impl LoaderBuilder {
     }
 
     pub fn into_inner(self) -> Loader {
-        self.0
+        Loader::from_inner(Arc::new(self.0))
     }
 
     pub fn load_entity_from_file<T: Entity>(&mut self, path: &Path) -> anyhow::Result<()> {

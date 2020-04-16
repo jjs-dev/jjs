@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
-r2d2 = "0.8.8"
 invoker-api = {path = "../invoker-api"}
 bincode = "1.2.1"
 anyhow = "1.0.28"
@@ -15,11 +14,13 @@ serde_json = "1.0.51"
 redis = {version = "0.15.1", default-features = false, features = []}
 async-trait = "0.1.30"
 futures = "0.3.4"
-tokio = { version = "0.2.18", features = ["rt-threaded", "blocking"] }
+tokio = { version = "0.2.18", features = [] }
 chrono = { version = "0.4.11", features = ["serde"] }
+tokio-postgres = { version = "0.5.3", optional = true }
+postgres-types = { version = "0.1.1", optional = true, features = ["derive", "with-uuid-0_8", "with-serde_json-1", "with-chrono-0_4"] }
+bb8 = { version = "0.4.1", optional = true }
+bb8-postgres = { version = "0.4.0", optional = true }
 
-[dependencies.diesel]
-git = "https://github.com/diesel-rs/diesel"
-rev = "537eb5d"
-default-features = false
-features = ["postgres", "uuid", "r2d2", "serde_json", "chrono"]
+[features]
+postgres = ["tokio-postgres", "postgres-types", "bb8", "bb8-postgres"]
+default = ["postgres"]

@@ -1,8 +1,7 @@
 use super::{Invocation, InvocationPatch, NewInvocation};
 use anyhow::Context;
-use diesel::expression::AsExpression;
 use std::convert::{TryFrom, TryInto};
-#[derive(Copy, Clone, AsExpression)]
+#[derive(Copy, Clone, Debug, postgres_types::ToSql, postgres_types::FromSql)]
 #[repr(i16)]
 pub enum InvocationState {
     Queue = 1,
@@ -82,6 +81,18 @@ impl Invocation {
 
     pub fn state(&self) -> anyhow::Result<InvocationState> {
         Ok(self.state.try_into().context("invalid InvocationState")?)
+    }
+}
+
+impl Invocation {
+    pub(crate) fn from_pg_row(row: tokio_postgres::Row) -> Invocation {
+        Self {
+            id: row.get("id"),
+            run_id: row.get("run_id"),
+            state: row.get("state"),
+            outcome: row.get("outcome"),
+            invoke_task: row.get("invoke_task"),
+        }
     }
 }
 

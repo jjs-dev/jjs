@@ -1,5 +1,5 @@
 use crate::{
-    repo::{DieselRepo, MemoryRepo, RedisRepo},
+    repo::{MemoryRepo, PgRepo, RedisRepo},
     DbConn,
 };
 use anyhow::{Context, Result};
@@ -28,7 +28,9 @@ pub async fn connect(options: ConnectOptions) -> Result<DbConn> {
     let mem = MemoryRepo::new();
     let pg = match options.pg {
         Some(pg_conn_str) => {
-            let conn = DieselRepo::new(&pg_conn_str).context("cannot connect to postgres")?;
+            let conn = PgRepo::new(&pg_conn_str)
+                .await
+                .context("cannot connect to postgres")?;
             Some(conn)
         }
         None => None,

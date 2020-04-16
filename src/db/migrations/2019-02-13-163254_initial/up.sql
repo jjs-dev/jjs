@@ -1,6 +1,3 @@
-CREATE DOMAIN unsigned_integer AS INTEGER
-    CHECK (VALUE >= 0);
-
 -- Users table
 
 CREATE SEQUENCE user_id_seq START WITH 0 MINVALUE 0;
@@ -29,10 +26,10 @@ CREATE SEQUENCE run_id_seq START WITH 0 MINVALUE 0;
 
 CREATE TABLE runs
 (
-    id           unsigned_integer DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
+    id           INTEGER DEFAULT nextval('run_id_seq') PRIMARY KEY NOT NULL,
     toolchain_id VARCHAR(100)                                               NOT NULL,
     problem_id   VARCHAR(100)                                               NOT NULL,
-    rejudge_id   unsigned_integer                                            NOT NULL,
+    rejudge_id   INTEGER                                            NOT NULL,
     user_id          UUID REFERENCES users (id)                      NOT NULL,
     contest_id    VARCHAR(100)                                                NOT NULL
 );
@@ -45,8 +42,8 @@ CREATE SEQUENCE inv_id_seq START WITH 0 MINVALUE 0;
 
 CREATE table invocations
 (
-    id          unsigned_integer DEFAULT nextval('inv_id_seq') UNIQUE PRIMARY KEY NOT NULL,
-    run_id unsigned_integer REFERENCES runs(id) NOT NULL,
+    id          INTEGER DEFAULT nextval('inv_id_seq') UNIQUE PRIMARY KEY NOT NULL,
+    run_id INTEGER REFERENCES runs(id) NOT NULL,
     -- This is serialized `InvokeTask`. See `invoker-api` for its definition
     invoke_task bytea                                                                 NOT NULL,
     -- see InvocationStatus

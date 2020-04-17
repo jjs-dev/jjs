@@ -9,6 +9,6 @@ cat > test.cpp << EOF
 int main(){int64_t a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}
 EOF
 
-jjs-cli submit --contest trial --filename test.cpp --problem A --toolchain g++
+busybox timeout -s SIGKILL -t 60 jjs-cli submit --contest trial --filename test.cpp --problem A --toolchain g++
 
 { sleep 1; poweroff; } &

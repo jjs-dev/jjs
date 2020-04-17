@@ -245,7 +245,7 @@ jobs:
       - name: launch vm-sysroot
         if: always()
         run: |
-          script -c 'uml/linux-4.19.112/vmlinux mem=1024M ubda=vm-sysroot/image/hdd.img root=/dev/ubda con0=fd:0,fd:1 con=nul' vm-sysroot.log || true
+          script -c 'busybox timeout -s SIGKILL -t 300 uml/linux-4.19.112/vmlinux mem=1024M ubda=vm-sysroot/image/hdd.img root=/dev/ubda con0=fd:0,fd:1 con=nul' vm-sysroot.log || true
           fgrep -q 'status: Accepted(ACCEPTED)' vm-sysroot.log
       - name: upload logs
         if: always()

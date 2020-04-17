@@ -22,6 +22,13 @@ jobs:
         run: cargo jjs-check --no-default --rustfmt
       - name: run shellcheck
         run: cargo jjs-check --no-default --shellcheck
+  misspell-fixer:
+    name: misspell-fixer
+    steps:
+      - uses: actions/checkout@v2
+      - uses: sobolevn/misspell-fixer-action@master
+        with:
+          options: '-svuRVD .'
   clippy:
     name: clippy
     runs-on: "ubuntu-18.04"

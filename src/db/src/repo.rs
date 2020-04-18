@@ -1,10 +1,10 @@
-mod diesel_pg;
 mod memory;
+mod pg;
 mod redis;
 
 pub use self::redis::RedisRepo;
-pub use diesel_pg::DieselRepo;
 pub use memory::MemoryRepo;
+pub use pg::PgRepo;
 
 use crate::schema::*;
 use anyhow::{bail, Result};

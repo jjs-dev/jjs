@@ -3,7 +3,7 @@ use anyhow::{Context as _, Result};
 #[derive(Debug)]
 pub struct DbConn {
     pub(crate) mem: crate::repo::MemoryRepo,
-    pub(crate) pg: Option<crate::repo::DieselRepo>,
+    pub(crate) pg: Option<crate::repo::PgRepo>,
     pub(crate) redis: Option<crate::repo::RedisRepo>,
 }
 

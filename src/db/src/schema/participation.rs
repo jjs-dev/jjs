@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 #[repr(i16)]
+#[derive(Debug, postgres_types::FromSql, postgres_types::ToSql)]
 pub enum ParticipationPhase {
     Active,
     // in future: Requested, Rejected
@@ -22,6 +23,18 @@ impl std::convert::TryFrom<i16> for ParticipationPhase {
             return Err(());
         }
         Ok(unsafe { std::mem::transmute(value) })
+    }
+}
+
+impl crate::schema::Participation {
+    pub(crate) fn from_pg_row(row: tokio_postgres::Row) -> Self {
+        Self {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            contest_id: row.get("contest_id"),
+            phase: row.get("phase"),
+            virtual_contest_start_time: row.get("virtual_contest_start_time"),
+        }
     }
 }
 

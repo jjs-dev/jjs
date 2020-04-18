@@ -277,10 +277,22 @@ impl Controller {
     async fn tick(&mut self) -> anyhow::Result<bool> {
         // did we have any updates?
         let mut flag = false;
-        flag = flag || self.tick_poll_workers().await?;
-        flag = flag || self.tick_publish_outcome().await?;
-        flag = flag || self.tick_send_invoke_request().await?;
-        flag = flag || self.tick_get_tasks().await?;
+        flag = flag
+            || self
+                .tick_poll_workers()
+                .await
+                .context("worker poll error")?;
+        flag = flag
+            || self
+                .tick_publish_outcome()
+                .await
+                .context("outcome publishing error")?;
+        flag = flag
+            || self
+                .tick_send_invoke_request()
+                .await
+                .context("sending InvokeRequest error")?;
+        flag = flag || self.tick_get_tasks().await.context("getting tasks error")?;
         Ok(flag)
     }
 

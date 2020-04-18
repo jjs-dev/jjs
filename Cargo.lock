@@ -469,6 +469,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d5ca2cd0adc3f48f9e9ea5a6bbdf9ccc0bfade884847e484d452414c7ccffb3"
 
 [[package]]
+name = "bb8"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7744a35a99f0ae3a6f5681f5af800e9074c658b1d0d314e9f0c3166455a1c3f6"
+dependencies = [
+ "async-trait",
+ "futures 0.3.4",
+ "tokio",
+]
+
+[[package]]
+name = "bb8-postgres"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39a233af6ea3952e20d01863c87b4f6689b2f806249688b0908b5f02d4fa41ac"
+dependencies = [
+ "async-trait",
+ "bb8",
+ "futures 0.3.4",
+ "tokio",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "bincode"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,16 +923,18 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bb8",
+ "bb8-postgres",
  "bincode",
  "chrono",
- "diesel",
  "futures 0.3.4",
  "invoker-api",
- "r2d2",
+ "postgres-types",
  "redis",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-postgres",
  "uuid 0.8.1",
 ]
 
@@ -992,31 +1018,6 @@ dependencies = [
  "structopt",
  "toml 0.5.6",
  "util",
-]
-
-[[package]]
-name = "diesel"
-version = "1.4.4"
-source = "git+https://github.com/diesel-rs/diesel?rev=537eb5d#537eb5d19649f4a449736c00a2ea56be3094e4d7"
-dependencies = [
- "bitflags",
- "byteorder",
- "chrono",
- "diesel_derives",
- "pq-sys",
- "r2d2",
- "serde_json",
- "uuid 0.8.1",
-]
-
-[[package]]
-name = "diesel_derives"
-version = "1.4.1"
-source = "git+https://github.com/diesel-rs/diesel?rev=537eb5d#537eb5d19649f4a449736c00a2ea56be3094e4d7"
-dependencies = [
- "proc-macro2 1.0.10",
- "quote 1.0.3",
- "syn 1.0.17",
 ]
 
 [[package]]
@@ -2404,6 +2405,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "postgres-derive"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c857dd221cb0e7d8414b894a0ce29eae44d453dda0baa132447878e75e701477"
+dependencies = [
+ "proc-macro2 1.0.10",
+ "quote 1.0.3",
+ "syn 1.0.17",
+]
+
+[[package]]
 name = "postgres-protocol"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2428,8 +2440,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e634590e8812c500088d88db721195979223dabb05149f43cb50931d0ff5865d"
 dependencies = [
  "bytes 0.5.4",
+ "chrono",
  "fallible-iterator",
+ "postgres-derive",
  "postgres-protocol",
+ "serde",
+ "serde_json",
+ "uuid 0.8.1",
 ]
 
 [[package]]
@@ -2463,15 +2480,6 @@ name = "ppv-lite86"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74490b50b9fbe561ac330df47c08f3f33073d2d00c150f719147d7c54522fa1b"
-
-[[package]]
-name = "pq-sys"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ac25eee5a0582f45a67e837e350d784e7003bd29a5f460796772061ca49ffda"
-dependencies = [
- "vcpkg",
-]
 
 [[package]]
 name = "pretty_assertions"
@@ -2587,17 +2595,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bdc6c187c65bca4260c9011c9e3132efe4909da44726bad24cf7572ae338d7f"
 dependencies = [
  "proc-macro2 1.0.10",
-]
-
-[[package]]
-name = "r2d2"
-version = "0.8.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1497e40855348e4a8a40767d8e55174bce1e445a3ac9254ad44ad468ee0485af"
-dependencies = [
- "log",
- "parking_lot",
- "scheduled-thread-pool",
 ]
 
 [[package]]
@@ -2878,15 +2875,6 @@ checksum = "039c25b130bd8c1321ee2d7de7fde2659fa9c2744e4bb29711cfc852ea53cd19"
 dependencies = [
  "lazy_static",
  "winapi 0.3.8",
-]
-
-[[package]]
-name = "scheduled-thread-pool"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0988d7fdf88d5e5fcf5923a0f1e8ab345f3e98ab4bc6bc45a2d5ff7f7458fbf6"
-dependencies = [
- "parking_lot",
 ]
 
 [[package]]

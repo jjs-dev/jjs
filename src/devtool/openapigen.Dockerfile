@@ -4,8 +4,8 @@ RUN wget https://github.com/mikailbag/openapi-generator/archive/873a4791bd7309b8
 RUN mkdir /gen && tar xzf  gen.tgz --directory /gen
 WORKDIR /gen
 RUN mv $( ls )/* .
-RUN mvn package -DskipTests=true
+RUN mvn package -DskipTests=true && cp /gen/modules/openapi-generator-cli/target/openapi-generator-cli.jar /out.jar && rm -rf /gen
 
 FROM openjdk:jre
-COPY --from=builder /gen/modules/openapi-generator-cli/target/openapi-generator-cli.jar openapi-generator-cli.jar
+COPY --from=builder /out.jar openapi-generator-cli.jar
 ENTRYPOINT ["java", "-jar", "/openapi-generator-cli.jar"]

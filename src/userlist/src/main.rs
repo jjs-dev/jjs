@@ -153,7 +153,7 @@ async fn add_users(arg: args::Add) -> Result<(), Error> {
                         password = decode_base64(password)?;
                         for item in &mut groups {
                             let dec = decode_base64(std::mem::replace(item, String::new()))?;
-                            std::mem::replace(item, dec);
+                            *item = dec;
                         }
                     }
 

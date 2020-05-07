@@ -1,0 +1,18 @@
+title: "GoLang"
+filename: "source.go"
+name: "go"
+
+build-limits:
+  time: 6000
+
+build:
+  - argv:
+      - "{{ env_GO }}"
+      - "build"
+      - "$(Run.SourceFilePath)"
+      - "-o"
+      - "$(Run.BinaryFilePath)"
+
+run:
+  argv:
+    - "$(Run.BinaryFilePath)"

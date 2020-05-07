@@ -51,7 +51,7 @@ pub enum Error {
     ParseJson(#[from] serde_json::Error),
     #[error("cannot find problem name in problem.toml: {0}")]
     DetectProblemNameFromManifest(&'static str),
-    #[error("ppc invokation failed")]
+    #[error("ppc invocation failed")]
     Ppc,
     #[error("can not recursively copy")]
     DeepCopy(#[from] fs_extra::error::Error),

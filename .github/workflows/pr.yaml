@@ -91,6 +91,8 @@ jobs:
     runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
+      - name: Free space
+        run: sudo bash scripts/ci-free-space.sh
       - run: bash scripts/ci-env.sh
       - run: cargo jjs codegen
       - run: |

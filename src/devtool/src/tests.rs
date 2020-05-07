@@ -72,10 +72,7 @@ fn run_integ_test(runner: &Runner, nocapture: bool) -> anyhow::Result<()> {
             }
         }
     }
-    println!(
-        "{} integration tests runned, {} successful",
-        cnt_tests, cnt_ok
-    );
+    println!("{} integration tests ran, {} successful", cnt_tests, cnt_ok);
     Ok(())
 }
 

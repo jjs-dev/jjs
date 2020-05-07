@@ -1,5 +1,5 @@
-// this module is responsible for root user authentification strategies
-// it implements tcp service, which provides some platform-specific authentification options
+// this module is responsible for root user authentication strategies
+// it implements tcp service, which provides some platform-specific authentication options
 use crate::{ApiserverParams, TokenMgr};
 use futures::future::FutureExt;
 use log::{error, info};

@@ -149,7 +149,7 @@ fn do_detect_build_type() -> BuildType {
         return BuildType::Deploy(DeployKind::detect());
     }
     let branch_name = match extract_branch_name(&commit_ref) {
-        Some(nam) => nam,
+        Some(name) => name,
         None => panic!("Failed to parse commit ref: {}", &commit_ref),
     };
 

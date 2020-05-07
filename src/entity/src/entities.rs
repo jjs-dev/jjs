@@ -1,4 +1,4 @@
-//! Defines entites - types, used throughout all JJS code base
+//! Defines entities - types, used throughout all JJS code base
 //! Entities are plain dumb structs
 pub mod contest;
 pub mod toolchain;

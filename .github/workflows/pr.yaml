@@ -12,6 +12,15 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_BUILD_PIPELINING: "false"
 jobs:
+  misspell:
+    name: misspell
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: reviewdog/action-misspell@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          locale: US
   style:
     name: style
     runs-on: "ubuntu-18.04"

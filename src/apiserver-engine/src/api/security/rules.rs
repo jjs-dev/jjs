@@ -1,6 +1,7 @@
 use super::{resource_ident, Action, Operation, Outcome, ResourceKind, Rule, RuleRet};
 use crate::api::context;
 mod submit;
+mod contest_view;
 
 pub(crate) fn install(
     builder: &mut super::AuthorizerBuilder,

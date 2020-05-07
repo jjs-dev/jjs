@@ -112,7 +112,7 @@ impl Authorizer {
             Ok(Outcome::Allow)
         } else {
             Ok(Outcome::Deny {
-                reason: "implicit deny: no rule approved this".to_string(),
+                reason: "implicit deny: no rule approved requsted operation".to_string(),
             })
         }
     }

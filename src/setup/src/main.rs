@@ -137,8 +137,8 @@ async fn process_toolchains(profile: &Profile, action: Subcommand) -> anyhow::Re
         custom_argv.push(std::ffi::OsStr::new(arg));
     }
     let mut strategies = Vec::new();
-    for strat in &tcs_profile.strategies {
-        strategies.push(strat.as_str());
+    for strategy in &tcs_profile.strategies {
+        strategies.push(strategy.as_str());
     }
     let filter = |toolchain: &str| {
         if tcs_profile

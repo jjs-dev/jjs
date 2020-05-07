@@ -138,7 +138,7 @@ impl<'a> SimpleValuer<'a> {
 
         // do we have running tests?
         if self.running_tests != 0 {
-            debug!("Step done: waiting for running tests complition");
+            debug!("Step done: waiting for running tests completion");
             return Ok(true);
         }
         if self.running_fibers != 0 {

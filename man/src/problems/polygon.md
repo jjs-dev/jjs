@@ -7,7 +7,7 @@
 - Download generated archive
 - Extract it to some location, referred as `$POLYGON_PKG`
 
-Note: other package types ('Windows' and 'Linux', availible for 'Full' packages) 
+Note: other package types ('Windows' and 'Linux', available for 'Full' packages) 
 can be used for import too. However, they consume more space, and Full package are generated
 slower, so Standard packages are recommended
 

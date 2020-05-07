@@ -113,7 +113,7 @@ pub trait Dominion: Debug + std::any::Any + 'static {
     /// Probably, subsequent `spawn` requests will fail.
     fn kill(&self) -> Result<()>;
 
-    /// Returns information about resourse usage by total dominion
+    /// Returns information about resource usage by total dominion
     fn resource_usage(&self) -> Result<ResourceUsageData>;
 }
 

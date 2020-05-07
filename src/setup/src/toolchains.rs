@@ -72,8 +72,8 @@ impl<'a> crate::Component for Toolchains<'a> {
         for tc in &self.state.extra {
             cmd.arg("--toolchains").arg(tc);
         }
-        for &strat in self.cx.strategies {
-            cmd.arg("--strategies").arg(strat);
+        for &strategy in self.cx.strategies {
+            cmd.arg("--strategies").arg(strategy);
         }
         for &extra_arg in self.cx.custom_argv {
             cmd.arg(extra_arg);

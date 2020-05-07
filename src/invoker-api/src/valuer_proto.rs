@@ -40,7 +40,7 @@ pub struct SubtaskId(pub std::num::NonZeroU32);
 
 impl SubtaskId {
     pub fn make(n: u32) -> SubtaskId {
-        SubtaskId(std::num::NonZeroU32::new(n).expect("SubtaskId cannot be maked from 0"))
+        SubtaskId(std::num::NonZeroU32::new(n).expect("SubtaskId cannot be made from 0"))
     }
 }
 

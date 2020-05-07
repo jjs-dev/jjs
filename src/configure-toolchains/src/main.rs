@@ -144,7 +144,7 @@ fn make_resolvers(opt: &Options) -> anyhow::Result<Vec<Box<dyn Resolver>>> {
         out.sort_unstable_by_key(|resolver| {
             opt.strategies
                 .iter()
-                .position(|strat| strat == resolver.strategy_name())
+                .position(|strategy| strategy == resolver.strategy_name())
                 .expect("disallowed resolvers were filtered out");
         })
     }

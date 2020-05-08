@@ -75,7 +75,7 @@ impl EnvBuilder {
                 name: "dev-problem".to_string(),
                 code: "A".to_string(),
             }],
-            group: vec!["Participants".to_string()],
+            participants: vec!["Participants".to_string()],
             unregistered_visible: false,
             anon_visible: false,
             judges: vec!["Judges".to_string()],

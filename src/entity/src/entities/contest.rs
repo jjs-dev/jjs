@@ -25,7 +25,7 @@ pub struct Contest {
     pub judges: Vec<String>,
 
     /// Which group members are considered registered for contest
-    pub group: Vec<String>,
+    pub participants: Vec<String>,
 
     /// Whether contest is visible for users that are not included in
     /// contestants

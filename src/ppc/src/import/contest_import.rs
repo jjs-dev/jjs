@@ -50,7 +50,7 @@ pub(super) fn import(
         id: contest_name.to_string(),
         problems: vec![],
         judges: vec![],
-        group: vec![],
+        participants: vec![],
         unregistered_visible: false,
         anon_visible: false,
         duration: None,

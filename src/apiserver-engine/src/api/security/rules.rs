@@ -1,15 +1,17 @@
 use super::{resource_ident, Action, Operation, Outcome, ResourceKind, Rule, RuleRet};
 use crate::api::context;
-mod submit;
 mod contest_view;
+mod submit;
 
 pub(crate) fn install(
     builder: &mut super::AuthorizerBuilder,
     db_cx: context::DbContext,
     en_cx: context::EntityContext,
 ) {
-    let submit_rule = submit::SubmitRule::new(db_cx, en_cx);
+    let submit_rule = submit::SubmitRule::new(db_cx, en_cx.clone());
     builder.add_rule(Box::new(submit_rule));
+    let contest_view_rule = contest_view::ContestViewRule::new(en_cx);
+    builder.add_rule(Box::new(contest_view_rule));
 }
 
 async fn load_participation(
@@ -59,6 +61,10 @@ fn is_contest_running_at(
             None => true,
         }
     }
+}
+
+fn user_matches_group_list(user_groups: &[String], filter_groups: &[String]) -> bool {
+    user_groups.iter().any(|group| filter_groups.contains(group))
 }
 
 #[cfg(test)]

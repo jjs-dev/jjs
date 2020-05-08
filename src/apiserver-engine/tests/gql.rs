@@ -45,7 +45,7 @@ async fn test_runs_ops() {
                 name: "a-plus-b".to_string(),
                 code: "A".to_string(),
             }],
-            group: vec!["Participants".to_string()],
+            participants: vec!["Participants".to_string()],
             judges: vec!["Judges".to_string()],
             unregistered_visible: true,
             duration: None,

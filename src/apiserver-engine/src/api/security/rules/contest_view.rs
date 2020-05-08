@@ -1,8 +1,5 @@
 /// Allows access to public data
-use super::{
-    context, resource_ident,
-    Action, Operation, Outcome, ResourceKind, Rule, RuleRet,
-};
+use super::{context, resource_ident, Action, Operation, Outcome, ResourceKind, Rule, RuleRet};
 use futures::future::FutureExt as _;
 use log::debug;
 

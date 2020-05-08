@@ -64,7 +64,9 @@ fn is_contest_running_at(
 }
 
 fn user_matches_group_list(user_groups: &[String], filter_groups: &[String]) -> bool {
-    user_groups.iter().any(|group| filter_groups.contains(group))
+    user_groups
+        .iter()
+        .any(|group| filter_groups.contains(group))
 }
 
 #[cfg(test)]

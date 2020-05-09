@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["apiserver_engine"] = [{"text":"impl&lt;'req&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/response/responder/trait.Responder.html\" title=\"trait rocket::response::responder::Responder\">Responder</a>&lt;'req&gt; for <a class=\"struct\" href=\"apiserver_engine/api/struct.ApiError.html\" title=\"struct apiserver_engine::api::ApiError\">ApiError</a>","synthetic":false,"types":["apiserver_engine::api::ApiError"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

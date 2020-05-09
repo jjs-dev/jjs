@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DatabaseVersion",""],["Error",""]],"fn":[["analyze",""],["do_connect",""],["get_db_version",""],["last_version",""],["unapplied_migrations",""]],"struct":[["ConnectionSettings",""],["Database",""],["DbContext",""]]});

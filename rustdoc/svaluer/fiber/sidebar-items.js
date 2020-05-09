@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["FiberReply",""],["GroupVisPreset",""]],"mod":[["group",""]],"struct":[["Fiber","Creates single JudgeLog SValuer works by aggegating several fibers (one per judgelog kind)."]]});

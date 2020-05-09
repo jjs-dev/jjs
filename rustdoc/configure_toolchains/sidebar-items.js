@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["list_templates",""],["main",""],["make_resolvers",""],["select_templates",""]],"mod":[["config",""],["debootstrap",""],["tpl_info_impls",""],["trace",""]],"struct":[["Options",""],["ToolchainSpec",""]],"trait":[["Resolver",""]]});

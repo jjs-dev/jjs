@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["JudgeLogKind",""],["ValuerResponse",""]],"struct":[["JudgeLog","Judge log from valuer POV"],["JudgeLogSubtaskRow",""],["JudgeLogTestRow",""],["ProblemInfo",""],["SubtaskId",""],["SubtaskVisibleComponents",""],["TestDoneNotification",""],["TestVisibleComponents",""]]});

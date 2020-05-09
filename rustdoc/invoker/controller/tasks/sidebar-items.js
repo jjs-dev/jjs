@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["InterpolateError",""]],"fn":[["get_common_interpolation_dict",""],["interpolate_command",""],["interpolate_string","Interpolates string by dictionary"]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["minion_ffi"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/try/trait.Try.html\" title=\"trait core::ops::try::Try\">Try</a> for <a class=\"enum\" href=\"minion_ffi/enum.ErrorCode.html\" title=\"enum minion_ffi::ErrorCode\">ErrorCode</a>","synthetic":false,"types":["minion_ffi::ErrorCode"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

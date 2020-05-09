@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["devtool"] = [{"text":"impl <a class=\"trait\" href=\"https://docs.rs/lazy_static/1.4.0/lazy_static/trait.LazyStatic.html\" title=\"trait lazy_static::LazyStatic\">LazyStatic</a> for <a class=\"struct\" href=\"devtool/ci/struct.BUILD_INFO.html\" title=\"struct devtool::ci::BUILD_INFO\">BUILD_INFO</a>","synthetic":false,"types":["devtool::ci::BUILD_INFO"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

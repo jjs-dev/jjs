@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["rocket_route_fn_route_simple","Rocket code generated wrapping route function."],["route_simple",""]],"static":[["static_rocket_route_info_for_route_simple","Rocket code generated static route info."]],"struct":[["SessionToken","Type that represents session You shouldn't do any assumptions about this type representation"],["SimpleAuthParams",""]]});

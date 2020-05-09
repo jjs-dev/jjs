@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Token","Struct representing API session"],["UserInfo",""]]});

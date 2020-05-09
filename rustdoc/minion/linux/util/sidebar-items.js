@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["MAX_MSG_SIZE",""],["STRACE_LOGGER_HANDLE",""]],"fn":[["duplicate_string",""],["err_exit",""],["get_last_error",""],["sock_lock",""],["sock_wake",""],["strace_logger",""]],"struct":[["StraceLogger",""]],"trait":[["IpcSocketExt",""]],"type":[["ExitCode",""],["Handle",""],["Pid",""],["Uid",""]]});

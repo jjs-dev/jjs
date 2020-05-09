@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["InvokeOutcome",""],["Request",""],["Response",""]],"fn":[["main",""]],"mod":[["compiler",""],["exec_test",""],["invoke_util",""],["os_util",""],["transform_judge_log",""],["valuer",""]],"struct":[["Command",""],["InvokeRequest","Submission information, sufficient for judging"],["Worker",""]]});

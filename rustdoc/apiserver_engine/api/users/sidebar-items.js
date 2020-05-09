@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["rocket_route_fn_route_create","Rocket code generated wrapping route function."],["route_create",""]],"static":[["static_rocket_route_info_for_route_create","Rocket code generated static route info."]],"struct":[["User",""],["UserCreateParams",""]]});

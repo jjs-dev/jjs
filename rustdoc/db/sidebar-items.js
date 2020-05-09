@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["conn",""],["connect",""],["repo",""],["schema",""]],"struct":[["DbConn",""],["Error","The `Error` type, a wrapper around a dynamic error type."]]});

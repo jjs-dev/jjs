@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pom"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/index/trait.Index.html\" title=\"trait core::ops::index::Index\">Index</a>&lt;<a class=\"struct\" href=\"pom/struct.TestId.html\" title=\"struct pom::TestId\">TestId</a>&gt; for <a class=\"struct\" href=\"https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"struct\" href=\"pom/struct.Test.html\" title=\"struct pom::Test\">Test</a>&gt;","synthetic":false,"types":["alloc::vec::Vec"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

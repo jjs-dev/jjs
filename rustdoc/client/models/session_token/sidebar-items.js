@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SessionToken","SessionToken : Type that represents session You shouldn't do any assumptions about this type representation"]]});

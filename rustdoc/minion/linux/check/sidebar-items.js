@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["check","`crate::check()` on linux"],["check_has_cgroup_access",""],["find_lca",""],["get_current_cgroup_path",""],["get_sandbox_chgroup_path",""]]});

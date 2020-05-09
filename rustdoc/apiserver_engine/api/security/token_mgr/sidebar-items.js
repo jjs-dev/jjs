@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["TokenMgrError",""]],"static":[["TOKEN_PREFIX_BRANCA",""],["TOKEN_PREFIX_DEV",""],["TOKEN_PREFIX_GUEST",""]],"struct":[["TokenMgr","Token Manager - entity manipulating tokens"]]});

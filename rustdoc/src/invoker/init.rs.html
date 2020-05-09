@@ -1,0 +1,87 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/invoker/src/init.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>init.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../invoker/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1"> 1</span>
+<span id="2"> 2</span>
+<span id="3"> 3</span>
+<span id="4"> 4</span>
+<span id="5"> 5</span>
+<span id="6"> 6</span>
+<span id="7"> 7</span>
+<span id="8"> 8</span>
+<span id="9"> 9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+</pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! platform-specific initialization</span>
+<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">bail</span>, <span class="ident">Context</span>};
+<span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">sched</span>::<span class="ident">CloneFlags</span>;
+<span class="kw">fn</span> <span class="ident">check_system</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">minion</span>::<span class="ident">check</span>() {
+        <span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;invoker is not able to test runs: {}&quot;</span>, <span class="ident">err</span>);
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn</span> <span class="ident">unshare_mount_namespace</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="ident">nix</span>::<span class="ident">sched</span>::<span class="ident">unshare</span>(<span class="ident">CloneFlags</span>::<span class="ident">CLONE_NEWNS</span>).<span class="ident">context</span>(<span class="string">&quot;unshare() fail&quot;</span>)
+}
+
+<span class="kw">fn</span> <span class="ident">unshare_user_namespace</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">if</span> <span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">getuid</span>().<span class="ident">is_root</span>() {
+        <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+    }
+    <span class="kw">let</span> <span class="ident">uid</span> <span class="op">=</span> <span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">getuid</span>().<span class="ident">as_raw</span>();
+    <span class="kw">let</span> <span class="ident">gid</span> <span class="op">=</span> <span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">getgid</span>().<span class="ident">as_raw</span>();
+    <span class="kw">let</span> <span class="ident">uid_mapping</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;0 {} 1&quot;</span>, <span class="ident">uid</span>);
+    <span class="kw">let</span> <span class="ident">gid_mapping</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;0 {} 1&quot;</span>, <span class="ident">gid</span>);
+    <span class="ident">nix</span>::<span class="ident">sched</span>::<span class="ident">unshare</span>(<span class="ident">CloneFlags</span>::<span class="ident">CLONE_NEWUSER</span>).<span class="ident">context</span>(<span class="string">&quot;unshare() fail&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">write</span>(<span class="string">&quot;/proc/self/setgroups&quot;</span>, <span class="string">&quot;deny&quot;</span>).<span class="ident">context</span>(<span class="string">&quot;failed to deny setgroups()&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">write</span>(<span class="string">&quot;/proc/self/uid_map&quot;</span>, <span class="ident">uid_mapping</span>).<span class="ident">context</span>(<span class="string">&quot;failed to setup uid mapping&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">write</span>(<span class="string">&quot;/proc/self/gid_map&quot;</span>, <span class="ident">gid_mapping</span>).<span class="ident">context</span>(<span class="string">&quot;failed to setup gid mapping&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">setuid</span>(<span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">Uid</span>::<span class="ident">from_raw</span>(<span class="number">0</span>)).<span class="ident">expect</span>(<span class="string">&quot;failed to become root user&quot;</span>);
+    <span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">setgid</span>(<span class="ident">nix</span>::<span class="ident">unistd</span>::<span class="ident">Gid</span>::<span class="ident">from_raw</span>(<span class="number">0</span>)).<span class="ident">expect</span>(<span class="string">&quot;failed to join root group&quot;</span>);
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn</span> <span class="ident">unshare</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="ident">unshare_user_namespace</span>().<span class="ident">context</span>(<span class="string">&quot;failed to unshare user ns&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">unshare_mount_namespace</span>().<span class="ident">context</span>(<span class="string">&quot;failed to unshare mount ns&quot;</span>)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">init</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="ident">check_system</span>().<span class="ident">context</span>(<span class="string">&quot;system configuration problem detected&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">unshare</span>().<span class="ident">context</span>(<span class="string">&quot;failed to create namespaces&quot;</span>)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}
+</pre></div>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "invoker";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

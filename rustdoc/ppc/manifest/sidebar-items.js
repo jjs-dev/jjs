@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Check",""],["TestGenSpec",""]],"struct":[["BuiltinCheck",""],["CheckOptions",""],["CustomCheck",""],["Problem",""],["RawProblem",""],["RawTestsSpec",""],["TestSpec",""]]});

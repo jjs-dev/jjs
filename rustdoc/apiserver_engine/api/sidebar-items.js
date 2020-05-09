@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["auth",""],["contests",""],["context",""],["impl_display",""],["misc",""],["monitor",""],["prelude",""],["runs",""],["schema",""],["security",""],["toolchains",""],["users",""]],"struct":[["AnyhowAlternateWrapper",""],["ApiError",""],["EmptyError",""],["ErrorExtension",""]],"trait":[["ApiObject",""],["ResultToApiUtil",""]],"type":[["ApiResult",""]]});

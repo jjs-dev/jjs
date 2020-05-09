@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["lower_problem",""],["lower_run",""],["rocket_route_fn_route_get","Rocket code generated wrapping route function."],["route_get",""]],"static":[["static_rocket_route_info_for_route_get","Rocket code generated static route info."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["daemon_notify_ready","Called by daemon component (e.g. `apiserver` and `invoker`), when it is ready to serve Must be called once"],["print_error",""]],"mod":[["cfg",""],["cmd",""],["log",""],["wait",""]]});

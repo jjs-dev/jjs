@@ -81,6 +81,9 @@ struct Opt {
     /// If enabled, trial contest problems will be compiled and packaged into archive
     #[structopt(long = "enable-compile-trial-contest")]
     compile_trial_contest: bool,
+    /// If enabled, Rust API documentation will be generated for all crates
+    #[structopt(long = "enable-rust-doc")]
+    rust_doc: bool,
 }
 
 impl Opt {
@@ -226,6 +229,7 @@ fn main() {
         api_doc: opt.apidoc,
         json_schema: opt.json_schema,
         example_problems: opt.compile_trial_contest,
+        rustdoc: opt.rust_doc,
     };
     let packaging = cfg::PackagingConfig {
         deb: if opt.deb {

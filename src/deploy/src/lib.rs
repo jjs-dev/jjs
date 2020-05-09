@@ -20,7 +20,7 @@ use crate::{
     sel_ctx::SelCtx,
     util::print_section,
 };
-use ::util::cmd::{CommandExt, Runner};
+use ::util::cmd::{CommandExt as _, Runner};
 use anyhow::Context as _;
 use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
 
@@ -139,6 +139,12 @@ pub fn package(params: &Params, runner: &Runner) {
     if params.cfg.components.api_doc {
         generate_api_docs(params);
     }
+    if params.cfg.components.rustdoc {
+        if let Err(err) = generate_rustdoc(params) {
+            eprintln!("error: {:#}", err);
+            runner.error();
+        }
+    }
     if params.cfg.components.json_schema {
         generate_json_schema(params);
     }
@@ -252,6 +258,36 @@ fn generate_api_docs(params: &Params) {
         .arg("html2")
         .try_exec()
         .expect("failed to generate api docs");
+}
+
+fn generate_rustdoc(params: &Params) -> anyhow::Result<()> {
+    print_section("Generating source code API docsumentation");
+    Command::new(&params.cfg.build.tool_info.cargo)
+        .arg("doc")
+        .arg("--no-deps")
+        .arg("--document-private-items")
+        .try_exec()?;
+
+    let src = fs::read_dir(params.build.join("doc"))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+        .into_iter()
+        .map(|item| item.path())
+        .collect::<Vec<_>>();
+
+    let dest = params.artifacts.join("share/docs/rustdoc");
+    fs::create_dir_all(&dest).unwrap();
+    let opts = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        skip_exist: false,
+        buffer_size: 64 * 1024,
+        copy_inside: true,
+        depth: 0,
+    };
+    fs_extra::copy_items(&src, &dest, &opts).unwrap();
+
+    Ok(())
 }
 
 fn generate_man(params: &Params) {

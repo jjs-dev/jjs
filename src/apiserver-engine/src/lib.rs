@@ -59,6 +59,7 @@ pub struct ApiserverParams {
     pub problem_loader: problem_loader::Loader,
     pub data_dir: std::path::PathBuf,
     pub tls_mode: TlsMode,
+    pub single_worker: bool,
 }
 
 impl ApiServer {
@@ -146,7 +147,9 @@ impl ApiServer {
         let server = match ssl_builder {
             Some(ssl_builder) => server.listen_openssl(listener, ssl_builder)?,
             None => server.listen(listener)?,
-        };
+        };let server = if params.single_worker {
+            server.workers(1)
+        }else {server};
 
         let server = server.run();
         {
@@ -192,6 +195,17 @@ fn create_authorizer(
     en_cx: crate::api::context::EntityContext,
 ) -> crate::api::security::Authorizer {
     let mut builder = crate::api::security::Authorizer::builder();
-    crate::api::security::rules::install(&mut builder, db_cx, en_cx);
+
+    {
+        let mut default_pipeline_builder = crate::api::security::Pipeline::builder();
+        default_pipeline_builder.set_name("default".to_string());
+        crate::api::security::rules::install(&mut default_pipeline_builder, db_cx, en_cx);
+        builder.add_pipeline(default_pipeline_builder.build());
+    }
+    {
+        let sudo_pipeline = crate::api::security::create_sudo_pipeline();
+        builder.add_pipeline(sudo_pipeline);
+    }
+
     builder.build()
 }

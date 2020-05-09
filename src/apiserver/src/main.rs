@@ -22,6 +22,7 @@ async fn launch_api(
         data_dir,
         db_conn,
         tls_mode: apiserver_engine::TlsMode::Enabled,
+        single_worker: false
     };
     let server = apiserver_engine::ApiServer::create(params)
         .await

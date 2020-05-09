@@ -4,7 +4,7 @@ mod contest_view;
 mod submit;
 
 pub(crate) fn install(
-    builder: &mut super::AuthorizerBuilder,
+    builder: &mut super::PipelineBuilder,
     db_cx: context::DbContext,
     en_cx: context::EntityContext,
 ) {

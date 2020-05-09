@@ -1,0 +1,1 @@
+//! Authorizes requests related to `Participation`s

@@ -118,6 +118,7 @@ impl EnvBuilder {
                 data_dir: tempdir.path().to_path_buf(),
                 db_conn: db_conn.clone(),
                 tls_mode: apiserver_engine::TlsMode::Disabled,
+                single_worker: true
             };
             let maybe_server = ApiServer::create(params).await;
 

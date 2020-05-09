@@ -8,7 +8,9 @@ pub use token_mgr::{TokenMgr, TokenMgrError};
 pub mod resource_ident;
 
 use anyhow::Context as _;
+use futures::future::FutureExt;
 use std::{borrow::Cow, rc::Rc};
+use log::debug;
 
 // atomic authentication unit: either Allowed or Denied.
 #[derive(Clone, Debug)]
@@ -78,16 +80,23 @@ impl Outcome {
     }
 }
 
-#[derive(Clone)]
-pub struct Authorizer {
-    rules: Rc<Vec<Box<dyn Rule>>>,
+/// Conjunction of several `Rule`s
+pub struct Pipeline {
+    name: Rc<str>,
+    rules: Rc<[Box<dyn Rule>]>,
 }
 
-impl Authorizer {
-    pub fn builder() -> AuthorizerBuilder {
-        AuthorizerBuilder(Authorizer {
-            rules: Rc::new(Vec::new()),
-        })
+pub struct PipelineBuilder {
+    name: String,
+    rules: Vec<Box<dyn Rule>>,
+}
+
+impl Pipeline {
+    pub fn builder() -> PipelineBuilder {
+        PipelineBuilder {
+            rules: (vec![]),
+            name: "unnamed".to_string(),
+        }
     }
 
     /// Authorizes operation.
@@ -95,7 +104,7 @@ impl Authorizer {
     /// - If any rule returns Deny, return this explicit `deny`.
     /// - If all rule had no opinion, return implicit `deny`.
     /// - Otherwise, return `allow`.
-    pub async fn authorize(&self, op: Operation) -> anyhow::Result<Outcome> {
+    pub async fn authorize(&self, op: &Operation) -> anyhow::Result<Outcome> {
         let mut had_allow = false;
         for rule in self.rules.iter() {
             let outcome = rule
@@ -118,19 +127,101 @@ impl Authorizer {
     }
 }
 
-pub struct AuthorizerBuilder(Authorizer);
+impl PipelineBuilder {
+    pub fn add_rule(&mut self, rule: Box<dyn Rule>) -> &mut Self {
+        self.rules.push(rule);
+        self
+    }
+
+    pub fn set_name(&mut self, name: String) -> &mut Self {
+        self.name = name;
+        self
+    }
+
+    pub fn build(self) -> Pipeline {
+        Pipeline {
+            rules: self.rules.into(),
+            name: self.name.into(),
+        }
+    }
+}
+
+/// Disjunction of several `Pipeline`s
+#[derive(Clone)]
+pub struct Authorizer {
+    pipelines: Rc<[Pipeline]>,
+}
+
+impl Authorizer {
+    pub fn builder() -> AuthorizerBuilder {
+        AuthorizerBuilder {
+            pipelines: (Vec::new()),
+        }
+    }
+
+    /// Authorizes operation
+    /// # Flow
+    /// - If any pipeline returns Allow, return this Allow
+    /// - Otherwise, return Deny
+    pub async fn authorize(&self, operation: &Operation) -> anyhow::Result<Outcome> {
+        assert!(!self.pipelines.is_empty());
+        debug!("{:?}", operation);
+        let mut denies = Vec::new();
+        for pipeline in &*self.pipelines {
+            let outcome = pipeline
+                .authorize(operation)
+                .await
+                .with_context(|| format!("Pipeline {} failed", pipeline.name))?;
+            match outcome {
+                Outcome::Allow => return Ok(Outcome::Allow),
+                Outcome::Deny { reason } => denies.push(reason),
+            }
+        }
+        Ok(Outcome::Deny {
+            reason: std::convert::identity(denies).remove(0),
+        })
+    }
+}
+
+pub struct AuthorizerBuilder {
+    pipelines: Vec<Pipeline>,
+}
 
 impl AuthorizerBuilder {
-    pub fn add_rule(&mut self, rule: Box<dyn Rule>) -> &mut Self {
-        // Arc::get_mut returns Some, because `AuthorizerBuilder` never
-        // clones, so RC is unique.
-        Rc::get_mut(&mut self.0.rules)
-            .expect("AuthorizerBuilder does not allow cloning it's Rc")
-            .push(rule);
+    pub fn add_pipeline(&mut self, pipeline: Pipeline) -> &mut Self {
+        self.pipelines.push(pipeline);
         self
     }
 
     pub fn build(self) -> Authorizer {
-        self.0
+        Authorizer {
+            pipelines: self.pipelines.into(),
+        }
+    }
+}
+
+pub fn create_sudo_pipeline() -> Pipeline {
+   let mut builder = Pipeline::builder();
+   builder.add_rule(Box::new(SudoRule));
+   builder.build()
+}
+
+pub struct SudoRule;
+
+impl Rule for SudoRule {
+    fn name(&self) -> &'static str {
+        "Sudo"
+    }
+
+    fn description(&self) -> &'static str {
+        "Authorizes all requests made by superuser"
+    }
+
+    fn authorize_operation(&self, op: &Operation) -> RuleRet {
+        if op.user_info.name != "Global/Root" {
+            return futures::future::ok(None).boxed();
+        }
+        debug!("SudoRule: Approving operation {:?}", op);
+        futures::future::ok(Some(Outcome::Allow)).boxed()
     }
 }

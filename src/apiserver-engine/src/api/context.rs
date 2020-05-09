@@ -123,7 +123,7 @@ impl DynSecutityOperationBuilder {
     pub(crate) async fn try_authorize(self) -> ApiResult<Outcome> {
         let authorizer = self.authorizer.clone();
         let op = self.into_operation();
-        authorizer.authorize(op).await.internal()
+        authorizer.authorize(&op).await.internal()
     }
 
     pub(crate) async fn authorize(self) -> ApiResult<()> {

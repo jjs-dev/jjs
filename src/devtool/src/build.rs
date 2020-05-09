@@ -42,7 +42,7 @@ impl BuildOpts {
             || self.0.deb
     }
 
-    fn should_build_man(&self) -> bool {
+    fn should_build_doc(&self) -> bool {
         let bt = detect_build_type();
         bt.deploy_info().contains(&DeployKind::Man) || self.0.full || self.0.docs
     }
@@ -86,10 +86,11 @@ pub(crate) fn task_build(opts: RawBuildOpts, runner: &Runner) -> anyhow::Result<
         cmd.arg("--enable-archive");
         cmd.arg("--enable-extras");
     }
-    if opts.should_build_man() {
+    if opts.should_build_doc() {
         cmd.arg("--disable-core");
         cmd.arg("--disable-tools");
         cmd.arg("--enable-api-doc");
+        cmd.arg("--enable-rust-doc");
     } else {
         cmd.arg("--disable-man");
     }

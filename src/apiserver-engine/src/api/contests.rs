@@ -161,7 +161,7 @@ async fn route_update_participation(
     scx.access()
         .with_conditions(make_conditions![resource_ident::ContestId::new(name)])
         .with_action(Action::Patch)
-        .with_resource_kind(ResourceKind::CONTEST)
+        .with_resource_kind(ResourceKind::CONTEST_PARTICIPATION)
         .authorize()
         .await?;
     /*let access_ck = scx.access_contest(&name).await?.unwrap();

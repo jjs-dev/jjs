@@ -5,6 +5,7 @@ use super::{
 use anyhow::Context as _;
 use futures::future::FutureExt as _;
 use log::debug;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub(super) struct SubmitRule {
@@ -17,7 +18,7 @@ impl SubmitRule {
         SubmitRule { db_cx, en_cx }
     }
 
-    async fn do_authorize_operation(self, op: Operation) -> anyhow::Result<Option<Outcome>> {
+    async fn do_authorize_operation(self, op: Rc<Operation>) -> anyhow::Result<Option<Outcome>> {
         if op.resource_kind != ResourceKind::RUN {
             return Ok(None);
         }
@@ -74,7 +75,7 @@ impl Rule for SubmitRule {
         "authorizes submitRun operations"
     }
 
-    fn authorize_operation(&self, op: &Operation) -> RuleRet {
+    fn authorize_operation(&self, op: &Rc<Operation>) -> RuleRet {
         self.clone()
             .do_authorize_operation(op.clone())
             .boxed_local()

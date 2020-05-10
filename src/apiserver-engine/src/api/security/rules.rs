@@ -2,6 +2,7 @@ use super::{resource_ident, Action, Operation, Outcome, ResourceKind, Rule, Rule
 use crate::api::context;
 mod contest_view;
 mod submit;
+mod participation;
 
 pub(crate) fn install(
     builder: &mut super::PipelineBuilder,
@@ -10,8 +11,10 @@ pub(crate) fn install(
 ) {
     let submit_rule = submit::SubmitRule::new(db_cx, en_cx.clone());
     builder.add_rule(Box::new(submit_rule));
-    let contest_view_rule = contest_view::ContestViewRule::new(en_cx);
+    let contest_view_rule = contest_view::ContestViewRule::new(en_cx.clone());
     builder.add_rule(Box::new(contest_view_rule));
+    let participation_rule = participation::ParticipationRule::new(en_cx);
+    builder.add_rule(Box::new(participation_rule));
 }
 
 async fn load_participation(

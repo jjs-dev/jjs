@@ -2,6 +2,7 @@
 use super::{context, resource_ident, Action, Operation, Outcome, ResourceKind, Rule, RuleRet};
 use futures::future::FutureExt as _;
 use log::debug;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub(super) struct ContestViewRule {
@@ -61,7 +62,7 @@ impl Rule for ContestViewRule {
         "authorizes read-only contest data requests"
     }
 
-    fn authorize_operation(&self, op: &Operation) -> RuleRet {
+    fn authorize_operation(&self, op: &Rc<Operation>) -> RuleRet {
         futures::future::ready(self.do_authorize_operation(op)).boxed_local()
     }
 }

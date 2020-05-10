@@ -9,16 +9,24 @@ pub mod resource_ident;
 
 use anyhow::Context as _;
 use futures::future::FutureExt;
-use std::{borrow::Cow, rc::Rc};
 use log::debug;
+use std::{borrow::Cow, rc::Rc};
 
 // atomic authentication unit: either Allowed or Denied.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Operation {
     pub user_info: UserInfo,
     pub resource_kind: ResourceKind,
     pub action: Action,
     pub conditions: Rc<anymap::AnyMap>,
+}
+
+impl Operation {
+    pub fn get_condition<T: 'static>(&self) -> &T {
+        self.conditions
+            .get()
+            .unwrap_or_else(|| panic!("{} condition missing", std::any::type_name::<T>()))
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -36,6 +44,8 @@ pub struct ResourceKind(Cow<'static, str>);
 impl ResourceKind {
     /// Ident: contest name.
     pub const CONTEST: Self = ResourceKind(Cow::Borrowed("/contest"));
+    /// Represents contest per-user settings (e.g. querying/changing participation status)
+    pub const CONTEST_PARTICIPATION: Self = ResourceKind(Cow::Borrowed("/contest/participation"));
     /// Ident: contest name.
     pub const RUN: Self = ResourceKind(Cow::Borrowed("/run"));
     /// Represents all runs
@@ -55,7 +65,7 @@ pub trait Rule {
     /// Ok(None) - no opinion.
     /// Ok(Allow) - allow request.
     /// Ok(Deny) - explicit deny.
-    fn authorize_operation(&self, op: &Operation) -> RuleRet;
+    fn authorize_operation(&self, op: &Rc<Operation>) -> RuleRet;
 
     fn name(&self) -> &'static str;
 
@@ -104,7 +114,7 @@ impl Pipeline {
     /// - If any rule returns Deny, return this explicit `deny`.
     /// - If all rule had no opinion, return implicit `deny`.
     /// - Otherwise, return `allow`.
-    pub async fn authorize(&self, op: &Operation) -> anyhow::Result<Outcome> {
+    pub async fn authorize(&self, op: &Rc<Operation>) -> anyhow::Result<Outcome> {
         let mut had_allow = false;
         for rule in self.rules.iter() {
             let outcome = rule
@@ -163,7 +173,7 @@ impl Authorizer {
     /// # Flow
     /// - If any pipeline returns Allow, return this Allow
     /// - Otherwise, return Deny
-    pub async fn authorize(&self, operation: &Operation) -> anyhow::Result<Outcome> {
+    pub async fn authorize(&self, operation: &Rc<Operation>) -> anyhow::Result<Outcome> {
         assert!(!self.pipelines.is_empty());
         debug!("{:?}", operation);
         let mut denies = Vec::new();
@@ -201,9 +211,9 @@ impl AuthorizerBuilder {
 }
 
 pub fn create_sudo_pipeline() -> Pipeline {
-   let mut builder = Pipeline::builder();
-   builder.add_rule(Box::new(SudoRule));
-   builder.build()
+    let mut builder = Pipeline::builder();
+    builder.add_rule(Box::new(SudoRule));
+    builder.build()
 }
 
 pub struct SudoRule;
@@ -217,7 +227,7 @@ impl Rule for SudoRule {
         "Authorizes all requests made by superuser"
     }
 
-    fn authorize_operation(&self, op: &Operation) -> RuleRet {
+    fn authorize_operation(&self, op: &Rc<Operation>) -> RuleRet {
         if op.user_info.name != "Global/Root" {
             return futures::future::ok(None).boxed();
         }

@@ -20,7 +20,7 @@ impl ContestViewRule {
         }
         if op.resource_kind == ResourceKind::CONTEST {
             debug!("processing {:?}", op);
-            let contest_id = op.conditions.get::<resource_ident::ContestId>().unwrap();
+            let contest_id = op.get_condition::<resource_ident::ContestId>();
             let contest = self
                 .en_cx
                 .entities()

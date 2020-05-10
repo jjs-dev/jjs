@@ -114,7 +114,7 @@ impl DynSecutityOperationBuilder {
     fn into_operation(self) -> Operation {
         Operation {
             action: self.action.unwrap(),
-            conditions: Rc::new(self.conditions.unwrap()),
+            conditions: self.conditions.unwrap(),
             resource_kind: self.resource_kind.unwrap(),
             user_info: self.user_info,
         }

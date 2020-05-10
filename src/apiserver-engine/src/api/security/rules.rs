@@ -3,18 +3,21 @@ use crate::api::context;
 mod contest_view;
 mod submit;
 mod participation;
+mod run;
 
 pub(crate) fn install(
     builder: &mut super::PipelineBuilder,
     db_cx: context::DbContext,
     en_cx: context::EntityContext,
 ) {
-    let submit_rule = submit::SubmitRule::new(db_cx, en_cx.clone());
+    let submit_rule = submit::SubmitRule::new(db_cx.clone(), en_cx.clone());
     builder.add_rule(Box::new(submit_rule));
     let contest_view_rule = contest_view::ContestViewRule::new(en_cx.clone());
     builder.add_rule(Box::new(contest_view_rule));
-    let participation_rule = participation::ParticipationRule::new(en_cx);
+    let participation_rule = participation::ParticipationRule::new(en_cx.clone());
     builder.add_rule(Box::new(participation_rule));
+    let run_rule = run::RunRule::new(db_cx, en_cx);
+    builder.add_rule(Box::new(run_rule));
 }
 
 async fn load_participation(

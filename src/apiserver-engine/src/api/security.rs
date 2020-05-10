@@ -18,7 +18,7 @@ pub struct Operation {
     pub user_info: UserInfo,
     pub resource_kind: ResourceKind,
     pub action: Action,
-    pub conditions: Rc<anymap::AnyMap>,
+    pub conditions: anymap::AnyMap,
 }
 
 impl Operation {

@@ -69,26 +69,4 @@ impl AccessChecker<'_> {
             },
         }
     }
-
-    fn is_contest_sudo(&self) -> bool {
-        if self.is_sudo() {
-            return true;
-        }
-        for judges_group in &self.subjects.contest.as_ref().unwrap().judges {
-            if self.token.user_info.groups.contains(judges_group) {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub(crate) fn select_judge_log_kind(
-        &self,
-    ) -> invoker_api::valuer_proto::JudgeLogKind {
-        use invoker_api::valuer_proto::JudgeLogKind;
-        if self.is_contest_sudo() {
-            return JudgeLogKind::Full;
-        }
-        JudgeLogKind::Contestant
-    }
 }

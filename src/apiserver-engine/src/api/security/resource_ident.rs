@@ -13,3 +13,11 @@ impl UserId {
         UserId(u)
     }
 }
+
+pub struct RunId(pub(super) i32);
+
+impl RunId {
+    pub fn new(i: i32) -> RunId {
+        RunId(i)
+    }
+}

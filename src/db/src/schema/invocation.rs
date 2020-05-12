@@ -62,7 +62,7 @@ impl TryFrom<i16> for InvocationState {
 impl NewInvocation {
     pub fn new(invoke_task: &invoker_api::DbInvokeTask) -> anyhow::Result<NewInvocation> {
         Ok(NewInvocation {
-            invoke_task: bincode::serialize(invoke_task)?,
+            invoke_task: serde_json::to_vec(invoke_task)?,
             run_id: invoke_task.run_id as i32,
             state: InvocationState::Queue.into(),
             outcome: serde_json::Value::Array(vec![]),
@@ -72,7 +72,7 @@ impl NewInvocation {
 
 impl Invocation {
     pub fn invoke_task(&self) -> anyhow::Result<invoker_api::DbInvokeTask> {
-        Ok(bincode::deserialize(&self.invoke_task).context("invalid InvokeTaslk")?)
+        Ok(serde_json::from_slice(&self.invoke_task).context("invalid InvokeTask")?)
     }
 
     pub fn invoke_outcome_headers(&self) -> anyhow::Result<Vec<invoker_api::InvokeOutcomeHeader>> {

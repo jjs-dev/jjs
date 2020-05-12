@@ -8,7 +8,6 @@ edition = "2018"
 serde = { version = "1.0.106", features = ["derive"] }
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 invoker-api = {path = "../invoker-api"}
-bincode = "1.2.1"
 anyhow = "1.0.28"
 serde_json = "1.0.51"
 redis = {version = "0.15.1", default-features = false, features = []}

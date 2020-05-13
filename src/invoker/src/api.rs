@@ -16,7 +16,7 @@ use std::path::PathBuf;
 #[derive(Clone)]
 struct State {
     task_source: crate::sources::BackgroundSourceHandle,
-    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
+    cancel_token: tokio::sync::CancellationToken,
 }
 
 /// invoker.{crt,key} - authorize invoker
@@ -39,18 +39,8 @@ async fn route_health() -> impl Responder {
 
 async fn route_shutdown(state: web::Data<State>) -> impl Responder {
     log::info!("invoker api: got shutdown request");
-    state
-        .shutdown_trigger
-        .clone()
-        .send(())
-        .await
-        .map(|_| "shutdown requested successfully")
-        .map_err(|send_error| {
-            actix_web::error::InternalError::new(
-                anyhow::anyhow!("channel error: {}", send_error),
-                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })
+    state.cancel_token.cancel();
+    "cancellation triggered"
 }
 
 fn verify_client_certificate(
@@ -80,15 +70,14 @@ fn verify_client_certificate(
 
 #[actix_rt::main]
 async fn exec(
-    mut stop_token: tokio::sync::broadcast::Receiver<!>,
+    cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
     task_source: crate::sources::BackgroundSourceHandle,
-    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
     pki_base: PathBuf,
 ) -> anyhow::Result<()> {
     let state = State {
         task_source,
-        shutdown_trigger,
+        cancel_token: cancel_token.clone(),
     };
     let mut some_pki_files_missing = false;
     for &path in REQUIRED_PATHS {
@@ -143,33 +132,20 @@ async fn exec(
     .bind_openssl(bind_addr, ssl_builder)
     .context("unable to bind")?
     .run();
-    loop {
-        match stop_token.recv().await {
-            Err(tokio::sync::broadcast::RecvError::Closed) => break,
-            Err(tokio::sync::broadcast::RecvError::Lagged(_)) => unreachable!(),
-            Ok(never) => match never {},
-        }
-    }
+    cancel_token.cancelled().await;
     srv.stop(false).await;
 
     Ok(())
 }
 
 pub async fn start(
-    stop_token: tokio::sync::broadcast::Receiver<!>,
+    cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
     task_source: crate::sources::BackgroundSourceHandle,
-    shutdown_trigger: tokio::sync::mpsc::Sender<()>,
     pki_base: PathBuf,
 ) -> Result<(), anyhow::Error> {
     tokio::task::spawn_blocking(move || {
-        if let Err(err) = exec(
-            stop_token,
-            bind_addr,
-            task_source,
-            shutdown_trigger,
-            pki_base,
-        ) {
+        if let Err(err) = exec(cancel_token, bind_addr, task_source, pki_base) {
             eprintln!("Invoker api service: serve error: {:#}", err);
         }
     });

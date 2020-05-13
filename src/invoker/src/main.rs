@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
 
 async fn start_controller(
     cfg: invoker::config::InvokerConfig,
-    stop_token: tokio::sync::broadcast::Receiver<!>,
+    cancel_token: tokio::sync::CancellationToken,
     system_config_data: util::cfg::CfgData,
     background_source: invoker::sources::BackgroundSourceManager,
 ) -> anyhow::Result<()> {
@@ -64,7 +64,7 @@ async fn start_controller(
 
     let controller = invoker::controller::Controller::new(driver, system_config_data, cfg)
         .context("failed to start controller")?;
-    tokio::task::spawn(controller.run_forever(stop_token));
+    tokio::task::spawn(controller.run_forever(cancel_token));
     Ok(())
 }
 
@@ -88,7 +88,6 @@ async fn real_main() -> anyhow::Result<()> {
         })?;
     let invoker_config: invoker::config::InvokerConfig =
         serde_yaml::from_slice(&invoker_config_data).context("config parse error")?;
-    let (invoker_stop_token, invoker_stop_token_rx) = tokio::sync::broadcast::channel(1);
     // TODO probably broken for IPv6
     let bind_address = format!("{}:{}", invoker_config.api.address, invoker_config.api.port);
     let bind_address = bind_address
@@ -97,19 +96,19 @@ async fn real_main() -> anyhow::Result<()> {
 
     let bg_source = invoker::sources::BackgroundSourceManager::create();
 
-    let (mut shutdown_trigger_tx, mut shutdown_trigger_rx) = tokio::sync::mpsc::channel(1);
+    let cancel_token = tokio::sync::CancellationToken::new();
+
     invoker::api::start(
-        invoker_stop_token.subscribe(),
+        cancel_token.clone(),
         bind_address,
         bg_source.fork().await,
-        shutdown_trigger_tx.clone(),
         system_config_data.data_dir.join("etc/pki"),
     )
     .await
     .context("failed to start api")?;
     start_controller(
         invoker_config,
-        invoker_stop_token_rx,
+        cancel_token.clone(),
         system_config_data,
         bg_source,
     )
@@ -117,18 +116,20 @@ async fn real_main() -> anyhow::Result<()> {
     .context("can not start controller")?;
 
     util::daemon_notify_ready();
-    tokio::task::spawn(async move {
-        log::debug!("Installing signal hook");
-        match tokio::signal::ctrl_c().await {
-            Ok(_) => {
-                log::info!("Received ctrl-c");
-                shutdown_trigger_tx.send(()).await.ok();
+    {
+        let cancel_token = cancel_token.clone();
+        tokio::task::spawn(async move {
+            log::debug!("Installing signal hook");
+            match tokio::signal::ctrl_c().await {
+                Ok(_) => {
+                    log::info!("Received ctrl-c");
+                    cancel_token.cancel();
+                }
+                Err(err) => log::warn!("Failed to wait for signal: {}", err),
             }
-            Err(err) => log::warn!("Failed to wait for signal: {}", err),
-        }
-    });
-    shutdown_trigger_rx.recv().await;
+        });
+    }
+    cancel_token.cancelled().await;
     log::info!("Received shutdown request; exiting gracefully");
-    drop(invoker_stop_token);
     Ok(())
 }

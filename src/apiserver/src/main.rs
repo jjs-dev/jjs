@@ -9,10 +9,8 @@ async fn launch_api(
     entity_loader: entity::Loader,
     problem_loader: problem_loader::Loader,
     data_dir: &std::path::Path,
-) -> anyhow::Result<(
-    rocket::shutdown::ShutdownHandle,
-    tokio::task::JoinHandle<()>,
-)> {
+    cancel_token: tokio::sync::CancellationToken,
+) -> anyhow::Result<tokio::task::JoinHandle<()>> {
     let pool = db::connect_env().await.context("DB connection failed")?;
     let rocket = apiserver_engine::ApiServer::create(
         frcfg,
@@ -24,6 +22,10 @@ async fn launch_api(
     .context("failed to create ApiServer")?
     .take_rocket();
     let shutdown = rocket.get_shutdown_handle();
+    tokio::task::spawn(async move {
+        cancel_token.cancelled().await;
+        shutdown.shutdown();
+    });
     let launch_fut = rocket.serve();
 
     let join = tokio::task::spawn(async {
@@ -32,18 +34,18 @@ async fn launch_api(
         }
     });
 
-    Ok((shutdown, join))
+    Ok(join)
 }
 
 async fn launch_root_login_server(
     params: Arc<ApiserverParams>,
-    close: tokio::sync::oneshot::Receiver<()>,
+    cancel_token: tokio::sync::CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
     let cfg = apiserver_engine::root_auth::Config {
         socket_path: params.cfg.unix_socket_path.clone(),
     };
     tokio::task::spawn(async {
-        apiserver_engine::root_auth::exec(cfg, params, close).await;
+        apiserver_engine::root_auth::exec(cfg, params, cancel_token).await;
     })
 }
 
@@ -96,27 +98,31 @@ async fn main() -> anyhow::Result<()> {
     let apiserver_cfg = Arc::new(apiserver_cfg);
     info!("starting apiserver");
 
-    let (login_send, login_recv) = tokio::sync::oneshot::channel();
+    let cancel_token = tokio::sync::CancellationToken::new();
 
-    let login_join = launch_root_login_server(apiserver_cfg.clone(), login_recv).await;
+    let login_join = launch_root_login_server(apiserver_cfg.clone(), cancel_token.clone()).await;
     util::daemon_notify_ready();
-    let (api_shutdown, api_join) = launch_api(
+    let api_join = launch_api(
         apiserver_cfg,
         cfg_data.entity_loader,
         cfg_data.problem_loader,
         &cfg_data.data_dir,
+        cancel_token.clone(),
     )
     .await
     .context("failed to start api service")?;
+
     should_shutdown().await?;
-    login_send
-        .send(())
-        .map_err(|_unit| anyhow::anyhow!("Failed to shutdown login service"))?;
+
+    info!("Shutdown was requested");
+
+    cancel_token.cancel();
+
     match tokio::time::timeout(std::time::Duration::from_secs(1), login_join).await {
         Ok(ret) => ret?,
         Err(_elapsed) => anyhow::bail!("Timeout waiting for login service shutdown"),
     }
-    api_shutdown.shutdown();
+
     match tokio::time::timeout(std::time::Duration::from_secs(15), api_join).await {
         Ok(ret) => ret?,
         Err(_elapsed) => anyhow::bail!("Timeout waiting for API service shutdown"),

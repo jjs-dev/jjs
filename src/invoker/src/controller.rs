@@ -242,18 +242,11 @@ impl Controller {
         })
     }
 
-    pub async fn run_forever(mut self, mut stop_token: tokio::sync::broadcast::Receiver<!>) {
+    pub async fn run_forever(mut self, cancel_token: tokio::sync::CancellationToken) {
         let mut sleep_duration = 0;
         loop {
-            match stop_token.try_recv() {
-                // sender should never send something, so we use ! to prove it
-                Ok(never) => match never {},
-                // sender was dropped; we should exit
-                Err(tokio::sync::broadcast::TryRecvError::Closed) => break,
-                // continue running
-                Err(tokio::sync::broadcast::TryRecvError::Empty) => (),
-                // should not happen, because no sends() can be done
-                Err(tokio::sync::broadcast::TryRecvError::Lagged(_)) => unreachable!(),
+            if cancel_token.is_cancelled() {
+                break;
             }
             let sleep = match self.tick().await {
                 Err(e) => {

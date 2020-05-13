@@ -5,3 +5,6 @@ jjs-clean = "run --package devtool -- clean"
 jjs-build = "run --package devtool -- build"
 jjs-run = "run --package devtool -- run"
 jjs = "run --package devtool --"
+
+[build]
+rustflags = ["--cfg", "tokio_unstable"]

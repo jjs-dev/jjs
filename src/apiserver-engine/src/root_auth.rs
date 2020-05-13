@@ -1,14 +1,12 @@
 // this module is responsible for root user authentication strategies
 // it implements tcp service, which provides some platform-specific authentication options
 use crate::{ApiserverParams, TokenMgr};
-use futures::future::FutureExt;
 use log::{error, info};
 use std::{ffi::c_void, mem, os::unix::io::AsRawFd, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,
     net::{UnixListener, UnixStream},
     stream::StreamExt,
-    sync::oneshot::Receiver,
 };
 
 #[derive(Clone)]
@@ -77,13 +75,16 @@ async fn do_start(cfg: Config, as_cfg: Arc<ApiserverParams>) {
     server_loop(listener, as_cfg.token_mgr.clone()).await;
 }
 
-pub async fn exec(cfg: Config, fcfg: Arc<ApiserverParams>, rx: Receiver<()>) {
+pub async fn exec(
+    cfg: Config,
+    fcfg: Arc<ApiserverParams>,
+    cancel_token: tokio::sync::CancellationToken,
+) {
     let socket_path = cfg.socket_path.clone();
-    let fut = do_start(cfg, fcfg);
-    futures::future::select(
-        Box::pin(fut),
-        rx.map(|res| res.expect("tx disconnected unexpectedly")),
-    )
-    .await;
+    let serve_fut = do_start(cfg, fcfg);
+    tokio::pin!(serve_fut);
+    let cancel_fut = cancel_token.cancelled();
+    tokio::pin!(cancel_fut);
+    futures::future::select(serve_fut, cancel_fut).await;
     tokio::fs::remove_file(socket_path).await.ok();
 }

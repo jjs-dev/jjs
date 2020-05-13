@@ -28,7 +28,7 @@ anyhow = "1.0.28"
 thiserror = "1.0.15"
 uuid = { version = "0.8.1", features = ["v5"] }
 problem-loader = {path = "../problem-loader"}
-tokio = { version = "0.2.18", features = ["rt-core", "process", "io-std", "macros", "fs"] }
+tokio = { version = "0.2.21", features = ["rt-core", "process", "io-std", "macros", "fs", "sync"] }
 log = "0.4.8"
 async-trait = "0.1.30"
 num_cpus = "1.12.0"

@@ -480,13 +480,6 @@
 <span id="480">480</span>
 <span id="481">481</span>
 <span id="482">482</span>
-<span id="483">483</span>
-<span id="484">484</span>
-<span id="485">485</span>
-<span id="486">486</span>
-<span id="487">487</span>
-<span id="488">488</span>
-<span id="489">489</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">notify</span>;
 <span class="kw">mod</span> <span class="ident">tasks</span>;
@@ -732,18 +725,11 @@
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run_forever</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">stop_token</span>: <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">broadcast</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="op">!</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run_forever</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cancel_token</span>: <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">CancellationToken</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sleep_duration</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">loop</span> {
-            <span class="kw">match</span> <span class="ident">stop_token</span>.<span class="ident">try_recv</span>() {
-                <span class="comment">// sender should never send something, so we use ! to prove it</span>
-                <span class="prelude-val">Ok</span>(<span class="ident">never</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">never</span> {},
-                <span class="comment">// sender was dropped; we should exit</span>
-                <span class="prelude-val">Err</span>(<span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">broadcast</span>::<span class="ident">TryRecvError</span>::<span class="ident">Closed</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-                <span class="comment">// continue running</span>
-                <span class="prelude-val">Err</span>(<span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">broadcast</span>::<span class="ident">TryRecvError</span>::<span class="ident">Empty</span>) <span class="op">=</span><span class="op">&gt;</span> (),
-                <span class="comment">// should not happen, because no sends() can be done</span>
-                <span class="prelude-val">Err</span>(<span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">broadcast</span>::<span class="ident">TryRecvError</span>::<span class="ident">Lagged</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+            <span class="kw">if</span> <span class="ident">cancel_token</span>.<span class="ident">is_cancelled</span>() {
+                <span class="kw">break</span>;
             }
             <span class="kw">let</span> <span class="ident">sleep</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tick</span>().<span class="kw">await</span> {
                 <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {

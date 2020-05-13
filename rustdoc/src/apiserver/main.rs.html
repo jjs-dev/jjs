@@ -124,6 +124,12 @@
 <span id="124">124</span>
 <span id="125">125</span>
 <span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">anyhow</span>::<span class="ident">Context</span>;
 <span class="kw">use</span> <span class="ident">apiserver_engine</span>::<span class="ident">ApiserverParams</span>;
@@ -136,10 +142,8 @@
     <span class="ident">entity_loader</span>: <span class="ident">entity</span>::<span class="ident">Loader</span>,
     <span class="ident">problem_loader</span>: <span class="ident">problem_loader</span>::<span class="ident">Loader</span>,
     <span class="ident">data_dir</span>: <span class="kw-2">&amp;</span><span class="ident">std</span>::<span class="ident">path</span>::<span class="ident">Path</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(
-    <span class="ident">rocket</span>::<span class="ident">shutdown</span>::<span class="ident">ShutdownHandle</span>,
-    <span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-)<span class="op">&gt;</span> {
+    <span class="ident">cancel_token</span>: <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">CancellationToken</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">db</span>::<span class="ident">connect_env</span>().<span class="kw">await</span>.<span class="ident">context</span>(<span class="string">&quot;DB connection failed&quot;</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">rocket</span> <span class="op">=</span> <span class="ident">apiserver_engine</span>::<span class="ident">ApiServer</span>::<span class="ident">create</span>(
         <span class="ident">frcfg</span>,
@@ -151,6 +155,10 @@
     .<span class="ident">context</span>(<span class="string">&quot;failed to create ApiServer&quot;</span>)<span class="question-mark">?</span>
     .<span class="ident">take_rocket</span>();
     <span class="kw">let</span> <span class="ident">shutdown</span> <span class="op">=</span> <span class="ident">rocket</span>.<span class="ident">get_shutdown_handle</span>();
+    <span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
+        <span class="ident">cancel_token</span>.<span class="ident">cancelled</span>().<span class="kw">await</span>;
+        <span class="ident">shutdown</span>.<span class="ident">shutdown</span>();
+    });
     <span class="kw">let</span> <span class="ident">launch_fut</span> <span class="op">=</span> <span class="ident">rocket</span>.<span class="ident">serve</span>();
 
     <span class="kw">let</span> <span class="ident">join</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">spawn</span>(<span class="kw">async</span> {
@@ -159,18 +167,18 @@
         }
     });
 
-    <span class="prelude-val">Ok</span>((<span class="ident">shutdown</span>, <span class="ident">join</span>))
+    <span class="prelude-val">Ok</span>(<span class="ident">join</span>)
 }
 
 <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">launch_root_login_server</span>(
     <span class="ident">params</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ApiserverParams</span><span class="op">&gt;</span>,
-    <span class="ident">close</span>: <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">oneshot</span>::<span class="ident">Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+    <span class="ident">cancel_token</span>: <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">CancellationToken</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">apiserver_engine</span>::<span class="ident">root_auth</span>::<span class="ident">Config</span> {
         <span class="ident">socket_path</span>: <span class="ident">params</span>.<span class="ident">cfg</span>.<span class="ident">unix_socket_path</span>.<span class="ident">clone</span>(),
     };
     <span class="ident">tokio</span>::<span class="ident">task</span>::<span class="ident">spawn</span>(<span class="kw">async</span> {
-        <span class="ident">apiserver_engine</span>::<span class="ident">root_auth</span>::<span class="ident">exec</span>(<span class="ident">cfg</span>, <span class="ident">params</span>, <span class="ident">close</span>).<span class="kw">await</span>;
+        <span class="ident">apiserver_engine</span>::<span class="ident">root_auth</span>::<span class="ident">exec</span>(<span class="ident">cfg</span>, <span class="ident">params</span>, <span class="ident">cancel_token</span>).<span class="kw">await</span>;
     })
 }
 
@@ -223,27 +231,31 @@
     <span class="kw">let</span> <span class="ident">apiserver_cfg</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">apiserver_cfg</span>);
     <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;starting apiserver&quot;</span>);
 
-    <span class="kw">let</span> (<span class="ident">login_send</span>, <span class="ident">login_recv</span>) <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">oneshot</span>::<span class="ident">channel</span>();
+    <span class="kw">let</span> <span class="ident">cancel_token</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">sync</span>::<span class="ident">CancellationToken</span>::<span class="ident">new</span>();
 
-    <span class="kw">let</span> <span class="ident">login_join</span> <span class="op">=</span> <span class="ident">launch_root_login_server</span>(<span class="ident">apiserver_cfg</span>.<span class="ident">clone</span>(), <span class="ident">login_recv</span>).<span class="kw">await</span>;
+    <span class="kw">let</span> <span class="ident">login_join</span> <span class="op">=</span> <span class="ident">launch_root_login_server</span>(<span class="ident">apiserver_cfg</span>.<span class="ident">clone</span>(), <span class="ident">cancel_token</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
     <span class="ident">util</span>::<span class="ident">daemon_notify_ready</span>();
-    <span class="kw">let</span> (<span class="ident">api_shutdown</span>, <span class="ident">api_join</span>) <span class="op">=</span> <span class="ident">launch_api</span>(
+    <span class="kw">let</span> <span class="ident">api_join</span> <span class="op">=</span> <span class="ident">launch_api</span>(
         <span class="ident">apiserver_cfg</span>,
         <span class="ident">cfg_data</span>.<span class="ident">entity_loader</span>,
         <span class="ident">cfg_data</span>.<span class="ident">problem_loader</span>,
         <span class="kw-2">&amp;</span><span class="ident">cfg_data</span>.<span class="ident">data_dir</span>,
+        <span class="ident">cancel_token</span>.<span class="ident">clone</span>(),
     )
     .<span class="kw">await</span>
     .<span class="ident">context</span>(<span class="string">&quot;failed to start api service&quot;</span>)<span class="question-mark">?</span>;
+
     <span class="ident">should_shutdown</span>().<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="ident">login_send</span>
-        .<span class="ident">send</span>(())
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_unit</span><span class="op">|</span> <span class="ident">anyhow</span>::<span class="macro">anyhow</span><span class="macro">!</span>(<span class="string">&quot;Failed to shutdown login service&quot;</span>))<span class="question-mark">?</span>;
+
+    <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Shutdown was requested&quot;</span>);
+
+    <span class="ident">cancel_token</span>.<span class="ident">cancel</span>();
+
     <span class="kw">match</span> <span class="ident">tokio</span>::<span class="ident">time</span>::<span class="ident">timeout</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>), <span class="ident">login_join</span>).<span class="kw">await</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">ret</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ret</span><span class="question-mark">?</span>,
         <span class="prelude-val">Err</span>(<span class="ident">_elapsed</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;Timeout waiting for login service shutdown&quot;</span>),
     }
-    <span class="ident">api_shutdown</span>.<span class="ident">shutdown</span>();
+
     <span class="kw">match</span> <span class="ident">tokio</span>::<span class="ident">time</span>::<span class="ident">timeout</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">15</span>), <span class="ident">api_join</span>).<span class="kw">await</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">ret</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ret</span><span class="question-mark">?</span>,
         <span class="prelude-val">Err</span>(<span class="ident">_elapsed</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;Timeout waiting for API service shutdown&quot;</span>),

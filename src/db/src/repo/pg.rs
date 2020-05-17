@@ -248,7 +248,7 @@ impl RunsRepo for PgRepo {
     }
 
     async fn run_select(&self, with_run_id: Option<RunId>, limit: Option<u32>) -> Result<Vec<Run>> {
-        let limit = limit.map(|x| x as i32).unwrap_or(i32::max_value());
+        let limit = limit.map(|x| x.into()).unwrap_or(i64::max_value());
         let rows = self
             .conn()
             .await?

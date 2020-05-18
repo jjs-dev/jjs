@@ -7,3 +7,5 @@ cmake-build-*
 /vm-sysroot/sysroot/*
 /vm-sysroot/image/hdd.img
 /vm-sysroot/typescript
+/venv
+/src/apiserver/__pycache__

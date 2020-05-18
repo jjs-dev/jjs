@@ -4,41 +4,6 @@ info:
   version: ""
 
 paths:
-  "/system/api-version":
-    get:
-      operationId: apiVersion
-      summary: Returns API version
-      description: |-
-        Version is returned in format {major: MAJOR, minor: MINOR}.
-        MAJOR component is incremented, when backwards-incompatible changes were made.
-        MINOR component is incremented, when backwards-compatible changes were made.
-
-        It means, that if you developed application with apiVersion X.Y, your application
-        should assert that MAJOR = X and MINOR >= Y
-
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiVersion"
-  "/system/is-dev":
-    get:
-      operationId: isDev
-      summary: Returns if JJS is running in development mode.
-      description: |-
-        Please note that you don't have to respect this information, but following is recommended:
-         - Display it in each page/view.
-         - Change theme.
-         - On login view, add button "login as root".
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: boolean
   "/contests/{name}":
     get:
       operationId: getContest

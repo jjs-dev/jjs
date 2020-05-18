@@ -12,6 +12,12 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_BUILD_PIPELINING: "false"
 jobs:
+  hack:
+    name: hack
+    runs-on: "ubuntu-18.04"
+    steps:
+      - name: Success
+        run: echo "Success"
   misspell:
     name: misspell
     runs-on: "ubuntu-18.04"

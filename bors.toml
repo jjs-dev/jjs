@@ -1,3 +1,13 @@
-status = ['style', 'clippy', 'cpp', 'unit-tests', 'udeps', 'e2e', 'vm-sysroot', 'codegen']
+status = [
+'hack',
+# 'style',
+# 'clippy',
+# 'cpp',
+# 'unit-tests',
+# 'udeps',
+# 'e2e',
+# 'vm-sysroot',
+# 'codegen'
+]
 delete-merged-branches = true
 timeout-sec = 1800

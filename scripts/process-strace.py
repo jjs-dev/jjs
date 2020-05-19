@@ -5,7 +5,7 @@ if len(sys.argv) != 3:
 
 total_lines = 0
 filter_sigill = 0
-accepted_lines =0
+accepted_lines = 0
 
 fin = open(sys.argv[1])
 fout = open(sys.argv[2], 'w')

@@ -23,7 +23,13 @@ jobs:
     runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - run: 
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: check python code formatting
+        run: |
+          pip3 install autopep8
+          cargo jjs-check --no-default --autopep8
   misspell:
     name: misspell
     runs-on: "ubuntu-18.04"

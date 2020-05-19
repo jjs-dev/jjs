@@ -9,7 +9,8 @@ fn cmake_bin() -> &'static str {
 
 fn autopep8(runner: &Runner) {
     info!("running autopep8");
-    let python_files: Vec<_> = crate::glob_util::find_items(crate::glob_util::ItemKind::Python).collect();
+    let python_files: Vec<_> =
+        crate::glob_util::find_items(crate::glob_util::ItemKind::Python).collect();
 
     let mut cmd = Command::new("autopep8");
     cmd.arg("--exit-code");

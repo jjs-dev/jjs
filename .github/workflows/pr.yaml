@@ -105,12 +105,23 @@ jobs:
       - uses: actions/checkout@v1
       - run: |
           bash scripts/ci-env.sh
-          cargo install cargo-udeps --locked
       - name: Get Rust version
         id: rustc_version
         run: |
           rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')
           echo "##[set-output name=version;]$(echo $rust_version)"
+      - name: Fetch cargo-udeps
+        id: cache_udeps
+        uses: actions/cache@v1.1.0
+        with: 
+          path: ~/udeps
+          key: ${{ runner.os }}-udeps-bin-${{ steps.rustc_version.outputs.version }}-v0.1.11
+      - name: Install cargo-udeps
+        if: steps.cache_udeps.outputs.cache-hit != 'true'
+        run: | 
+          cargo install cargo-udeps --locked --version 0.1.11
+          mkdir -p ~/udeps
+          cp $( which cargo-udeps ) ~/udeps
       - name: Cache cargo registry
         uses: actions/cache@v1.1.0
         with:
@@ -127,7 +138,9 @@ jobs:
           path: target
           key: ${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: cargo-udeps
-        run: cargo jjs-check --no-default --udeps
+        run: |
+          export PATH=~/udeps:$PATH
+          cargo jjs-check --no-default --udeps
   codegen:
     name: codegen
     runs-on: "ubuntu-18.04"

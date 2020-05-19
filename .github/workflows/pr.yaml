@@ -29,7 +29,22 @@ jobs:
       - name: check python code formatting
         run: |
           pip3 install autopep8
+          cd src
           cargo jjs-check --no-default --autopep8
+  py-test:
+    name: py-test
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: run python tests
+        run: |
+          pip3 install pytest
+          cd src
+          pip3 install -r apiserver/requirements.txt
+          pytest
   misspell:
     name: misspell
     runs-on: "ubuntu-18.04"

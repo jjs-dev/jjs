@@ -6,4 +6,4 @@ debug = 1
 
 [workspace]
 # TODO: add other as they are fixed
-members=["src/devtool"]
+members=["src/devtool", "src/gen-api-client", "src/client"]

@@ -1,0 +1,70 @@
+{
+  "components": {
+    "schemas": {
+      "ApiVersion": {
+        "properties": {
+          "major": {
+            "title": "Major",
+            "type": "integer"
+          },
+          "minor": {
+            "title": "Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "major",
+          "minor"
+        ],
+        "title": "ApiVersion",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "openapi": "3.0.2",
+  "paths": {
+    "/system/api-version": {
+      "get": {
+        "description": "Returns API version\n\nVersion is returned in format {major: MAJOR, minor: MINOR}.\nMAJOR component is incremented, when backwards-incompatible changes were made.\nMINOR component is incremented, when backwards-compatible changes were made.\n\nIt means, that if you tested application with apiVersion == X.Y, your application\nshould assert that MAJOR = X and MINOR >= Y",
+        "operationId": "apiVersion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route Api Version"
+      }
+    },
+    "/system/is-dev": {
+      "get": {
+        "description": "Returns if JJS is running in development mode.\n\nPlease note that you don't have to respect this information, but following is recommended:\n1. Display it in each page/view.\n2. Change theme.\n3. On login view, add button \"login as root\".",
+        "operationId": "isDev",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Route Is Dev System Is Dev Get",
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route Is Dev"
+      }
+    }
+  }
+}

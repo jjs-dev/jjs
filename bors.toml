@@ -12,4 +12,4 @@ status = [
 'py-fmt'
 ]
 delete-merged-branches = true
-timeout-sec = 1800
+timeout-sec = 900

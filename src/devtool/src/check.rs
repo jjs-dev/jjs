@@ -7,6 +7,20 @@ fn cmake_bin() -> &'static str {
     "cmake"
 }
 
+fn autopep8(runner: &Runner) {
+    info!("running autopep8");
+    let python_files: Vec<_> =
+        crate::glob_util::find_items(crate::glob_util::ItemKind::Python).collect();
+
+    let mut cmd = Command::new("autopep8");
+    cmd.arg("--exit-code");
+    cmd.arg("--diff");
+    for file in python_files {
+        cmd.arg(file);
+    }
+    cmd.run_on(runner);
+}
+
 fn rustfmt(runner: &Runner) {
     info!("running cargo fmt --check");
     Command::new("cargo")
@@ -130,6 +144,9 @@ fn udeps(runner: &Runner) {
 
 #[derive(StructOpt)]
 pub struct CheckOpts {
+    /// Run autopep8
+    #[structopt(long)]
+    autopep8: bool,
     /// Run clippy
     #[structopt(long)]
     clippy: bool,
@@ -170,6 +187,9 @@ fn secrets_enabled() -> bool {
 pub fn check(opts: &CheckOpts, runner: &Runner) {
     if opts.rustfmt || !opts.no_default {
         rustfmt(runner);
+    }
+    if opts.autopep8 || !opts.no_default {
+        autopep8(runner);
     }
     if opts.shellcheck || !opts.no_default {
         shellcheck(runner);

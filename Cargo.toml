@@ -5,4 +5,5 @@ lto = true
 debug = 1
 
 [workspace]
-members=["src/*"]
+# TODO: add other as they are fixed
+members=["src/devtool"]

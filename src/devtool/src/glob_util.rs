@@ -3,6 +3,7 @@ use std::path::PathBuf;
 pub(crate) enum ItemKind {
     Bash,
     Cpp,
+    Python,
 }
 
 pub(crate) fn find_items(kind: ItemKind) -> impl Iterator<Item = PathBuf> {
@@ -16,6 +17,9 @@ pub(crate) fn find_items(kind: ItemKind) -> impl Iterator<Item = PathBuf> {
         ItemKind::Cpp => {
             types_builder.select("c");
             types_builder.select("cpp");
+        }
+        ItemKind::Python => {
+            types_builder.select("py");
         }
     }
     let types_matched = types_builder.build().unwrap();

@@ -3,7 +3,8 @@ from pydantic import BaseModel
 
 app = fastapi.FastAPI()
 
-@app.get('/system/is-dev', response_model = bool, operation_id = "isDev")
+
+@app.get('/system/is-dev', response_model=bool, operation_id="isDev")
 def route_is_dev():
     """
     Returns if JJS is running in development mode.
@@ -15,11 +16,13 @@ def route_is_dev():
     """
     return True
 
+
 class ApiVersion(BaseModel):
     major: int
     minor: int
 
-@app.get('/system/api-version', response_model = ApiVersion, operation_id = "apiVersion")
+
+@app.get('/system/api-version', response_model=ApiVersion, operation_id="apiVersion")
 def route_api_version():
     """
     Returns API version

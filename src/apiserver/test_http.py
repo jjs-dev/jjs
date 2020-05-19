@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
+
 def test_smoke_is_dev():
     res = client.get("/system/is-dev")
     assert res.status_code == 200

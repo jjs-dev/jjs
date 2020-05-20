@@ -7,6 +7,7 @@ import uuid
 import pymongo
 import urllib.parse
 import functools
+import base64
 
 app = fastapi.FastAPI()
 
@@ -98,7 +99,10 @@ def route_submit(params: RunSubmitSimpleParams):
     user_id = uuid.UUID('12345678123456781234567812345678')
     r = Run(id=run_uuid, toolchain_id=params.toolchain,
             problem_id=params.problem, user_id=user_id, contest_id=params.contest)
-    db.runs.insert_one(dict(r))
+    doc = dict(r)
+    
+    doc['source'] = base64.b64decode(params.code)
+    db.runs.insert_one(doc)
     return r
 
 
@@ -109,8 +113,8 @@ def route_list_runs():
 
     This operation returns all created runs
     """
-    
-    runs = db.runs.find()
+
+    runs = db.runs.find(projection=['id', 'toolchain_id', 'problem_id', 'user_id', 'contest_id'])
     runs = list(map(lambda x: Run(**x), runs))
     return runs
 

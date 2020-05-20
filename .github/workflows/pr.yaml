@@ -1,5 +1,6 @@
-name: "ci"
-on:
+---
+name: ci
+"on":
   pull_request: {}
   push:
     branches:
@@ -14,81 +15,104 @@ env:
 jobs:
   hack:
     name: hack
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - name: Success
-        run: echo "Success"
+        run: "echo \"Success\""
   py-fmt:
     name: py-fmt
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: check python code formatting
-        run: |
-          pip3 install autopep8
-          cd src
-          cargo jjs-check --no-default --autopep8
+        run: "pip3 install autopep8\ncd src\ncargo jjs-check --no-default --autopep8\n"
   py-test:
     name: py-test
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     services:
       mongo:
-        image: mongo:4.2.6-bionic
+        image: "mongo:4.2.6-bionic"
         ports:
-          - 27017:27017
+          - "27017:27017"
     env:
-      DATABASE_URL: mongodb://localhost:27017/jjs
+      DATABASE_URL: "mongodb://localhost:27017/jjs"
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: run python tests
-        run: |
-          pip3 install pytest
-          cd src
-          pip3 install -r apiserver/requirements.txt
-          pytest
+        run: "pip3 install pytest\ncd src\npip3 install -r apiserver/requirements.txt\npytest\n"
   misspell:
     name: misspell
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
       - uses: reviewdog/action-misspell@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
           locale: US
   style:
     name: style
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
       - name: check rust code formatting
-        run: cargo jjs-check --no-default --rustfmt
-      - name: run shellcheck
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: "-- --check"
+      - name: Run shellcheck
         run: cargo jjs-check --no-default --shellcheck
   clippy:
     name: clippy
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
-      - name: run clippy
-        run: cargo jjs-check --no-default --clippy
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: "--workspace"
   cpp:
     name: cpp
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
+      - run: bash ci-data/pvs.sh
         env:
-          SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
-          PVS_NAME: ${{ secrets.PVS_NAME }}
-          PVS_LICENSE_KEY: ${{ secrets.PVS_LICENSE_KEY }}
+          SECRET_ENABLED: "${{ secrets.SECRET_ENABLED }}"
+          PVS_NAME: "${{ secrets.PVS_NAME }}"
+          PVS_LICENSE_KEY: "${{ secrets.PVS_LICENSE_KEY }}"
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
       - name: compile testlib
         run: cargo jjs-check --no-default --testlib
       - name: compile minion-ffi tests
@@ -96,228 +120,74 @@ jobs:
       - name: Run PVS
         run: cargo jjs-check --no-default --pvs
         env:
-          SECRET_ENABLED: ${{ secrets.SECRET_ENABLED }}
+          SECRET_ENABLED: "${{ secrets.SECRET_ENABLED }}"
   unit-tests:
     name: unit-tests
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: bash scripts/ci-env.sh
-      - name: cargo jjs-test
-        run: cargo jjs-test
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
   udeps:
     name: udeps
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: |
-          bash scripts/ci-env.sh
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
       - name: Get Rust version
         id: rustc_version
-        run: |
-          rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')
-          echo "##[set-output name=version;]$(echo $rust_version)"
+        run: "rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')\necho \"##[set-output name=version;]$(echo $rust_version)\"\n"
       - name: Fetch cargo-udeps
         id: cache_udeps
         uses: actions/cache@v1.1.0
-        with: 
+        with:
           path: ~/udeps
-          key: ${{ runner.os }}-udeps-bin-${{ steps.rustc_version.outputs.version }}-v0.1.11
+          key: "${{ runner.os }}-udeps-bin-${{ steps.rustc_version.outputs.version }}-v0.1.11"
       - name: Install cargo-udeps
-        if: steps.cache_udeps.outputs.cache-hit != 'true'
-        run: | 
-          cargo install cargo-udeps --locked --version 0.1.11
-          mkdir -p ~/udeps
-          cp $( which cargo-udeps ) ~/udeps
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+        if: "steps.cache_udeps.outputs.cache-hit != 'true'"
+        run: "cargo install cargo-udeps --locked --version 0.1.11\nmkdir -p ~/udeps\ncp $( which cargo-udeps ) ~/udeps\n"
       - name: Cache build dir
         uses: actions/cache@v1.1.0
         with:
           path: target
-          key: ${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: "${{ runner.os }}-udeps-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}"
       - name: cargo-udeps
-        run: |
-          export PATH=~/udeps:$PATH
-          cargo jjs-check --no-default --udeps
+        run: "export PATH=~/udeps:$PATH\ncargo udeps\n"
   codegen:
     name: codegen
-    runs-on: "ubuntu-18.04"
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
       - name: Free space
-        run: sudo bash scripts/ci-free-space.sh
-      - run: bash scripts/ci-env.sh
+        run: sudo bash ci-data/free-space.sh
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2020-05-01
+          components: "clippy,rustfmt"
+          override: true
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - run: pip install -r src/apiserver/requirements.txt
       - run: cargo jjs codegen
-      - run: |
-          git add rust-toolchain
-          git diff --exit-code
-
-  e2e:
-    name: e2e
-    runs-on: "ubuntu-18.04"
-    env:
-      PGDATABASE: jjs
-      PGHOST: localhost
-      PGPORT: 5432
-      PGUSER: postgres
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-        options: >- 
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v1
-      - run: |
-          bash scripts/ci-env.sh
-          sudo apt install -y --no-install-recommends postgresql-client-10 libunwind-dev
-          createdb jjs
-          psql -c "CREATE ROLE jjs WITH LOGIN PASSWORD 'internal'"
-      - name: Get Rust version
-        id: rustc_version
-        run: |
-          rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')
-          echo "##[set-output name=version;]$(echo $rust_version)"
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
-      - name: Cache build dir
-        uses: actions/cache@v1.1.0
-        with:
-          path: target
-          key: ${{ runner.os }}-e2e-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - name: build
-        run: cargo jjs-build
-        env:
-          JOB: e2e
-      - name: launch jjs
-        run: |
-          sudo dpkg -i /opt/jjs/pkg/jjs.deb
-          sudo adduser jjs --shell $( which false ) --disabled-password --home /home/jjs
-          sudo jjs-setup ./ci-data/test-e2e-profile.yaml upgrade
-          sudo cp ci-data/env.txt /home/jjs/etc/env.txt
-          sudo systemctl start jjs-invoker
-          sudo systemctl start jjs-apiserver
-      - name: wait for launch
-        run: cargo run --package util
-        env:
-          JJS_WAIT: tcp://localhost:1779
-          RUST_LOG: util::wait=debug
-      - name: run tests
-        run: cargo jjs-test --integration-tests --skip-unit --nocapture
-      - name: collect logs
-        if: always()
-        run: |
-          mkdir logs
-          sudo journalctl -u jjs-apiserver.service -p debug > logs/apiserver.txt
-          sudo journalctl -u jjs-invoker.service -p debug > logs/invoker.txt
-          cat logs/*
-      - name: upload logs
-        if: always()
-        uses: actions/upload-artifact@v1
-        with:
-          name: logs
-          path: ./logs
-  vmsysroot:
-    name: vm-sysroot
-    runs-on: "ubuntu-18.04"
-    steps:
-      - uses: actions/checkout@v1
-      - run: |
-          bash scripts/ci-env.sh
-          sudo apt install -y --no-install-recommends postgresql-client-10 postgresql-10 qemu-system grub2 flex bison
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.0
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
-      - name: Cache build dir
-        uses: actions/cache@v1.1.0
-        with:
-          path: target
-          key: ${{ runner.os }}-vmsysroot-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - name: build jjs
-        run: |
-          mkdir -p target
-          cd target
-          touch .jjsbuild
-          ../configure --enable-archive --enable-extras --disable-man
-          make
-      - name: build vm-sysroot
-        run: |
-          cd vm-sysroot
-          ./netns-build.sh || true
-          sudo sed -i 's/^\(linux.*\)$/\1 console=ttyS0/' sysroot/boot/grub/grub.cfg
-          sudo tee -a sysroot/init >/dev/null < ../scripts/uml-tests.sh
-          touch image/hdd.img image/full.img # for proper permissions
-          sudo image/build-image.sh
-          sudo image/build-full.sh
-          sudo rm -rvf sysroot # otherwise it will fail to push build cache
-        timeout-minutes: 5
-      - name: build UML
-        run: |
-          mkdir uml
-          cd uml
-          wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.112.tar.xz -O - | tar -xJf -
-          cd linux-4.19.112
-          make ARCH=um defconfig
-          echo CONFIG_USER_NS=y >> .config
-          echo CONFIG_PID_NS=y >> .config
-          echo CONFIG_CGROUPS=y >> .config
-          echo CONFIG_CGROUP_CPUACCT=y >> .config
-          echo CONFIG_CGROUP_PIDS=y >> .config
-          echo CONFIG_MEMCG=y >> .config
-          echo CONFIG_MEMCG_SWAP=y >> .config
-          make ARCH=um oldconfig </dev/null
-          make ARCH=um -j2
-      - name: launch vm-sysroot
-        if: always()
-        run: |
-          script -c 'busybox timeout -s SIGKILL -t 300 uml/linux-4.19.112/vmlinux mem=1024M ubda=vm-sysroot/image/hdd.img root=/dev/ubda con0=fd:0,fd:1 con=nul' vm-sysroot.log || true
-          fgrep -q 'status: Accepted(ACCEPTED)' vm-sysroot.log
-      - name: upload logs
-        if: always()
-        uses: actions/upload-artifact@v1
-        with:
-          name: vm-sysroot-log
-          path: vm-sysroot.log
+      - run: git diff --exit-code

@@ -1,6 +1,5 @@
----
-name: deploy
-"on":
+name: "deploy"
+on:
   push:
     branches:
       - master
@@ -11,7 +10,7 @@ env:
 jobs:
   docker:
     name: docker
-    runs-on: ubuntu-18.04
+    runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
       - name: install global dependencies
@@ -21,10 +20,16 @@ jobs:
         env:
           JJS_DT_DEPLOY: docker
       - name: upload docker images
-        run: "docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com\ndocker login --username mikailbag --password ${{ secrets.DOCKER_HUB_TOKEN }}\ndocker tag jjs:latest mikailbag/jjs:latest\ndocker push mikailbag/jjs\ndocker tag jjs:latest docker.pkg.github.com/jjs-dev/jjs/jjs:master\ndocker push docker.pkg.github.com/jjs-dev/jjs/jjs:master\n"
+        run: |
+          docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
+          docker login --username mikailbag --password ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker tag jjs:latest mikailbag/jjs:latest
+          docker push mikailbag/jjs
+          docker tag jjs:latest docker.pkg.github.com/jjs-dev/jjs/jjs:master
+          docker push docker.pkg.github.com/jjs-dev/jjs/jjs:master
   deb:
     name: deb
-    runs-on: ubuntu-18.04
+    runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
       - name: Setup env
@@ -40,20 +45,24 @@ jobs:
           path: /opt/jjs/pkg/jjs.deb
   man:
     name: man
-    runs-on: ubuntu-18.04
+    runs-on: 'ubuntu-18.04'
     steps:
       - uses: actions/checkout@v1
       - name: install global dependencies
-        run: "bash scripts/ci-env.sh\ncargo install mdbook --no-default-features\n"
+        run: |
+          bash scripts/ci-env.sh
+          cargo install mdbook --no-default-features
       - name: cargo jjs-build
         run: cargo jjs-build
         env:
           JJS_DT_DEPLOY: man
       - name: copy man
-        run: "mkdir ./built-docs\ncp -r /opt/jjs/share/docs/* ./built-docs\n"
+        run: |
+          mkdir ./built-docs
+          cp -r /opt/jjs/share/docs/* ./built-docs
       - name: upload man
         uses: peaceiris/actions-gh-pages@v2
         env:
-          ACTIONS_DEPLOY_KEY: "${{ secrets.ACTIONS_DEPLOY_KEY }}"
+          ACTIONS_DEPLOY_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: "./built-docs"
+          PUBLISH_DIR: ./built-docs

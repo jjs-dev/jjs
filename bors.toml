@@ -5,9 +5,7 @@ status = [
 # 'cpp',
 'unit-tests',
 'udeps',
-# 'e2e',
-# 'vm-sysroot',
-# 'codegen'
+'codegen',
 'py-test',
 'py-fmt'
 ]

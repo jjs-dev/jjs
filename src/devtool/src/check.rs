@@ -21,27 +21,6 @@ fn autopep8(runner: &Runner) {
     cmd.run_on(runner);
 }
 
-fn rustfmt(runner: &Runner) {
-    info!("running cargo fmt --check");
-    Command::new("cargo")
-        .args(&["fmt", "--verbose", "--all", "--", "--check"])
-        .run_on(runner);
-}
-
-fn clippy(runner: &Runner) {
-    info!("running clippy");
-    Command::new("cargo")
-        .args(&[
-            "clippy",
-            "--all",
-            "--tests",
-            "--",
-            "-Dclippy::all",
-            "-Dwarnings",
-        ])
-        .run_on(runner);
-}
-
 fn shellcheck(runner: &Runner) {
     const SCRIPTS_CHECK_BATCH_SIZE: usize = 10;
     info!("checking scripts");
@@ -132,27 +111,11 @@ fn check_testlib(runner: &Runner) {
         .run_on(runner);
 }
 
-fn udeps(runner: &Runner) {
-    Command::new("cargo")
-        .arg("udeps")
-        .arg("--all")
-        .arg("--tests")
-        // do not check minion-ffi because there is some problem with cbindgen
-        .args(&["--exclude", "minion-ffi"])
-        .run_on(runner);
-}
-
 #[derive(StructOpt)]
 pub struct CheckOpts {
     /// Run autopep8
     #[structopt(long)]
     autopep8: bool,
-    /// Run clippy
-    #[structopt(long)]
-    clippy: bool,
-    /// Run rustfmt
-    #[structopt(long)]
-    rustfmt: bool,
     /// Run shellcheck
     #[structopt(long)]
     shellcheck: bool,
@@ -165,9 +128,6 @@ pub struct CheckOpts {
     /// Use PVS-Studio to analyze testlib
     #[structopt(long)]
     pvs: bool,
-    /// Enable `cargo-udeps`
-    #[structopt(long)]
-    udeps: bool,
     /// Do not run default checks
     #[structopt(long)]
     no_default: bool,
@@ -185,9 +145,6 @@ fn secrets_enabled() -> bool {
 }
 
 pub fn check(opts: &CheckOpts, runner: &Runner) {
-    if opts.rustfmt || !opts.no_default {
-        rustfmt(runner);
-    }
     if opts.autopep8 || !opts.no_default {
         autopep8(runner);
     }
@@ -199,12 +156,6 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     }
     if opts.testlib || !opts.no_default {
         check_testlib(runner);
-    }
-    if opts.clippy || !opts.no_default {
-        clippy(runner);
-    }
-    if opts.udeps {
-        udeps(runner);
     }
     let force_pvs = std::env::var("CI").is_ok() && secrets_enabled();
     let force_not_pvs = std::env::var("CI").is_ok() && !secrets_enabled();

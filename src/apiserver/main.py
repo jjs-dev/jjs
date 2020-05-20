@@ -18,10 +18,12 @@ def db_connect() -> pymongo.database.Database:
     db_name = urllib.parse.urlparse(db_url).path.replace('/', '')
     return client[db_name]
 
+
 try:
     db = db_connect()
 except KeyError:
     db = None
+
 
 @app.get('/system/is-dev', response_model=bool, operation_id="isDev")
 def route_is_dev():
@@ -100,7 +102,7 @@ def route_submit(params: RunSubmitSimpleParams):
     r = Run(id=run_uuid, toolchain_id=params.toolchain,
             problem_id=params.problem, user_id=user_id, contest_id=params.contest)
     doc = dict(r)
-    
+
     doc['source'] = base64.b64decode(params.code)
     db.runs.insert_one(doc)
     return r
@@ -114,7 +116,8 @@ def route_list_runs():
     This operation returns all created runs
     """
 
-    runs = db.runs.find(projection=['id', 'toolchain_id', 'problem_id', 'user_id', 'contest_id'])
+    runs = db.runs.find(
+        projection=['id', 'toolchain_id', 'problem_id', 'user_id', 'contest_id'])
     runs = list(map(lambda x: Run(**x), runs))
     return runs
 

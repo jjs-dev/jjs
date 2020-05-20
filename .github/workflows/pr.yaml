@@ -34,6 +34,13 @@ jobs:
   py-test:
     name: py-test
     runs-on: "ubuntu-18.04"
+    services:
+      mongo:
+        image: mongo:4.2.6-bionic
+        ports:
+          - 27017:27017
+    env:
+      DATABASE_URL: mongodb://localhost:27017/jjs
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2

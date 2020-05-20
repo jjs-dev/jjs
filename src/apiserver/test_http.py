@@ -14,6 +14,7 @@ def test_smoke_api_version():
     res = client.get("/system/api-version")
     assert res.status_code == 200
 
+
 def test_simple_run_ops():
     created_run = client.post("/runs", json={
         'code': base64.b64encode(b"Hello, Compiler!").decode(),

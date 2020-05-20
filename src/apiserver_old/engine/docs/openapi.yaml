@@ -86,35 +86,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Contest"
-  "/runs":
-    get:
-      operationId: listRuns
-      summary: List runs
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Run"
-    post:
-      operationId: submitRun
-      summary: Submit run
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RunSimpleSubmitParams"
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Run"
   "/runs/{id}":
     get:
       operationId: getRun

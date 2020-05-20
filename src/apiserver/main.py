@@ -11,13 +11,16 @@ import functools
 app = fastapi.FastAPI()
 
 
-@functools.lru_cache
 def db_connect() -> pymongo.database.Database:
     db_url = os.environ["DATABASE_URL"]
     client = pymongo.MongoClient(db_url)
     db_name = urllib.parse.urlparse(db_url).path.replace('/', '')
     return client[db_name]
 
+try:
+    db = db_connect()
+except KeyError:
+    db = None
 
 @app.get('/system/is-dev', response_model=bool, operation_id="isDev")
 def route_is_dev():
@@ -95,7 +98,6 @@ def route_submit(params: RunSubmitSimpleParams):
     user_id = uuid.UUID('12345678123456781234567812345678')
     r = Run(id=run_uuid, toolchain_id=params.toolchain,
             problem_id=params.problem, user_id=user_id, contest_id=params.contest)
-    db = db_connect()
     db.runs.insert_one(dict(r))
     return r
 
@@ -107,8 +109,7 @@ def route_list_runs():
 
     This operation returns all created runs
     """
-
-    db = db_connect()
+    
     runs = db.runs.find()
     runs = list(map(lambda x: Run(**x), runs))
     return runs

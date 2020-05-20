@@ -94,9 +94,24 @@ def route_submit(params: RunSubmitSimpleParams):
     run_uuid = uuid.uuid4()
     user_id = uuid.UUID('12345678123456781234567812345678')
     r = Run(id=run_uuid, toolchain_id=params.toolchain,
-            problem_id=params.problem, user_id=user_id, contest_id=params.contest_id)
+            problem_id=params.problem, user_id=user_id, contest_id=params.contest)
     db = db_connect()
-    db.runs.insert_one(r)
+    db.runs.insert_one(dict(r))
+    return r
+
+
+@app.get('/runs', response_model=typing.List[Run], operation_id='listRuns')
+def route_list_runs():
+    """
+    Lists runs
+
+    This operation returns all created runs
+    """
+
+    db = db_connect()
+    runs = db.runs.find()
+    runs = list(map(lambda x: Run(**x), runs))
+    return runs
 
 
 if os.environ.get("__JJS_SPEC") is not None:

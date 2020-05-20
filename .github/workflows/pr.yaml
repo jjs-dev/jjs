@@ -149,6 +149,10 @@ jobs:
       - name: Free space
         run: sudo bash scripts/ci-free-space.sh
       - run: bash scripts/ci-env.sh
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - run: pip install -r src/apiserver/requirements.txt
       - run: cargo jjs codegen
       - run: |
           git add rust-toolchain

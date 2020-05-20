@@ -1,5 +1,7 @@
 import fastapi
 from pydantic import BaseModel
+import os
+import json
 
 app = fastapi.FastAPI()
 
@@ -35,3 +37,11 @@ def route_api_version():
     should assert that MAJOR = X and MINOR >= Y
     """
     return ApiVersion(major=0, minor=0)
+
+
+if os.environ.get("__JJS_SPEC") is not None:
+    req = os.environ["__JJS_SPEC"]
+    if req == "openapi":
+        print(json.dumps(app.openapi()))
+    else:
+        raise ValueError(f"unsupported __JJS_SPEC: {req}")

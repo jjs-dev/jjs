@@ -2,17 +2,11 @@ use anyhow::Context as _;
 use std::{path::Path, process::Command};
 use util::cmd::CommandExt as _;
 
-fn read_models() -> anyhow::Result<serde_json::Value> {
-    Command::new("cargo")
-        .arg("build")
-        .arg("-p")
-        .arg("apiserver")
-        .try_exec()
-        .context("build apiserver")?;
-    let mut cmd = Command::new("cargo");
-    cmd.arg("run");
-    cmd.arg("--package").arg("apiserver");
-    cmd.env("__JJS_SPEC", "api-models");
+fn read_openapi() -> anyhow::Result<serde_json::Value> {
+    let mut cmd = Command::new("python");
+    cmd.arg("./main.py");
+    cmd.current_dir("./src/apiserver");
+    cmd.env("__JJS_SPEC", "openapi");
     let out = cmd.try_exec_with_output().context("exec apiserver")?;
     let data = serde_json::from_slice(&out.stdout)?;
     Ok(data)
@@ -30,21 +24,9 @@ fn make_docker() -> Command {
 
 pub(crate) fn task_codegen() -> anyhow::Result<()> {
     println!("Obtaining schemas");
-    let mut definitions = read_models().context("get models")?;
-    let openapi_path = "src/apiserver-engine/docs/openapi.yaml";
-    let openapi_schema = std::fs::read(openapi_path)?;
-    let mut schema: serde_json::Value = serde_yaml::from_slice(&openapi_schema)?;
-    let components = schema
-        .pointer_mut("/components")
-        .unwrap()
-        .as_object_mut()
-        .unwrap();
-    components.insert(
-        "schemas".to_string(),
-        std::mem::take(&mut definitions["components"]),
-    );
-    let out_path = "src/apiserver-engine/docs/openapi-gen.json";
-    let schema = serde_json::to_string_pretty(&schema)?;
+    let api_schema = read_openapi().context("get models")?;
+    let out_path = "src/apiserver/openapi-gen.json";
+    let schema = serde_json::to_string_pretty(&api_schema)?;
     std::fs::write(out_path, schema)?;
     println!("Building generator");
     if std::env::var("JJS_CODEGEN_DOCKER_NO_BUILD").is_err() {
@@ -62,9 +44,7 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
 
     gen.arg("--mount").arg(format!(
         "type=bind,source={},target=/input",
-        Path::new("./src/apiserver-engine/docs")
-            .canonicalize()?
-            .display()
+        Path::new("./src/apiserver").canonicalize()?.display()
     ));
     gen.arg("--mount").arg(format!(
         "type=bind,source={},target=/output",

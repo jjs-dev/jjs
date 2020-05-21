@@ -18,6 +18,108 @@
         ],
         "title": "ApiVersion",
         "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Run": {
+        "properties": {
+          "contest_id": {
+            "title": "Contest Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "problem_id": {
+            "title": "Problem Id",
+            "type": "string"
+          },
+          "toolchain_id": {
+            "title": "Toolchain Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "toolchain_id",
+          "problem_id",
+          "user_id",
+          "contest_id"
+        ],
+        "title": "Run",
+        "type": "object"
+      },
+      "RunSubmitSimpleParams": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "contest": {
+            "title": "Contest",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "toolchain": {
+            "title": "Toolchain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "contest",
+          "problem",
+          "toolchain"
+        ],
+        "title": "RunSubmitSimpleParams",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     }
   },
@@ -27,6 +129,66 @@
   },
   "openapi": "3.0.2",
   "paths": {
+    "/runs": {
+      "get": {
+        "description": "Lists runs\n\nThis operation returns all created runs",
+        "operationId": "listRuns",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Run"
+                  },
+                  "title": "Response Route List Runs Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route List Runs"
+      },
+      "post": {
+        "description": "Submits new run\n\nThis operation creates new run, with given source code, and queues it for\njudging. Created run will be returned. All fields against `id` will match\nfields of request body; `id` will be real id of this run.",
+        "operationId": "submitRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSubmitSimpleParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Submit"
+      }
+    },
     "/system/api-version": {
       "get": {
         "description": "Returns API version\n\nVersion is returned in format {major: MAJOR, minor: MINOR}.\nMAJOR component is incremented, when backwards-incompatible changes were made.\nMINOR component is incremented, when backwards-compatible changes were made.\n\nIt means, that if you tested application with apiVersion == X.Y, your application\nshould assert that MAJOR = X and MINOR >= Y",

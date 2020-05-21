@@ -26,11 +26,17 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *DefaultApi* | [**api_version**](docs/DefaultApi.md#api_version) | **GET** /system/api-version | Route Api Version
 *DefaultApi* | [**is_dev**](docs/DefaultApi.md#is_dev) | **GET** /system/is-dev | Route Is Dev
+*DefaultApi* | [**list_runs**](docs/DefaultApi.md#list_runs) | **GET** /runs | Route List Runs
+*DefaultApi* | [**submit_run**](docs/DefaultApi.md#submit_run) | **POST** /runs | Route Submit
 
 
 ## Documentation For Models
 
  - [ApiVersion](docs/ApiVersion.md)
+ - [HttpValidationError](docs/HttpValidationError.md)
+ - [Run](docs/Run.md)
+ - [RunSubmitSimpleParams](docs/RunSubmitSimpleParams.md)
+ - [ValidationError](docs/ValidationError.md)
 
 
 To get access to the crate's generated documentation, use:

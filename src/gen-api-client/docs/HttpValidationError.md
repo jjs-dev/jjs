@@ -1,14 +1,10 @@
-# Run
+# HttpValidationError
 
 ## Properties
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**contest_id** | **String** |  | 
-**id** | **String** |  | 
-**problem_id** | **String** |  | 
-**toolchain_id** | **String** |  | 
-**user_id** | **String** |  | 
+**detail** | Option<[**Vec<crate::models::ValidationError>**](ValidationError.md)> |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

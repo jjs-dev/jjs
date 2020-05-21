@@ -33,6 +33,13 @@ pub trait DefaultApi {
         &self,
     ) -> Box<dyn Future<Output = Result<crate::models::ApiVersion, Error<serde_json::Value>>> + Unpin>;
     fn is_dev(&self) -> Box<dyn Future<Output = Result<bool, Error<serde_json::Value>>> + Unpin>;
+    fn list_runs(
+        &self,
+    ) -> Box<dyn Future<Output = Result<Vec<crate::models::Run>, Error<serde_json::Value>>> + Unpin>;
+    fn submit_run(
+        &self,
+        run_submit_simple_params: crate::models::RunSubmitSimpleParams,
+    ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>;
 }
 
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> DefaultApi
@@ -52,6 +59,28 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> Default
     fn is_dev(&self) -> Box<dyn Future<Output = Result<bool, Error<serde_json::Value>>> + Unpin> {
         let mut req =
             __internal_request::Request::new(hyper::Method::GET, "/system/is-dev".to_string());
+
+        // TODO: do not box here
+        Box::new(req.execute(self.configuration.borrow()))
+    }
+
+    fn list_runs(
+        &self,
+    ) -> Box<dyn Future<Output = Result<Vec<crate::models::Run>, Error<serde_json::Value>>> + Unpin>
+    {
+        let mut req = __internal_request::Request::new(hyper::Method::GET, "/runs".to_string());
+
+        // TODO: do not box here
+        Box::new(req.execute(self.configuration.borrow()))
+    }
+
+    fn submit_run(
+        &self,
+        run_submit_simple_params: crate::models::RunSubmitSimpleParams,
+    ) -> Box<dyn Future<Output = Result<crate::models::Run, Error<serde_json::Value>>> + Unpin>
+    {
+        let mut req = __internal_request::Request::new(hyper::Method::POST, "/runs".to_string());
+        req = req.with_body_param(run_submit_simple_params);
 
         // TODO: do not box here
         Box::new(req.execute(self.configuration.borrow()))

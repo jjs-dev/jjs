@@ -21,6 +21,10 @@ pub mod run {
     include!("./run.rs");
 }
 
+pub mod run_patch {
+    include!("./run_patch.rs");
+}
+
 pub mod run_submit_simple_params {
     include!("./run_submit_simple_params.rs");
 }

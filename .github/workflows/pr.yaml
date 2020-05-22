@@ -51,7 +51,7 @@ jobs:
         with:
           python-version: "3.8"
       - name: run python tests
-        run: "pip3 install pytest\ncd src\npip3 install -r apiserver/requirements.txt\npytest\n"
+        run: "pip3 install pytest\ncd src/apiserver\npip3 install -r requirements.txt\npython -m pytest\n"
   misspell:
     name: misspell
     runs-on: ubuntu-18.04

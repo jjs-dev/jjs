@@ -86,19 +86,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Contest"
-  "/runs/{id}":
-    get:
-      operationId: getRun
-      summary: Loads run by id
-      parameters:
-        - $ref: "#/components/parameters/run_id"
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Run"
     patch:
       operationId: patchRun
       summary: Modifies run
@@ -142,21 +129,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RunLiveStatusUpdate"
-  "/runs/{id}/source":
-    get:
-      operationId: getRunSource
-      summary: Returns run source as base64-encoded JSON string
-      parameters:
-        - $ref: "#/components/parameters/run_id"
-      responses:
-        200:
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: string
-        204:
-          description: run source is not available
   "/runs/{id}/binary":
     get:
       operationId: getRunBinary

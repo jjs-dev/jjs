@@ -30,7 +30,7 @@ enum CliArgs {
     /// Launch development version of JJS
     Run(run::Opts),
     /// Generate some code
-    Codegen,
+    Codegen(codegen::Opts),
 }
 
 fn task_clean() {
@@ -143,7 +143,7 @@ fn main() {
             None
         }
         CliArgs::Run(opts) => run::task_run(opts).err(),
-        CliArgs::Codegen => codegen::task_codegen().err(),
+        CliArgs::Codegen(opts) => codegen::task_codegen(opts).err(),
     };
     if let Some(err) = err {
         eprintln!("Error: {:?}", err);

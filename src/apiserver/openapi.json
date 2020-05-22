@@ -34,8 +34,8 @@
       },
       "Run": {
         "properties": {
-          "contest_id": {
-            "title": "Contest Id",
+          "contest_name": {
+            "title": "Contest Name",
             "type": "string"
           },
           "id": {
@@ -43,12 +43,20 @@
             "title": "Id",
             "type": "string"
           },
-          "problem_id": {
-            "title": "Problem Id",
+          "problem_name": {
+            "title": "Problem Name",
             "type": "string"
           },
-          "toolchain_id": {
-            "title": "Toolchain Id",
+          "status": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Status",
+            "type": "object"
+          },
+          "toolchain_name": {
+            "title": "Toolchain Name",
             "type": "string"
           },
           "user_id": {
@@ -59,12 +67,33 @@
         },
         "required": [
           "id",
-          "toolchain_id",
-          "problem_id",
+          "toolchain_name",
+          "problem_name",
           "user_id",
-          "contest_id"
+          "contest_name"
         ],
         "title": "Run",
+        "type": "object"
+      },
+      "RunPatch": {
+        "description": "Describes updates which will be applied to run",
+        "properties": {
+          "binary": {
+            "title": "Binary",
+            "type": "string"
+          },
+          "status": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Status",
+            "type": "array"
+          }
+        },
+        "title": "RunPatch",
         "type": "object"
       },
       "RunSubmitSimpleParams": {
@@ -129,6 +158,50 @@
   },
   "openapi": "3.0.2",
   "paths": {
+    "/queue": {
+      "post": {
+        "description": "Returns runs that should be judged\n\nAt most `limit` runs will be returned\n\nThese runs are immediately locked, to prevent resource wasting.\nHowever, this is not safe distributed lock: on timeout lock will\nbe released. It means, that in some rare situations same run can be judged\nseveral times. All judgings except one will be ignored.",
+        "operationId": "popRunFromQueue",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Run"
+                  },
+                  "title": "Response Route Pop From Invoke Queue Queue Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Pop From Invoke Queue"
+      }
+    },
     "/runs": {
       "get": {
         "description": "Lists runs\n\nThis operation returns all created runs",
@@ -189,6 +262,141 @@
         "summary": "Route Submit"
       }
     },
+    "/runs/{run_id}": {
+      "get": {
+        "description": "Loads run by id",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Get Run"
+      },
+      "patch": {
+        "description": "Modifies existing run\n\nSee `RunPatch` documentation for what can be updated.",
+        "operationId": "patchRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Run Patch"
+      }
+    },
+    "/runs/{run_id}/source": {
+      "get": {
+        "description": "Returns run source as base64-encoded JSON string",
+        "operationId": "getRunSource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Route Get Run Source Runs  Run Id  Source Get",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "Run source is not available"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Get Run Source"
+      }
+    },
     "/system/api-version": {
       "get": {
         "description": "Returns API version\n\nVersion is returned in format {major: MAJOR, minor: MINOR}.\nMAJOR component is incremented, when backwards-incompatible changes were made.\nMINOR component is incremented, when backwards-compatible changes were made.\n\nIt means, that if you tested application with apiVersion == X.Y, your application\nshould assert that MAJOR = X and MINOR >= Y",
@@ -210,7 +418,7 @@
     },
     "/system/is-dev": {
       "get": {
-        "description": "Returns if JJS is running in development mode.\n\nPlease note that you don't have to respect this information, but following is recommended:\n1. Display it in each page/view.\n2. Change theme.\n3. On login view, add button \"login as root\".",
+        "description": "Returns if JJS is running in development mode\n\nPlease note that you don't have to respect this information, but following is recommended:\n1. Display it in each page/view.\n2. Change theme.\n3. On login view, add button \"login as root\".",
         "operationId": "isDev",
         "responses": {
           "200": {

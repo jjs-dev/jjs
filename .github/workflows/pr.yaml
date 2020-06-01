@@ -185,6 +185,8 @@ jobs:
           toolchain: nightly-2020-05-01
           components: "clippy,rustfmt"
           override: true
+      - name: Log into Github Package Registry
+        run: "echo \"${{ secrets.GITHUB_TOKEN }}\" | docker login docker.pkg.github.com -u jjs-dev --password-stdin"
       - uses: actions/setup-python@v2
         with:
           python-version: "3.8"

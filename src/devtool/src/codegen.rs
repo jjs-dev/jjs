@@ -2,6 +2,13 @@ use anyhow::Context as _;
 use std::{path::Path, process::Command};
 use util::cmd::CommandExt as _;
 
+#[derive(structopt::StructOpt)]
+pub(crate) struct Opts {
+    /// Print debugging information (currently schema converted to v2)
+    #[structopt(long)]
+    debug: bool,
+}
+
 fn read_openapi() -> anyhow::Result<serde_json::Value> {
     let mut cmd = Command::new("python");
     cmd.arg("./main.py");
@@ -24,7 +31,7 @@ fn make_docker() -> Command {
 
 const IMAGE_NAME: &str = "docker.pkg.github.com/jjs-dev/openapi-gen/gen:latest";
 
-pub(crate) fn task_codegen() -> anyhow::Result<()> {
+pub(crate) fn task_codegen(opts: Opts) -> anyhow::Result<()> {
     println!("Obtaining schemas");
     let api_schema = read_openapi().context("get models")?;
     let out_path = "src/apiserver/openapi.json";
@@ -51,6 +58,9 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
         "type=bind,source={},target=/out",
         Path::new("./src/gen-api-client").canonicalize()?.display()
     ));
+    if opts.debug {
+        gen.arg("--env").arg("PRINT_CONVERTED_SCHEMA=1");
+    }
     gen.arg(IMAGE_NAME);
     gen.try_exec()?;
     {

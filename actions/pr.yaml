@@ -50,9 +50,9 @@ jobs:
       - name: run python tests
         run: |
           pip3 install pytest
-          cd src
-          pip3 install -r apiserver/requirements.txt
-          pytest
+          cd src/apiserver
+          pip3 install -r requirements.txt
+          python -m pytest
   misspell:
     name: misspell
     runs-on: "ubuntu-18.04"

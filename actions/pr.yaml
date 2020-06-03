@@ -159,6 +159,7 @@ jobs:
         run: sudo bash ci-data/free-space.sh
       - $include: sysdeps
       - $include: rustc
+      - $include: pkg-login
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'

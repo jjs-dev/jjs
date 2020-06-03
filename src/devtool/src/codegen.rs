@@ -22,20 +22,21 @@ fn make_docker() -> Command {
     }
 }
 
+const IMAGE_NAME: &str = "docker.pkg.github.com/jjs-dev/openapi-gen/gen:latest";
+
 pub(crate) fn task_codegen() -> anyhow::Result<()> {
     println!("Obtaining schemas");
     let api_schema = read_openapi().context("get models")?;
-    let out_path = "src/apiserver/openapi-gen.json";
+    let out_path = "src/apiserver/openapi.json";
     let schema = serde_json::to_string_pretty(&api_schema)?;
     std::fs::write(out_path, schema)?;
-    println!("Building generator");
-    if std::env::var("JJS_CODEGEN_DOCKER_NO_BUILD").is_err() {
+
+    println!("Pulling generator");
+    {
         let mut cmd = make_docker();
-        cmd.arg("build");
-        cmd.arg("-f").arg("./src/devtool/openapigen.Dockerfile");
-        cmd.arg("./src/devtool/scripts"); //just some random dir
-        cmd.arg("-t").arg("jjs-openapi-generator");
-        cmd.try_exec().context("failed to build docker image")?;
+        cmd.arg("pull");
+        cmd.arg(IMAGE_NAME);
+        cmd.try_exec()?;
     }
     println!("Running client codegen");
     let mut gen = make_docker();
@@ -43,32 +44,37 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
     gen.arg("--interactive").arg("--rm");
 
     gen.arg("--mount").arg(format!(
-        "type=bind,source={},target=/input",
+        "type=bind,source={},target=/in",
         Path::new("./src/apiserver").canonicalize()?.display()
     ));
     gen.arg("--mount").arg(format!(
-        "type=bind,source={},target=/output",
+        "type=bind,source={},target=/out",
         Path::new("./src/gen-api-client").canonicalize()?.display()
     ));
-    gen.arg("jjs-openapi-generator");
-    gen.arg("generate");
-    gen.arg("--input-spec").arg("/input/openapi-gen.json");
-    gen.arg("--output").arg("/output");
-    gen.arg("--generator-name").arg("rust");
+    gen.arg(IMAGE_NAME);
     gen.try_exec()?;
+    {
+        let manifest_path = "src/gen-api-client/Cargo.toml";
+        let old_content = std::fs::read_to_string(manifest_path)?;
+        let new_content = old_content.replace("[workspace]", "");
+        std::fs::write(manifest_path, new_content)?;
+    }
+    {
+        let main_path = "src/gen-api-client/lib.rs";
+        let old_content = std::fs::read_to_string(main_path)?;
+        let new_content = format!("{}{}", ALLOW, old_content);
+        std::fs::write(main_path, new_content)?;
+    }
     println!("Formatting");
     Command::new("cargo")
         .arg("fmt")
         .current_dir("src/gen-api-client")
         .try_exec()?;
-
-    let main_file_path = "src/gen-api-client/src/lib.rs";
-    let old_content = std::fs::read_to_string(main_file_path)?;
-    let new_content = format!(
-        "#![allow(dead_code)]\n#![allow(clippy::all)]\n{}",
-        old_content
-    );
-    std::fs::write(main_file_path, new_content)?;
-    std::fs::remove_file("src/gen-api-client/git_push.sh")?;
     Ok(())
 }
+
+const ALLOW: &str = r#"
+#![allow(clippy::borrow_interior_mutable_const)]
+#![allow(clippy::useless_conversion)]
+#![allow(clippy::wrong_self_convention)]
+"#;

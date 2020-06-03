@@ -1,5 +1,5 @@
 #![allow(clippy::borrow_interior_mutable_const)]
-#![allow(clippy::useless_conversion)]
+#![allow(clippy::identity_conversion)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]

@@ -75,6 +75,6 @@ pub(crate) fn task_codegen() -> anyhow::Result<()> {
 
 const ALLOW: &str = r#"
 #![allow(clippy::borrow_interior_mutable_const)]
-#![allow(clippy::useless_conversion)]
+#![allow(clippy::identity_conversion)]
 #![allow(clippy::wrong_self_convention)]
 "#;

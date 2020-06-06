@@ -2,7 +2,7 @@ status = [
 'hack',
 'style',
 'clippy',
-# 'cpp',
+'cpp',
 'unit-tests',
 'udeps',
 'codegen',

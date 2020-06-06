@@ -1,0 +1,12 @@
+[package]
+name = "dist-files-generator"
+version = "0.1.0"
+authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.3.14"
+serde = "1.0.111"
+util = {path = "../util"}
+anyhow = "1.0.31"
+fs_extra = "1.1.0"

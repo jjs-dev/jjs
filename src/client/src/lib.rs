@@ -1,9 +1,39 @@
-pub mod models {
-    pub use openapi::{api_version, run, run_submit_simple_params};
+use openapi::client::{ApiClient as ApiClientTrait, Client as RawClient};
+use std::sync::Arc;
+
+pub mod prelude {
+    pub use openapi::client::Sendable;
 }
-pub type ApiClient = openapi::client::Client;
+
+pub mod models {
+    pub use openapi::{api_version, run, run_patch, run_submit_simple_params, miscellaneous};
+}
+#[derive(Clone)]
+pub struct ApiClient {
+    inner: Arc<RawClient>,
+}
+
+#[async_trait::async_trait]
+impl ApiClientTrait for ApiClient {
+    type Request = <RawClient as ApiClientTrait>::Request;
+    type Response = <RawClient as ApiClientTrait>::Response;
+
+    fn request_builder(&self, method: http::Method, rel_path: &str) -> Self::Request {
+        self.inner.request_builder(method, rel_path)
+    }
+
+    async fn make_request(
+        &self,
+        req: Self::Request,
+    ) -> Result<Self::Response, openapi::client::ApiError<Self::Response>> {
+        self.inner.make_request(req).await
+    }
+}
+
 pub type Error = openapi::client::ApiError<serde_json::Value>;
-pub fn connect() -> ApiClient {
+
+/// Establishes connection to JJS API using environment-dependent methods
+pub async fn connect() -> anyhow::Result<ApiClient> {
     let mut configuration = openapi::client::ClientConfiguration::new();
 
     let base_path =
@@ -17,5 +47,6 @@ pub fn connect() -> ApiClient {
     };
     configuration.set_api_key(api_key);
 
-    ApiClient::new(configuration)
+    let inner = Arc::new(RawClient::new(configuration));
+    Ok(ApiClient { inner })
 }

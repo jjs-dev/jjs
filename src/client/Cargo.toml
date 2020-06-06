@@ -9,3 +9,6 @@ openapi = {path = "../gen-api-client"}
 hyper = "0.13.4"
 tokio = "0.2.18"
 serde_json = "1.0.51"
+http = "0.2.1"
+async-trait = "0.1.35"
+anyhow = "1.0.31"

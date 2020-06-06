@@ -1,4 +1,0 @@
-strategies:
-  - debootstrap
-  - trace
-auto: true

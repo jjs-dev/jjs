@@ -64,7 +64,7 @@ pub(crate) fn interpolate_string(
 }
 
 fn interpolate_command(
-    command: &entity::entities::toolchain::Command,
+    command: &super::toolchains::Command,
     dict: &HashMap<String, String>,
 ) -> Result<worker::Command, InterpolateError> {
     let mut res: worker::Command = Default::default();
@@ -82,7 +82,7 @@ fn interpolate_command(
 }
 
 pub(crate) fn get_common_interpolation_dict(
-    toolchain: &entity::Toolchain,
+    toolchain: &super::toolchains::Toolchain,
 ) -> HashMap<String, String> {
     let mut dict = HashMap::new();
     dict.insert("Invoker.Id".to_string(), String::from("inv"));
@@ -104,13 +104,11 @@ impl Controller {
     /// config.
     /// But ExtendedInvokeRequest **is** SSoT, and worker is completely isolated from other
     /// components.
-    pub(super) fn fetch_run_info(
+    pub(super) async fn fetch_run_info(
         &self,
         invoke_task: &InvokeTask,
         task_source_id: usize,
     ) -> anyhow::Result<ExtendedInvokeRequest> {
-        let run_root = &invoke_task.run_dir;
-
         let mut run_metadata = HashMap::new();
         let judge_time = {
             let time = chrono::prelude::Utc::now();
@@ -129,19 +127,23 @@ impl Controller {
         let (problem, problem_dir) = self
             .problem_loader
             .find(problem_name)
-            .context("unknown problem")?;
+            .await
+            .and_then(|opt| opt.ok_or_else(|| anyhow::anyhow!("unknown problem")))
+            .context("can not find problem")?;
 
         let toolchain = self
-            .entity_loader
-            .find::<entity::Toolchain>(&invoke_task.toolchain_id)
-            .ok_or_else(|| anyhow::anyhow!("toolchain {} not found", &invoke_task.toolchain_id))?;
+            .toolchain_loader
+            .resolve(&invoke_task.toolchain_id)
+            .await
+            .context("toolchain loading error")?;
 
-        let run_source = run_root.join("source");
         let temp_invocation_dir = tempfile::tempdir().context("failed to create temporary dir")?;
+        let run_source_temp_file = temp_invocation_dir.path().join("source");
+        
 
-        let out_dir = temp_invocation_dir.into_path();
+        let temp_invocation_dir = temp_invocation_dir.into_path();
         let interp_dict = {
-            let mut dict = get_common_interpolation_dict(toolchain);
+            let mut dict = get_common_interpolation_dict(&toolchain.configuration);
             for (k, v) in run_metadata {
                 dict.insert(format!("Run.Meta.{}", k), v);
             }
@@ -149,19 +151,20 @@ impl Controller {
         };
         let inv_req = InvokeRequest {
             compile_commands: toolchain
+                .configuration
                 .build_commands
                 .iter()
                 .map(|c| interpolate_command(c, &interp_dict))
                 .collect::<Result<_, _>>()
                 .context("invalid build commands template")?,
-            execute_command: interpolate_command(&toolchain.run_command, &interp_dict)
+            execute_command: interpolate_command(&toolchain.configuration.run_command, &interp_dict)
                 .context("invalid run command template")?,
-            compile_limits: toolchain.limits,
+            compile_limits: toolchain.configuration.limits,
             problem_dir: problem_dir.to_path_buf(),
-            source_file_name: toolchain.filename.clone(),
+            source_file_name: toolchain.configuration.filename.clone(),
             problem: problem.clone(),
-            run_source,
-            out_dir,
+            run_source: run_source_temp_file,
+            out_dir: temp_invocation_dir.clone(),
             invocation_id: invoke_task.invocation_id,
             global_dir: self.global_files_dir.to_path_buf(),
             toolchains_dir: self.toolchains_dir.to_path_buf(),
@@ -171,7 +174,7 @@ impl Controller {
             inner: inv_req,
             revision: invoke_task.revision,
             notifier: Notifier::new(invoke_task.invocation_id, source.clone()),
-            invocation_dir: invoke_task.invocation_dir.clone(),
+            invocation_dir: temp_invocation_dir,
             task_source: source,
         };
         Ok(req)

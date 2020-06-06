@@ -2,7 +2,8 @@
 jjs-check = "run --package devtool -- check"
 jjs-test = "run --package devtool -- test"
 jjs-clean = "run --package devtool -- clean"
-jjs-build = "run --package devtool -- build"
+jjs-build = "run --package dist-builder -- "
+jjs-gen = "run --package dist-files-generator -- "
 jjs-run = "run --package devtool -- run"
 jjs = "run --package devtool --"
 

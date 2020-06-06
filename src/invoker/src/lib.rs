@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, never_type, type_alias_impl_trait)]
+#![feature(proc_macro_hygiene, type_alias_impl_trait)]
 pub mod api;
 pub mod config;
 pub mod controller;

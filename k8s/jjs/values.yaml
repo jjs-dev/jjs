@@ -1,0 +1,9 @@
+replicaCount: 1
+
+image:
+  repositoryPrefix: cr.yandex/crpnhs4sen6hhp1m1mmq/
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+imagePullSecrets: []
+

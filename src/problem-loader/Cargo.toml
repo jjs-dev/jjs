@@ -9,3 +9,12 @@ edition = "2018"
 pom = {path = "../pom"}
 anyhow = "1.0.28"
 serde_json = "1.0.51"
+async-trait = "0.1.33"
+tokio = {version = "0.2.21", features = ["fs"]}
+fs_extra = "1.1.0"
+mongodb = "0.11.0"
+url = "2.1.1"
+bson = "0.15.0"
+flate2 = "1.0.14"
+tar = "0.4.28"
+serde = "1.0.111"

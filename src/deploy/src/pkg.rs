@@ -15,5 +15,4 @@ pub(crate) trait Package {
 pub(crate) enum PackageComponentKind {
     Core,
     Tools,
-    Extra,
 }

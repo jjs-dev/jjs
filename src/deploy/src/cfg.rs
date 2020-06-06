@@ -33,7 +33,6 @@ pub struct ComponentsConfig {
     pub archive: bool,
     pub tools: bool,
     pub core: bool,
-    pub extras: bool,
     pub json_schema: bool,
     pub example_problems: bool,
     pub rustdoc: bool,

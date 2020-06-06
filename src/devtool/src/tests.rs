@@ -13,9 +13,6 @@ pub(crate) struct TestArgs {
     pub(crate) fail_fast: bool,
     #[structopt(long)]
     skip_unit: bool,
-    /// Run minion-ffi tests
-    #[structopt(long)]
-    minion_ffi: bool,
     /// Nocapture e2e
     #[structopt(long)]
     nocapture: bool,
@@ -87,20 +84,12 @@ fn run_unit_tests(args: &TestArgs, runner: &Runner) {
     cmd.run_on(runner);
 }
 
-fn run_minion_ffi_tests(runner: &Runner) {
-    crate::check::build_minion_ffi_tests(runner);
-    Command::new("./src/minion-ffi/tests/cmake-build-debug/mft").run_on(runner);
-}
-
 pub(crate) fn task_test(args: TestArgs, runner: &Runner) -> anyhow::Result<()> {
     if !args.skip_unit {
         run_unit_tests(&args, runner);
     }
     if args.integration_tests {
         run_integ_test(runner, args.nocapture)?;
-    }
-    if args.minion_ffi {
-        run_minion_ffi_tests(runner);
     }
     Ok(())
 }

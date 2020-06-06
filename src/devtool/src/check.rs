@@ -38,20 +38,6 @@ fn shellcheck(runner: &Runner) {
     }
 }
 
-pub(crate) fn build_minion_ffi_tests(runner: &Runner) {
-    info!("building minion-ffi tests");
-    std::fs::create_dir("src/minion-ffi/tests/cmake-build-debug").ok();
-    Command::new(cmake_bin())
-        .current_dir("./src/minion-ffi/tests/cmake-build-debug")
-        .arg("..")
-        .run_on(runner);
-    Command::new(cmake_bin())
-        .current_dir("./src/minion-ffi/tests/cmake-build-debug")
-        .arg("--build")
-        .arg(".")
-        .run_on(runner);
-}
-
 fn pvs(runner: &Runner) {
     Command::new("pvs-studio-analyzer")
         .current_dir("./jtl-cpp/cmake-build-debug")
@@ -119,9 +105,6 @@ pub struct CheckOpts {
     /// Run shellcheck
     #[structopt(long)]
     shellcheck: bool,
-    /// Build minion-ffi tests
-    #[structopt(long)]
-    minion_ffi: bool,
     /// Build testlib
     #[structopt(long)]
     testlib: bool,
@@ -150,9 +133,6 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     }
     if opts.shellcheck || !opts.no_default {
         shellcheck(runner);
-    }
-    if opts.minion_ffi || !opts.no_default {
-        build_minion_ffi_tests(runner);
     }
     if opts.testlib || !opts.no_default {
         check_testlib(runner);

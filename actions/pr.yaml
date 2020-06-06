@@ -100,8 +100,6 @@ jobs:
       - $include: rustc
       - name: compile testlib
         run: cargo jjs-check --no-default --testlib
-      - name: compile minion-ffi tests
-        run: cargo jjs-check --no-default --minion-ffi
       - name: Run PVS
         run: cargo jjs-check --no-default --pvs
         env:

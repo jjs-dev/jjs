@@ -49,7 +49,6 @@ impl Package for BinPackages {
         for i in 0..self.pkgs.len() {
             let res = match self.pkgs[i].component_kind {
                 PackageComponentKind::Core => sctx.components_cfg().core,
-                PackageComponentKind::Extra => sctx.components_cfg().extras,
                 PackageComponentKind::Tools => sctx.components_cfg().tools,
             };
             if res {
@@ -86,47 +85,6 @@ impl Package for BinPackages {
             if let Some(i) = i {
                 ictx.add_bin_pkg(&self.pkgs[*i].package_name, &self.pkgs[*i].install_name);
             }
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct MinionFfiPackage {
-    selected: Option<bool>,
-    path: Option<PathBuf>,
-}
-
-impl Package for MinionFfiPackage {
-    fn check_selected(&mut self, sctx: &SelCtx) {
-        self.selected = Some(sctx.components_cfg().extras);
-    }
-
-    fn selected(&self) -> bool {
-        self.selected.unwrap()
-    }
-
-    fn build(&self, bctx: &BuildCtx) {
-        let st = bctx
-            .cargo_build()
-            .args(&["-p", "minion-ffi"])
-            .status()
-            .unwrap()
-            .success();
-        assert_eq!(st, true);
-    }
-
-    fn install(&self, inst_mgr: &InstallCtx) {
-        inst_mgr.add_dylib_pkg("minion-ffi", "jjs_minion_ffi");
-        inst_mgr.add_header("minion-ffi", "minion-ffi");
-        inst_mgr.add_header("minion-ffi-prepend", "minion-ffi-prepend");
-    }
-}
-
-impl MinionFfiPackage {
-    pub(crate) fn new() -> Self {
-        Self {
-            selected: None,
-            path: None,
         }
     }
 }

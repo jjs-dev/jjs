@@ -59,11 +59,6 @@ fn create_registry() -> Registry {
         "jjs-configure-toolchains",
         PackageComponentKind::Tools,
     );
-    add_bin("minion-cli", "jjs-minion-cli", PackageComponentKind::Extra);
-    {
-        let minion_ffi = packages::MinionFfiPackage::new();
-        reg.add(minion_ffi);
-    }
     reg.add(BinPackages::new(bin_pkgs));
 
     reg

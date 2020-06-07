@@ -1,4 +1,5 @@
 import fastapi
+import auth
 import db_models
 import api_models
 import uuid
@@ -86,8 +87,8 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return api_models.ApiVersion(major=0, minor=0)
 
     @app.post('/runs', response_model=api_models.Run,
-              operation_id="submitRun")
-    def route_submit(params: RunSubmitSimpleParams):
+              operation_id="submitRun", dependencies=fastapi.Depends(auth.authenticate))
+    def route_submit(params: RunSubmitSimpleParams, db = fastapi.Depends(db_connect)):
         """
         Submits new run
 
@@ -95,7 +96,6 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         judging. Created run will be returned. All fields against `id` will match
         fields of request body; `id` will be real id of this run.
         """
-        db = db_connect()
         run_uuid = uuid.uuid4()
         user_id = uuid.UUID('12345678123456781234567812345678')
         doc_main = db_models.RunMainProj(id=run_uuid, toolchain_name=params.toolchain,

@@ -1,8 +1,26 @@
-import uuid
+from bson import ObjectId
 from enum import Enum
-import time
 import typing
 from pydantic import BaseModel, Field
+
+
+class Id(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not isinstance(v, ObjectId):
+            raise TypeError('ObjectId required')
+        return str(v)
+
+    @classmethod
+    def __modify_schema__(cls, schema):
+        schema.update({
+            'Title': 'Object ID',
+            'type': 'string'
+        })
 
 
 class RunPhase(Enum):
@@ -24,10 +42,9 @@ class RunPhase(Enum):
 
 
 class RunMainProj(BaseModel):
-    id: uuid.UUID
     toolchain_name: str
     problem_name: str
-    user_id: uuid.UUID
+    user_id: Id
     contest_name: str
     phase: str  # RunPhase
     status: typing.Mapping[str, str] = Field(default_factory=dict)
@@ -37,7 +54,7 @@ class RunMainProj(BaseModel):
     """
 
 
-RunMainProj.FIELDS = ['id', 'toolchain_name',
+RunMainProj.FIELDS = ['toolchain_name',
                       'problem_name', 'user_id', 'contest_name', 'status']
 
 

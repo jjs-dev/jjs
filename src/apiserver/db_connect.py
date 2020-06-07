@@ -28,8 +28,8 @@ def db_connect_url(db_url: str) -> pymongo.database.Database:
 
 def db_connect_via_env() -> pymongo.database.Database:
     """
-    Connects to MongoDB database using URL in DATABASE_URL
+    Connects to MongoDB database using URL in MONGODB_CONNECTION_STRING
     environment variable. See `db_connect_url` function for url format.
     """
-    db_url = os.environ["DATABASE_URL"]
+    db_url = os.environ["MONGODB_CONNECTION_STRING"]
     return db_connect_url(db_url)

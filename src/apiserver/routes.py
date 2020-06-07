@@ -83,11 +83,12 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         It means, that if you tested application with apiVersion == X.Y, your application
         should assert that MAJOR = X and MINOR >= Y
         """
+
         return api_models.ApiVersion(major=0, minor=0)
 
     @app.post('/runs', response_model=api_models.Run,
               operation_id="submitRun")
-    def route_submit(params: RunSubmitSimpleParams):
+    def route_submit(params: RunSubmitSimpleParams, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Submits new run
 
@@ -95,12 +96,11 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         judging. Created run will be returned. All fields against `id` will match
         fields of request body; `id` will be real id of this run.
         """
-        db = db_connect()
+
         run_uuid = uuid.uuid4()
         user_id = uuid.UUID('12345678123456781234567812345678')
         doc_main = db_models.RunMainProj(id=run_uuid, toolchain_name=params.toolchain,
                                          problem_name=params.problem, user_id=user_id, contest_name=params.contest, phase=str(db_models.RunPhase.QUEUED))
-
         doc_source = db_models.RunSourceProj(
             source=base64.b64decode(params.code))
         doc = {**dict(doc_main), **dict(doc_source)}
@@ -109,13 +109,12 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
 
     @app.get('/runs', response_model=typing.List[api_models.Run],
              operation_id='listRuns')
-    def route_list_runs():
+    def route_list_runs(db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Lists runs
 
         This operation returns all created runs
         """
-        db = db_connect()
 
         runs = db.runs.find(
             projection=db_models.RunMainProj.FIELDS)
@@ -123,16 +122,14 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return runs
 
     @app.get('/runs/{run_id}', response_model=api_models.Run, operation_id='getRun')
-    def route_get_run(run_id: uuid.UUID):
+    def route_get_run(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Loads run by id
         """
-        db = db_connect()
 
         run = db.runs.find_one(projection=db_models.RunMainProj.FIELDS, filter={
             'id': run_id
         })
-
         if run is None:
             raise fastapi.HTTPException(404, detail='RunNotFound')
         return api_models.Run.from_db(run)
@@ -142,11 +139,10 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
             'description': "Run source is not available"
         }
     })
-    def route_get_run_source(run_id: uuid.UUID):
+    def route_get_run_source(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Returns run source as base64-encoded JSON string
         """
-        db = db_connect()
 
         doc = db.runs.find_one(projection=['source'], filter={
             'id': run_id
@@ -158,13 +154,12 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return base64.b64encode(doc['source'])
 
     @app.patch('/runs/{run_id}', response_model=api_models.Run, operation_id='patchRun')
-    def route_run_patch(run_id: uuid.UUID, patch: RunPatch):
+    def route_run_patch(run_id: uuid.UUID, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Modifies existing run
 
         See `RunPatch` documentation for what can be updated.
         """
-        db = db_connect()
 
         p = {
             '$set': {
@@ -189,7 +184,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
 
     @app.post('/queue', response_model=typing.List[api_models.Run],
               operation_id='popRunFromQueue')
-    def route_pop_from_invoke_queue(limit: int):
+    def route_pop_from_invoke_queue(limit: int, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Returns runs that should be judged
 
@@ -200,7 +195,6 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         be released. It means, that in some rare situations same run can be judged
         several times. All judgings except one will be ignored.
         """
-        db = db_connect()
 
         runs = []
         for _ in range(limit):

@@ -41,7 +41,7 @@ jobs:
         ports:
           - 27017:27017
     env:
-      DATABASE_URL: mongodb://localhost:27017/jjs
+      MONGODB_CONNECTION_STRING: mongodb://localhost:27017
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2

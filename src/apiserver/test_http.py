@@ -48,7 +48,7 @@ def delete_all_containers():
     if CREATED_CONTAINER is None:
         return
     subprocess.check_call(
-        [get_container_manager_name(), "rm", "--force", CREATED_CONTAINER])
+        [get_container_manager_name(), "rm", "--force", "-v", CREATED_CONTAINER])
 
 
 CONNECTION_COUNTER = iter(range(0, 2**32))
@@ -56,7 +56,12 @@ CONNECTION_COUNTER = iter(range(0, 2**32))
 
 def create_test_client() -> TestClient:
     id = next(CONNECTION_COUNTER)
-    app = routes.create_app(lambda: connect_via_container(id))
+    if "MONGODB_CONNECTION_STRING" in os.environ:
+        database_url = os.environ["MONGODB_CONNECTION_STRING"]
+        conn_str = f"{database_url}/jjs-{id}"
+        app = routes.create_app(lambda: db_connect.db_connect_url(conn_str))
+    else:
+        app = routes.create_app(lambda: connect_via_container(id))
     return TestClient(app)
 
 

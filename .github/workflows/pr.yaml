@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - uses: actions/setup-python@v2
@@ -44,7 +44,7 @@ jobs:
         ports:
           - "27017:27017"
     env:
-      DATABASE_URL: "mongodb://localhost:27017/jjs"
+      MONGODB_CONNECTION_STRING: "mongodb://localhost:27017"
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -69,7 +69,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: check rust code formatting
@@ -87,7 +87,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Run clippy
@@ -110,7 +110,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: compile testlib
@@ -129,7 +129,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Run tests
@@ -146,7 +146,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Get Rust version
@@ -180,7 +180,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Log into Github Package Registry

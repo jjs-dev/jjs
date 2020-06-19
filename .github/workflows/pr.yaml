@@ -191,3 +191,12 @@ jobs:
       - run: pip install -r src/apiserver/requirements.txt
       - run: cargo jjs codegen
       - run: git diff --exit-code
+      - if: failure()
+        name: Collect some information
+        run: "echo Collecting git patch\ngit diff -p > /tmp/patch\n"
+      - if: failure()
+        name: Upload patch
+        uses: actions/upload-artifact@v2
+        with:
+          name: codegen-diff
+          path: /tmp/patch

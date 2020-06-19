@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - uses: actions/setup-python@v2
@@ -69,7 +69,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: check rust code formatting
@@ -87,7 +87,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Run clippy
@@ -110,7 +110,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: compile testlib
@@ -129,7 +129,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Run tests
@@ -146,7 +146,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Get Rust version
@@ -180,7 +180,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-05-01
+          toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
       - name: Log into Github Package Registry
@@ -191,3 +191,12 @@ jobs:
       - run: pip install -r src/apiserver/requirements.txt
       - run: cargo jjs codegen
       - run: git diff --exit-code
+      - if: failure()
+        name: Collect some information
+        run: "echo Collecting git patch\ngit diff -p > /tmp/patch\n"
+      - if: failure()
+        name: Upload patch
+        uses: actions/upload-artifact@v2
+        with:
+          name: codegen-diff
+          path: /tmp/patch

@@ -32,6 +32,7 @@ pub struct DockerConfig {
     pub build_options: Vec<String>,
     /// None => default tag used
     pub tag: Option<String>,
+    pub write_tags_to_file: Option<PathBuf>,
 }
 
 /// Describes which components should be build

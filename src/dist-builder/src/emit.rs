@@ -1,6 +1,6 @@
 use crate::{artifact::Artifact, cfg::DockerConfig, package::OtherPackage, Params};
 use anyhow::Context as _;
-use std::{path::Path, process::Command};
+use std::{io::Write, path::Path, process::Command};
 use util::cmd::CommandExt;
 
 pub(crate) struct DockerEmitter;
@@ -21,10 +21,18 @@ impl DockerEmitter {
             .clone()
             .unwrap_or_else(|| "jjs-%:latest".to_string())
             .replace('%', pkg_name);
-        cmd.arg("-t").arg(tag);
+        cmd.arg("-t").arg(&tag);
         cmd.arg(docker_context);
         cmd.try_exec()
             .with_context(|| format!("Failed to build image for package {}", pkg_name))?;
+        if let Some(tag_log) = &options.write_tags_to_file {
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(tag_log)
+                .context("docker tag log unaccessible")?;
+            writeln!(file, "{}", tag)?;
+        }
         Ok(())
     }
 

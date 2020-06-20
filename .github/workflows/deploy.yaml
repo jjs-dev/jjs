@@ -13,47 +13,16 @@ jobs:
     name: docker
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: bash scripts/ci-env.sh
-      - name: cargo jjs-build
-        run: cargo jjs-build
-        env:
-          JJS_DT_DEPLOY: docker
-      - name: upload docker images
-        run: "docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com\ndocker login --username mikailbag --password ${{ secrets.DOCKER_HUB_TOKEN }}\ndocker tag jjs:latest mikailbag/jjs:latest\ndocker push mikailbag/jjs\ndocker tag jjs:latest docker.pkg.github.com/jjs-dev/jjs/jjs:master\ndocker push docker.pkg.github.com/jjs-dev/jjs/jjs:master\n"
-  deb:
-    name: deb
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-      - name: Setup env
-        run: bash scripts/ci-env.sh
-      - name: Build debian package
-        run: cargo jjs-build
-        env:
-          JJS_DT_DEPLOY: deb
-      - name: Publish debian package artifact
-        uses: actions/upload-artifact@v1
+      - uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          name: jjs-amd64.deb
-          path: /opt/jjs/pkg/jjs.deb
-  man:
-    name: man
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-      - name: install global dependencies
-        run: "bash scripts/ci-env.sh\ncargo install mdbook --no-default-features\n"
-      - name: cargo jjs-build
-        run: cargo jjs-build
-        env:
-          JJS_DT_DEPLOY: man
-      - name: copy man
-        run: "mkdir ./built-docs\ncp -r /opt/jjs/share/docs/* ./built-docs\n"
-      - name: upload man
-        uses: peaceiris/actions-gh-pages@v2
-        env:
-          ACTIONS_DEPLOY_KEY: "${{ secrets.ACTIONS_DEPLOY_KEY }}"
-          PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: "./built-docs"
+          toolchain: nightly-2020-06-03
+          components: "clippy,rustfmt"
+          override: true
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Build images
+        run: "mkdir artifacts\nDOCKER_OPT=\"--enable-docker --docker-tag=% --docker-tags-log=/tmp/taglog.txt --with-docker=docker\"\ncargo jjs-build --out artifacts $DOCKER_OPT --enable=apiserver --enable=invoker\n"
+      - name: Upload images
+        run: "docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com\necho \"${{ secrets.GCR_UPLOAD_JSON_KEY }}\" | base64 --decode | docker login --username _json_key --password-stdin gcr.io\npython3 ci-data/push_images.py\n"

@@ -175,7 +175,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
                         "RunPatch.status[*] must have length exactly 2")
                 p['$set'][f"status.{status_to_add[0]}"] = status_to_add[1]
         updated_run = db.runs.find_one_and_update(
-            {'id': run_id}, p, projection=db_models.RunMainProj.FIELDS, return_document=pymongo.ReturnDocument.AFTER)
+            {'_id': ObjectId(run_id)}, p, projection=db_models.RunMainProj.FIELDS, return_document=pymongo.ReturnDocument.AFTER)
         if updated_run is None:
             raise fastapi.HTTPException(404, 'RunNotFound')
         return updated_run

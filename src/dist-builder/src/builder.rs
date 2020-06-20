@@ -41,7 +41,7 @@ impl<'a> Builder<'a> {
         cmd.arg("--out-dir").arg(self.params.build.join("jjs-out"));
         cmd.arg("-Zpackage-features");
         for feat in &self.params.cfg.build.features {
-           cmd.arg("--features").arg(feat);
+            cmd.arg("--features").arg(feat);
         }
         cmd.arg("--locked");
         for pkg in &self.packages {

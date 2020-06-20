@@ -6,7 +6,7 @@ pub mod prelude {
 }
 
 pub mod models {
-    pub use openapi::{api_version, run, run_patch, run_submit_simple_params, miscellaneous};
+    pub use openapi::{api_version, miscellaneous, run, run_patch, run_submit_simple_params};
 }
 #[derive(Clone)]
 pub struct ApiClient {

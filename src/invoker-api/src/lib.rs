@@ -93,7 +93,7 @@ pub struct InvokeTask {
     /// Invocation id (will be preserved by invoker)
     pub invocation_id: uuid::Uuid,
     /// Run source
-    pub run_source: Vec<u8>
+    pub run_source: Vec<u8>,
 }
 
 /// Pass this to invoker running in CLI mode

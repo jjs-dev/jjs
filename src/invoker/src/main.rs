@@ -158,7 +158,12 @@ async fn get_config_from_k8s_inner() -> anyhow::Result<Option<invoker::config::I
     let incluster_config = match kube::Config::from_cluster_env() {
         Ok(conf) => conf,
         Err(err) => {
-            let is_caused_by_non_k8s_environment = matches!(&err, kube::error::Error::Kubeconfig(kube::error::ConfigError::MissingInClusterVariables{..}));
+            let is_caused_by_non_k8s_environment = matches!(
+                &err,
+                kube::error::Error::Kubeconfig(
+                    kube::error::ConfigError::MissingInClusterVariables { .. },
+                )
+            );
             if is_caused_by_non_k8s_environment {
                 return Ok(None);
             } else {
@@ -167,18 +172,28 @@ async fn get_config_from_k8s_inner() -> anyhow::Result<Option<invoker::config::I
         }
     };
     let namespace = incluster_config.default_ns.clone();
-    log::info!("Discovered Kuberentes API-server: url={} ns={}", &incluster_config.cluster_url, &incluster_config.default_ns);
+    log::info!(
+        "Discovered Kuberentes API-server: url={} ns={}",
+        &incluster_config.cluster_url,
+        &incluster_config.default_ns
+    );
     let client = kube::Client::new(incluster_config);
 
-    let configmaps_api = kube::Api::<k8s_openapi::api::core::v1::ConfigMap>::namespaced(client, &namespace);
+    let configmaps_api =
+        kube::Api::<k8s_openapi::api::core::v1::ConfigMap>::namespaced(client, &namespace);
     let config_map_name = std::env::var("CONFIGMAP").unwrap_or_else(|_| "jjs-config".to_string());
-    
-    let configmap = configmaps_api.get(&config_map_name).await.context("can not read ConfigMap with configuration")?;
 
-    let config_map_key_name = std::env::var("CONFIGMAP_KEY").unwrap_or_else(|_| "judge".to_string());
+    let configmap = configmaps_api
+        .get(&config_map_name)
+        .await
+        .context("can not read ConfigMap with configuration")?;
+
+    let config_map_key_name =
+        std::env::var("CONFIGMAP_KEY").unwrap_or_else(|_| "judge".to_string());
     let config_data = match &configmap.data {
         Some(data) => data.get(&config_map_key_name),
-        None => None
-    }.context("ConfigMap does not have key with configuration")?;
+        None => None,
+    }
+    .context("ConfigMap does not have key with configuration")?;
     serde_yaml::from_str(&config_data).context("config parse error")
 }

@@ -91,9 +91,11 @@ pub(crate) struct Worker {
 }
 
 impl Worker {
-    pub(crate) fn new(config: crate::config::InvokerConfig) ->anyhow::Result< Worker> {
+    pub(crate) fn new(config: crate::config::InvokerConfig) -> anyhow::Result<Worker> {
         Ok(Worker {
-            minion: minion::erased::setup().context("minion initialization failed")?.into(),
+            minion: minion::erased::setup()
+                .context("minion initialization failed")?
+                .into(),
             config,
         })
     }

@@ -19,7 +19,7 @@ pub struct BuildConfig {
     pub profile: BuildProfile,
     pub target: Option<String>,
     pub tool_info: ToolInfo,
-    pub features: Vec<String>
+    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

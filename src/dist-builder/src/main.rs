@@ -24,7 +24,7 @@ use crate::{
     package::{OtherPackage, RustPackage, Section},
 };
 use anyhow::Context as _;
-use std::{path::PathBuf};
+use std::path::PathBuf;
 use structopt::StructOpt as _;
 
 #[derive(structopt::StructOpt)]
@@ -73,7 +73,7 @@ struct Opt {
     docker_name: Option<String>,
     /// Features to enable
     #[structopt(long = "enable-feature")]
-    features: Vec<String>
+    features: Vec<String>,
 }
 
 fn find_docker<'a>() -> &'a str {
@@ -110,7 +110,7 @@ fn main() {
         target: opt.target.clone(),
         profile,
         tool_info,
-        features: opt.features.clone()
+        features: opt.features.clone(),
     };
     let mut comps_config = cfg::ComponentsConfig {
         components: Vec::new(),

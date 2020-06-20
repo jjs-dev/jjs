@@ -5,14 +5,15 @@ use log::debug;
 use tokio::io::AsyncBufReadExt;
 
 async fn convert_task(cli_invoke_task: CliInvokeTask) -> anyhow::Result<InvokeTask> {
-    let run_source =
-        tokio::fs::read(&cli_invoke_task.run_source).await.context("run_source not readable")?;
+    let run_source = tokio::fs::read(&cli_invoke_task.run_source)
+        .await
+        .context("run_source not readable")?;
     Ok(InvokeTask {
         revision: cli_invoke_task.revision,
         toolchain_id: cli_invoke_task.toolchain_id,
         problem_id: cli_invoke_task.problem_id,
         invocation_id: cli_invoke_task.invocation_id,
-        run_source
+        run_source,
     })
 }
 async fn read_worker_iteration(

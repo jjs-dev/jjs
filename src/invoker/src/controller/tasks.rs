@@ -139,7 +139,6 @@ impl Controller {
 
         let temp_invocation_dir = tempfile::tempdir().context("failed to create temporary dir")?;
         let run_source_temp_file = temp_invocation_dir.path().join("source");
-        
 
         let temp_invocation_dir = temp_invocation_dir.into_path();
         let interp_dict = {
@@ -157,8 +156,11 @@ impl Controller {
                 .map(|c| interpolate_command(c, &interp_dict))
                 .collect::<Result<_, _>>()
                 .context("invalid build commands template")?,
-            execute_command: interpolate_command(&toolchain.configuration.run_command, &interp_dict)
-                .context("invalid run command template")?,
+            execute_command: interpolate_command(
+                &toolchain.configuration.run_command,
+                &interp_dict,
+            )
+            .context("invalid run command template")?,
             compile_limits: toolchain.configuration.limits,
             problem_dir: problem_dir.to_path_buf(),
             source_file_name: toolchain.configuration.filename.clone(),

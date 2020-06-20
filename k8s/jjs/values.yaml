@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repositoryPrefix: cr.yandex/crpnhs4sen6hhp1m1mmq/
+  repositoryPrefix: docker.pkg.github.com/jjs-dev/jjs/
   # Overrides the image tag whose default is the chart appVersion.
   tag: latest
 

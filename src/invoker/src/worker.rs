@@ -85,17 +85,17 @@ pub(crate) enum Response {
 
 pub(crate) struct Worker {
     /// Minion backend to use for invocations
-    minion: Arc<dyn minion::Backend>,
+    minion: Arc<dyn minion::erased::Backend>,
     /// Invoker configuration
     config: crate::config::InvokerConfig,
 }
 
 impl Worker {
-    pub(crate) fn new(config: crate::config::InvokerConfig) -> Worker {
-        Worker {
-            minion: minion::setup().into(),
+    pub(crate) fn new(config: crate::config::InvokerConfig) ->anyhow::Result< Worker> {
+        Ok(Worker {
+            minion: minion::erased::setup().context("minion initialization failed")?.into(),
             config,
-        }
+        })
     }
 
     async fn recv(&self) -> Option<Request> {
@@ -294,7 +294,7 @@ pub async fn main() -> anyhow::Result<()> {
     let config_data = std::env::var("__JJS_WORKER_INVOKER_CONFIG")
         .context("__JJS_WORKER_INVOKER_CONFIG missing")?;
     let config = serde_json::from_str(&config_data)?;
-    let w = Worker::new(config);
+    let w = Worker::new(config).context("worker initialization failed")?;
     w.main_loop().await;
     Ok(())
 }

@@ -766,12 +766,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "doc-comment"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
-
-[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1646,7 +1640,7 @@ dependencies = [
 [[package]]
 name = "minion"
 version = "0.1.0"
-source = "git+https://github.com/jjs-dev/minion#ff7c55548a1c74dad643be027c3fbe05da7d5290"
+source = "git+https://github.com/jjs-dev/minion#6e2544dbb9331145fda12a665af97e56acdf2ea2"
 dependencies = [
  "backtrace",
  "errno",
@@ -1656,7 +1650,6 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "snafu",
  "thiserror",
  "tiny-nix-ipc",
 ]
@@ -1835,7 +1828,7 @@ dependencies = [
 [[package]]
 name = "nix"
 version = "0.17.0"
-source = "git+https://github.com/nix-rust/nix#93af76f1bdb2cbbe301a48f6a30c9b0ea00a839d"
+source = "git+https://github.com/nix-rust/nix#ea099dd0c817837805faf8fdead4a6b875b66972"
 dependencies = [
  "bitflags",
  "cc",
@@ -2829,27 +2822,6 @@ name = "smallvec"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7cb5678e1615754284ec264d9bb5b4c27d2018577fd90ac0ceb578591ed5ee4"
-
-[[package]]
-name = "snafu"
-version = "0.6.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5aed652511f5c9123cf2afbe9c244c29db6effa2abb05c866e965c82405ce"
-dependencies = [
- "doc-comment",
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.6.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebf8f7d5720104a9df0f7076a8682024e958bba0fe9848767bb44f251f3648e9"
-dependencies = [
- "proc-macro2 1.0.13",
- "quote 1.0.6",
- "syn 1.0.22",
-]
 
 [[package]]
 name = "socket2"

@@ -4,7 +4,6 @@ use crate::worker::{invoke_util, os_util, InvokeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use log::error;
-use minion::Dominion as _;
 use std::{fs, io::Write, path::PathBuf};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
@@ -21,7 +20,7 @@ pub(crate) struct ExecOutcome {
 pub(crate) struct TestExecutor<'a> {
     pub(crate) exec: ExecRequest<'a>,
     pub(crate) req: &'a InvokeRequest,
-    pub(crate) minion: &'a dyn minion::Backend,
+    pub(crate) minion: &'a dyn minion::erased::Backend,
     pub(crate) config: &'a crate::config::InvokerConfig,
 }
 
@@ -76,7 +75,7 @@ impl<'a> TestExecutor<'a> {
         invoke_util::command_set_from_inv_req(&mut native_command, &command);
         invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
-        native_command.dominion(sandbox.dominion.clone());
+        native_command.sandbox(sandbox.sandbox.clone());
 
         // capture child input
         native_command.stdin(minion::InputSpecification::pipe());
@@ -107,7 +106,7 @@ impl<'a> TestExecutor<'a> {
             .context("failed to wait for child")?;
 
         let resource_usage = sandbox
-            .dominion
+            .sandbox
             .resource_usage()
             .context("cannot get resource usage")?;
 

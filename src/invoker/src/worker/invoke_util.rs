@@ -8,7 +8,7 @@ use std::{
 };
 
 pub(crate) struct Sandbox {
-    pub(crate) dominion: minion::DominionRef,
+    pub(crate) sandbox: Box<dyn minion::erased::Sandbox>,
     umount: Option<PathBuf>,
 }
 
@@ -38,7 +38,7 @@ static DEFAULT_HOST_MOUNTS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync
 pub(crate) fn create_sandbox(
     req: &InvokeRequest,
     test_id: Option<u32>,
-    backend: &dyn minion::Backend,
+    backend: &dyn minion::erased::Backend,
     config: &crate::config::InvokerConfig,
 ) -> anyhow::Result<Sandbox> {
     let mut exposed_paths = vec![];
@@ -49,10 +49,10 @@ pub(crate) fn create_sandbox(
             .unwrap_or_else(|| &*DEFAULT_HOST_MOUNTS);
         for item in dirs {
             let item = format!("/{}", item);
-            let peo = minion::PathExpositionOptions {
+            let peo = minion::SharedDir {
                 src: item.clone().into(),
                 dest: item.into(),
-                access: minion::DesiredAccess::Readonly,
+                kind: minion::SharedDirKind::Readonly,
             };
             exposed_paths.push(peo)
         }
@@ -72,10 +72,10 @@ pub(crate) fn create_sandbox(
                 );
             }
             let name = item.file_name();
-            let peo = minion::PathExpositionOptions {
+            let peo = minion::SharedDir {
                 src: toolchains_dir.join(&name),
                 dest: PathBuf::from(&name),
-                access: minion::DesiredAccess::Readonly,
+                kind: minion::SharedDirKind::Readonly,
             };
             exposed_paths.push(peo)
         }
@@ -101,16 +101,16 @@ pub(crate) fn create_sandbox(
     {
         umount_path = None;
     }
-    exposed_paths.push(minion::PathExpositionOptions {
+    exposed_paths.push(minion::SharedDir {
         src: out_dir.join("data"),
         dest: PathBuf::from("/jjs"),
-        access: minion::DesiredAccess::Full,
+        kind: minion::SharedDirKind::Full,
     });
     let cpu_time_limit = Duration::from_millis(limits.time() as u64);
     let real_time_limit = Duration::from_millis(limits.time() * 3 as u64);
     std::fs::create_dir(out_dir.join("root")).context("failed to create chroot dir")?;
     // TODO adjust integer types
-    let dominion_options = minion::DominionOptions {
+    let sandbox_options = minion::SandboxOptions {
         max_alive_process_count: limits.process_count() as _,
         memory_limit: limits.memory() as _,
         exposed_paths,
@@ -118,11 +118,11 @@ pub(crate) fn create_sandbox(
         cpu_time_limit,
         real_time_limit,
     };
-    let dominion = backend
-        .new_dominion(dominion_options)
+    let sandbox = backend
+        .new_sandbox(sandbox_options)
         .context("failed to create minion dominion")?;
     Ok(Sandbox {
-        dominion,
+        sandbox,
         umount: umount_path,
     })
 }

@@ -11,7 +11,7 @@ pub(crate) enum BuildOutcome {
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a InvokeRequest,
-    pub(crate) minion: &'a dyn minion::Backend,
+    pub(crate) minion: &'a dyn minion::erased::Backend,
     pub(crate) config: &'a crate::config::InvokerConfig,
 }
 
@@ -36,7 +36,7 @@ impl<'a> Compiler<'a> {
             invoke_util::command_set_from_inv_req(&mut native_command, &command);
             invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
-            native_command.dominion(sandbox.dominion.clone());
+            native_command.sandbox(sandbox.sandbox.clone());
 
             let child = match native_command.spawn(self.minion) {
                 Ok(child) => child,

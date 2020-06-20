@@ -1,0 +1,9 @@
+replicaCount: 1
+
+image:
+  repositoryPrefix: docker.pkg.github.com/jjs-dev/jjs/
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+imagePullSecrets: []
+

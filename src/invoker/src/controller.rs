@@ -1,5 +1,6 @@
 mod notify;
 mod tasks;
+mod toolchains;
 
 use crate::worker::{InvokeOutcome, InvokeRequest, Request, Response};
 use anyhow::Context;
@@ -178,12 +179,14 @@ impl<S: TaskSource + Send + Sync + 'static, T: std::ops::Deref<Target = S> + Sen
 pub struct Controller {
     workers: Vec<WorkerInfo>,
     sources: Vec<Arc<dyn TaskSource>>,
-    entity_loader: Arc<entity::Loader>,
     queues: Arc<ControllerQueues>,
     problem_loader: Arc<problem_loader::Loader>,
     global_files_dir: Arc<Path>,
     toolchains_dir: Arc<Path>,
     config: crate::config::InvokerConfig,
+    // used as RAII resource owner
+    _temp_dir: tempfile::TempDir,
+    toolchain_loader: toolchains::ToolchainLoader,
 }
 
 fn get_num_cpus() -> usize {
@@ -199,7 +202,7 @@ fn get_num_cpus() -> usize {
 }
 
 impl Controller {
-    pub fn new(
+    pub async fn new(
         sources: Vec<Arc<dyn TaskSource>>,
         cfg_data: util::cfg::CfgData,
         config: crate::config::InvokerConfig,
@@ -230,15 +233,25 @@ impl Controller {
             workers.push(info);
         }
 
+        let temp_dir = tempfile::TempDir::new().context("can not find temporary dir")?;
+
+        let problem_loader =
+            problem_loader::Loader::from_config(&config.problems, temp_dir.path().join("problems"))
+                .await
+                .context("can not create ProblemLoader")?;
+        let toolchain_loader = toolchains::ToolchainLoader::new()
+            .await
+            .context("toolchain loader initialization error")?;
         Ok(Controller {
             sources,
             workers,
-            entity_loader: Arc::new(cfg_data.entity_loader),
-            problem_loader: Arc::new(cfg_data.problem_loader),
+            problem_loader: Arc::new(problem_loader),
             queues: Arc::new(ControllerQueues::new()),
             global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
             config,
+            _temp_dir: temp_dir,
+            toolchain_loader,
         })
     }
 
@@ -346,7 +359,7 @@ impl Controller {
             info!("{} new tasks discovered", new_tasks.len());
         }
         for (invoke_task, task_source_id) in new_tasks {
-            let extended_invoke_request = self.fetch_run_info(&invoke_task, task_source_id)?;
+            let extended_invoke_request = self.fetch_run_info(&invoke_task, task_source_id).await?;
             self.queues.invoke().push_back(extended_invoke_request);
         }
         Ok(true)

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct InvokerConfig {
@@ -26,9 +26,11 @@ pub struct InvokerConfig {
     /// As usual, all mounts will be no-suid and read-only.
     #[serde(default)]
     pub expose_host_dirs: Option<Vec<String>>,
+    /// Configures how invoker should resolve problems
+    pub problems: problem_loader::LoaderConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct SleepConfig {
@@ -59,7 +61,7 @@ impl Default for SleepConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ApiSvcConfig {
     /// Override bind IP

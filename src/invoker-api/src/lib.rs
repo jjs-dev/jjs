@@ -86,25 +86,14 @@ pub struct Status {
 pub struct InvokeTask {
     /// Invoker will only update run, if `revision` is bigger than in DB.
     pub revision: u32,
-    /// Directory containing run files
-    pub run_dir: PathBuf,
-    /// Invocation outputs directory
-    pub invocation_dir: PathBuf,
     /// Toolchain id, for lookup in config
     pub toolchain_id: String,
     /// Problem id, for lookup in config
     pub problem_id: String,
     /// Invocation id (will be preserved by invoker)
     pub invocation_id: uuid::Uuid,
-}
-
-/// Put this in database
-///
-/// See fields' description in [InvokeTask](InvokeTask)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbInvokeTask {
-    pub revision: u32,
-    pub run_id: u32,
+    /// Run source
+    pub run_source: Vec<u8>,
 }
 
 /// Pass this to invoker running in CLI mode
@@ -116,8 +105,7 @@ pub struct CliInvokeTask {
     pub toolchain_id: String,
     pub problem_id: String,
     pub invocation_id: uuid::Uuid,
-    pub run_dir: PathBuf,
-    pub invocation_dir: PathBuf,
+    pub run_source: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

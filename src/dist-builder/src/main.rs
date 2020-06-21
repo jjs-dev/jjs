@@ -71,6 +71,10 @@ struct Opt {
     /// Name or path to Docker or other tool which can run containers (e.g. Podman)
     #[structopt(long = "with-docker")]
     docker_name: Option<String>,
+    /// If set, tags of built images will be written to this file,
+    /// each file on separate line
+    #[structopt(long)]
+    docker_tags_log: Option<PathBuf>,
     /// Features to enable
     #[structopt(long = "enable-feature")]
     features: Vec<String>,
@@ -129,6 +133,7 @@ fn main() {
             Some(cfg::DockerConfig {
                 build_options: opt.docker_build_opt.clone(),
                 tag: opt.docker_tag.clone(),
+                write_tags_to_file: opt.docker_tags_log.clone(),
             })
         } else {
             None
@@ -141,6 +146,9 @@ fn main() {
         build: build_config,
         components: comps_config,
     };
+    if std::env::var("CI").is_ok() {
+        println!("Options: {:?}", &config);
+    }
     let params = Params {
         cfg: config,
         src: jjs_src_path,

@@ -122,8 +122,7 @@ fn main() {
     let err = match args {
         CliArgs::Check(opts) => {
             runner.set_fail_fast(opts.fail_fast);
-            check::check(&opts, &runner);
-            None
+            check::check(&opts, &runner).err()
         }
         CliArgs::Test(args) => {
             runner.set_fail_fast(args.fail_fast);

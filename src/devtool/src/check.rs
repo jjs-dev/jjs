@@ -1,4 +1,5 @@
-use log::{debug, error, info};
+use anyhow::Context as _;
+use log::{debug, info};
 use std::process::Command;
 use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
@@ -38,48 +39,33 @@ fn shellcheck(runner: &Runner) {
     }
 }
 
-fn pvs(runner: &Runner) {
-    Command::new("pvs-studio-analyzer")
-        .current_dir("./jtl-cpp/cmake-build-debug")
-        .arg("analyze")
-        .args(&["--exclude-path", "./jtl-cpp/deps"])
+fn static_analysis() -> anyhow::Result<()> {
+    std::fs::remove_dir_all("jtl-cpp/cmake-build-analysis").ok();
+    std::fs::create_dir_all("jtl-cpp/cmake-build-analysis")?;
+    Command::new("scan-build")
+        .arg(cmake_bin())
+        .current_dir("./jtl-cpp/cmake-build-analysis")
+        .arg("..")
+        .try_exec()?;
+
+    let analysis_output_dir = tempfile::TempDir::new().context("failed to get temp dir")?;
+
+    Command::new("scan-build")
+        .current_dir("./jtl-cpp/cmake-build-analysis")
+        .arg("-o")
+        .arg(&analysis_output_dir.path())
+        .arg("make")
         .args(&["-j", "4"])
-        .run_on(runner);
+        .try_exec()?;
 
-    let diagnostics_important = "GA:1,2;64:1,2;OP:1,2,3";
-    let diagnostics_additional = "GA:3;64:3";
-
-    let output_type = "errorfile";
-
-    let do_convert = |diag_spec: &str, name: &str| {
-        let report_path = format!("./jtl-cpp/cmake-build-debug/pvs-{}", name);
-        std::fs::remove_dir_all(&report_path).ok();
-
-        Command::new("plog-converter")
-            .current_dir("./jtl-cpp/cmake-build-debug")
-            .args(&["--analyzer", diag_spec])
-            .args(&["--renderTypes", output_type])
-            .arg("PVS-Studio.log")
-            .args(&["--output", &format!("pvs-{}", name)])
-            .run_on(runner);
-        println!("---info: PVS report {}---", name);
-        let report_text = std::fs::read_to_string(&report_path)
-            .unwrap_or_else(|err| format!("failed to read report: {}", err));
-        // skip first line which is reference to help
-        let report_text = report_text
-            .splitn(2, '\n')
-            .nth(1)
-            .map(str::to_string)
-            .unwrap_or_default();
-        println!("{}\n---", report_text);
-        !report_text.chars().any(|c| !c.is_whitespace())
-    };
-
-    if !do_convert(diagnostics_important, "high") {
-        error!("PVS found some errors");
-        runner.error();
+    let dir_items = std::fs::read_dir(analysis_output_dir.path())?.count();
+    if dir_items != 0 {
+        // make sure dir is saved
+        analysis_output_dir.into_path();
+        anyhow::bail!("Analyzer found bugs");
     }
-    do_convert(diagnostics_additional, "low");
+
+    Ok(())
 }
 
 fn check_testlib(runner: &Runner) {
@@ -108,9 +94,9 @@ pub struct CheckOpts {
     /// Build testlib
     #[structopt(long)]
     testlib: bool,
-    /// Use PVS-Studio to analyze testlib
+    /// Analyze testlib
     #[structopt(long)]
-    pvs: bool,
+    clang_analyzer: bool,
     /// Do not run default checks
     #[structopt(long)]
     no_default: bool,
@@ -119,15 +105,7 @@ pub struct CheckOpts {
     pub(crate) fail_fast: bool,
 }
 
-fn secrets_enabled() -> bool {
-    let val = match std::env::var("SECRET_ENABLED") {
-        Ok(val) => val,
-        Err(_) => return false, // definitely not a CI
-    };
-    !val.trim().is_empty()
-}
-
-pub fn check(opts: &CheckOpts, runner: &Runner) {
+pub fn check(opts: &CheckOpts, runner: &Runner) -> anyhow::Result<()> {
     if opts.autopep8 || !opts.no_default {
         autopep8(runner);
     }
@@ -137,9 +115,8 @@ pub fn check(opts: &CheckOpts, runner: &Runner) {
     if opts.testlib || !opts.no_default {
         check_testlib(runner);
     }
-    let force_pvs = std::env::var("CI").is_ok() && secrets_enabled();
-    let force_not_pvs = std::env::var("CI").is_ok() && !secrets_enabled();
-    if (opts.pvs || force_pvs) && !force_not_pvs {
-        pvs(runner);
+    if opts.clang_analyzer {
+        static_analysis().context("static analysis failed")?;
     }
+    Ok(())
 }

@@ -100,11 +100,6 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - run: bash ci-data/pvs.sh
-        env:
-          SECRET_ENABLED: "${{ secrets.SECRET_ENABLED }}"
-          PVS_NAME: "${{ secrets.PVS_NAME }}"
-          PVS_LICENSE_KEY: "${{ secrets.PVS_LICENSE_KEY }}"
       - name: Install system dependencies
         run: sudo apt-get install -y libssl-dev cmake
       - name: Install Rust toolchain
@@ -113,12 +108,12 @@ jobs:
           toolchain: nightly-2020-06-03
           components: "clippy,rustfmt"
           override: true
+      - name: Install clang static analyzer
+        run: sudo apt install clang-tools
       - name: compile testlib
         run: cargo jjs-check --no-default --testlib
-      - name: Run PVS
-        run: cargo jjs-check --no-default --pvs
-        env:
-          SECRET_ENABLED: "${{ secrets.SECRET_ENABLED }}"
+      - name: Run static analyzer
+        run: cargo jjs-check --no-default --clang-analyzer
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-18.04

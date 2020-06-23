@@ -163,7 +163,12 @@ jobs:
         name: Collect some information
         run: |
           echo Collecting git patch
-          git diff -p > /tmp/patch
+          git add .
+
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          git commit --message "temp"
+          git show --patch > /tmp/patch
       - if: failure()
         name: Upload patch
         uses: actions/upload-artifact@v2

@@ -188,7 +188,7 @@ jobs:
       - run: git diff --exit-code
       - if: failure()
         name: Collect some information
-        run: "echo Collecting git patch\ngit diff -p > /tmp/patch\n"
+        run: "echo Collecting git patch\ngit add .\n\ngit config --global user.email \"you@example.com\"\ngit config --global user.name \"Your Name\"\ngit commit --message \"temp\"\ngit show --patch > /tmp/patch\n"
       - if: failure()
         name: Upload patch
         uses: actions/upload-artifact@v2

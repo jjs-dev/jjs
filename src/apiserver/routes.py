@@ -1,10 +1,10 @@
 import fastapi
 import db_models
 import api_models
-import uuid
 import typing
 import base64
 import pymongo
+from bson import ObjectId
 import pydantic
 
 
@@ -97,15 +97,14 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         fields of request body; `id` will be real id of this run.
         """
 
-        run_uuid = uuid.uuid4()
-        user_id = uuid.UUID('12345678123456781234567812345678')
-        doc_main = db_models.RunMainProj(id=run_uuid, toolchain_name=params.toolchain,
+        user_id = ObjectId('507f1f77bcf86cd799439011')
+        doc_main = db_models.RunMainProj(toolchain_name=params.toolchain,
                                          problem_name=params.problem, user_id=user_id, contest_name=params.contest, phase=str(db_models.RunPhase.QUEUED))
         doc_source = db_models.RunSourceProj(
             source=base64.b64decode(params.code))
         doc = {**dict(doc_main), **dict(doc_source)}
-        db.runs.insert_one(doc)
-        return api_models.Run(id=run_uuid, toolchain_name=params.toolchain, problem_name=params.problem, user_id=user_id, contest_name=params.contest)
+        result = db.runs.insert_one(doc)
+        return api_models.Run(id=str(result.inserted_id), toolchain_name=params.toolchain, problem_name=params.problem, user_id=str(user_id), contest_name=params.contest)
 
     @app.get('/runs', response_model=typing.List[api_models.Run],
              operation_id='listRuns')
@@ -122,13 +121,12 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return runs
 
     @app.get('/runs/{run_id}', response_model=api_models.Run, operation_id='getRun')
-    def route_get_run(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_get_run(run_id: str, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Loads run by id
         """
-
         run = db.runs.find_one(projection=db_models.RunMainProj.FIELDS, filter={
-            'id': run_id
+            '_id': ObjectId(run_id)
         })
         if run is None:
             raise fastapi.HTTPException(404, detail='RunNotFound')
@@ -139,13 +137,13 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
             'description': "Run source is not available"
         }
     })
-    def route_get_run_source(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_get_run_source(run_id: str, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Returns run source as base64-encoded JSON string
         """
 
         doc = db.runs.find_one(projection=['source'], filter={
-            'id': run_id
+            '_id': ObjectId(run_id)
         })
         if doc is None:
             raise fastapi.HTTPException(404, detail='RunNotFound')
@@ -154,7 +152,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return base64.b64encode(doc['source'])
 
     @app.patch('/runs/{run_id}', response_model=api_models.Run, operation_id='patchRun')
-    def route_run_patch(run_id: uuid.UUID, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_run_patch(run_id: str, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(db_connect)):
         """
         Modifies existing run
 
@@ -177,7 +175,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
                         "RunPatch.status[*] must have length exactly 2")
                 p['$set'][f"status.{status_to_add[0]}"] = status_to_add[1]
         updated_run = db.runs.find_one_and_update(
-            {'id': run_id}, p, projection=db_models.RunMainProj.FIELDS, return_document=pymongo.ReturnDocument.AFTER)
+            {'_id': ObjectId(run_id)}, p, projection=db_models.RunMainProj.FIELDS, return_document=pymongo.ReturnDocument.AFTER)
         if updated_run is None:
             raise fastapi.HTTPException(404, 'RunNotFound')
         return updated_run

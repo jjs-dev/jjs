@@ -19,6 +19,19 @@
         "title": "ApiVersion",
         "type": "object"
       },
+      "AuthResponse": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "AuthResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -124,6 +137,82 @@
         "title": "RunSubmitSimpleParams",
         "type": "object"
       },
+      "SimpleAuthParams": {
+        "properties": {
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ],
+        "title": "SimpleAuthParams",
+        "type": "object"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password_hash": {
+            "title": "Password Hash",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "login",
+          "password_hash",
+          "roles"
+        ],
+        "title": "User",
+        "type": "object"
+      },
+      "UserCreationParams": {
+        "properties": {
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "login",
+          "password",
+          "roles"
+        ],
+        "title": "UserCreationParams",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -150,6 +239,12 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -158,6 +253,45 @@
   },
   "openapi": "3.0.2",
   "paths": {
+    "/auth/simple": {
+      "post": {
+        "description": "Login using login and password\n\nIn future, other means to authn will be added.",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimpleAuthParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Login"
+      }
+    },
     "/queue": {
       "post": {
         "description": "Returns runs that should be judged\n\nAt most `limit` runs will be returned\n\nThese runs are immediately locked, to prevent resource wasting.\nHowever, this is not safe distributed lock: on timeout lock will\nbe released. It means, that in some rare situations same run can be judged\nseveral times. All judgings except one will be ignored.",
@@ -199,6 +333,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route Pop From Invoke Queue"
       }
     },
@@ -222,6 +361,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route List Runs"
       },
       "post": {
@@ -259,6 +403,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route Submit"
       }
     },
@@ -300,6 +449,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route Get Run"
       },
       "patch": {
@@ -349,6 +503,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route Run Patch"
       }
     },
@@ -394,6 +553,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Route Get Run Source"
       }
     },
@@ -434,6 +598,50 @@
           }
         },
         "summary": "Route Is Dev"
+      }
+    },
+    "/users": {
+      "post": {
+        "description": "Creates new user",
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreationParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Route Create User"
       }
     }
   }

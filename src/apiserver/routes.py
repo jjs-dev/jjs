@@ -1,7 +1,9 @@
 import fastapi
 import db_models
 import api_models
+import auth
 import uuid
+import bcrypt
 import typing
 import base64
 import pymongo
@@ -54,8 +56,88 @@ class RunPatch(pydantic.BaseModel):
     """
 
 
+class UserCreationParams(pydantic.BaseModel):
+    login: str
+    "Username."
+    password: str
+    "User password (in plaintext)."
+    roles: typing.List[str]
+    "List of roles the new user should be in."
+
+
+class SimpleAuthParams(pydantic.BaseModel):
+    login: str
+    "Username."
+    password: str
+    "User password (in plaintext)."
+
+
+class AuthResponse(pydantic.BaseModel):
+    token: str
+    "Session token for the newly-created user session."
+
+
 def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fastapi.FastAPI:
     app = fastapi.FastAPI()
+
+    root_uuid = uuid.UUID('000000000000-0000-0000-000000000000')
+    guest_uuid = uuid.UUID('000000000000-0000-0000-000000000001')
+    security = fastapi.security.http.HTTPBearer()
+
+    def get_db(db: pymongo.database.Database = fastapi.Depends(db_connect)) -> pymongo.database.Database:
+        db.users.create_index('id', unique=True)
+        db.users.create_index('login', unique=True)
+        # ensure the two special users are actually there to avoid possible conflicts, e.g. privilege escalation by creating the not-yet-existing root account
+        get_special_user(db, root_uuid, 'root', [])
+        get_special_user(db, guest_uuid, 'guest', ['guests', 'invoker'])
+        return db
+
+    def get_special_user(db, uuid, default_username, default_roles):
+        users = list(db.users.find(
+            projection=db_models.User.FIELDS,
+            filter={'id': uuid}
+        ))
+        assert len(users) <= 1
+        if users:
+            return db_models.User(**users[0])
+        else:
+            new_user = db_models.User(
+                id=uuid,
+                login=default_username,
+                password_hash='',  # invalid
+                roles=list(default_roles)
+            )
+            db.users.insert_one(dict(new_user))
+            return new_user
+
+    def get_session(db: pymongo.database.Database = fastapi.Depends(get_db), token: str = fastapi.Depends(security)) -> auth.Session:
+        if token == None:
+            return auth.Session(token='', user_id=guest_uuid, roles=['guests'])
+        if token.credentials == 'Dev::root':
+            return auth.Session(token=token.credentials,
+                                user_id=root_uuid, roles=[])
+        sessions = list(db.sessions.find(
+            projection=auth.Session.FIELDS,
+            filter={'token': token.credentials}
+        ))
+        if not sessions:
+            raise fastapi.HTTPException(403, detail='Invalid session')
+        return auth.Session(**sessions[0])
+
+    def get_user(db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)) -> db_models.User:
+        if session.user_id == root_uuid:
+            return get_special_user(db, root_uuid, 'root', [])
+        elif session.user_id == guest_uuid:
+            return get_special_user(db, guest_uuid, 'guest', ['guests'])
+        users = list(db.users.find(
+            projection=db_models.User.FIELDS,
+            filter={'id': session.user_id}
+        ))
+        if not users:
+            raise fastapi.HTTPException(
+                403, detail='The user has been deleted')
+        assert len(users) == 1
+        return db_models.User(**users[0])
 
     @app.get('/system/is-dev', response_model=bool,
              operation_id="isDev")
@@ -86,9 +168,57 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
 
         return api_models.ApiVersion(major=0, minor=0)
 
+    @app.post('/users', operation_id="createUser", response_model=db_models.User)
+    def route_create_user(params: UserCreationParams, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
+        """
+        Creates new user
+        """
+        session.ensure_role('create_user')
+        for i in params.roles:
+            session.ensure_role(i)
+        id = uuid.uuid4()
+        hsh = bcrypt.hashpw(params.password.encode('utf-8'), bcrypt.gensalt())
+        new_user = db_models.User(id=id, login=params.login,
+                                  password_hash=hsh.decode('ascii'), roles=params.roles)
+        try:
+            db.users.insert_one(dict(new_user))
+        except pymongo.errors.DuplicateKeyError:
+            raise fastapi.HTTPException(409,
+                                        detail='A user already exists with this username')
+        return new_user
+
+    @app.post('/auth/simple', response_model=AuthResponse,
+              operation_id="login")
+    def route_login(params: SimpleAuthParams, db: pymongo.database.Database = fastapi.Depends(get_db)):
+        """
+        Login using login and password
+
+        In future, other means to authn will be added.
+        """
+        users = list(db.users.find(
+            projection=db_models.User.FIELDS,
+            filter={'login': params.login}
+        ))
+        if not users:
+            raise fastapi.HTTPException(403,
+                                        detail='User `{}` does not exist'.format(params.login))
+        assert len(users) == 1
+        user = db_models.User(**users[0])
+        try:
+            is_valid = bcrypt.checkpw(params.password.encode('utf-8'),
+                                      user.password_hash.encode('ascii'))
+        except:
+            is_valid = False
+        if not is_valid:
+            raise fastapi.HTTPException(403, detail='Wrong password')
+        token = 'UUID::'+str(uuid.uuid4())
+        session = auth.Session(token=token, user_id=user.id, roles=user.roles)
+        db.sessions.insert_one(dict(session))
+        return AuthResponse(token=session.token)
+
     @app.post('/runs', response_model=api_models.Run,
               operation_id="submitRun")
-    def route_submit(params: RunSubmitSimpleParams, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_submit(params: RunSubmitSimpleParams, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Submits new run
 
@@ -97,56 +227,70 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         fields of request body; `id` will be real id of this run.
         """
 
+        session.ensure_role('submit')
         run_uuid = uuid.uuid4()
-        user_id = uuid.UUID('12345678123456781234567812345678')
+        user_id = session.user_id
         doc_main = db_models.RunMainProj(id=run_uuid, toolchain_name=params.toolchain,
                                          problem_name=params.problem, user_id=user_id, contest_name=params.contest, phase=str(db_models.RunPhase.QUEUED))
         doc_source = db_models.RunSourceProj(
             source=base64.b64decode(params.code))
         doc = {**dict(doc_main), **dict(doc_source)}
         db.runs.insert_one(doc)
-        return api_models.Run(id=run_uuid, toolchain_name=params.toolchain, problem_name=params.problem, user_id=user_id, contest_name=params.contest)
+        return api_models.Run(id=run_uuid, toolchain_name=params.toolchain,
+                              problem_name=params.problem, user_id=user_id, contest_name=params.contest)
 
     @app.get('/runs', response_model=typing.List[api_models.Run],
              operation_id='listRuns')
-    def route_list_runs(db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_list_runs(db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Lists runs
 
         This operation returns all created runs
         """
 
+        session.ensure_role('view_runs')
         runs = db.runs.find(
-            projection=db_models.RunMainProj.FIELDS)
+            projection=db_models.RunMainProj.FIELDS,
+            filter=({} if session.has_role('view_all_runs')
+                    else {'user_id': session.user_id})
+        )
         runs = list(map(api_models.Run.from_db, runs))
         return runs
 
     @app.get('/runs/{run_id}', response_model=api_models.Run, operation_id='getRun')
-    def route_get_run(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_get_run(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Loads run by id
         """
 
+        session.ensure_role('view_runs')
         run = db.runs.find_one(projection=db_models.RunMainProj.FIELDS, filter={
             'id': run_id
         })
         if run is None:
             raise fastapi.HTTPException(404, detail='RunNotFound')
-        return api_models.Run.from_db(run)
+        run = api_models.Run.from_db(run)
+        if run.user_id != session.user_id and not session.has_role('view_all_runs'):
+            raise fastapi.HTTPException(403, detail='Permission denied')
+        return run
 
     @app.get('/runs/{run_id}/source', response_model=str, operation_id='getRunSource', responses={
         204: {
             'description': "Run source is not available"
         }
     })
-    def route_get_run_source(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_get_run_source(run_id: uuid.UUID, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Returns run source as base64-encoded JSON string
         """
 
-        doc = db.runs.find_one(projection=['source'], filter={
-            'id': run_id
+        session.ensure_role('view_runs')
+        session.ensure_role('view_run_source')
+        doc = db.runs.find_one(projection=['user_id', 'source'], filter={
+            'id': run_id,
         })
+        if not session.has_role('view_all_runs') and doc['user_id'] != session.user_id:
+            raise fastapi.HTTPException(403, detail='Permission denied')
         if doc is None:
             raise fastapi.HTTPException(404, detail='RunNotFound')
         if doc['source'] is None:
@@ -154,13 +298,14 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         return base64.b64encode(doc['source'])
 
     @app.patch('/runs/{run_id}', response_model=api_models.Run, operation_id='patchRun')
-    def route_run_patch(run_id: uuid.UUID, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_run_patch(run_id: uuid.UUID, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Modifies existing run
 
         See `RunPatch` documentation for what can be updated.
         """
 
+        session.ensure_role('invoker')
         p = {
             '$set': {
                 # mongodb dislikes empty $set
@@ -184,7 +329,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
 
     @app.post('/queue', response_model=typing.List[api_models.Run],
               operation_id='popRunFromQueue')
-    def route_pop_from_invoke_queue(limit: int, db: pymongo.database.Database = fastapi.Depends(db_connect)):
+    def route_pop_from_invoke_queue(limit: int, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
         Returns runs that should be judged
 
@@ -196,6 +341,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         several times. All judgings except one will be ignored.
         """
 
+        session.ensure_role('invoker')
         runs = []
         for _ in range(limit):
             filter_doc = {

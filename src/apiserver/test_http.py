@@ -77,6 +77,9 @@ def test_smoke_api_version():
     assert res.status_code == 200
 
 
+ROOT_AUTH = {'Authorization': 'Bearer Dev::root'}
+
+
 def test_simple_run_ops():
     client = create_test_client()
     created_run = client.post("/runs", json={
@@ -84,18 +87,20 @@ def test_simple_run_ops():
         'contest': 'trial',
         'problem': 'A',
         'toolchain': 'g++'
-    })
+    }, headers=ROOT_AUTH)
     created_run.raise_for_status()
 
-    all_runs = client.get("/runs")
+    all_runs = client.get("/runs", headers=ROOT_AUTH)
     assert all_runs.status_code == 200
     assert [created_run.json()] == all_runs.json()
 
-    that_run = client.get(f"/runs/{created_run.json()['id']}")
+    that_run = client.get(f"/runs/{created_run.json()['id']}",
+                          headers=ROOT_AUTH)
     that_run.raise_for_status()
     assert that_run.json() == created_run.json()
 
-    run_source = client.get(f"/runs/{created_run.json()['id']}/source")
+    run_source = client.get(f"/runs/{created_run.json()['id']}/source",
+                            headers=ROOT_AUTH)
     run_source.raise_for_status()
     assert run_source.json() == base64.b64encode(b"Hello, Compiler!").decode()
 
@@ -107,18 +112,18 @@ def test_queue():
         'contest': 'trial',
         'problem': 'A',
         'toolchain': 'g++'
-    })
+    }, headers=ROOT_AUTH)
     run1.raise_for_status()
 
     deqeued_runs_1 = client.post('/queue', params={
         'limit': 5
-    })
+    }, headers=ROOT_AUTH)
     deqeued_runs_1.raise_for_status()
     assert deqeued_runs_1.json() == [run1.json()]
 
     deqeued_runs_2 = client.post('/queue', params={
         'limit': 2
-    })
+    }, headers=ROOT_AUTH)
     deqeued_runs_2.raise_for_status()
     assert deqeued_runs_2.json() == []
 
@@ -127,7 +132,7 @@ class TestPatches:
     def test_patch_nonexistent_returns_404(self):
         client = create_test_client()
         res = client.patch(
-            '/runs/7b3629c1-98a0-467a-be66-adc7dfe598ac', json={})
+            '/runs/7b3629c1-98a0-467a-be66-adc7dfe598ac', json={}, headers=ROOT_AUTH)
         assert res.status_code == 404
 
     def test_simple_behavior(self):
@@ -137,7 +142,7 @@ class TestPatches:
             'contest': 'trial',
             'problem': 'A',
             'toolchain': 'g++'
-        })
+        }, headers=ROOT_AUTH)
 
         create_run.raise_for_status()
         judge_status = ('Full', 'Accepted:FULL_SOLUTION')
@@ -147,7 +152,7 @@ class TestPatches:
         }
 
         patch_run = client.patch(
-            f"/runs/{create_run.json()['id']}", json=patch)
+            f"/runs/{create_run.json()['id']}", json=patch, headers=ROOT_AUTH)
         patch_run.raise_for_status()
 
         expected_patched_run = create_run.json()
@@ -157,3 +162,104 @@ class TestPatches:
         # to check this, we must call /runs/<id>/binary
 
         assert expected_patched_run == patch_run.json()
+
+
+def test_create_users():
+    client = create_test_client()
+
+    create_root = client.post('/users', json={
+        'login': 'root',
+        'password': '12345',
+        'roles': []
+    }, headers=ROOT_AUTH)
+    assert create_root.status_code == 409  # root already exists
+
+    create_user_1 = client.post('/users', json={
+        'login': 'user1',
+        'password': '12345',
+        'roles': []
+    }, headers=ROOT_AUTH)
+    create_user_1.raise_for_status()  # success
+
+    create_user_2 = client.post('/users', json={
+        'login': 'user1',
+        'password': '54321',
+        'roles': []
+    }, headers=ROOT_AUTH)
+    assert create_user_2.status_code == 409  # user1 already exists
+
+
+def test_wrong_password():
+    client = create_test_client()
+
+    session = client.post('/auth/simple', json={
+        'login': 'root',
+        'password': 'root-has-no-password'
+    })
+    assert session.status_code == 403  # wrong password
+
+
+def test_invalid_token():
+    client = create_test_client()
+
+    runs = client.get('/runs', headers={'Authorization': 'Bearer blablabla'})
+    assert runs.status_code == 403  # invalid token
+
+
+def test_unprivileged_user():
+    client = create_test_client()
+
+    create_user = client.post('/users', json={
+        'login': 'user2',
+        'password': '12345',
+        'roles': []
+    }, headers=ROOT_AUTH)
+    create_user.raise_for_status()  # success
+
+    session = client.post('/auth/simple', json={
+        'login': 'user2',
+        'password': '12345'
+    })
+    session.raise_for_status()  # success
+    unpriv_auth = {'Authorization': 'Bearer '+session.json()['token']}
+
+    runs = client.get('/runs', headers=unpriv_auth)
+    assert runs.status_code == 403  # no permission
+
+
+def test_observer():
+    client = create_test_client()
+
+    test_run = client.post('/runs', json={
+        'code': base64.b64encode(b"Hello, Compiler!").decode(),
+        'contest': 'trial',
+        'problem': 'A',
+        'toolchain': 'g++'
+    }, headers=ROOT_AUTH)
+    test_run.raise_for_status()  # success
+
+    create_user = client.post('/users', json={
+        'login': 'user3',
+        'password': '12345',
+        'roles': ['view_runs', 'view_all_runs']
+    }, headers=ROOT_AUTH)
+    create_user.raise_for_status()  # success
+
+    session = client.post('/auth/simple', json={
+        'login': 'user3',
+        'password': '12345'
+    })
+    session.raise_for_status()  # success
+    unpriv_auth = {'Authorization': 'Bearer '+session.json()['token']}
+
+    runs = client.get('/runs', headers=unpriv_auth)
+    runs.raise_for_status()
+    assert runs.json() == [test_run.json()]
+
+    unpriv_run = client.post('/runs', json={
+        'code': base64.b64encode(b"Hello, Compiler!").decode(),
+        'contest': 'trial',
+        'problem': 'A',
+        'toolchain': 'g++'
+    }, headers=unpriv_auth)
+    assert unpriv_run.status_code == 403  # cannot submit

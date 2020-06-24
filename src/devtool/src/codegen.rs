@@ -10,7 +10,7 @@ pub(crate) struct Opts {
 }
 
 fn read_openapi() -> anyhow::Result<serde_json::Value> {
-    let mut cmd = Command::new("python");
+    let mut cmd = Command::new("python3");
     cmd.arg("./main.py");
     cmd.current_dir("./src/apiserver");
     cmd.env("__JJS_SPEC", "openapi");

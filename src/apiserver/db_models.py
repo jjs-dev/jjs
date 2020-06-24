@@ -55,3 +55,17 @@ class RunProtocolsProj(BaseModel):
     Key: invoker_api::judge_log::JudgeLogKind
     Value: json-encoded invoker_api::judge_log::JudgeLog
     """
+
+
+class User(BaseModel):
+    id: uuid.UUID
+    "Unique identifier of the user."
+    login: str
+    "Username, as specified by the user."
+    password_hash: str
+    "Base64-encoded SHA3 hash of the password."
+    roles: typing.List[str]
+    "List of roles the user is in."
+
+
+User.FIELDS = ['id', 'login', 'password_hash', 'roles']

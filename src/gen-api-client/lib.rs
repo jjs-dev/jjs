@@ -9,6 +9,10 @@ pub mod api_version {
     include!("./api_version.rs");
 }
 
+pub mod auth_response {
+    include!("./auth_response.rs");
+}
+
 pub mod http_validation_error {
     include!("./http_validation_error.rs");
 }
@@ -27,6 +31,18 @@ pub mod run_patch {
 
 pub mod run_submit_simple_params {
     include!("./run_submit_simple_params.rs");
+}
+
+pub mod simple_auth_params {
+    include!("./simple_auth_params.rs");
+}
+
+pub mod user {
+    include!("./user.rs");
+}
+
+pub mod user_creation_params {
+    include!("./user_creation_params.rs");
 }
 
 pub mod validation_error {

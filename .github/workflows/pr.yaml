@@ -94,7 +94,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: "--workspace"
+          args: "--workspace -- -Dwarnings"
   cpp:
     name: cpp
     runs-on: ubuntu-18.04

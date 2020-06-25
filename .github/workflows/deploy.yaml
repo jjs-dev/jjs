@@ -17,7 +17,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-06-03
+          toolchain: nightly-2020-06-25
           components: "clippy,rustfmt"
           override: true
       - name: Install system dependencies

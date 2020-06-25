@@ -1,6 +1,6 @@
 name: Install Rust toolchain
 uses: actions-rs/toolchain@v1
 with:
-  toolchain: stable
+  toolchain: nightly-2020-07-27
   components: clippy,rustfmt
   override: true

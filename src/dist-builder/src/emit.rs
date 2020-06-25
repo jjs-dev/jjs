@@ -38,8 +38,8 @@ impl DockerEmitter {
 
     pub(crate) fn emit(
         &self,
-        artifacts: &Vec<Artifact>,
-        other_packages: &Vec<OtherPackage>,
+        artifacts: &[Artifact],
+        other_packages: &[OtherPackage],
         params: &Params,
         options: &DockerConfig,
     ) -> anyhow::Result<()> {

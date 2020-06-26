@@ -82,36 +82,51 @@ pub struct Status {
     pub code: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InvokeTask {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct JudgeRequest {
     /// Invoker will only update run, if `revision` is bigger than in DB.
     pub revision: u32,
     /// Toolchain id, for lookup in config
     pub toolchain_id: String,
     /// Problem id, for lookup in config
     pub problem_id: String,
-    /// Invocation id (will be preserved by invoker)
-    pub invocation_id: uuid::Uuid,
+    /// Request id (will be preserved by invoker)
+    pub request_id: uuid::Uuid,
     /// Run source
     pub run_source: Vec<u8>,
 }
 
+impl std::fmt::Debug for JudgeRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JudgeRequest")
+            .field("revision", &self.revision)
+            .field("toolchain_id", &self.toolchain_id)
+            .field("problem_id", &self.problem_id)
+            .field("request_id", &self.request_id)
+            .field(
+                "run_source",
+                &format_args!("{} bytes", self.run_source.len()),
+            )
+            .finish()
+    }
+}
+
 /// Pass this to invoker running in CLI mode
 ///
-/// See fields' description in [InvokeTask](InvokeTask)
+/// See fields' description in [JudgeRequest](JudgeRequest)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CliInvokeTask {
+pub struct CliJudgeRequest {
     pub revision: u32,
     pub toolchain_id: String,
     pub problem_id: String,
-    pub invocation_id: uuid::Uuid,
+    pub request_id: uuid::Uuid,
     pub run_source: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InvokeOutcomeHeader {
+pub struct JudgeOutcomeHeader {
     pub score: Option<u32>,
-    pub status: Option<Status>,
+    pub status: Status,
     pub kind: valuer_proto::JudgeLogKind,
 }
 

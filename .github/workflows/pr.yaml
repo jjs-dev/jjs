@@ -13,6 +13,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_BUILD_PIPELINING: "false"
   RUSTC_BOOTSTRAP: 1
+  DOCKER_BUILDKIT: 1
 jobs:
   hack:
     name: hack
@@ -52,7 +53,8 @@ jobs:
           toolchain: stable
           components: "clippy,rustfmt"
           override: true
-      - uses: actions/setup-python@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
           python-version: "3.8"
       - name: check python code formatting
@@ -69,7 +71,8 @@ jobs:
       MONGODB_CONNECTION_STRING: "mongodb://localhost:27017"
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
           python-version: "3.8"
       - name: run python tests
@@ -202,7 +205,8 @@ jobs:
           override: true
       - name: Log into Github Package Registry
         run: "echo \"${{ secrets.GITHUB_TOKEN }}\" | docker login docker.pkg.github.com -u jjs-dev --password-stdin"
-      - uses: actions/setup-python@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
           python-version: "3.8"
       - run: pip install -r src/apiserver/requirements.txt
@@ -217,3 +221,53 @@ jobs:
         with:
           name: codegen-diff
           path: /tmp/patch
+  smoke:
+    name: smoke
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev cmake
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: "clippy,rustfmt"
+          override: true
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Get Rust version
+        id: rustc_version
+        run: "rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')\necho \"##[set-output name=version;]$(echo $rust_version)\"\n"
+      - name: Cache build dir
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: "${{ runner.os }}-smoke-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}"
+      - name: Build jjs images
+        run: "mkdir artifacts\nDOCKER_OPT=\"--enable-docker --docker-tag=% --with-docker=docker\"\nFEAT_OPT=\"--enable-feature k8s\"\nCOMPONENT_OPT=\"--enable daemons --enable tools\"\ncargo jjs-build --out artifacts $DOCKER_OPT $FEAT_OPT $COMPONENT_OPT\n"
+      - name: Setup k3s
+        run: "curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig ~/.kube/config --docker\nsudo chown $( whoami ) ~/.kube/config\n"
+      - name: Install dependencies
+        run: "helm repo add bitnami https://charts.bitnami.com/bitnami\nhelm install mongodb bitnami/mongodb -f ci-data/mongodb-values.yaml --wait --timeout 75s\n"
+      - name: Install jjs
+        run: "helm install jjs k8s/jjs --wait --values ci-data/values.yaml --timeout 75s\nkubectl wait --for condition=complete --timeout 90s jobs/init \n"
+      - name: Run tests
+        run: "cd smoke\nJP=\"{.spec.ports[0].nodePort}\"\nexport JJS_API=\"http://localhost:$( kubectl get svc apiserver \"--output=jsonpath=$JP\" )\"\nexport JJS_BEARER=Dev::root\npip install -r requirements.txt\n\npython -m pytest .\n"
+      - name: Collect debugging information
+        if: failure()
+        run: "mkdir /tmp/kdump\nMOUNT1=\"--mount type=bind,source=/tmp/kdump,target=/dump\"\nMOUNT2=\"--mount type=bind,source=/home/runner/.kube,target=/kube\"\nDUMP_OPTS=\"--escape-paths --generic-strip=managed-fields\"\ndocker run -i --rm $MOUNT1 $MOUNT2 --network host mikailbag/kube-dump /dump $DUMP_OPTS\n\nhelm get manifest jjs > /tmp/rendered-objects\n"
+      - name: Upload cluster state dump
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: kube-dump
+          path: /tmp/kdump
+      - name: Upload rendered manifests
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: helm-manifests
+          path: /tmp/rendered-objects

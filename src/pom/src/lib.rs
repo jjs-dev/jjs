@@ -61,7 +61,6 @@ impl Default for Limits {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FileRefRoot {
     Problem,
-    System,
     Root,
 }
 

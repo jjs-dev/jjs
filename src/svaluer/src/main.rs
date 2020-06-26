@@ -143,7 +143,7 @@ mod json_driver {
     /// Json-RPC driver, used in integration with JJS invoker
     #[derive(Debug)]
     pub struct JsonDriver {
-        chan: crossbeam::channel::Receiver<Message>,
+        chan: crossbeam_channel::Receiver<Message>,
     }
     #[derive(Deserialize)]
     #[serde(untagged)]
@@ -151,7 +151,7 @@ mod json_driver {
         ProblemInfo(invoker_api::valuer_proto::ProblemInfo),
         TestDoneNotify(invoker_api::valuer_proto::TestDoneNotification),
     }
-    fn json_driver_thread_func(chan: crossbeam::channel::Sender<Message>) {
+    fn json_driver_thread_func(chan: crossbeam_channel::Sender<Message>) {
         let mut buf = String::new();
         loop {
             buf.clear();
@@ -178,7 +178,7 @@ mod json_driver {
     const WAIT_TIMEOUT: Duration = Duration::from_millis(100);
     impl JsonDriver {
         pub fn new() -> Self {
-            let (send, recv) = crossbeam::channel::unbounded();
+            let (send, recv) = crossbeam_channel::unbounded();
             std::thread::spawn(move || {
                 json_driver_thread_func(send);
             });

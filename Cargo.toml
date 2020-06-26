@@ -1,11 +1,40 @@
 [profile.release]
 lto = true
+debug = 1
 
 [profile.dev]
 debug = 1
 
+# even in debug builds we want toolchain pulling to work fast
+
+[profile.dev.package.libflate]
+opt-level=3
+
+[profile.dev.package.libflate_lz77]
+opt-level=3
+
+[profile.dev.package.adler32]
+opt-level=3
+
+[profile.dev.package.crc32fast]
+opt-level=3
+
+[profile.dev.package.rle-decode-fast]
+opt-level=3
+
+[profile.dev.package.tar]
+opt-level=3
+
+[profile.dev.package.dkregistry]
+opt-level=3
+
+# Never waste time optimizing `syn` & Co
+
+[profile.dev.build-override]
+opt-level = 0
+
 [workspace]
 # TODO: add other as they are fixed
 members=["src/devtool", "src/gen-api-client", "src/cli", "src/client",
-  "src/problem-loader",
-  "src/dist-files-generator", "src/dist-builder", "src/ppc"]
+  "src/problem-loader", "src/invoker",
+  "src/dist-files-generator", "src/dist-builder", "src/ppc", "src/svaluer", "src/invoker-api"]

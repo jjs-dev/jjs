@@ -3,133 +3,57 @@
 //! If you just want to use JJS, you should look at apiserver.
 //! This API is desired for advanced use cases, such as integrating invoker
 //! in custom system.
-//! Authentication is performed using TLS Client
-//! Authorization, using $JJS_DATA/etc/pki/ca.crt as root of trust.
 
-mod verify;
-
+use crate::controller::JudgeRequestAndCallbacks;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context as _;
-use log::error;
-use std::path::PathBuf;
+use tracing::instrument;
 
 #[derive(Clone)]
 struct State {
-    task_source: crate::sources::BackgroundSourceHandle,
+    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
     cancel_token: tokio::sync::CancellationToken,
 }
-
-/// invoker.{crt,key} - authorize invoker
-/// ca.crt - authorize requests
-const REQUIRED_PATHS: &[&str] = &["invoker.crt", "invoker.key", "ca.crt"];
 
 async fn route_ping() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/plain")
-        .body("hello, authenticated world!")
+        .body("hello, world!")
 }
 
-async fn route_health() -> impl Responder {
-    // TODO account for real health here
-    let health = serde_json::json!({
-        "summary": "Ok"
-    });
-    serde_json::to_string(&health)
+async fn route_ready() -> impl Responder {
+    ""
 }
 
 async fn route_shutdown(state: web::Data<State>) -> impl Responder {
-    log::info!("invoker api: got shutdown request");
+    tracing::info!("invoker api: got shutdown request");
     state.cancel_token.cancel();
     "cancellation triggered"
 }
 
-fn verify_client_certificate(
-    openssl_validation_succeeded: bool,
-    chain: &mut openssl::x509::X509StoreContextRef,
-) -> bool {
-    if !openssl_validation_succeeded {
-        return false;
-    }
-    let cert = match chain.chain() {
-        Some(c) => c,
-        None => return false,
-    };
-    let cert = match cert.iter().next() {
-        Some(c) => c,
-        None => return false,
-    };
-    let subject_names = cert.subject_name();
-    for name in subject_names.entries_by_nid(openssl::nid::Nid::COMMONNAME) {
-        let data = name.data().as_slice();
-        if data == b"root" {
-            return true;
-        }
-    }
-    false
-}
-
 #[actix_rt::main]
+#[instrument(skip(task_tx))]
 async fn exec(
     cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
-    task_source: crate::sources::BackgroundSourceHandle,
-    pki_base: PathBuf,
+    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
 ) -> anyhow::Result<()> {
     let state = State {
-        task_source,
+        task_tx,
         cancel_token: cancel_token.clone(),
     };
-    let mut some_pki_files_missing = false;
-    for &path in REQUIRED_PATHS {
-        let p = pki_base.join(path);
-
-        if !p.exists() {
-            some_pki_files_missing = true;
-            error!("Missing: {}", p.display());
-        }
-    }
-    if some_pki_files_missing {
-        return Ok(());
-    }
-    let mut ssl_builder =
-        openssl::ssl::SslAcceptor::mozilla_modern(openssl::ssl::SslMethod::tls())?;
-    ssl_builder
-        .set_certificate_chain_file(pki_base.join("invoker.crt"))
-        .context("failed to load certificate")?;
-    ssl_builder
-        .set_private_key_file(pki_base.join("invoker.key"), openssl::ssl::SslFiletype::PEM)?;
-
-    let ca_certificate = tokio::fs::read(pki_base.join("ca.crt"))
-        .await
-        .context("failed to read CA certificate")?;
-
-    let ca_certificate = openssl::x509::X509::from_pem(&ca_certificate)
-        .context("CA certificate is not valid PEM")?;
-    let mut client_store_builder = openssl::x509::store::X509StoreBuilder::new()?;
-    client_store_builder
-        .add_cert(ca_certificate)
-        .context("unable to put CA certificate into certificate store")?;
-    ssl_builder.set_verify_cert_store(client_store_builder.build())?;
-
-    let verify_mode =
-        openssl::ssl::SslVerifyMode::FAIL_IF_NO_PEER_CERT | openssl::ssl::SslVerifyMode::PEER;
-    // this callback will verify CN
-    ssl_builder.set_verify_callback(verify_mode, verify_client_certificate);
-
-    // disallow legacy (and potentially insecure) TLS versions
-    ssl_builder.set_min_proto_version(Some(openssl::ssl::SslVersion::TLS1_2))?;
 
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
             .wrap(actix_web::middleware::Logger::default())
             .route("/", web::get().to(route_ping))
-            .route("/health", web::get().to(route_health))
+            .route("/ready", web::get().to(route_ready))
             .route("/state/shutdown", web::post().to(route_shutdown))
     })
     .workers(1)
     .disable_signals()
-    .bind_openssl(bind_addr, ssl_builder)
+    .bind(bind_addr)
     .context("unable to bind")?
     .run();
     cancel_token.cancelled().await;
@@ -141,11 +65,10 @@ async fn exec(
 pub async fn start(
     cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
-    task_source: crate::sources::BackgroundSourceHandle,
-    pki_base: PathBuf,
+    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
 ) -> Result<(), anyhow::Error> {
     tokio::task::spawn_blocking(move || {
-        if let Err(err) = exec(cancel_token, bind_addr, task_source, pki_base) {
+        if let Err(err) = exec(cancel_token, bind_addr, task_tx) {
             eprintln!("Invoker api service: serve error: {:#}", err);
         }
     });

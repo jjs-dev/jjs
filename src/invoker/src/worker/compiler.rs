@@ -1,4 +1,4 @@
-use crate::worker::{invoke_util, InvokeRequest};
+use crate::worker::{invoke_util, LoweredJudgeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
 use std::fs;
@@ -10,7 +10,7 @@ pub(crate) enum BuildOutcome {
 
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
-    pub(crate) req: &'a InvokeRequest,
+    pub(crate) req: &'a LoweredJudgeRequest,
     pub(crate) minion: &'a dyn minion::erased::Backend,
     pub(crate) config: &'a crate::config::InvokerConfig,
 }
@@ -33,7 +33,7 @@ impl<'a> Compiler<'a> {
             invoke_util::log_execute_command(&command);
 
             let mut native_command = minion::Command::new();
-            invoke_util::command_set_from_inv_req(&mut native_command, &command);
+            invoke_util::command_set_from_judge_req(&mut native_command, &command);
             invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
             native_command.sandbox(sandbox.sandbox.clone());
@@ -41,8 +41,12 @@ impl<'a> Compiler<'a> {
             let child = match native_command.spawn(self.minion) {
                 Ok(child) => child,
                 Err(err) => {
-                    if err.is_system() {
-                        return Err(anyhow::Error::new(err).context("failed to launch child"));
+                    let is_internal_error = match err.downcast_ref::<minion::linux::Error>() {
+                        Some(e) => e.is_system(),
+                        None => true,
+                    };
+                    if is_internal_error {
+                        return Err(err.context("failed to launch child"));
                     } else {
                         return Ok(BuildOutcome::Error(Status {
                             kind: StatusKind::Rejected,

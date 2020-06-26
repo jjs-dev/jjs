@@ -2,16 +2,17 @@
 
 use anyhow::Context as _;
 use async_trait::async_trait;
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+use tracing::instrument;
 
 /// Single problem source.
 /// `problem-loader` itself is just abstraction for group of
 /// registries.
 #[async_trait]
 pub trait Registry: Send + Sync {
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// Tries to fetch problem manifest and download assets to given path.
     /// Returns None if problem was not found.
     async fn get_problem(
@@ -22,6 +23,7 @@ pub trait Registry: Send + Sync {
 }
 
 /// Resolves problems from filesystem
+#[derive(Debug)]
 pub struct FsRegistry {
     /// Directory containing all problems
     problems_dir: PathBuf,
@@ -35,6 +37,7 @@ impl FsRegistry {
 
 #[async_trait]
 impl Registry for FsRegistry {
+    #[instrument]
     async fn get_problem(
         &self,
         problem_name: &str,
@@ -64,12 +67,21 @@ pub struct MongoRegistry {
     collection: mongodb::Collection,
 }
 
+impl std::fmt::Debug for MongoRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MongoRegistry")
+            .field("collection", &"..")
+            .finish()
+    }
+}
+
 impl MongoRegistry {
+    #[instrument]
     pub async fn new(connection_string: &str) -> anyhow::Result<MongoRegistry> {
         let client = mongodb::Client::with_uri_str(connection_string)
             .await
             .context("database is not available")?;
-        let database = client.database("jjs-problems");
+        let database = client.database("jjs");
         let collection = database.collection("problems");
         Ok(MongoRegistry { collection })
     }
@@ -77,6 +89,7 @@ impl MongoRegistry {
 
 #[async_trait]
 impl Registry for MongoRegistry {
+    #[instrument]
     async fn get_problem(
         &self,
         problem_name: &str,
@@ -98,33 +111,31 @@ impl Registry for MongoRegistry {
             // if we got None, problem not found
             None => return Ok(None),
         };
+        tracing::info!("problem found");
         let manifest = doc
             .get_binary_generic("manifest")
             .context("storage schema violation for field `manifest`")?;
         let manifest = serde_json::from_slice(&manifest).context("invalid problem manifest")?;
 
-        let compressed_assets = doc
-            .get_binary_generic("assets")
-            .context("storage schema violation for field `assets`")?;
+        let compressed_assets = std::mem::take(
+            std::convert::identity(doc)
+                .get_binary_generic_mut("assets")
+                .context("storage schema violation for field `assets`")?,
+        );
         // now we must unpack `compressed_assets` to target_path
-        let decoder = flate2::bufread::GzDecoder::new(compressed_assets.as_slice());
-        let mut decoder = tar::Archive::new(decoder);
-        let mut unpacked_files = Vec::new();
-        // TODO we should not save all files in memory
-        for entry in decoder.entries()? {
-            let mut entry = entry?;
-            let inner_path = entry.path()?;
-            if inner_path.is_relative() {
-                todo!()
-            }
-            let path = target_path.join(inner_path);
-            let mut unpacked_file = Vec::new();
-            entry.read_to_end(&mut unpacked_file)?;
-            unpacked_files.push((path, unpacked_file));
-        }
-        for (path, file) in unpacked_files {
-            tokio::fs::write(path, file).await?;
-        }
+
+        let target_path = target_path.to_path_buf();
+        let cur_span = tracing::Span::current();
+        tokio::task::spawn_blocking(move || {
+            let _enter = cur_span.enter();
+            let decoder = flate2::bufread::GzDecoder::new(compressed_assets.as_slice());
+            let mut archive = tar::Archive::new(decoder);
+            tracing::info!(compressed_size=compressed_assets.len(), path=%target_path.display(), "Unpacking problem");
+            archive.unpack(target_path.join("assets"))
+        })
+        .await
+        .unwrap()
+        .context("failed to unpack")?;
 
         Ok(Some(manifest))
     }

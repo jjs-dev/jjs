@@ -1,9 +1,9 @@
-use crate::worker::InvokeRequest;
+use crate::worker::LoweredJudgeRequest;
 use anyhow::{bail, Context};
 use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
-use log::warn;
 use std::os::unix::io::IntoRawFd;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tracing::warn;
 pub(crate) struct Valuer {
     stdin: BufWriter<tokio::process::ChildStdin>,
     stdout: BufReader<tokio::process::ChildStdout>,
@@ -12,7 +12,7 @@ pub(crate) struct Valuer {
 }
 
 impl Valuer {
-    pub(crate) fn new(req: &InvokeRequest) -> anyhow::Result<Valuer> {
+    pub(crate) fn new(req: &LoweredJudgeRequest) -> anyhow::Result<Valuer> {
         let valuer_exe = req.resolve_asset(&req.problem.valuer_exe);
         let mut cmd = tokio::process::Command::new(&valuer_exe);
         cmd.kill_on_drop(true);
@@ -75,7 +75,10 @@ impl Valuer {
         Ok(())
     }
 
-    pub(crate) async fn write_problem_data(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
+    pub(crate) async fn write_problem_data(
+        &mut self,
+        req: &LoweredJudgeRequest,
+    ) -> anyhow::Result<()> {
         let proto_problem_info = ProblemInfo {
             tests: req
                 .problem

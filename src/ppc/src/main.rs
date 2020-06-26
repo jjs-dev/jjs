@@ -18,6 +18,9 @@ mod args {
         /// Output path
         #[structopt(long = "out", short = "O")]
         pub out_path: Vec<PathBuf>,
+        /// Upload compiled packages
+        #[structopt(long, short = "u")]
+        pub upload: bool,
         /// Rewrite dir
         #[structopt(long, short = "F")]
         pub force: bool,

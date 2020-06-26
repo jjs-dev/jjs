@@ -8,14 +8,11 @@ pub struct InvokerConfig {
     /// By default equal to processor count
     #[serde(default)]
     pub workers: Option<usize>,
-    /// Configures how much invoker will sleep between ticks
-    #[serde(default)]
-    pub sleep: SleepConfig,
     /// API service config
     #[serde(default)]
     pub api: ApiSvcConfig,
     /// If enabled, invoker will directly mount host filesystem instead of
-    /// JJS_DATA/opt
+    /// toolchain image.
     #[serde(default)]
     pub host_toolchains: bool,
     /// Override directories that will be mounted into sandbox.
@@ -28,37 +25,6 @@ pub struct InvokerConfig {
     pub expose_host_dirs: Option<Vec<String>>,
     /// Configures how invoker should resolve problems
     pub problems: problem_loader::LoaderConfig,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "kebab-case")]
-pub struct SleepConfig {
-    /// Max sleep duration
-    #[serde(default = "SleepConfig::default_max")]
-    pub max_ms: u32,
-    /// Growth of sleep duration if tick had not any updates
-    #[serde(default = "SleepConfig::default_step")]
-    pub step_ms: u32,
-}
-
-impl SleepConfig {
-    fn default_max() -> u32 {
-        2000
-    }
-
-    fn default_step() -> u32 {
-        500
-    }
-}
-
-impl Default for SleepConfig {
-    fn default() -> Self {
-        SleepConfig {
-            max_ms: Self::default_max(),
-            step_ms: Self::default_step(),
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]

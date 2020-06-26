@@ -1,11 +1,11 @@
-use crate::worker::{Command, InvokeRequest};
-use anyhow::{bail, Context};
-use log::{debug, error};
+use crate::worker::{Command, LoweredJudgeRequest};
+use anyhow::Context;
 use std::{
     fs,
     path::{Path, PathBuf},
     time::Duration,
 };
+use tracing::{debug, error};
 
 pub(crate) struct Sandbox {
     pub(crate) sandbox: Box<dyn minion::erased::Sandbox>,
@@ -36,12 +36,12 @@ static DEFAULT_HOST_MOUNTS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync
 });
 
 pub(crate) fn create_sandbox(
-    req: &InvokeRequest,
+    req: &LoweredJudgeRequest,
     test_id: Option<u32>,
     backend: &dyn minion::erased::Backend,
     config: &crate::config::InvokerConfig,
 ) -> anyhow::Result<Sandbox> {
-    let mut exposed_paths = vec![];
+    let mut shared_dirs = vec![];
     if config.host_toolchains {
         let dirs = config
             .expose_host_dirs
@@ -49,35 +49,26 @@ pub(crate) fn create_sandbox(
             .unwrap_or_else(|| &*DEFAULT_HOST_MOUNTS);
         for item in dirs {
             let item = format!("/{}", item);
-            let peo = minion::SharedDir {
+            let shared_dir = minion::SharedDir {
                 src: item.clone().into(),
                 dest: item.into(),
                 kind: minion::SharedDirKind::Readonly,
             };
-            exposed_paths.push(peo)
+            shared_dirs.push(shared_dir)
         }
     } else {
-        let toolchains_dir = &req.toolchains_dir;
+        let toolchain_dir = &req.toolchain_dir;
         let opt_items =
-            fs::read_dir(&toolchains_dir).context("failed to list toolchains sysroot")?;
+            fs::read_dir(&toolchain_dir).context("failed to list toolchains sysroot")?;
         for item in opt_items {
             let item = item.context("failed to stat toolchains sysroot item")?;
-            let item_type = item
-                .file_type()
-                .context("failed to get toolchain sysroot item file type")?;
-            if !item_type.is_dir() {
-                bail!(
-                    "couldn't link child chroot, because it contains toplevel item `{}`, which is not directory",
-                    item.file_name().to_string_lossy()
-                );
-            }
             let name = item.file_name();
-            let peo = minion::SharedDir {
-                src: toolchains_dir.join(&name),
+            let shared_dir = minion::SharedDir {
+                src: toolchain_dir.join(&name),
                 dest: PathBuf::from(&name),
                 kind: minion::SharedDirKind::Readonly,
             };
-            exposed_paths.push(peo)
+            shared_dirs.push(shared_dir)
         }
     }
 
@@ -101,7 +92,7 @@ pub(crate) fn create_sandbox(
     {
         umount_path = None;
     }
-    exposed_paths.push(minion::SharedDir {
+    shared_dirs.push(minion::SharedDir {
         src: out_dir.join("data"),
         dest: PathBuf::from("/jjs"),
         kind: minion::SharedDirKind::Full,
@@ -113,7 +104,7 @@ pub(crate) fn create_sandbox(
     let sandbox_options = minion::SandboxOptions {
         max_alive_process_count: limits.process_count() as _,
         memory_limit: limits.memory() as _,
-        exposed_paths,
+        exposed_paths: shared_dirs,
         isolation_root: out_dir.join("root"),
         cpu_time_limit,
         real_time_limit,
@@ -131,7 +122,7 @@ pub(crate) fn log_execute_command(command_interp: &Command) {
     debug!("executing command {:?}", command_interp);
 }
 
-pub(crate) fn command_set_from_inv_req(cmd: &mut minion::Command, command: &Command) {
+pub(crate) fn command_set_from_judge_req(cmd: &mut minion::Command, command: &Command) {
     cmd.path(&command.argv[0]);
     cmd.args(&command.argv[1..]);
     cmd.envs(&command.env);

@@ -63,7 +63,7 @@ impl DockerEmitter {
 
                     std::fs::copy(
                         params.build.join("jjs-out").join(&rs_art.package_name),
-                        ctx_dir.join(&rs_art.package_name),
+                        ctx_dir.join(&rs_art.install_name),
                     )
                     .context("context preparation error")?;
                     Self::emit_inner(params, &ctx_dir, &rs_art.package_name, &options)?;

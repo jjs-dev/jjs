@@ -318,7 +318,15 @@ impl<'a> ProblemBuilder<'a> {
                 let src_path = self
                     .jtl_dir
                     .join(format!("bin/builtin-checker-{}", bc.name));
-                tokio::fs::copy(&src_path, &out_path)
+                println!(
+                    "Copying checker binary from {} to {}",
+                    src_path.to_str().unwrap(),
+                    out_path.join("bin").to_str().unwrap()
+                );
+                tokio::fs::create_dir(&out_path)
+                    .await
+                    .context("failed to create out directory")?;
+                tokio::fs::copy(&src_path, &out_path.join("bin"))
                     .await
                     .context("failed to copy checker binary")?;
                 Ok(FileRef {

@@ -69,7 +69,17 @@ impl Loader {
         // cache for this problem not found, let's load it.
         let assets_path = self.cache_dir.join(problem_name);
         for registry in &self.registries {
-            if let Some(manifest) = registry.get_problem(problem_name, &assets_path).await? {
+            if let Some(manifest) = registry
+                .get_problem(problem_name, &assets_path)
+                .await
+                .with_context(|| {
+                    format!(
+                        "failed to search for problem {} in registry {}",
+                        problem_name,
+                        registry.name()
+                    )
+                })?
+            {
                 cache.items.insert(
                     problem_name.to_string(),
                     ProblemCacheItem {
@@ -88,6 +98,8 @@ impl Loader {
 /// Used in [`from_config`](Loader::from_config) constructor
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct LoaderConfig {
+    #[serde(default)]
     fs: Option<std::path::PathBuf>,
+    #[serde(default)]
     mongodb: Option<String>,
 }

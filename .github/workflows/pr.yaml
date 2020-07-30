@@ -19,6 +19,14 @@ jobs:
     steps:
       - name: Success
         run: "echo \"Success\""
+  cargo-deny:
+    name: cargo-deny
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check all
   py-fmt:
     name: py-fmt
     runs-on: ubuntu-18.04

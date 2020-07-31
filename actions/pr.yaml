@@ -11,6 +11,7 @@ env:
   RUST_BACKTRACE: full
   CARGO_INCREMENTAL: 0
   CARGO_BUILD_PIPELINING: "false"
+  RUSTC_BOOTSTRAP: 1
 jobs:
   hack:
     name: hack
@@ -75,7 +76,7 @@ jobs:
     runs-on: "ubuntu-18.04"
     steps:
       - uses: actions/checkout@v1
-      - $include: rustc
+      - $include: rustc-nightly
       - name: check rust code formatting
         uses: actions-rs/cargo@v1
         with:
@@ -159,7 +160,7 @@ jobs:
       - name: Free space
         run: sudo bash ci-data/free-space.sh
       - $include: sysdeps
-      - $include: rustc
+      - $include: rustc-nightly
       - $include: pkg-login
       - uses: actions/setup-python@v2
         with:

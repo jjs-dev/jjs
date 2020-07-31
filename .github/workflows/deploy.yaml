@@ -8,6 +8,7 @@ name: deploy
 env:
   CI: 1
   RUST_BACKTRACE: full
+  RUSTC_BOOTSTRAP: 1
 jobs:
   docker:
     name: docker
@@ -17,7 +18,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-06-25
+          toolchain: stable
           components: "clippy,rustfmt"
           override: true
       - name: Install system dependencies

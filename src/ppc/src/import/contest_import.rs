@@ -1,3 +1,4 @@
+// TODO revive when contests are reintroduced
 use std::{borrow::Cow, path::Path};
 use thiserror::Error;
 #[derive(Error, Debug)]

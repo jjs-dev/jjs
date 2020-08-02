@@ -5,6 +5,7 @@
 //! Package can be
 //! - Rust
 //! - Other
+//! - Meta
 //! # Artifact
 //! Artifact is result of building RustPackage. It is binary file.
 //! `OtherPackage`s do not support creating Artifacts. They provide Dockefile
@@ -12,6 +13,9 @@
 //! # Emitter
 //! Composes all Artifacts (i.e. non-Rust packages are not supported) in some
 //! structured repr, e.g. Docker image or sysroot-like archive.
+//! # Meta packages
+//! This packages are build with special context dir, which allows them pull
+//! outputs of other packages
 mod artifact;
 mod builder;
 mod cfg;
@@ -21,7 +25,7 @@ mod package;
 
 use crate::{
     cfg::BuildProfile,
-    package::{OtherPackage, RustPackage, Section},
+    package::{CmakePackage, MetaPackage, OtherPackage, RustPackage, Section},
 };
 use anyhow::Context as _;
 use std::path::PathBuf;
@@ -209,6 +213,24 @@ fn make_other_package_list() -> Vec<OtherPackage> {
     pkgs
 }
 
+fn make_cmake_package_list() -> Vec<CmakePackage> {
+    let mut pkgs = Vec::new();
+    pkgs.push(CmakePackage {
+        name: "jtl".to_string(),
+        section: Section::Tool,
+    });
+    pkgs
+}
+
+fn make_meta_package_list() -> Vec<MetaPackage> {
+    let mut pkgs = Vec::new();
+    pkgs.push(MetaPackage {
+        name: "toolkit".to_string(),
+        section: Section::Tool,
+    });
+    pkgs
+}
+
 fn check_filter(
     components_cfg: &crate::cfg::ComponentsConfig,
     pkg_name: &str,
@@ -225,6 +247,14 @@ fn check_filter(
             .any(|enabled_component| enabled_component == pkg_name)
 }
 
+fn check_meta_pkg_filter(components_cfg: &crate::cfg::ComponentsConfig, pkg_sect: Section) -> bool {
+    let pkg_sect = pkg_sect.plural();
+    components_cfg
+        .sections
+        .iter()
+        .any(|enabled_section| enabled_section == pkg_sect)
+}
+
 /// Responsible for building of all requested components
 fn build_jjs_components(params: &Params) -> anyhow::Result<()> {
     let rust_pkgs = make_rust_package_list()
@@ -235,17 +265,29 @@ fn build_jjs_components(params: &Params) -> anyhow::Result<()> {
         .into_iter()
         .filter(|pkg| check_filter(&params.cfg.components, &pkg.name, pkg.section))
         .collect::<Vec<_>>();
+    let cmake_pkgs = make_cmake_package_list()
+        .into_iter()
+        .filter(|pkg| check_filter(&params.cfg.components, &pkg.name, pkg.section))
+        .collect::<Vec<_>>();
+    let meta_pkgs = make_meta_package_list()
+        .into_iter()
+        .filter(|pkg| check_meta_pkg_filter(&params.cfg.components, pkg.section))
+        .collect::<Vec<_>>();
 
     let mut builder = builder::Builder::new(params);
     for pkg in rust_pkgs {
         println!("Will build: {}", &pkg.name);
-        builder.push(pkg);
+        builder.push_rust(pkg);
+    }
+    for pkg in cmake_pkgs {
+        println!("Will build: {}", &pkg.name);
+        builder.push_cmake(pkg);
     }
     let artifacts = builder.build().context("build error")?;
 
     if let Some(docker_cfg) = &params.cfg.emit.docker {
         let emitter = emit::DockerEmitter;
-        emitter.emit(&artifacts, &other_pkgs, params, docker_cfg)?;
+        emitter.emit(&artifacts, &other_pkgs, &meta_pkgs, params, docker_cfg)?;
     }
     Ok(())
 }

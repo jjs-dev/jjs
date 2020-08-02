@@ -40,18 +40,18 @@ fn shellcheck(runner: &Runner) {
 }
 
 fn static_analysis() -> anyhow::Result<()> {
-    std::fs::remove_dir_all("jtl-cpp/cmake-build-analysis").ok();
-    std::fs::create_dir_all("jtl-cpp/cmake-build-analysis")?;
+    std::fs::remove_dir_all("src/jtl/cmake-build-analysis").ok();
+    std::fs::create_dir_all("src/jtl/cmake-build-analysis")?;
     Command::new("scan-build")
         .arg(cmake_bin())
-        .current_dir("./jtl-cpp/cmake-build-analysis")
+        .current_dir("./src/jtl/cmake-build-analysis")
         .arg("..")
         .try_exec()?;
 
     let analysis_output_dir = tempfile::TempDir::new().context("failed to get temp dir")?;
 
     Command::new("scan-build")
-        .current_dir("./jtl-cpp/cmake-build-analysis")
+        .current_dir("./src/jtl/cmake-build-analysis")
         .arg("-o")
         .arg(&analysis_output_dir.path())
         .arg("make")
@@ -70,14 +70,14 @@ fn static_analysis() -> anyhow::Result<()> {
 
 fn check_testlib(runner: &Runner) {
     info!("checking testlib");
-    std::fs::create_dir("jtl-cpp/cmake-build-debug").ok();
+    std::fs::create_dir("src/jtl/cmake-build-debug").ok();
     Command::new(cmake_bin())
-        .current_dir("./jtl-cpp/cmake-build-debug")
+        .current_dir("./src/jtl/cmake-build-debug")
         .arg("-DCMAKE_EXPORT_COMPILE_COMMANDS=On")
         .arg("..")
         .run_on(runner);
     Command::new(cmake_bin())
-        .current_dir("./jtl-cpp/cmake-build-debug")
+        .current_dir("./src/jtl/cmake-build-debug")
         .args(&["--build", "."])
         .args(&["--target", "all"])
         .run_on(runner);

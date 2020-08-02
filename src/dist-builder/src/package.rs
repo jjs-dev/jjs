@@ -7,9 +7,21 @@ pub(crate) struct RustPackage {
     pub(crate) section: Section,
 }
 
+pub(crate) struct CmakePackage {
+    pub(crate) name: String,
+    pub(crate) section: Section,
+}
+
 #[derive(Debug)]
 pub(crate) struct OtherPackage {
     /// As in sources
+    pub(crate) name: String,
+    pub(crate) section: Section,
+}
+
+/// Automatically enabled if user enabled specified section
+#[derive(Debug)]
+pub(crate) struct MetaPackage {
     pub(crate) name: String,
     pub(crate) section: Section,
 }

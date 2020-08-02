@@ -1,4 +1,9 @@
-use crate::{artifact::Artifact, cfg::DockerConfig, package::OtherPackage, Params};
+use crate::{
+    artifact::Artifact,
+    cfg::DockerConfig,
+    package::{MetaPackage, OtherPackage},
+    Params,
+};
 use anyhow::Context as _;
 use std::{io::Write, path::Path, process::Command};
 use util::cmd::CommandExt;
@@ -40,6 +45,7 @@ impl DockerEmitter {
         &self,
         artifacts: &[Artifact],
         other_packages: &[OtherPackage],
+        meta_packages: &[MetaPackage],
         params: &Params,
         options: &DockerConfig,
     ) -> anyhow::Result<()> {
@@ -50,21 +56,39 @@ impl DockerEmitter {
         crate::fs_util::ensure_exists(params.build.join("dockers"))?;
         println!("Building docker images");
         for artifact in artifacts {
-            let ctx_dir = params.build.join("dockers").join(&artifact.package_name);
-            std::fs::create_dir_all(&ctx_dir).context("mkdir failed")?;
+            match artifact {
+                Artifact::Rust(rs_art) => {
+                    let ctx_dir = params.build.join("dockers").join(&rs_art.package_name);
+                    std::fs::create_dir_all(&ctx_dir).context("mkdir failed")?;
 
-            std::fs::copy(
-                params.build.join("jjs-out").join(&artifact.package_name),
-                ctx_dir.join(&artifact.package_name),
-            )
-            .context("context preparation error")?;
-            Self::emit_inner(params, &ctx_dir, &artifact.package_name, &options)?;
+                    std::fs::copy(
+                        params.build.join("jjs-out").join(&rs_art.package_name),
+                        ctx_dir.join(&rs_art.package_name),
+                    )
+                    .context("context preparation error")?;
+                    Self::emit_inner(params, &ctx_dir, &rs_art.package_name, &options)?;
+                }
+                Artifact::Cmake(cm_art) => {
+                    let install_dir = params.build.join("jjs-out").join(&cm_art.package_name);
+                    std::fs::create_dir_all(&install_dir)?;
+
+                    Self::emit_inner(params, &install_dir, &cm_art.package_name, &options)?;
+                }
+            }
         }
         for oth_pkg in other_packages {
             Self::emit_inner(
                 params,
                 &params.src.join("src").join(&oth_pkg.name),
                 &oth_pkg.name,
+                &options,
+            )?;
+        }
+        for meta_pkg in meta_packages {
+            Self::emit_inner(
+                params,
+                &params.build.join("jjs-out"),
+                &meta_pkg.name,
                 &options,
             )?;
         }

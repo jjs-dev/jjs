@@ -1,4 +1,3 @@
-mod contest_import;
 mod problem_importer;
 mod template;
 mod valuer_cfg;
@@ -11,11 +10,12 @@ use std::{
 };
 
 async fn import_one_problem(
+    services: &crate::Services,
     src: &Path,
     dest: &Path,
     build: bool,
     force: bool,
-) -> anyhow::Result<Option<tokio::task::JoinHandle<()>>> {
+) -> anyhow::Result<()> {
     let manifest_path = src.join("problem.xml");
     let manifest = std::fs::read_to_string(manifest_path).context("failed read problem.xml")?;
     let doc = roxmltree::Document::parse(&manifest).context("parse error")?;
@@ -51,15 +51,16 @@ async fn import_one_problem(
             std::fs::remove_dir_all(&out_path).ok();
         }
         std::fs::create_dir(&out_path)?;
-        let handle = tokio::task::spawn(crate::compile_problem(crate::CompileSingleProblemArgs {
-            pkg_path: dest.to_path_buf(),
-            out_path,
-            force,
-        }));
-        Ok(Some(handle))
-    } else {
-        Ok(None)
+        let dest = dest.to_path_buf();
+        crate::run_in_background(services.compiler.exec(
+            crate::compile::CompileSingleProblemArgs {
+                pkg_path: dest,
+                out_path,
+                force,
+            },
+        ));
     }
+    Ok(())
 }
 
 enum ImportKind {
@@ -82,24 +83,23 @@ fn detect_import_kind(path: &Path) -> anyhow::Result<ImportKind> {
     bail!("unknown src")
 }
 
-pub async fn exec(
+pub(crate) async fn exec(
+    services: &crate::Services,
     args: crate::args::ImportArgs,
-) -> anyhow::Result<Vec<tokio::task::JoinHandle<()>>> {
+) -> anyhow::Result<()> {
     if args.force {
         std::fs::remove_dir_all(&args.out_path).ok();
         std::fs::create_dir(&args.out_path).context("create out dir")?;
     } else {
-        crate::check_dir(&PathBuf::from(&args.out_path), false /* TODO */);
+        crate::check_dir(&PathBuf::from(&args.out_path), false /* TODO */)?;
     }
 
     let src = Path::new(&args.in_path);
     let dest = Path::new(&args.out_path);
     let kind = detect_import_kind(src).context("failed to detect import operation kind")?;
-    let mut handles = Vec::new();
     match kind {
         ImportKind::Problem => {
-            let handle = import_one_problem(src, dest, args.build, args.force).await?;
-            handles.extend(handle);
+            import_one_problem(services, src, dest, args.build, args.force).await?;
         }
         ImportKind::Contest => {
             println!("Importing contest");
@@ -115,28 +115,30 @@ pub async fn exec(
                 let problem_dir = item.path();
                 let target_dir = dest.join("problems").join(&problem_name);
                 std::fs::create_dir_all(&target_dir)?;
-                let handle =
-                    import_one_problem(&problem_dir, &target_dir, args.build, args.force).await?;
-                handles.extend(handle);
+                import_one_problem(services, &problem_dir, &target_dir, args.build, args.force)
+                    .await?;
             }
             if args.update_cfg {
-                let contest_name = args
-                    .contest_name
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("missing --contest-name"))?;
-                let contest_config = contest_import::import(&src.join("contest.xml"), contest_name)
-                    .context("import contest config")?;
-                let jjs_data_dir = std::env::var("JJS_DATA").context("JJS_DATA missing")?;
-                let path = PathBuf::from(jjs_data_dir)
-                    .join("etc/objects/contests")
-                    .join(format!("{}.yaml", contest_name));
-                if path.exists() && !args.force {
-                    anyhow::bail!("path {} already exists", path.display());
-                }
-                let contest_config = serde_yaml::to_string(&contest_config)?;
-                std::fs::write(path, contest_config)?;
+                anyhow::bail!("TODO");
+                /*
+                     let contest_name = args
+                         .contest_name
+                         .as_ref()
+                         .ok_or_else(|| anyhow::anyhow!("missing --contest-name"))?;
+                     let contest_config = contest_import::import(&src.join("contest.xml"), contest_name)
+                         .context("import contest config")?;
+                     let jjs_data_dir = std::env::var("JJS_DATA").context("JJS_DATA missing")?;
+                     let path = PathBuf::from(jjs_data_dir)
+                         .join("etc/objects/contests")
+                         .join(format!("{}.yaml", contest_name));
+                     if path.exists() && !args.force {
+                         anyhow::bail!("path {} already exists", path.display());
+                     }
+                     let contest_config = serde_yaml::to_string(&contest_config)?;
+                     std::fs::write(path, contest_config)?;
+                */
             }
         }
     }
-    Ok(handles)
+    Ok(())
 }

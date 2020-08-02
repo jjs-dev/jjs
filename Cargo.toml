@@ -8,4 +8,4 @@ debug = 1
 # TODO: add other as they are fixed
 members=["src/devtool", "src/gen-api-client", "src/client",
   "src/problem-loader", "src/invoker",
-  "src/dist-files-generator", "src/dist-builder"]
+  "src/dist-files-generator", "src/dist-builder", "src/ppc"]

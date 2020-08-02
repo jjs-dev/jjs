@@ -635,6 +635,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "colored"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4ffc801dacf156c5854b9df4f425a626539c3a6ef7893cc0c5084a23f0b6c59"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi 0.3.8",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -669,6 +680,67 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba125de2af0df55319f41944744ad91c71113bf74a4646efff39afe1f6842db1"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "crossbeam"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69323bff1fb41c635347b8ead484a5ca6c3f11914d784170b158d8449ab07f8e"
+dependencies = [
+ "cfg-if",
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ee0cc8804d5393478d743b035099520087a5186f3b93fa58cec08fa62407b6"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f02af974daeee82218205558e51ec8768b48cf524bd01d550abe5573a608285"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "maybe-uninit",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "058ed274caafc1f60c4997b5fc07bf7dc7cca454af7c6e81edffe5f33f70dace"
+dependencies = [
+ "autocfg 1.0.0",
+ "cfg-if",
+ "crossbeam-utils",
+ "lazy_static",
+ "maybe-uninit",
+ "memoffset",
+ "scopeguard",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "774ba60a54c213d409d5353bda12d49cd68d14e45036a285234c8d6f91f92570"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "maybe-uninit",
 ]
 
 [[package]]
@@ -996,6 +1068,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
+name = "formatf"
+version = "0.1.0"
+source = "git+https://github.com/mikailbag/formatf#1447dffec6cc32c430b55dfb4d3677486c411527"
+dependencies = [
+ "itoa",
+]
+
+[[package]]
 name = "fs_extra"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1192,6 +1272,12 @@ name = "gimli"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcc8e0c9bce37868955864dbecd2b1ab2bdf967e6f28066d65aaac620444b65c"
+
+[[package]]
+name = "glob"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
 name = "globset"
@@ -1640,6 +1726,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+
+[[package]]
 name = "match_cfg"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1679,6 +1771,15 @@ name = "memchr"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3728d817d99e5ac407411fa471ff9800a778d88a24685968b36824eaf4bee400"
+
+[[package]]
+name = "memoffset"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c198b026e1bbf08a937e94c6c60f9ec4a2267f5b0d2eec9c1b21b061ce2be55f"
+dependencies = [
+ "autocfg 1.0.0",
+]
 
 [[package]]
 name = "mime"
@@ -1851,6 +1952,11 @@ dependencies = [
  "webpki",
  "webpki-roots",
 ]
+
+[[package]]
+name = "multiwake"
+version = "0.1.0"
+source = "git+https://github.com/jjs-dev/commons#38c9256b0fd67ff8a57e0009f525b1629c1703f0"
 
 [[package]]
 name = "native-tls"
@@ -2132,6 +2238,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 
 [[package]]
+name = "pest"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10f4872ae94d7b90ae48754df22fd42ad52ce740b8f370b03da4835417403e53"
+dependencies = [
+ "ucd-trie",
+]
+
+[[package]]
+name = "pest_derive"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "833d1ae558dc601e9a60366421196a8d94bc0ac980476d0b67e1d0988d72b2d0"
+dependencies = [
+ "pest",
+ "pest_generator",
+]
+
+[[package]]
+name = "pest_generator"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99b8db626e31e5b81787b9783425769681b347011cc59471e33ea46d2ea0cf55"
+dependencies = [
+ "pest",
+ "pest_meta",
+ "proc-macro2 1.0.18",
+ "quote 1.0.7",
+ "syn 1.0.33",
+]
+
+[[package]]
+name = "pest_meta"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54be6e404f5317079812fc8f9f5279de376d8856929e21c184ecf6bbd692a11d"
+dependencies = [
+ "maplit",
+ "pest",
+ "sha-1",
+]
+
+[[package]]
 name = "pin-project"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2174,6 +2323,32 @@ name = "pom"
 version = "0.1.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "ppc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "formatf",
+ "getrandom",
+ "glob",
+ "hex 0.4.2",
+ "libc 0.2.71 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multiwake",
+ "pest",
+ "pest_derive",
+ "pom",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "structopt",
+ "svaluer",
+ "thiserror",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -2587,6 +2762,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cabe4fa914dec5870285fa7f71f602645da47c486e68486d2b4ceb4a343e90ac"
 
 [[package]]
+name = "roxmltree"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4129743af505f674602b97d02c8ebe526752de8811e21ecb2fb166fcf4afe157"
+dependencies = [
+ "xmlparser",
+]
+
+[[package]]
 name = "rust-argon2"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2862,6 +3046,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple_logger"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea0c4611f32f4c2bac73754f22dca1f57e6c1945e0590dae4e5f2a077b92367"
+dependencies = [
+ "atty",
+ "chrono",
+ "colored",
+ "log",
+ "winapi 0.3.8",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3027,6 +3224,23 @@ name = "subtle"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d67a5a62ba6e01cb2192ff309324cb4875d0c451d55fe2319433abe7a05a8ee"
+
+[[package]]
+name = "svaluer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossbeam",
+ "either",
+ "invoker-api",
+ "log",
+ "pom",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "simple_logger",
+ "util",
+]
 
 [[package]]
 name = "syn"
@@ -3499,6 +3713,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "373c8a200f9e67a0c95e62a4f52fbf80c23b4381c05a17845531982fa99e6b33"
 
 [[package]]
+name = "ucd-trie"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56dee185309b50d1f11bfedef0fe6d036842e3fb77413abef29f8f8d1c5d4c1c"
+
+[[package]]
 name = "unicase"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3832,6 +4052,12 @@ checksum = "244c3741f4240ef46274860397c7c74e50eb23624996930e484c16679633a54c"
 dependencies = [
  "libc 0.2.71 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "xmlparser"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52613e655f6f11f63c0fe7d1c3b5ef69e44d96df9b65dab296b441ed0e1125f5"
 
 [[package]]
 name = "yaml-rust"

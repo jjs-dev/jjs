@@ -7,6 +7,16 @@ pub enum BuildProfile {
     RelWithDebInfo,
 }
 
+impl BuildProfile {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BuildProfile::Debug => "Debug",
+            BuildProfile::Release => "Release",
+            BuildProfile::RelWithDebInfo => "RelWithDebInfo",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ToolInfo {
     pub cargo: String,

@@ -1,5 +1,10 @@
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
+
+/// Length of random seed
+/// We need this because mt19937_64 has fixed-length seed
+pub const RANDOM_SEED_LENGTH: usize = 16;
+
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomCheck {
     #[serde(rename = "pass-correct")]
@@ -217,8 +222,8 @@ impl RawProblem {
 
         let random_seed = match self.random_seed.take() {
             Some(s) => {
-                if s.len() != 16 {
-                    bail!("random-seed must have length 16");
+                if s.len() != RANDOM_SEED_LENGTH {
+                    bail!("random-seed must have length {}", RANDOM_SEED_LENGTH);
                 }
                 if s.chars().all(|c| c.is_ascii_hexdigit()) {
                     s.to_lowercase()

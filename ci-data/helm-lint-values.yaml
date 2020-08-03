@@ -1,0 +1,5 @@
+image:
+  tag:
+    notlatest
+dev:
+  kubeScore: true

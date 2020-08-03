@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jjs-config
+data:
+  judge: |
+    workers: 4
+    problems:
+      mongodb: mongodb://mongodb/jjs

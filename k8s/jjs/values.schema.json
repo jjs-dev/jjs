@@ -1,0 +1,78 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "values",
+    "description": "JJS installation settings",
+    "properties": {
+        "image": {
+            "description": "defines how JJS images will be searched. Image for component foo will be named $(repositoryPrefix)foo:$tag",
+            "type": "object",
+            "properties": {
+                "repositoryPrefix": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "pullPolicy": {
+                    "type": "string",
+                    "enum": [
+                        "Never",
+                        "Always",
+                        "IfNotPresent"
+                    ]
+                }
+            }
+        },
+        "toolchains": {
+            "description": "defines what toolchains will be installed instantly.",
+            "type": "object",
+            "properties": {
+                "official": {
+                    "description": "Install toolchains from jjs-dev/toolchains reporitory",
+                    "type": "boolean"
+                }
+            }
+        },
+        "services": {
+            "type": "object",
+            "description": "defines how JJS components are exposed to outside of the cluster",
+            "properties": {
+                "apiserver": {
+                    "type": "object",
+                    "properties": {
+                        "serviceType": {
+                            "type": "string",
+                            "description": "Service type to use",
+                            "enum": [
+                                "NodePort",
+                                "ClusterIP",
+                                "LoadBalancer"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "networkPolicy": {
+            "type": "object",
+            "description": "configures default NetworkPolicy",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "install a network policy"
+                }
+            }
+        },
+        "dev": {
+            "type": "object",
+            "description": "settings, only useful for JJS development",
+            "properties": {
+                "kubeScore": {
+                    "type": "boolean",
+                    "description": "emit annotations for kube-score"
+                }
+            }
+        }
+    }
+}

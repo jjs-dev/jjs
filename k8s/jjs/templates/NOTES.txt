@@ -1,1 +1,10 @@
-See docs at jjs-dev.github.io/jjs/man
+JJS successfully installed into namespace {{ .Release.Namespace }}!
+See usage docs at jjs-dev.github.io/jjs/man.
+
+Apiserver DNS name is apiserver.{{ .Release.Namespace }}.
+
+{{- if has .Values.services.apiserver.serviceType (list "NodePort" "LoadBalancer" ) }}
+Additionally, apiserver is available on dedicated port on each cluster node. To get this port, run
+$ kubectl get service apiserver -n {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}"
+(You may need to wait until NodePort is assigned).
+{{- end }}

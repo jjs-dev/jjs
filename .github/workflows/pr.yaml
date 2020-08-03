@@ -20,6 +20,19 @@ jobs:
     steps:
       - name: Success
         run: "echo \"Success\""
+  helm:
+    name: helm
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run helm lint
+        run: "helm lint k8s/jjs\n"
+      - name: Render chart
+        run: helm template k8s/jjs -f ci-data/helm-lint-values.yaml > ./objects.yaml
+      - name: Run Kube-score
+        run: "brew install kube-score/tap/kube-score\nkube-score score --ignore-test=container-resources objects.yaml\n"
+      - name: Run Polaris
+        run: "brew tap FairwindsOps/tap\nbrew install FairwindsOps/tap/polaris\n\necho \"--- Running polaris audir ---\"\npolaris audit --audit-path ./objects.yaml --format yaml || true\n"
   cargo-deny:
     name: cargo-deny
     runs-on: ubuntu-20.04

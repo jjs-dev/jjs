@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir artifacts
           DOCKER_OPT="--enable-docker --docker-tag=% --docker-tags-log=/tmp/taglog.txt --with-docker=docker"
-          cargo jjs-build --out artifacts $DOCKER_OPT --enable=apiserver --enable=invoker
+          cargo jjs-build --out artifacts $DOCKER_OPT --enable=tools --enable=daemons
       - name: Upload images
         run: |
           docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com

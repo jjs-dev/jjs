@@ -24,6 +24,6 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get install -y libssl-dev cmake
       - name: Build images
-        run: "mkdir artifacts\nDOCKER_OPT=\"--enable-docker --docker-tag=% --docker-tags-log=/tmp/taglog.txt --with-docker=docker\"\ncargo jjs-build --out artifacts $DOCKER_OPT --enable=apiserver --enable=invoker\n"
+        run: "mkdir artifacts\nDOCKER_OPT=\"--enable-docker --docker-tag=% --docker-tags-log=/tmp/taglog.txt --with-docker=docker\"\ncargo jjs-build --out artifacts $DOCKER_OPT --enable=tools --enable=daemons\n"
       - name: Upload images
         run: "docker login --username jjs-dev --password ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com\necho \"${{ secrets.GCR_UPLOAD_JSON_KEY }}\" | base64 --decode | docker login --username _json_key --password-stdin gcr.io\npython3 ci-data/push_images.py\n"

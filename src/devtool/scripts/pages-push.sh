@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 REPO="https://${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 BRANCH='gh-pages'
 git init

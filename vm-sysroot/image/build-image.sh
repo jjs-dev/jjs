@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 usage ()
 {
     cat >&2 << EOF
-usage: image/build-image.sh [--out <output_path>] [--sysroot <sysroot_path>]
+usage: $0 [--out <output_path>] [--sysroot <sysroot_path>]
 
 Build the disk image \$output_path (default: image/hdd.img), using sysroot in \$sysroot_path (default: ./sysroot).
 The resulting image is a single partition without any bootloader/kernel/whatsoever.

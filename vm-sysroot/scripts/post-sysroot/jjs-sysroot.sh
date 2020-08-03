@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 ORIG_CWD="$(pwd)"
 
 sudo mkdir -p "$SYSROOT/var/lib/jjs"

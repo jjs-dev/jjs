@@ -1,13 +1,23 @@
-use openapi::client::{ApiClient as ApiClientTrait, Client as RawClient};
-use std::sync::Arc;
+pub mod auth_data;
+pub use auth_data::AuthData;
 
 pub mod prelude {
     pub use openapi::client::Sendable;
 }
+use prelude::Sendable as _;
 
 pub mod models {
-    pub use openapi::{api_version, miscellaneous, run, run_patch, run_submit_simple_params};
+    pub use openapi::{
+        api_version::ApiVersion, live_status::LiveStatus, miscellaneous::Miscellaneous as Misc,
+        run::Run, run_patch::RunPatch, run_submit_simple_params::RunSubmitSimpleParams,
+        simple_auth_params::SimpleAuthParams, toolchain::Toolchain,
+    };
 }
+use anyhow::Context as _;
+use openapi::client::{ApiClient as ApiClientTrait, Client as RawClient};
+use std::sync::Arc;
+use tracing::instrument;
+
 #[derive(Clone)]
 pub struct ApiClient {
     inner: Arc<RawClient>,
@@ -32,21 +42,48 @@ impl ApiClientTrait for ApiClient {
 
 pub type Error = openapi::client::ApiError<serde_json::Value>;
 
-/// Establishes connection to JJS API using environment-dependent methods
-pub async fn connect() -> anyhow::Result<ApiClient> {
+/// auth-data does not necessarily contain token. For example, user can specify
+/// login and password instead. This function is responsible for converting
+/// any possible AuthKind to token.
+async fn obtain_token(ad: AuthData) -> anyhow::Result<String> {
+    let mut conf = openapi::client::ClientConfiguration::new();
+    conf.set_base_url(&ad.endpoint);
+    match ad.auth {
+        auth_data::AuthKind::Token(tok) => Ok(tok.token),
+        auth_data::AuthKind::LoginAndPassword(lp) => {
+            let client = RawClient::new(conf);
+            let auth = models::SimpleAuthParams::login()
+                .login(lp.login)
+                .password(lp.password)
+                .send(&client)
+                .await?
+                .object;
+            Ok(auth.token)
+        }
+    }
+}
+
+/// Establishes connection to JJS API using given AuthData
+pub async fn from_auth_data(ad: AuthData) -> anyhow::Result<ApiClient> {
     let mut configuration = openapi::client::ClientConfiguration::new();
 
-    let base_path =
-        std::env::var("JJS_API").unwrap_or_else(|_| "http://localhost:1779".to_string());
-    configuration.set_base_url(base_path);
+    configuration.set_base_url(&ad.endpoint);
 
-    let api_key = std::env::var("JJS_TOKEN").unwrap_or_else(|_| "Dev::root".to_string());
+    let token = obtain_token(ad).await.context("failed to obtain token")?;
+
     let api_key = openapi::client::ApiKey {
         header_name: "Authorization".to_string(),
-        key: format!("Token {}", &api_key),
+        key: format!("Bearer {}", &token),
     };
     configuration.set_api_key(api_key);
 
     let inner = Arc::new(RawClient::new(configuration));
     Ok(ApiClient { inner })
+}
+
+/// Establishes connection to JJS API using environment-dependent methods
+#[instrument]
+pub async fn infer() -> anyhow::Result<ApiClient> {
+    let auth_data = AuthData::infer().await.context("AuthData not found")?;
+    from_auth_data(auth_data).await.context("connection error")
 }

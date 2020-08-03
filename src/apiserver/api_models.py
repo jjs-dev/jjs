@@ -25,3 +25,14 @@ class Run(pydantic.BaseModel):
     def from_db(doc: db_models.RunMainProj) -> Run:
         return Run(id=doc['id'], toolchain_name=doc['toolchain_name'],
                    user_id=doc['user_id'], contest_name=doc['contest_name'], problem_name=doc['problem_name'], status=doc['status'])
+
+
+class Toolchain(pydantic.BaseModel):
+    name: str
+    image: str
+
+
+class LiveStatus(pydantic.BaseModel):
+    current_test: typing.Optional[int]
+    current_score: typing.Optional[int]
+    finished: bool

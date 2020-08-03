@@ -32,6 +32,25 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "Body_route_put_problem_problems__problem_id__put": {
+        "properties": {
+          "problem_assets": {
+            "title": "Problem Assets",
+            "type": "string"
+          },
+          "problem_manifest": {
+            "format": "binary",
+            "title": "Problem Manifest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "problem_manifest",
+          "problem_assets"
+        ],
+        "title": "Body_route_put_problem_problems__problem_id__put",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -43,6 +62,27 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LiveStatus": {
+        "properties": {
+          "current_score": {
+            "title": "Current Score",
+            "type": "integer"
+          },
+          "current_test": {
+            "title": "Current Test",
+            "type": "integer"
+          },
+          "finished": {
+            "title": "Finished",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "finished"
+        ],
+        "title": "LiveStatus",
         "type": "object"
       },
       "Run": {
@@ -153,6 +193,24 @@
           "password"
         ],
         "title": "SimpleAuthParams",
+        "type": "object"
+      },
+      "Toolchain": {
+        "properties": {
+          "image": {
+            "title": "Image",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "image"
+        ],
+        "title": "Toolchain",
         "type": "object"
       },
       "User": {
@@ -290,6 +348,56 @@
           }
         },
         "summary": "Route Login"
+      }
+    },
+    "/problems/{problem_id}": {
+      "put": {
+        "operationId": "putProblem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "problem_id",
+            "required": true,
+            "schema": {
+              "title": "Problem Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_route_put_problem_problems__problem_id__put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Route Put Problem Problems  Problem Id  Put",
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Put Problem"
       }
     },
     "/queue": {
@@ -511,6 +619,45 @@
         "summary": "Route Run Patch"
       }
     },
+    "/runs/{run_id}/live": {
+      "get": {
+        "operationId": "getRunLiveStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Run Live Status"
+      }
+    },
     "/runs/{run_id}/source": {
       "get": {
         "description": "Returns run source as base64-encoded JSON string",
@@ -598,6 +745,83 @@
           }
         },
         "summary": "Route Is Dev"
+      }
+    },
+    "/toolchains/": {
+      "put": {
+        "operationId": "putToolchain",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Toolchain"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Toolchain"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Put Tooclhain"
+      }
+    },
+    "/toolchains/{toolchain_id}": {
+      "get": {
+        "operationId": "getToolchain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "toolchain_id",
+            "required": true,
+            "schema": {
+              "title": "Toolchain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Toolchain"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Get Toolchain"
       }
     },
     "/users": {

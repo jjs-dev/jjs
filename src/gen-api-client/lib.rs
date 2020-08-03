@@ -13,8 +13,16 @@ pub mod auth_response {
     include!("./auth_response.rs");
 }
 
+pub mod body_route_put_problem_problems_problem_id_put {
+    include!("./body_route_put_problem_problems_problem_id_put.rs");
+}
+
 pub mod http_validation_error {
     include!("./http_validation_error.rs");
+}
+
+pub mod live_status {
+    include!("./live_status.rs");
 }
 
 pub mod miscellaneous {
@@ -35,6 +43,10 @@ pub mod run_submit_simple_params {
 
 pub mod simple_auth_params {
     include!("./simple_auth_params.rs");
+}
+
+pub mod toolchain {
+    include!("./toolchain.rs");
 }
 
 pub mod user {

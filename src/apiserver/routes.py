@@ -297,6 +297,16 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
             raise fastapi.HTTPException(204, detail='RunSourceNotAvailable')
         return base64.b64encode(doc['source'])
 
+    @app.get('/runs/{run_id}/live', response_model=api_models.LiveStatus, operation_id='getRunLiveStatus')
+    def route_run_live_status(run_id: str):
+        # TODO auth
+        # TODO this is stub
+        return {
+            'finished': True,
+            'current_test': None,
+            'current_score': None
+        }
+
     @app.patch('/runs/{run_id}', response_model=api_models.Run, operation_id='patchRun')
     def route_run_patch(run_id: uuid.UUID, patch: RunPatch, db: pymongo.database.Database = fastapi.Depends(get_db), session: auth.Session = fastapi.Depends(get_session)):
         """
@@ -358,5 +368,35 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
                 break
             runs.append(doc)
         return runs
+
+    @app.put('/toolchains/', response_model=api_models.Toolchain, operation_id="putToolchain")
+    def route_put_tooclhain(toolchain: api_models.Toolchain, db: pymongo.database.Database = fastapi.Depends(get_db)):
+        # TODO docs
+        # TODO auth
+        db.toolchains.insert_one(
+            {'name': toolchain.name, 'image': toolchain.image})
+        return toolchain
+
+    @app.get('/toolchains/{toolchain_id}', response_model=api_models.Toolchain, operation_id="getToolchain")
+    def route_get_toolchain(toolchain_id: str, db: pymongo.database.Database = fastapi.Depends(get_db)):
+        # TODO docs
+        # TODO auth
+        # TODO error handling
+        doc = db.toolchains.find_one(filter={'name': toolchain_id})
+        assert doc is not None
+        return doc
+
+    @app.put('/problems/{problem_id}', response_model=bool, operation_id="putProblem")
+    def route_put_problem(problem_id: str, problem_manifest: bytes = fastapi.Form(...), problem_assets: str = fastapi.File(...), db: pymongo.database.Database = fastapi.Depends(get_db)):
+        # TODO docs
+        # TODO auth
+        doc = {
+            'problem-name': problem_id,
+            'manifest': problem_manifest,
+            'assets': base64.b64decode(problem_assets)
+        }
+        db.problems.insert_one(doc)
+        # TODO better return value
+        return True
 
     return app

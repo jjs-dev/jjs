@@ -24,24 +24,15 @@ pub(crate) struct ProblemBuilder<'a> {
     pub(crate) build_backend: &'a dyn BuildBackend,
 }
 
-fn get_entropy_hex(s: &mut [u8]) {
-    let n = s.len();
-    assert_eq!(n % 2, 0);
-    let m = n / 2;
-    let rnd_buf = &mut s[m..];
-    getrandom::getrandom(rnd_buf).expect("get entropy failed");
-    for i in 0..m {
-        let c = s[m + i];
-        let lo = c % 16;
-        let hi = c / 16;
-        s[i] = hi;
-        s[i + m] = lo;
-    }
-    for x in s.iter_mut() {
-        if *x < 10 {
-            *x += b'0';
+/// Fills given buffer with random hex string
+fn get_entropy_hex(buf: &mut [u8]) {
+    getrandom::getrandom(buf).expect("get entropy failed");
+    for i in buf.iter_mut() {
+        *i %= 16;
+        if *i < 10 {
+            *i += b'0';
         } else {
-            *x += b'a' - 10;
+            *i = b'a' + (*i - 10);
         }
     }
 }
@@ -191,7 +182,7 @@ impl<'a> ProblemBuilder<'a> {
                         .get(testgen)
                         .with_context(|| format!("error: unknown testgen {}", testgen))?;
 
-                    let mut entropy_buf = [0; 16];
+                    let mut entropy_buf = [0; crate::manifest::RANDOM_SEED_LENGTH];
                     get_entropy_hex(&mut entropy_buf);
                     let entropy = String::from_utf8(entropy_buf.to_vec()).unwrap(); // only ASCII can be here
 

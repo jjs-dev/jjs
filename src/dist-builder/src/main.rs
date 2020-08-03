@@ -192,7 +192,7 @@ fn make_rust_package_list() -> Vec<RustPackage> {
     //add("setup", "jjs-setup", Section::Tool);
     add("ppc", "jjs-ppc", Section::Tool);
     //add("userlist", "jjs-userlist", Section::Tool);
-    //add("cli", "jjs-cli", Section::Tool);
+    add("cli", "jjs-cli", Section::Tool);
     add("invoker", "jjs-invoker", Section::Daemon);
     //add("svaluer", "jjs-svaluer", Section::Suggested);
     /*add(

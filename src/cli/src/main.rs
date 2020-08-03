@@ -1,68 +1,62 @@
 mod api_version;
-mod contests;
-mod submissions;
+mod completion;
+mod login;
+mod problems;
+mod runs;
 mod submit;
+mod toolchains;
+mod wait;
 
-use client::ApiClient;
-use std::process::exit;
-use structopt::StructOpt;
+use clap::Clap;
 
 /// Command-line client for JJS
-///
-/// To get Bash completion, run:
-/// COMPLETION=1 <path/to/jjs-cli> > /tmp/compl.sh
-/// . /tmp/compl.sh
-#[derive(StructOpt)]
-#[structopt(author, about)]
+#[derive(Clap)]
+#[clap(author, about)]
 struct Opt {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     sub: SubOpt,
 }
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 enum SubOpt {
     Submit(submit::Opt),
-    ManageSubmissions(submissions::Opt),
-    Contests,
-    #[structopt(name = "api-version")]
+    ManageRuns(runs::Opt),
+    Login(login::Opt),
+    Toolchains(toolchains::Opt),
+    Wait(wait::Opt),
+    Problems(problems::Opt),
+    Completion(completion::Opt),
     ApiVersion,
-}
-
-pub struct CommonParams {
-    client: ApiClient,
-}
-
-fn gen_completion() {
-    let mut clap_app = Opt::clap();
-    clap_app.gen_completions_to(
-        "jjs-cli",
-        structopt::clap::Shell::Bash,
-        &mut std::io::stdout(),
-    );
 }
 
 #[tokio::main]
 async fn main() {
-    if std::env::var("COMPLETION").is_ok() {
-        gen_completion();
-        exit(0);
-    }
     util::log::setup();
+    if let Err(err) = real_main().await {
+        eprintln!("Error: {:#}", err);
+        std::process::exit(1);
+    }
+}
 
-    let opt: Opt = Opt::from_args();
+async fn real_main() -> anyhow::Result<()> {
+    let opt: Opt = Opt::parse();
 
-    let client = client::connect();
+    if let SubOpt::Login(opt) = &opt.sub {
+        login::exec(opt).await?;
+        return Ok(());
+    }
 
-    let common = CommonParams { client };
+    let client = client::infer().await?;
 
-    let data = match opt.sub {
-        SubOpt::Submit(sopt) => submit::exec(sopt, &common).await,
-        SubOpt::ManageSubmissions(sopt) => submissions::exec(sopt, &common).await,
-        SubOpt::Contests => contests::exec(&common).await,
-        SubOpt::ApiVersion => api_version::exec(&common).await,
+    match opt.sub {
+        SubOpt::Submit(sopt) => submit::exec(sopt, &client).await?,
+        SubOpt::ManageRuns(sopt) => runs::exec(sopt, &client).await?,
+        SubOpt::ApiVersion => api_version::exec(&client).await?,
+        SubOpt::Toolchains(sopt) => toolchains::exec(&sopt, &client).await?,
+        SubOpt::Wait(sopt) => wait::exec(&sopt, &client).await?,
+        SubOpt::Problems(sopt) => problems::exec(&sopt, &client).await?,
+        SubOpt::Completion(sopt) => completion::exec(&sopt)?,
+        SubOpt::Login(_) => unreachable!(),
     };
-
-    let data = serde_json::to_string_pretty(&data).unwrap();
-
-    println!("{}", data);
+    Ok(())
 }

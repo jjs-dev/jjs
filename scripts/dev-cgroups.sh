@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # configures cgroups v2 for use with invoker
 set -e
 echo "THIS IS INSECURE SETUP"

@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ "x$2" != x ] || [ "x$1" == "x--help" ]
 then cat >&2 << EOF
-usage: ./build.sh [sysroot_path]
+usage: $0 [sysroot_path]
 
 Build a jjs sysroot at \$sysroot_path (default = ./sysroot)
 This script assumes that you have working sudo command. Don't run directly as root!

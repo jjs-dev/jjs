@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # shellcheck shell=sh
 # wait for jjs-frontend to start up
 while ! wget http://127.0.0.1:1779/ -O - >/dev/null 2>&1

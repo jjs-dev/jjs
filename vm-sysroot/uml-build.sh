@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 if [ "$$" != 1 ] && [ "x$1" != x ]
 then cat >&2 << EOF
-usage: ./uml-build.sh
+usage: $0
 
 Build a disk image at image/hdd.img, using scripts in the scripts/ directory.
 See ./build.sh and image/build-image.sh for details.

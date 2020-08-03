@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 usage ()
 {
     cat >&2 << EOF
-usage: image/build-full.sh [--out <out_path>] [--sysroot <sysroot_path>]
+usage: $0 [--out <out_path>] [--sysroot <sysroot_path>]
 
 Build the disk image \$out_path (default: image/full.img), using sysroot in \$sysroot_path (default: ./sysroot).
 Unlike image/build-image.sh, the resulting image is a ready-to-boot raw disk image.

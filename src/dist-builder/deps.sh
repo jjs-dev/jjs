@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 packages="libpq-dev libssl-dev cmake libsystemd-dev"
 

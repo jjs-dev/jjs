@@ -26,33 +26,47 @@ struct ServiceRequest {
     chan: oneshot::Sender<anyhow::Result<()>>,
 }
 
+/// How many requests to service can be queued.
+/// Since service processes each request in new task, and does not perform
+/// any rate limiting, this setting does not limit amount of outstanding
+/// requests, so this value can be pretty low and does not need configuration.
 const CHANNEL_CAPACITY: usize = 16;
 
 /// Represents long-running background task, building problems on request.
 /// When last `CompilerServiceClient` is dropped, service will stop automatically.
 pub(crate) struct CompilerService {
+    /// State used when processing requests
     data: ServiceData,
+    /// We receive requests from this channel
     chan: mpsc::Receiver<ServiceRequest>,
+    /// Notifies clients when service state changes
     state_update_notify: multiwake::Sender,
+    /// Current service state
     current_state: Arc<RwLock<ServiceState>>,
 }
 
 #[derive(Clone)]
 pub(crate) struct ServiceState {
+    /// true if service still accepts new requests
     pub(crate) service_running: bool,
+    /// count of requests that are currently executed
     pub(crate) in_flight_requests: usize,
 }
 
 #[derive(Clone)]
 struct ServiceData {
+    /// JJS installation directory (used to find JTL binaries)
     jjs_dir: PathBuf,
 }
 
 /// Handle for interacting with CompilerService
 #[derive(Clone)]
 pub(crate) struct CompilerServiceClient {
+    /// Channel used to send request to service
     chan: Option<mpsc::Sender<ServiceRequest>>,
+    /// Used to wait for a service state change
     state_update_notify: multiwake::Receiver,
+    /// Used to get current service state
     current_state: Arc<RwLock<ServiceState>>,
 }
 
@@ -86,6 +100,8 @@ impl CompilerService {
         })
     }
 
+    /// Main service function, which executes clients' requests until
+    /// all senders are droppped.
     async fn serve(mut self) -> anyhow::Result<()> {
         while let Some(request) = self.chan.recv().await {
             let data = self.data.clone();
@@ -114,6 +130,8 @@ impl CompilerService {
         Ok(())
     }
 
+    /// Executes single compilation request - compiled requested problem.
+    /// (I.e. ppc source package -> pom standalone package)
     async fn compile_problem(
         data: ServiceData,
         args: CompileSingleProblemArgs,

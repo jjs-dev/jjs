@@ -16,11 +16,15 @@ use std::{
 /// ProblemBuilder is struct, responsible for building single problem.
 /// Its instances are managed by CompilerService.
 pub(crate) struct ProblemBuilder<'a> {
+    /// Problem manifest
     pub(crate) cfg: &'a crate::manifest::Problem,
+    /// Directory, containing problem source files
     pub(crate) problem_dir: &'a Path,
+    /// Directory for output files
     pub(crate) out_dir: &'a Path,
     /// Path to local JTL installation
     pub(crate) jtl_dir: &'a Path,
+    /// Used to execute build tasks (e.g. builds checker or solution)
     pub(crate) build_backend: &'a dyn BuildBackend,
 }
 
@@ -37,6 +41,9 @@ fn get_entropy_hex(buf: &mut [u8]) {
     }
 }
 
+/// Applies merge patch `other` to a `place`:
+/// If `other` is None, does nothing.
+/// If `other` is Some, stores `other` inner value into `place`.
 fn merge_option<T: Copy>(place: &mut Option<T>, other: Option<T>) {
     if let Some(x) = other {
         place.replace(x);
@@ -56,6 +63,7 @@ fn merge_limits(limits_set: &[Limits]) -> Limits {
 
 // TODO: remove duplicated code
 impl<'a> ProblemBuilder<'a> {
+    /// Higher-level wrapper for `self.build_backend`
     async fn do_build(&self, src: &Path, dest: &Path) -> anyhow::Result<Command> {
         tokio::fs::create_dir_all(dest)
             .await
@@ -90,6 +98,7 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
+    /// async wrapper for `glob::glob`
     async fn glob(&self, suffix: &str) -> anyhow::Result<Vec<PathBuf>> {
         let pattern = format!("{}/{}", self.problem_dir.display(), suffix);
         tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<PathBuf>> {
@@ -108,6 +117,7 @@ impl<'a> ProblemBuilder<'a> {
         .unwrap()
     }
 
+    /// Builds single solution
     async fn build_solution(&self, sol_path: PathBuf) -> anyhow::Result<(String, Command)> {
         let sol_id = sol_path
             .file_stem()
@@ -123,6 +133,7 @@ impl<'a> ProblemBuilder<'a> {
         ))
     }
 
+    /// Builds all solutions
     async fn build_solutions(&self) -> anyhow::Result<HashMap<String, Command>> {
         let mut out = HashMap::new();
         for solution_path in self.glob("solutions/*").await? {
@@ -132,6 +143,7 @@ impl<'a> ProblemBuilder<'a> {
         Ok(out)
     }
 
+    /// Builds single testgen
     async fn build_testgen(
         &self,
         testgen_path: &Path,
@@ -142,6 +154,7 @@ impl<'a> ProblemBuilder<'a> {
         self.do_build(testgen_path, &Path::new(&out_path)).await
     }
 
+    /// Builds all testgens
     async fn build_testgens(&self) -> anyhow::Result<HashMap<String, Command>> {
         let mut out = HashMap::new();
         for testgen in self.glob("generators/*").await? {
@@ -156,12 +169,14 @@ impl<'a> ProblemBuilder<'a> {
         Ok(out)
     }
 
+    /// Adds common modifications to a child process builder
     fn configure_command(&self, cmd: &mut Command) {
         cmd.current_dir(self.problem_dir);
         cmd.env("JJS_PROBLEM_SRC", &self.problem_dir);
         cmd.env("JJS_PROBLEM_DEST", &self.out_dir);
     }
 
+    /// Builds all tests
     async fn build_tests(
         &self,
         testgens: &HashMap<String, Command>,
@@ -280,12 +295,14 @@ impl<'a> ProblemBuilder<'a> {
         Ok(out)
     }
 
+    /// Builds all checkers (currently only one is supported)
     async fn build_checkers(&self) -> anyhow::Result<FileRef> {
         // TODO: support multi-file checkers
         let checker_path = format!("{}/checkers/main.cpp", self.problem_dir.display());
         self.build_checker(&checker_path).await
     }
 
+    /// Builds single checker
     async fn build_checker(&self, checker_path: &str) -> anyhow::Result<FileRef> {
         let out_path = self.out_dir.join("assets/checker");
         match &self.cfg.check {
@@ -312,6 +329,10 @@ impl<'a> ProblemBuilder<'a> {
         }
     }
 
+    /// Builds all modules
+    ///
+    /// Module is user-defined program. PPC only builds module and places
+    /// binaries into compiled problem assets.
     async fn build_modules(&self) -> anyhow::Result<()> {
         for module in self.glob("modules/*").await? {
             let module_name = module.file_name().unwrap().to_str().expect("utf8 error");
@@ -324,6 +345,8 @@ impl<'a> ProblemBuilder<'a> {
         Ok(())
     }
 
+    /// Copies files that should just be copied as is.
+    /// Currently, only such file is valuer config
     fn copy_raw(&self) -> std::io::Result<()> {
         let valuer_cfg_dir = self.out_dir.join("assets/valuer-cfg");
         if let Some(valuer_cfg) = &self.cfg.valuer_cfg {
@@ -341,6 +364,8 @@ impl<'a> ProblemBuilder<'a> {
         Ok(())
     }
 
+    /// Main method, which actually builds the problem into
+    /// redistributable package.
     pub async fn build(&self) -> anyhow::Result<()> {
         self.build_modules().await?;
         let solutions = self.build_solutions().await?;

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apiserver
+  labels:
+    app: apiserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apiserver
+  template:
+    metadata:
+      labels:
+        app: apiserver
+    spec:
+      containers:
+        - name: apiserver
+          image: "{{ .Values.image.repositoryPrefix }}apiserver:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 10779
+            runAsGroup: 10779
+          ports:
+            - name: http
+              containerPort: 1779
+              protocol: TCP
+          env:
+            - name: MONGODB_CONNECTION_STRING
+              value: mongodb://mongodb/jjs
+          readinessProbe:
+            httpGet:
+              # TODO: implement ready
+              # path: /ready
+              path: /system/api-version
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apiserver
+spec:
+  type: {{ .Values.services.apiserver.serviceType }}
+  ports:
+    - port: 1779
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: apiserver

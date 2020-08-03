@@ -1,0 +1,132 @@
+#{{- if .Values.toolchains }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init
+data:
+  auth_data: |
+    endpoint: http://apiserver:1779/
+    auth:
+      token:
+        token: Dev::root
+  setup: |
+    set -e
+    cp /cmap/auth_data /auth/authdata.yaml
+
+  waiter: |
+    set -e 
+    bash /cmap/setup
+    echo "Waiting for apiserver"
+    /cli wait
+    touch /shared/ok
+  wait_init_done: |
+    set -e
+    bash /cmap/setup
+    while [ ! -f /shared/ok ] ;
+    do
+      sleep 2
+    done
+  init_toolchains: |
+    set -e
+    bash /cmap/wait_init_done
+    echo "Installing toolchains"
+    {{- range tuple "gcc" "gcc-cpp" "python3" }}
+    /cli toolchains --name {{ . }} --image gcr.io/jjs-dev/toolchain-{{ . }}
+    {{- end  }}
+    
+  init_problems: |
+    set -e
+    apt-get update
+    apt-get install -y wget unzip cmake gcc g++
+    bash /cmap/wait_init_done
+    echo "Downloading latest problems"
+    wget https://github.com/jjs-dev/samples/archive/master.zip -O /tmp/problems.zip
+    unzip /tmp/problems.zip -d .
+    cd samples-master/problems
+    mkdir /shared/problems
+    for problem_name in * ; do
+      echo "compiling problem $problem_name"
+      mkdir /shared/problems/$problem_name
+      /ppc compile --pkg $problem_name --out /shared/problems/$problem_name
+    done
+    touch /shared/problems_compiled
+  
+  upload_problems: |
+    bash /cmap/setup
+    echo "waiting until problems are compiled"
+    while [ ! -f /shared/problems_compiled ] ;
+    do
+      sleep 5
+    done
+    cd /shared/problems
+    for problem_name in * ; do
+      echo "uploading problem $problem_name"
+      /cli problems --pkg ./$problem_name
+    done
+
+---     
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init
+# {{- if .Values.dev.kubeScore }}
+  annotations:
+    kube-score/ignore: container-security-context
+# {{- end }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: init
+    spec:
+      volumes:
+        - name: cmap
+          configMap:
+            name: init
+        - name: shared
+          emptyDir: {}
+      containers:
+        - name: waiter
+          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+          volumeMounts: 
+            - name: cmap
+              mountPath: /cmap
+            - name: shared
+              mountPath: /shared
+          command: ["/bin/bash", "/cmap/waiter"]
+        - name: toolchains
+          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: cmap
+              mountPath: /cmap
+            - name: shared
+              mountPath: /shared
+          command: ["/bin/bash", "/cmap/init_toolchains"]
+        - name: problems
+          image: "{{ .Values.image.repositoryPrefix }}ppc:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: cmap
+              mountPath: /cmap
+            - name: shared
+              mountPath: /shared
+          command: ["/bin/bash", "/cmap/init_problems"]
+        - name: problems-upload
+          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: cmap
+              mountPath: /cmap
+            - name: shared
+              mountPath: /shared
+          command: ["/bin/bash", "/cmap/upload_problems"]
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 10777
+        runAsGroup: 10777
+
+
+#{{- end }}

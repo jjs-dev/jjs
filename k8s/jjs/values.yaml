@@ -1,9 +1,13 @@
-replicaCount: 1
-
 image:
-  repositoryPrefix: docker.pkg.github.com/jjs-dev/jjs/
-  # Overrides the image tag whose default is the chart appVersion.
+  repositoryPrefix: gcr.io/jjs-dev/
   tag: latest
-
-imagePullSecrets: []
-
+  pullPolicy: Always
+toolchains:
+  official: true
+services:
+  apiserver:
+    serviceType: ClusterIP
+networkPolicy:
+  enabled: true
+dev:
+  kubeScore: false

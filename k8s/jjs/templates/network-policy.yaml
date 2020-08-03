@@ -1,0 +1,51 @@
+#{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: builtin-apiserver
+spec:
+  podSelector:
+    matchLabels:
+      app: apiserver
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: invoker
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: builtin-invoker
+spec:
+  podSelector:
+    matchLabels:
+      app: invoker
+  policyTypes:
+  - Ingress
+  ingress: []
+
+#{{ if .Values.toolchains }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: builtin-invoker
+spec:
+  podSelector:
+    matchLabels:
+      app: init
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: apiserver
+#{{- end }}
+
+#{{- end }}

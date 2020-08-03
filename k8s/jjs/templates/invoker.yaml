@@ -1,9 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: invoker
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: invoker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: invoker
+subjects:
+  - kind: ServiceAccount
+    name: invoker
+    apiGroup: ""
+roleRef:
+  kind: Role
+  name: invoker
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: invoker
   labels:
     app: invoker
+# {{- if .Values.dev.kubeScore  }}
+  annotations:
+    kube-score/ignore: container-security-context
+# {{- end }}
 spec:
   replicas: 1
   selector:
@@ -14,13 +45,16 @@ spec:
       labels:
         app: invoker
     spec:
-      imagePullSecrets:
-        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      serviceAccountName: invoker
       containers:
         - name: invoker
-          env: []
+          env: 
+            - name: RUST_LOG
+              value: info,invoker=debug,problem_loader=debug,puller=debug
+            - name: JJS_AUTH_DATA_INLINE
+              value: '{"endpoint": "http://apiserver:1779/", "auth": {"token": {"token": "Dev::root"}}}'
           image: "{{ .Values.image.repositoryPrefix }}invoker:{{ .Values.image.tag }}"
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: 
             privileged: true
           ports:
@@ -29,5 +63,19 @@ spec:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoker
+spec:
+  type: ClusterIP
+  ports:
+    - port: 1789
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: invoker

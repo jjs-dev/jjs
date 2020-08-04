@@ -7,7 +7,7 @@ data:
   auth_data: |
     endpoint: http://apiserver:1779/
     auth:
-      token:
+      byToken:
         token: Dev::root
   setup: |
     set -e

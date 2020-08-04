@@ -49,8 +49,8 @@ async fn obtain_token(ad: AuthData) -> anyhow::Result<String> {
     let mut conf = openapi::client::ClientConfiguration::new();
     conf.set_base_url(&ad.endpoint);
     match ad.auth {
-        auth_data::AuthKind::Token(tok) => Ok(tok.token),
-        auth_data::AuthKind::LoginAndPassword(lp) => {
+        auth_data::AuthKind::ByToken(tok) => Ok(tok.token),
+        auth_data::AuthKind::ByLoginAndPassword(lp) => {
             let client = RawClient::new(conf);
             let auth = models::SimpleAuthParams::login()
                 .login(lp.login)

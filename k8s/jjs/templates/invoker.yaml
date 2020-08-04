@@ -52,7 +52,7 @@ spec:
             - name: RUST_LOG
               value: info,invoker=debug,problem_loader=debug,puller=debug
             - name: JJS_AUTH_DATA_INLINE
-              value: '{"endpoint": "http://apiserver:1779/", "auth": {"token": {"token": "Dev::root"}}}'
+              value: '{"endpoint": "http://apiserver:1779/", "auth": {"byToken": {"token": "Dev::root"}}}'
           image: "{{ .Values.image.repositoryPrefix }}invoker:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: 

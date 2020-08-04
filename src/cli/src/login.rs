@@ -42,7 +42,7 @@ pub(crate) async fn exec(opt: &Opt) -> anyhow::Result<()> {
     println!("Veryfying credentials");
     let ad = client::AuthData {
         endpoint: endpoint.clone(),
-        auth: client::auth_data::AuthKind::LoginAndPassword(
+        auth: client::auth_data::AuthKind::ByLoginAndPassword(
             client::auth_data::AuthByLoginAndPassword {
                 login: username.clone(),
                 password: password.clone(),

@@ -41,8 +41,8 @@ impl AuthData {
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthKind {
-    LoginAndPassword(AuthByLoginAndPassword),
-    Token(AuthByToken),
+    ByLoginAndPassword(AuthByLoginAndPassword),
+    ByToken(AuthByToken),
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

@@ -1,0 +1,3 @@
+workers: 4
+problems:
+  mongodb: mongodb://db:27017/jjs

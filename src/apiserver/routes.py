@@ -88,8 +88,14 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         db.users.create_index('id', unique=True)
         db.users.create_index('login', unique=True)
         # ensure the two special users are actually there to avoid possible conflicts, e.g. privilege escalation by creating the not-yet-existing root account
-        get_special_user(db, root_uuid, 'root', [])
-        get_special_user(db, guest_uuid, 'guest', ['guests', 'invoker'])
+        try:
+            get_special_user(db, root_uuid, 'root', [])
+        except pymongo.errors.DuplicateKeyError:
+            pass
+        try:
+            get_special_user(db, guest_uuid, 'guest', ['guests', 'invoker'])
+        except pymongo.errors.DuplicateKeyError:
+            pass
         return db
 
     def get_special_user(db, uuid, default_username, default_roles):

@@ -1,0 +1,44 @@
+version: "3.8"
+x-volume:
+  &data-volume
+  type: 'volume'
+  source: jjs_data
+  target: /var/lib/jjs
+services:
+  db:
+    image: mongo
+  init-data:
+    image: debian:stable-slim
+    entrypoint: /bin/sh -c
+    command: >
+      "/bin/mkdir /var/lib/jjs/etc
+      && /bin/cp /configs/invoker.yaml /var/lib/jjs/etc/"
+    volumes:
+      - *data-volume
+      - ./compose-config:/configs:ro
+  apiserver:
+    image: apiserver
+    environment:
+      MONGODB_CONNECTION_STRING: mongodb://db:27017/jjs
+    depends_on:
+      - db
+    ports:
+      - "1779:1779"
+  invoker:
+    image: invoker
+    privileged: true
+    environment:
+      JJS_DATA: /var/lib/jjs
+      JJS_AUTH_DATA_INLINE: "{\"endpoint\": \"http://apiserver:1779/\", \"auth\": {\"byToken\": {\"token\": \"Dev::root\"}}}"
+      RUST_LOG: info,invoker=debug,util=debug,svaluer=debug
+      RUST_BACKTRACE: full
+      RUST_LIB_BACKTRACE: 1
+    depends_on:
+      - db
+      - init-data
+    ports:
+      - "1789:1789"
+    volumes:
+      - *data-volume
+volumes:
+  jjs_data:

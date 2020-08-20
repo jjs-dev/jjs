@@ -1,4 +1,3 @@
-#![feature(drain_filter)]
 //! Core valuing logic
 //! It is extracted to library to simplify testing
 

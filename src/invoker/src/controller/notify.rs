@@ -1,17 +1,17 @@
 //! Implements Notifications - messages about run testing updates
-use crate::controller::TaskSource;
-use log::{debug, warn};
+use crate::controller::JudgeResponseCallbacks;
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use tracing::{debug, instrument, warn};
 pub(crate) struct Notifier {
     score: Option<u32>,
     test: Option<u32>,
     throttled_until: Instant,
     errored: bool,
-    source: Arc<dyn TaskSource>,
-    invocation_id: uuid::Uuid,
+    handler: Arc<dyn JudgeResponseCallbacks>,
+    judge_request_id: uuid::Uuid,
 }
 
 impl std::fmt::Debug for Notifier {
@@ -21,20 +21,23 @@ impl std::fmt::Debug for Notifier {
             .field("test", &self.test)
             .field("throttled_until", &self.throttled_until)
             .field("errored", &self.errored)
-            .field("invocation_id", &self.invocation_id)
+            .field("judge_request_id", &self.judge_request_id)
             .finish()
     }
 }
 
 impl Notifier {
-    pub(crate) fn new(invocation_id: uuid::Uuid, source: Arc<dyn TaskSource>) -> Notifier {
+    pub(crate) fn new(
+        judge_request_id: uuid::Uuid,
+        handler: Arc<dyn JudgeResponseCallbacks>,
+    ) -> Notifier {
         Notifier {
             score: None,
             test: None,
             throttled_until: Instant::now(),
             errored: false,
-            source,
-            invocation_id,
+            handler,
+            judge_request_id,
         }
     }
 
@@ -64,22 +67,22 @@ impl Notifier {
         self.drain().await
     }
 
+    #[instrument(skip(self), fields(judge_request_id=%self.judge_request_id))]
     async fn drain(&mut self) {
-        debug!("Notifier: draining");
         let event = invoker_api::LiveStatusUpdate {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };
         debug!(
-            "Sending live status update for invocation {}",
-            self.invocation_id
+            update=?event,
+            "Sending live status update",
         );
         if let Err(err) = self
-            .source
-            .deliver_live_status_update(self.invocation_id, event)
+            .handler
+            .deliver_live_status_update(self.judge_request_id, event)
             .await
         {
-            warn!("Failed to send live status update: {}", err);
+            warn!(error=%format_args!("{:#}", err), "Failed to send live status update");
             warn!("Disabling live status updates for this run");
             self.errored = true;
         }

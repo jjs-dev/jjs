@@ -1,135 +1,68 @@
+//! Invoker controller
+//!
+//! Controller is the heart of invoker - it receives InvokeTasks from
+//! TaskSources, wraps them into Jobs, schedules this Jobs into workers
+//! and publishes Job outcomes.
 mod notify;
-mod tasks;
+mod task_loading;
 mod toolchains;
 
-use crate::worker::{InvokeOutcome, InvokeRequest, Request, Response};
+use crate::{
+    scheduler::Scheduler,
+    worker::{JudgeOutcome, Request, Response},
+};
 use anyhow::Context;
-use log::{debug, error, info, warn};
 use notify::Notifier;
 use std::{
-    collections::VecDeque,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
-enum WorkerState {
-    /// Worker is ready for new tasks
-    Idle,
-    /// Worker is invoking run
-    Invoke(Box<ExtendedInvokeRequest>),
-    /// Worker has crashed
-    Crash,
-}
-
-impl WorkerState {
-    fn is_idle(&self) -> bool {
-        match self {
-            WorkerState::Idle => true,
-            _ => false,
-        }
-    }
-
-    fn is_working(&self) -> bool {
-        match self {
-            WorkerState::Invoke(_) => true,
-            _ => false,
-        }
-    }
-}
-
-struct WorkerInfo {
-    state: WorkerState,
-    child_stdout: tokio::io::BufReader<tokio::process::ChildStdout>,
-    child_stdin: tokio::process::ChildStdin,
-}
-
-impl WorkerInfo {
-    async fn recv(&mut self) -> anyhow::Result<Option<Response>> {
-        let mut line = String::new();
-        let read_line_fut = self.child_stdout.read_line(&mut line);
-
-        match tokio::time::timeout(std::time::Duration::from_millis(10), read_line_fut).await {
-            Ok(read) => {
-                read?;
-                Ok(serde_json::from_str(&line).context("parse error")?)
-            }
-            Err(_elapsed) => Ok(None),
-        }
-    }
-
-    async fn send(&mut self, req: Request) -> anyhow::Result<()> {
-        let mut data = serde_json::to_vec(&req)?;
-        data.push(b'\n');
-        self.child_stdin.write_all(&data).await?;
-        Ok(())
-    }
-}
-
-/// Contains `RunInfo` for worker + stuff for controller itself
-struct ExtendedInvokeRequest {
-    inner: InvokeRequest,
-    revision: u32,
+/// Contains additional stuff for controller itself
+#[derive(Debug)]
+struct LoweredJudgeRequestExtensions {
     notifier: Notifier,
     invocation_dir: PathBuf,
-    task_source: Arc<dyn TaskSource>,
-}
-
-impl std::fmt::Debug for ExtendedInvokeRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_struct("ExtendedInvokeRequest")
-            .field("inner", &self.inner)
-            .field("revision", &self.revision)
-            .field("notifier", &self.notifier)
-            .field("invocation_dir", &self.invocation_dir.display())
-            .field("task_source", &"..")
-            .finish()
-    }
-}
-
-struct ControllerQueues {
-    invoke_queue: Mutex<VecDeque<ExtendedInvokeRequest>>,
-    publish_queue: Mutex<VecDeque<(InvokeOutcome, ExtendedInvokeRequest)>>,
-}
-
-impl ControllerQueues {
-    fn new() -> ControllerQueues {
-        ControllerQueues {
-            invoke_queue: Mutex::new(VecDeque::new()),
-            publish_queue: Mutex::new(VecDeque::new()),
-        }
-    }
-
-    fn invoke(&self) -> std::sync::MutexGuard<VecDeque<ExtendedInvokeRequest>> {
-        self.invoke_queue.lock().unwrap()
-    }
-
-    fn publish(&self) -> std::sync::MutexGuard<VecDeque<(InvokeOutcome, ExtendedInvokeRequest)>> {
-        self.publish_queue.lock().unwrap()
-    }
 }
 
 pub enum InvocationFinishReason {
     Fault,
     CompileError,
-    JudgeDone,
+    TestingDone,
+}
+
+/// Contains both judging task and back address.
+/// Each task source is represented as mpsc channel of `TaskInfo`s
+pub struct JudgeRequestAndCallbacks {
+    pub request: invoker_api::JudgeRequest,
+    pub callbacks: Arc<dyn JudgeResponseCallbacks>,
+}
+
+impl std::fmt::Debug for JudgeRequestAndCallbacks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JudgeRequestAndCallbacks")
+            .field("request", &self.request)
+            .field("handler", &"..")
+            .finish()
+    }
 }
 
 #[async_trait::async_trait]
-pub trait TaskSource: Send + Sync {
-    async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>>;
-
+pub trait JudgeResponseCallbacks: Send + Sync {
     async fn set_finished(
         &self,
         invocation_id: Uuid,
         reason: InvocationFinishReason,
     ) -> anyhow::Result<()>;
 
+    /// Called when a judge log is available.
+    /// kinds can be duplicated after a judge fault.
     async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
-        header: invoker_api::InvokeOutcomeHeader,
+        header: invoker_api::JudgeOutcomeHeader,
     ) -> anyhow::Result<()>;
 
     async fn deliver_live_status_update(
@@ -139,54 +72,15 @@ pub trait TaskSource: Send + Sync {
     ) -> anyhow::Result<()>;
 }
 
-#[async_trait::async_trait]
-impl<S: TaskSource + Send + Sync + 'static, T: std::ops::Deref<Target = S> + Send + Sync> TaskSource
-    for T
-{
-    async fn load_tasks(&self, cnt: usize) -> anyhow::Result<Vec<invoker_api::InvokeTask>> {
-        let inner: &S = self.deref();
-        inner.load_tasks(cnt).await
-    }
-
-    async fn set_finished(
-        &self,
-        invocation_id: Uuid,
-        reason: InvocationFinishReason,
-    ) -> anyhow::Result<()> {
-        let inner: &S = self.deref();
-        inner.set_finished(invocation_id, reason).await
-    }
-
-    async fn add_outcome_header(
-        &self,
-        invocation_id: Uuid,
-        header: invoker_api::InvokeOutcomeHeader,
-    ) -> anyhow::Result<()> {
-        let inner: &S = self.deref();
-        inner.add_outcome_header(invocation_id, header).await
-    }
-
-    async fn deliver_live_status_update(
-        &self,
-        invocation_id: Uuid,
-        lsu: invoker_api::LiveStatusUpdate,
-    ) -> anyhow::Result<()> {
-        let inner: &S = self.deref();
-        inner.deliver_live_status_update(invocation_id, lsu).await
-    }
-}
-
+#[derive(Clone)]
 pub struct Controller {
-    workers: Vec<WorkerInfo>,
-    sources: Vec<Arc<dyn TaskSource>>,
-    queues: Arc<ControllerQueues>,
+    scheduler: Arc<Scheduler>,
     problem_loader: Arc<problem_loader::Loader>,
-    global_files_dir: Arc<Path>,
     toolchains_dir: Arc<Path>,
-    config: crate::config::InvokerConfig,
+    _config: Arc<crate::config::InvokerConfig>,
     // used as RAII resource owner
-    _temp_dir: tempfile::TempDir,
-    toolchain_loader: toolchains::ToolchainLoader,
+    _temp_dir: Arc<tempfile::TempDir>,
+    toolchain_loader: Arc<toolchains::ToolchainLoader>,
 }
 
 fn get_num_cpus() -> usize {
@@ -203,35 +97,22 @@ fn get_num_cpus() -> usize {
 
 impl Controller {
     pub async fn new(
-        sources: Vec<Arc<dyn TaskSource>>,
         cfg_data: util::cfg::CfgData,
-        config: crate::config::InvokerConfig,
+        config: Arc<crate::config::InvokerConfig>,
     ) -> anyhow::Result<Controller> {
-        let mut workers = Vec::new();
         let worker_count = match config.workers {
             Some(cnt) => cnt,
             None => get_num_cpus(),
         };
         info!("Using {} workers", worker_count);
-        let serialized_config =
-            serde_json::to_string(&config).context("failed to serialize InvokerConfig")?;
+        let mut scheduler = Scheduler::new(&config).context("failed to initialize Scheduler")?;
         for _ in 0..worker_count {
-            let mut child = tokio::process::Command::new(std::env::current_exe()?)
-                .env("__JJS_WORKER", "1")
-                .env("__JJS_WORKER_INVOKER_CONFIG", &serialized_config)
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .spawn()
-                .context("failed to spawn worker")?;
-            let info = WorkerInfo {
-                state: WorkerState::Idle,
-                child_stdin: child.stdin.take().expect("child stdin was captured"),
-                child_stdout: tokio::io::BufReader::new(
-                    child.stdout.take().expect("child stdout was captured"),
-                ),
-            };
-            workers.push(info);
+            scheduler
+                .add_worker()
+                .await
+                .context("failed to start a worker")?;
         }
+        let scheduler = Arc::new(scheduler);
 
         let temp_dir = tempfile::TempDir::new().context("can not find temporary dir")?;
 
@@ -239,257 +120,89 @@ impl Controller {
             problem_loader::Loader::from_config(&config.problems, temp_dir.path().join("problems"))
                 .await
                 .context("can not create ProblemLoader")?;
-        let toolchain_loader = toolchains::ToolchainLoader::new()
-            .await
-            .context("toolchain loader initialization error")?;
+        let toolchain_loader = Arc::new(
+            toolchains::ToolchainLoader::new()
+                .await
+                .context("toolchain loader initialization error")?,
+        );
         Ok(Controller {
-            sources,
-            workers,
+            scheduler,
             problem_loader: Arc::new(problem_loader),
-            queues: Arc::new(ControllerQueues::new()),
-            global_files_dir: cfg_data.install_dir.into(),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
-            config,
-            _temp_dir: temp_dir,
+            _config: config,
+            _temp_dir: Arc::new(temp_dir),
             toolchain_loader,
         })
     }
 
-    pub async fn run_forever(mut self, cancel_token: tokio::sync::CancellationToken) {
-        let mut sleep_duration = 0;
-        loop {
-            if cancel_token.is_cancelled() {
-                break;
-            }
-            let sleep = match self.tick().await {
-                Err(e) => {
-                    warn!("Tick failed: {:#}", e);
-                    true
+    #[instrument(skip(self, chan))]
+    pub fn exec_on(self, chan: async_mpmc::Receiver<JudgeRequestAndCallbacks>) {
+        chan.process_all(move |req| {
+            let this = self.clone();
+
+            async move {
+                let request_id = req.request.request_id;
+                if let Err(err) = this.process_request(req).await {
+                    tracing::warn!(request_id = %request_id,
+                    err = %format_args!("{:#}", err), 
+                    "Failed to process a judge request");
                 }
-                Ok(flag) => !flag,
-            };
-            if sleep {
-                sleep_duration += self.config.sleep.step_ms;
-                sleep_duration = std::cmp::min(sleep_duration, self.config.sleep.max_ms);
-                let sleep_time = std::time::Duration::from_millis(sleep_duration.into());
-                tokio::time::delay_for(sleep_time).await;
-            } else {
-                sleep_duration = 0;
             }
-        }
+        });
     }
 
-    // this function calls several `tick` functions
-    async fn tick(&mut self) -> anyhow::Result<bool> {
-        // did we have any updates?
-        let mut flag = false;
-        flag = flag
-            || self
-                .tick_poll_workers()
-                .await
-                .context("worker poll error")?;
-        flag = flag
-            || self
-                .tick_publish_outcome()
-                .await
-                .context("outcome publishing error")?;
-        flag = flag
-            || self
-                .tick_send_invoke_request()
-                .await
-                .context("sending InvokeRequest error")?;
-        flag = flag || self.tick_get_tasks().await.context("getting tasks error")?;
-        Ok(flag)
-    }
-
-    fn find_free_worker(&self) -> Option<usize> {
-        self.workers
-            .iter()
-            .position(|worker| worker.state.is_idle())
-    }
-
-    async fn load_tasks(
-        &mut self,
-        mut limit: usize,
-    ) -> anyhow::Result<Vec<(invoker_api::InvokeTask, usize)>> {
-        let mut tasks = Vec::new();
-        for (source_id, source) in self.sources.iter().enumerate() {
-            let chunk = source.load_tasks(limit).await?;
-            limit -= chunk.len();
-            tasks.extend(chunk.into_iter().map(|task| (task, source_id)));
-        }
-        Ok(tasks)
-    }
-
-    async fn tick_send_invoke_request(&mut self) -> anyhow::Result<bool> {
-        let free_worker = match self.find_free_worker() {
-            Some(fw) => fw,
-            None => return Ok(false),
-        };
-        let invoke_request = match self.queues.invoke().pop_front() {
-            Some(inv_out) => inv_out,
-            None => return Ok(false),
-        };
-
-        let worker = &mut self.workers[free_worker];
-        let req = Request::Invoke(invoke_request.inner.clone());
-        worker
-            .send(req)
+    /// This function drives lifecycle of single judge request.
+    #[instrument(skip(self, req), fields(request_id=%req.request.request_id))]
+    async fn process_request(&self, req: JudgeRequestAndCallbacks) -> anyhow::Result<()> {
+        let (low_req, mut exts) = self
+            .lower_judge_request(&req)
             .await
-            .context("failed to send request to invoker")?;
-        worker.state = WorkerState::Invoke(Box::new(invoke_request));
-        Ok(true)
-    }
+            .context("request preprocessing failed")?;
 
-    fn invoke_queue_size(&self) -> usize {
-        self.workers.len()
-    }
+        debug!(lowered_judge_request = ?low_req, "created a lowered judge request");
 
-    async fn tick_get_tasks(&mut self) -> anyhow::Result<bool> {
-        if self.queues.invoke().len() >= self.invoke_queue_size() {
-            return Ok(false);
-        }
-        let cnt = self.invoke_queue_size() - self.queues.invoke().len();
-        debug!("Searching for tasks (limit {})", cnt);
-        let new_tasks = self.load_tasks(cnt).await?;
-        if new_tasks.is_empty() {
-            debug!("No new tasks");
-            return Ok(false);
-        } else {
-            info!("{} new tasks discovered", new_tasks.len());
-        }
-        for (invoke_task, task_source_id) in new_tasks {
-            let extended_invoke_request = self.fetch_run_info(&invoke_task, task_source_id).await?;
-            self.queues.invoke().push_back(extended_invoke_request);
-        }
-        Ok(true)
-    }
-
-    async fn process_worker_message(
-        &mut self,
-        msg: Response,
-        worker_id: usize,
-    ) -> anyhow::Result<()> {
-        debug!("Processing message {:?} from worker {}", &msg, worker_id);
-        let worker = &mut self.workers[worker_id];
-        let old_state = std::mem::replace(&mut worker.state, WorkerState::Idle);
-        let mut req = match old_state {
-            WorkerState::Invoke(req) => req,
-            WorkerState::Idle => panic!("WorkerState is Idle, but msg {:?} was received", msg),
-            WorkerState::Crash => panic!("WorkerState is Crash, but msg {:?} was received", msg),
-        };
-        match msg {
-            Response::Invoke(outcome) => {
-                self.copy_invocation_data_dir_to_shared_fs(
-                    &req.inner.out_dir,
-                    &req.invocation_dir,
-                )?;
-                self.queues.publish().push_back((outcome, *req));
-            }
-            Response::LiveScore(score) => {
-                req.notifier.set_score(score).await;
-                worker.state = WorkerState::Invoke(req);
-            }
-            Response::LiveTest(test) => {
-                req.notifier.set_test(test).await;
-                worker.state = WorkerState::Invoke(req);
-            }
-            Response::OutcomeHeader(header) => {
-                req.task_source
-                    .add_outcome_header(req.inner.invocation_id, header)
-                    .await?;
-                let dir = req.inner.out_dir.clone();
-                let invocation_dir = req.invocation_dir.clone();
-                worker.state = WorkerState::Invoke(req);
-                self.copy_invocation_data_dir_to_shared_fs(&dir, &invocation_dir)?;
-            }
-        }
-        debug!("Processing done");
-        Ok(())
-    }
-
-    async fn tick_poll_workers(&mut self) -> anyhow::Result<bool> {
-        let mut msgs = Vec::new();
-        const MAX_MSGS_BATCH: usize = 5;
-        for (i, worker) in self.workers.iter_mut().enumerate() {
-            if !worker.state.is_working() {
-                continue;
-            }
-            loop {
-                if msgs.len() >= MAX_MSGS_BATCH {
+        // TODO currently the process of finding a worker is unfair
+        // we should fix it e.g. using a semaphore which permits finding
+        // worker.
+        let worker = self.scheduler.find_free_worker().await;
+        // TODO: can we split into LoweredJudgeRequest and Extensions?
+        let mut responses = worker
+            .send(Request::Judge(low_req))
+            .await
+            .context("failed to submit lowered judge request")?;
+        loop {
+            let message = responses
+                .next()
+                .await
+                .context("failed to receive next worker message")?;
+            match message {
+                Response::JudgeDone(judge_outcome) => {
+                    debug!("Publising: JudgeOutcome {:?}", &judge_outcome);
+                    let reason = match judge_outcome {
+                        JudgeOutcome::Fault => InvocationFinishReason::Fault,
+                        JudgeOutcome::TestingDone => InvocationFinishReason::TestingDone,
+                        JudgeOutcome::CompileError(_) => InvocationFinishReason::CompileError,
+                    };
+                    req.callbacks
+                        .set_finished(req.request.request_id, reason)
+                        .await
+                        .context("failed to set run outcome in DB")?;
                     break;
                 }
-                match worker.recv().await {
-                    Ok(Some(msg)) => {
-                        msgs.push((i, msg));
-                    }
-                    Ok(None) => break,
-                    Err(err) => {
-                        error!("worker {} crashed: failed to receive Response: {}", i, err);
-                        worker.state = WorkerState::Crash;
-                        break;
-                    }
+                Response::LiveScore(score) => {
+                    exts.notifier.set_score(score).await;
+                }
+                Response::LiveTest(test) => {
+                    exts.notifier.set_test(test).await;
+                }
+                Response::OutcomeHeader(header) => {
+                    req.callbacks
+                        .add_outcome_header(req.request.request_id, header)
+                        .await?;
                 }
             }
         }
-        let emp = msgs.is_empty();
-        for msg in msgs {
-            self.process_worker_message(msg.1, msg.0).await?;
-        }
-        Ok(!emp)
-    }
 
-    async fn tick_publish_outcome(&mut self) -> anyhow::Result<bool> {
-        let (invoke_outcome, ext_inv_req) = match self.queues.publish().pop_front() {
-            Some(r) => r,
-            None => return Ok(false),
-        };
-        debug!(
-            "Publising: InvokeOutcome {:?} {:?}",
-            &invoke_outcome, &ext_inv_req
-        );
-        let reason = match invoke_outcome {
-            InvokeOutcome::Fault => InvocationFinishReason::Fault,
-            InvokeOutcome::Judge => InvocationFinishReason::JudgeDone,
-            InvokeOutcome::CompileError(_) => InvocationFinishReason::CompileError,
-        };
-        ext_inv_req
-            .task_source
-            .set_finished(ext_inv_req.inner.invocation_id, reason)
-            .await
-            .context("failed to set run outcome in DB")?;
-
-        Ok(true)
-    }
-
-    fn copy_invocation_data_dir_to_shared_fs(
-        &self,
-        temp_dir: &Path,
-        invocation_dir: &Path,
-    ) -> anyhow::Result<()> {
-        if let Err(err) = std::fs::create_dir(invocation_dir) {
-            if err.kind() != std::io::ErrorKind::AlreadyExists {
-                anyhow::bail!(
-                    "failed to create target dir {}: {}",
-                    invocation_dir.display(),
-                    err
-                );
-            }
-        }
-        let from: Vec<_> = std::fs::read_dir(temp_dir)
-            .context("failed to list source directory")?
-            .map(|x| x.map(|y| y.path()))
-            .collect::<Result<_, _>>()?;
-        debug!(
-            "Copying from {} to {}",
-            temp_dir.display(),
-            invocation_dir.display()
-        );
-        let mut opts = fs_extra::dir::CopyOptions::new();
-        opts.overwrite = true;
-        fs_extra::copy_items(&from, invocation_dir, &opts)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-            .context("failed to copy")?;
         Ok(())
     }
 }

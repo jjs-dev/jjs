@@ -1,5 +1,6 @@
 pub(crate) struct RustArtifact {
     pub(crate) package_name: String,
+    pub(crate) install_name: String,
 }
 
 pub(crate) struct CmakeArtifact {

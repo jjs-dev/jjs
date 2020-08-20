@@ -1,3 +1,7 @@
+//! Implements Invoker Worker.
+//!
+//! Worker is responsible for processing `InvokeRequest`s
+
 mod compiler;
 mod exec_test;
 mod invoke_util;
@@ -12,7 +16,6 @@ use invoker_api::{
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
-use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -20,6 +23,7 @@ use std::{
     sync::Arc,
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+use tracing::{debug, error};
 use valuer::Valuer;
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Command {
@@ -29,8 +33,8 @@ pub(crate) struct Command {
 }
 
 /// Submission information, sufficient for judging
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct InvokeRequest {
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct LoweredJudgeRequest {
     pub(crate) compile_commands: Vec<Command>,
     pub(crate) execute_command: Command,
     pub(crate) compile_limits: pom::Limits,
@@ -43,21 +47,23 @@ pub(crate) struct InvokeRequest {
     pub(crate) source_file_name: String,
     /// Directory for emitting files (source, build, judge log)
     pub(crate) out_dir: PathBuf,
-    /// Dir with global files, like standard checkers
-    pub(crate) global_dir: PathBuf,
-    /// Toolchains dir
-    pub(crate) toolchains_dir: PathBuf,
+    /// Toolchain directory (i.e. sysroot for command execution)
+    pub(crate) toolchain_dir: PathBuf,
     /// UUID of request
-    pub(crate) invocation_id: uuid::Uuid,
+    pub(crate) judge_request_id: uuid::Uuid,
 }
 
-impl InvokeRequest {
+impl LoweredJudgeRequest {
     pub(crate) fn resolve_asset(&self, short_path: &pom::FileRef) -> PathBuf {
         let root: Cow<Path> = match short_path.root {
             pom::FileRefRoot::Problem => self.problem_dir.join("assets").into(),
-            pom::FileRefRoot::System => self.global_dir.clone().into(),
             pom::FileRefRoot::Root => Path::new("/").into(),
         };
+
+        debug!(
+            "full checker path: {}",
+            root.join(&short_path.path).to_str().unwrap()
+        );
 
         root.join(&short_path.path)
     }
@@ -72,13 +78,13 @@ impl InvokeRequest {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) enum Request {
-    Invoke(InvokeRequest),
+    Judge(LoweredJudgeRequest),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) enum Response {
-    Invoke(InvokeOutcome),
-    OutcomeHeader(invoker_api::InvokeOutcomeHeader),
+    JudgeDone(JudgeOutcome),
+    OutcomeHeader(invoker_api::JudgeOutcomeHeader),
     LiveTest(u32),
     LiveScore(u32),
 }
@@ -100,9 +106,8 @@ impl Worker {
         })
     }
 
-    async fn recv(&self) -> Option<Request> {
+    async fn recv(&self, stdin: &mut (impl AsyncBufReadExt + Unpin)) -> Option<Request> {
         let mut buf = String::new();
-        let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
         match stdin.read_line(&mut buf).await {
             Ok(_) => {
                 if buf.trim().is_empty() {
@@ -126,22 +131,35 @@ impl Worker {
     }
 
     pub(crate) async fn main_loop(mut self) {
-        while let Some(req) = self.recv().await {
+        let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
+        while let Some(req) = self.recv(&mut stdin).await {
             match req {
-                Request::Invoke(inv_req) => {
-                    debug!("Got InvokeRequest: {:?}", &inv_req);
-                    let outcome = self.invoke(&inv_req).await.unwrap_or_else(|err| {
-                        error!("Invoke failed: {:#}", err);
-                        InvokeOutcome::Fault
-                    });
-                    debug!("InvokeOutcome: {:?}", &outcome);
-                    self.send(Response::Invoke(outcome)).await;
+                Request::Judge(judge_req) => {
+                    debug!("Got LoweredJudgeRequest: {:?}", &judge_req);
+                    let outcome = match self.judge(&judge_req).await {
+                        Ok(o) => o,
+                        Err(err) => {
+                            error!("Invoke failed: {:#}", err);
+                            self.create_fake_protocols(
+                                &judge_req,
+                                &invoker_api::Status {
+                                    kind: invoker_api::StatusKind::InternalError,
+                                    code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
+                                },
+                            )
+                            .await
+                            .ok();
+                            JudgeOutcome::Fault
+                        }
+                    };
+                    debug!("JudgeOutcome: {:?}", &outcome);
+                    self.send(Response::JudgeDone(outcome)).await;
                 }
             }
         }
     }
 
-    async fn invoke(&mut self, req: &InvokeRequest) -> anyhow::Result<InvokeOutcome> {
+    async fn judge(&mut self, req: &LoweredJudgeRequest) -> anyhow::Result<JudgeOutcome> {
         let compiler = Compiler {
             req,
             minion: &*self.minion,
@@ -149,7 +167,7 @@ impl Worker {
         };
 
         if !req.run_source.exists() {
-            anyhow::bail!("Run source file not exisis");
+            anyhow::bail!("Run source file not exists");
         }
 
         if !req.out_dir.exists() {
@@ -161,29 +179,40 @@ impl Worker {
         let outcome;
 
         match compiler_response {
-            Err(err) => return Err(err),
+            Err(err) => return Err(err).context("compilation error"),
             Ok(BuildOutcome::Error(st)) => {
-                for kind in invoker_api::judge_log::JudgeLogKind::list() {
-                    let pseudo_valuer_proto = invoker_api::valuer_proto::JudgeLog {
-                        kind,
-                        tests: vec![],
-                        subtasks: vec![],
-                        score: 0,
-                        is_full: false,
-                    };
-                    let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req, &[])?;
-                    protocol.status = st.clone();
-                    self.put_protocol(req, protocol).await?;
-                }
-                outcome = InvokeOutcome::CompileError(st);
+                self.create_fake_protocols(req, &st).await?;
+                outcome = JudgeOutcome::CompileError(st);
             }
             Ok(BuildOutcome::Success) => {
-                self.run_tests(req).await?;
+                self.run_tests(req).await.context("failed to run tests")?;
 
-                outcome = InvokeOutcome::Judge;
+                outcome = JudgeOutcome::TestingDone;
             }
         };
         Ok(outcome)
+    }
+
+    /// Used when we are unable to produce protocols, i.e. on compilation errors
+    /// and judge faults.
+    async fn create_fake_protocols(
+        &mut self,
+        req: &LoweredJudgeRequest,
+        status: &invoker_api::Status,
+    ) -> anyhow::Result<()> {
+        for kind in invoker_api::judge_log::JudgeLogKind::list() {
+            let pseudo_valuer_proto = invoker_api::valuer_proto::JudgeLog {
+                kind,
+                tests: vec![],
+                subtasks: vec![],
+                score: 0,
+                is_full: false,
+            };
+            let mut protocol = self.process_judge_log(&pseudo_valuer_proto, req, &[])?;
+            protocol.status = status.clone();
+            self.put_protocol(req, protocol).await?;
+        }
+        Ok(())
     }
 
     async fn put_outcome(
@@ -192,9 +221,9 @@ impl Worker {
         status: invoker_api::Status,
         kind: invoker_api::judge_log::JudgeLogKind,
     ) {
-        let header = invoker_api::InvokeOutcomeHeader {
+        let header = invoker_api::JudgeOutcomeHeader {
             score: Some(score),
-            status: Some(status),
+            status,
             kind,
         };
         self.send(Response::OutcomeHeader(header)).await;
@@ -202,7 +231,7 @@ impl Worker {
 
     async fn put_protocol(
         &mut self,
-        req: &InvokeRequest,
+        req: &LoweredJudgeRequest,
         protocol: invoker_api::judge_log::JudgeLog,
     ) -> anyhow::Result<()> {
         let protocol_file_name = format!("protocol-{}.json", protocol.kind.as_str());
@@ -217,7 +246,7 @@ impl Worker {
         Ok(())
     }
 
-    async fn run_tests(&mut self, req: &InvokeRequest) -> anyhow::Result<()> {
+    async fn run_tests(&mut self, req: &LoweredJudgeRequest) -> anyhow::Result<()> {
         let mut test_results = vec![];
 
         let mut valuer = Valuer::new(req).context("failed to init valuer")?;
@@ -281,12 +310,12 @@ impl Worker {
 }
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
-pub(crate) enum InvokeOutcome {
+pub(crate) enum JudgeOutcome {
     /// Compilation failed
     CompileError(Status),
-    /// Run was judged successfully
+    /// Run was executed on some tests successfully (i.e. without judge faults)
     /// All protocols were sent already
-    Judge,
+    TestingDone,
     /// Run was not judged, because of invocation fault
     /// Maybe, several protocols were emitted, but results are neither precise nor complete
     Fault,

@@ -1,10 +1,10 @@
 mod checker_proto;
 
-use crate::worker::{invoke_util, os_util, InvokeRequest};
+use crate::worker::{invoke_util, os_util, LoweredJudgeRequest};
 use anyhow::Context;
 use invoker_api::{status_codes, Status, StatusKind};
-use log::error;
 use std::{fs, io::Write, path::PathBuf};
+use tracing::{debug, error};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
     pub(crate) test: &'a pom::Test,
@@ -19,7 +19,7 @@ pub(crate) struct ExecOutcome {
 /// Runs Artifact on one test and produces output
 pub(crate) struct TestExecutor<'a> {
     pub(crate) exec: ExecRequest<'a>,
-    pub(crate) req: &'a InvokeRequest,
+    pub(crate) req: &'a LoweredJudgeRequest,
     pub(crate) minion: &'a dyn minion::erased::Backend,
     pub(crate) config: &'a crate::config::InvokerConfig,
 }
@@ -72,7 +72,7 @@ impl<'a> TestExecutor<'a> {
 
         let mut native_command = minion::Command::new();
 
-        invoke_util::command_set_from_inv_req(&mut native_command, &command);
+        invoke_util::command_set_from_judge_req(&mut native_command, &command);
         invoke_util::command_set_stdio(&mut native_command, &stdout_path, &stderr_path);
 
         native_command.sandbox(sandbox.sandbox.clone());
@@ -83,8 +83,12 @@ impl<'a> TestExecutor<'a> {
         let mut child = match native_command.spawn(&*self.minion) {
             Ok(child) => child,
             Err(err) => {
-                if err.is_system() {
-                    Err(err).context("failed to spawn solution")?
+                let is_internal_error = match err.downcast_ref::<minion::linux::Error>() {
+                    Some(e) => e.is_system(),
+                    None => true,
+                };
+                if is_internal_error {
+                    return Err(err).context("failed to spawn solution");
                 } else {
                     let run_outcome_var = RunOutcomeVar::Fail(Status {
                         kind: StatusKind::Rejected,
@@ -166,7 +170,12 @@ impl<'a> TestExecutor<'a> {
         let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
         let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
         let full_checker_path = self.req.resolve_asset(&self.req.problem.checker_exe);
-        let mut cmd = std::process::Command::new(full_checker_path);
+        let mut cmd = std::process::Command::new(full_checker_path.clone());
+        debug!(
+            "full checker path: {}, short path: {}",
+            full_checker_path.to_str().unwrap(),
+            &self.req.problem.checker_exe.path
+        );
         cmd.current_dir(&self.req.problem_dir);
 
         for arg in &self.req.problem.checker_cmd {

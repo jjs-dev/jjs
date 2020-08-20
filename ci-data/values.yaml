@@ -1,0 +1,10 @@
+# Helm chart installation settings from `smoke` job
+
+image:
+  # use host images
+  repositoryPrefix: ""
+  tag: latest
+  pullPolicy: Never
+services:
+  apiserver:
+    serviceType: NodePort

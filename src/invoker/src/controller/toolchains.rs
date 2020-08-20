@@ -1,12 +1,14 @@
 //! This module is responsible for toolchain loading
 use anyhow::Context as _;
+use dkregistry::v2::manifest::{Manifest, RuntimeConfig};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use tracing::{debug, instrument};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct Toolchain {
+pub struct ToolchainSpec {
     /// Human-readable
     pub title: String,
 
@@ -53,15 +55,55 @@ impl Command {
     }
 }
 
-pub struct ResolvedToolchain {
-    pub configuration: Toolchain,
+#[derive(Clone)]
+pub struct ResolvedToolchainInfo {
+    spec: ToolchainSpec,
     pub path: PathBuf,
+    image_config: ImageConfig,
+}
+impl ResolvedToolchainInfo {
+    /// Returns toolchain spec, with applied information from docker image
+    pub fn get_spec(&self) -> ToolchainSpec {
+        let mut tc = self.spec.clone();
+        for (k, v) in self.image_config.environment.clone() {
+            tc.env.insert(k, v);
+        }
+        tc
+    }
+}
+
+/// Contains some data, extracted from image manifest
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ImageConfig {
+    pub environment: Vec<(String, String)>,
+}
+
+impl ImageConfig {
+    fn parse_env_item(item: &str) -> Option<(String, String)> {
+        let mut parts = item.splitn(2, '=');
+        let key = parts.next()?;
+        let value = parts.next()?;
+        Some((key.to_string(), value.to_string()))
+    }
+
+    fn from_run_config(rc: RuntimeConfig) -> anyhow::Result<Self> {
+        let environment = rc
+            .env
+            .unwrap_or_default()
+            .into_iter()
+            .map(|item| ImageConfig::parse_env_item(&item))
+            .map(|item| item.context("environment string does not look like key=value"))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        Ok(Self { environment })
+    }
 }
 
 /// Responsible for fetching toolchains
 pub struct ToolchainLoader {
     puller: puller::Puller,
     toolchains_dir: tempfile::TempDir,
+    /// Cache for already pulled toolchains.
+    cache: HashMap<String, ResolvedToolchainInfo>,
 }
 
 impl ToolchainLoader {
@@ -71,20 +113,24 @@ impl ToolchainLoader {
         Ok(ToolchainLoader {
             toolchains_dir,
             puller,
+            cache: HashMap::new(),
         })
     }
 
     /// Actually downloads and unpacks toolchain to specified dir.
+    #[instrument(skip(self, toolchain_url, target_dir))]
     async fn extract_toolchain(
         &self,
         toolchain_url: &str,
         target_dir: &Path,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<ImageConfig> {
+        debug!(target_dir=%target_dir.display(), "downloading image");
         tokio::fs::create_dir(target_dir)
             .await
             .context("failed to create target dir")?;
 
-        self.puller
+        let image_manifest = self
+            .puller
             .pull(
                 toolchain_url,
                 target_dir,
@@ -92,28 +138,47 @@ impl ToolchainLoader {
             )
             .await
             .context("failed to pull toolchain")?;
-        Ok(())
+        let image_manifest = match image_manifest {
+            Manifest::S2(im_v2) => im_v2,
+            _ => anyhow::bail!("Unsupported manifest: only schema2 is supported"),
+        };
+        let config_blob = image_manifest.config_blob;
+
+        let runtime_config = config_blob
+            .runtime_config
+            .context("image manifest does not have RunConfig")?;
+
+        let image_config = ImageConfig::from_run_config(runtime_config)
+            .context("failed to process config blob")?;
+        debug!("toolchain has been pulled successfully");
+        Ok(image_config)
     }
 
-    pub async fn resolve(&self, toolchain_url: &str) -> anyhow::Result<ResolvedToolchain> {
+    #[instrument(skip(self))]
+    pub async fn resolve(&self, toolchain_url: &str) -> anyhow::Result<ResolvedToolchainInfo> {
+        if let Some(info) = self.cache.get(toolchain_url) {
+            return Ok(info.clone());
+        }
         let toolchain_dir = self
             .toolchains_dir
             .path()
             .join(base64::encode(toolchain_url));
-        if !toolchain_dir.exists() {
-            self.extract_toolchain(toolchain_url, &toolchain_dir)
-                .await
-                .context("toolchain download error")?;
-        }
-        let toolchain_config_path = toolchain_dir.join("toolchain.yaml");
-        let toolchain_config = tokio::fs::read(toolchain_config_path)
+
+        let image_config = self
+            .extract_toolchain(toolchain_url, &toolchain_dir)
             .await
-            .context("toolchain config file (toolchain.yaml in image root) missing")?;
-        let toolchain_config: Toolchain =
-            serde_yaml::from_slice(&toolchain_config).context("invalid config")?;
-        Ok(ResolvedToolchain {
+            .context("toolchain download error")?;
+
+        let toolchain_spec_path = toolchain_dir.join("manifest.yaml");
+        let toolchain_spec = tokio::fs::read(toolchain_spec_path)
+            .await
+            .context("toolchain config file (manifest.yaml in image root) missing")?;
+        let toolchain_spec: ToolchainSpec =
+            serde_yaml::from_slice(&toolchain_spec).context("invalid toolchain spec")?;
+        Ok(ResolvedToolchainInfo {
             path: toolchain_dir,
-            configuration: toolchain_config,
+            spec: toolchain_spec,
+            image_config,
         })
     }
 }

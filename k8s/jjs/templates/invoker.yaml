@@ -50,7 +50,7 @@ spec:
         - name: invoker
           env: 
             - name: RUST_LOG
-              value: info,invoker=debug,problem_loader=debug,puller=debug
+              value: info,invoker=trace,problem_loader=trace,puller=trace
             - name: JJS_AUTH_DATA_INLINE
               value: '{"endpoint": "http://apiserver:1779/", "auth": {"byToken": {"token": "Dev::root"}}}'
           image: "{{ .Values.image.repositoryPrefix }}invoker:{{ .Values.image.tag }}"

@@ -12,6 +12,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_BUILD_PIPELINING: "false"
   RUSTC_BOOTSTRAP: 1
+  DOCKER_BUILDKIT: 1
 jobs:
   hack:
     name: hack
@@ -54,9 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - $include: rustc
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
+      - $include: python
       - name: check python code formatting
         run: |
           pip3 install autopep8
@@ -74,9 +73,7 @@ jobs:
       MONGODB_CONNECTION_STRING: mongodb://localhost:27017
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
+      - $include: python
       - name: run python tests
         run: |
           pip3 install pytest
@@ -183,9 +180,7 @@ jobs:
       - $include: sysdeps
       - $include: rustc-nightly
       - $include: pkg-login
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
+      - $include: python
       - run: pip install -r src/apiserver/requirements.txt
       - run: cargo jjs codegen
       - run: git diff --exit-code
@@ -205,3 +200,72 @@ jobs:
         with:
           name: codegen-diff
           path: /tmp/patch
+  smoke:
+    name: smoke
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - $include: sysdeps
+      - $include: rustc
+      - $include: python
+      - name: Get Rust version
+        id: rustc_version
+        run: |
+          rust_version=$(rustc --version | md5sum | cut -f 1-1 -d ' ')
+          echo "##[set-output name=version;]$(echo $rust_version)"
+      - name: Cache build dir
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-smoke-${{ steps.rustc_version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build jjs images
+        run: |
+          mkdir artifacts
+          DOCKER_OPT="--enable-docker --docker-tag=% --with-docker=docker"
+          FEAT_OPT="--enable-feature k8s"
+          COMPONENT_OPT="--enable daemons --enable tools"
+          cargo jjs-build --out artifacts $DOCKER_OPT $FEAT_OPT $COMPONENT_OPT
+      - name: Setup k3s
+        run: |
+          curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig ~/.kube/config --docker
+          sudo chown $( whoami ) ~/.kube/config
+      - name: Install dependencies
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm install mongodb bitnami/mongodb -f ci-data/mongodb-values.yaml --wait --timeout 75s
+      - name: Install jjs
+        run: |
+          helm install jjs k8s/jjs --wait --values ci-data/values.yaml --timeout 75s
+          kubectl wait --for condition=complete --timeout 90s jobs/init 
+      - name: Run tests
+        run: |
+          cd smoke
+          JP="{.spec.ports[0].nodePort}"
+          export JJS_API="http://localhost:$( kubectl get svc apiserver "--output=jsonpath=$JP" )"
+          export JJS_BEARER=Dev::root
+          pip install -r requirements.txt
+
+          python -m pytest .
+      - name: Collect debugging information
+        if: failure()
+        run: |
+          mkdir /tmp/kdump
+          MOUNT1="--mount type=bind,source=/tmp/kdump,target=/dump"
+          MOUNT2="--mount type=bind,source=/home/runner/.kube,target=/kube"
+          DUMP_OPTS="--escape-paths --generic-strip=managed-fields"
+          docker run -i --rm $MOUNT1 $MOUNT2 --network host mikailbag/kube-dump /dump $DUMP_OPTS
+
+          helm get manifest jjs > /tmp/rendered-objects
+
+      - name: Upload cluster state dump
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: kube-dump
+          path: /tmp/kdump
+      - name: Upload rendered manifests
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: helm-manifests
+          path: /tmp/rendered-objects

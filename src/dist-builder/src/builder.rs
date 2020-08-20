@@ -65,6 +65,7 @@ impl<'a> Builder<'a> {
             .map(|pkg| {
                 Artifact::Rust(RustArtifact {
                     package_name: pkg.name.clone(),
+                    install_name: pkg.install_name.clone(),
                 })
             })
             .collect();

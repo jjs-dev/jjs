@@ -17,7 +17,7 @@ data:
     set -e 
     bash /cmap/setup
     echo "Waiting for apiserver"
-    /cli wait
+    jjs-cli wait
     touch /shared/ok
   wait_init_done: |
     set -e
@@ -31,7 +31,7 @@ data:
     bash /cmap/wait_init_done
     echo "Installing toolchains"
     {{- range tuple "gcc" "gcc-cpp" "python3" }}
-    /cli toolchains --name {{ . }} --image gcr.io/jjs-dev/toolchain-{{ . }}
+    jjs-cli toolchains --name {{ . }} --image gcr.io/jjs-dev/toolchain-{{ . }}
     {{- end  }}
     
   init_problems: |
@@ -47,7 +47,7 @@ data:
     for problem_name in * ; do
       echo "compiling problem $problem_name"
       mkdir /shared/problems/$problem_name
-      /ppc compile --pkg $problem_name --out /shared/problems/$problem_name
+      jjs-ppc compile --pkg $problem_name --out /shared/problems/$problem_name
     done
     touch /shared/problems_compiled
   
@@ -61,7 +61,7 @@ data:
     cd /shared/problems
     for problem_name in * ; do
       echo "uploading problem $problem_name"
-      /cli problems --pkg ./$problem_name
+      jjs-cli problems --pkg ./$problem_name
     done
 
 ---     
@@ -88,7 +88,7 @@ spec:
           emptyDir: {}
       containers:
         - name: waiter
-          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repositoryPrefix }}toolkit:{{ .Values.image.tag }}"
           imagePullPolicy: "{{ .Values.image.pullPolicy }}"
           volumeMounts: 
             - name: cmap
@@ -97,7 +97,7 @@ spec:
               mountPath: /shared
           command: ["/bin/bash", "/cmap/waiter"]
         - name: toolchains
-          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repositoryPrefix }}toolkit:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
             - name: cmap
@@ -106,7 +106,7 @@ spec:
               mountPath: /shared
           command: ["/bin/bash", "/cmap/init_toolchains"]
         - name: problems
-          image: "{{ .Values.image.repositoryPrefix }}ppc:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repositoryPrefix }}toolkit:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
             - name: cmap
@@ -115,7 +115,7 @@ spec:
               mountPath: /shared
           command: ["/bin/bash", "/cmap/init_problems"]
         - name: problems-upload
-          image: "{{ .Values.image.repositoryPrefix }}cli:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repositoryPrefix }}toolkit:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
             - name: cmap
@@ -124,9 +124,4 @@ spec:
               mountPath: /shared
           command: ["/bin/bash", "/cmap/upload_problems"]
       restartPolicy: Never
-      securityContext:
-        runAsUser: 10777
-        runAsGroup: 10777
-
-
 #{{- end }}

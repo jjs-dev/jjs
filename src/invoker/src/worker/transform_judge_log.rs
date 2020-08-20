@@ -1,4 +1,4 @@
-use crate::worker::{InvokeRequest, Worker};
+use crate::worker::{LoweredJudgeRequest, Worker};
 use anyhow::Context;
 use invoker_api::{
     judge_log, status_codes, valuer_proto::TestVisibleComponents, Status, StatusKind,
@@ -12,7 +12,7 @@ impl Worker {
     pub(super) fn process_judge_log(
         &self,
         valuer_log: &invoker_api::valuer_proto::JudgeLog,
-        req: &InvokeRequest,
+        req: &LoweredJudgeRequest,
         test_results: &[(pom::TestId, crate::worker::exec_test::ExecOutcome)],
     ) -> anyhow::Result<judge_log::JudgeLog> {
         let resource_usage_by_test = {

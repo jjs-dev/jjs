@@ -114,16 +114,28 @@ impl MockDriver {
     }
 
     fn check_judge_log(&mut self, judge_log: &JudgeLog) {
-        let mut iter = self
+        let cnt = self
             .judge_logs
-            .drain_filter(|log| log.kind == judge_log.kind);
-        let expected = match iter.next() {
-            Some(e) => e,
-            None => panic!("Judge log of kind {:?} is not expected", judge_log.kind),
-        };
-        if let Some(dupe) = iter.next() {
-            panic!("Invalid test data: duplicated judge log: {:?}", dupe.kind);
+            .iter()
+            .filter(|log| log.kind == judge_log.kind)
+            .count();
+        if cnt == 0 {
+            panic!("Judge log of kind {:?} is not expected", judge_log.kind)
         }
+        if cnt > 1 {
+            panic!(
+                "Invalid test data: duplicated judge log: {:?}",
+                judge_log.kind
+            )
+        }
+        let expected = {
+            let pos = self
+                .judge_logs
+                .iter()
+                .position(|log| log.kind == judge_log.kind)
+                .expect("it was checked earlier that `cnt` > 1");
+            self.judge_logs.remove(pos)
+        };
         assert_eq!(expected.tests, judge_log.tests);
         assert_eq!(expected.subtasks, judge_log.subtasks);
         assert_eq!(expected.score, judge_log.score);

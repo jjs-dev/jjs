@@ -38,7 +38,7 @@ impl Runner {
             exit(1);
         } else {
             self.had_errors.store(true, Ordering::SeqCst);
-            log::debug!("Error reported");
+            tracing::debug!("Error reported");
         }
     }
 

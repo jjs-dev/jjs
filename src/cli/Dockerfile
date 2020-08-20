@@ -1,6 +1,6 @@
 FROM debian:stable-slim
 RUN apt-get update -y && apt-get install -y libssl-dev
-COPY cli /bin/cli
+COPY jjs-cli /bin/jjs-cli
 ENV JJS_AUTH_DATA=/auth/authdata.yaml
 VOLUME ["/auth"]
-ENTRYPOINT ["cli"]
+ENTRYPOINT ["jjs-cli"]

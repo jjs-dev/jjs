@@ -1,23 +1,28 @@
 use anyhow::Context;
+use invoker::controller::JudgeRequestAndCallbacks;
 use std::sync::Arc;
-
+use tracing::{info, instrument, warn};
 fn is_cli_mode() -> bool {
     std::env::args().count() > 1
 }
 
-async fn make_sources(
-    background_source_manager: invoker::sources::BackgroundSourceManager,
-) -> anyhow::Result<Vec<Arc<dyn invoker::controller::TaskSource>>> {
-    let mut sources: Vec<Arc<dyn invoker::controller::TaskSource>> = Vec::new();
+async fn start_request_providers(
+    cancel: tokio::sync::CancellationToken,
+    chan: async_mpmc::Sender<JudgeRequestAndCallbacks>,
+) -> anyhow::Result<()> {
     if is_cli_mode() {
-        invoker::sources::cli_source::start(background_source_manager.fork().await);
+        info!("spawning CliSource");
+        tokio::task::spawn(invoker::sources::cli_source::run(chan, cancel));
     } else {
-        let api = client::connect().await.context("API connection failed")?;
-        let source = invoker::sources::ApiSource::new(api);
-        sources.push(Arc::new(source))
+        info!("Establishing apiserver connection");
+        let api = client::infer().await.context("API connection failed")?;
+        info!("Spawning ApiSource");
+        let api_source = invoker::sources::ApiSource::new(api, chan);
+        tokio::task::spawn(async move {
+            api_source.run(cancel).await;
+        });
     }
-    sources.push(Arc::new(background_source_manager.into_source()));
-    Ok(sources)
+    Ok(())
 }
 
 fn worker_self_isolate() -> anyhow::Result<()> {
@@ -39,33 +44,37 @@ fn main() -> anyhow::Result<()> {
     if is_worker() {
         invoker::init::init().context("failed to initialize")?;
         worker_self_isolate()?;
-    } else {
-        util::wait::wait();
     }
     let mut rt = tokio::runtime::Builder::new();
     rt.basic_scheduler();
-    let mut rt = rt.enable_all().core_threads(1).max_threads(2).build()?;
-    rt.block_on(real_main())
+    if is_worker() {
+        rt.max_threads(4);
+    }
+    let mut rt = rt.enable_all().core_threads(1).build()?;
+    rt.block_on(async {
+        let cancel_token = tokio::sync::CancellationToken::new();
+        let res = real_main(cancel_token.clone()).await;
+        if res.is_err() {
+            cancel_token.cancel();
+        }
+        res
+    })
 }
-
+#[instrument(skip(judge_requests))]
 async fn start_controller(
-    cfg: invoker::config::InvokerConfig,
-    cancel_token: tokio::sync::CancellationToken,
+    config: Arc<invoker::config::InvokerConfig>,
     system_config_data: util::cfg::CfgData,
-    background_source: invoker::sources::BackgroundSourceManager,
+    judge_requests: async_mpmc::Receiver<JudgeRequestAndCallbacks>,
 ) -> anyhow::Result<()> {
-    let driver = make_sources(background_source)
-        .await
-        .context("failed to initialize driver")?;
-
-    let controller = invoker::controller::Controller::new(driver, system_config_data, cfg)
+    info!("Starting controller");
+    let controller = invoker::controller::Controller::new(system_config_data, config)
         .await
         .context("failed to start controller")?;
-    tokio::task::spawn(controller.run_forever(cancel_token));
+    controller.exec_on(judge_requests);
     Ok(())
 }
 
-async fn real_main() -> anyhow::Result<()> {
+async fn real_main(cancel_token: tokio::sync::CancellationToken) -> anyhow::Result<()> {
     if is_worker() {
         return invoker::worker::main().await;
     }
@@ -76,8 +85,10 @@ async fn real_main() -> anyhow::Result<()> {
     // we have generic `get_config_from_fs` and specific `get_config_from_k8s`
     let invoker_config = {
         if let Some(cfg) = get_config_from_k8s().await? {
+            info!("Got config from Kubernetes");
             cfg
         } else {
+            info!("Loading config from FS");
             get_config_from_fs(&system_config_data).await?
         }
     };
@@ -87,43 +98,43 @@ async fn real_main() -> anyhow::Result<()> {
         .parse()
         .with_context(|| format!("invalid bind address {}", bind_address))?;
 
-    let bg_source = invoker::sources::BackgroundSourceManager::create();
+    let (judge_request_tx, judge_request_rx) = async_mpmc::channel();
 
-    let cancel_token = tokio::sync::CancellationToken::new();
+    invoker::api::start(cancel_token.clone(), bind_address, judge_request_tx.clone())
+        .await
+        .context("failed to start api")?;
 
-    invoker::api::start(
-        cancel_token.clone(),
-        bind_address,
-        bg_source.fork().await,
-        system_config_data.data_dir.join("etc/pki"),
-    )
-    .await
-    .context("failed to start api")?;
+    info!("API service started");
+    start_request_providers(cancel_token.clone(), judge_request_tx)
+        .await
+        .context("failed to initialize request providers")?;
     start_controller(
-        invoker_config,
-        cancel_token.clone(),
+        Arc::new(invoker_config),
         system_config_data,
-        bg_source,
+        judge_request_rx,
     )
     .await
     .context("can not start controller")?;
-
-    util::daemon_notify_ready();
     {
         let cancel_token = cancel_token.clone();
         tokio::task::spawn(async move {
-            log::debug!("Installing signal hook");
-            match tokio::signal::ctrl_c().await {
-                Ok(_) => {
-                    log::info!("Received ctrl-c");
-                    cancel_token.cancel();
+            info!("Installing signal hook");
+            tokio::select! {
+                res = tokio::signal::ctrl_c() => {
+                    match res {
+                        Ok(_) => {
+                            info!("Received ctrl-c");
+                            cancel_token.cancel();
+                        }
+                        Err(err) => warn!(error=%err, "Failed to wait for signal"),
+                    }
                 }
-                Err(err) => log::warn!("Failed to wait for signal: {}", err),
+                _ = cancel_token.cancelled() => ()
             }
         });
     }
     cancel_token.cancelled().await;
-    log::info!("Received shutdown request; exiting gracefully");
+    info!("Received shutdown request; exiting gracefully");
     Ok(())
 }
 
@@ -139,6 +150,8 @@ pub async fn get_config_from_fs(
                 invoker_config_file_path.display()
             )
         })?;
+
+    info!(path=%invoker_config_file_path.display(), "Found config");
 
     serde_yaml::from_slice(&invoker_config_data).context("config parse error")
 }
@@ -172,10 +185,9 @@ async fn get_config_from_k8s_inner() -> anyhow::Result<Option<invoker::config::I
         }
     };
     let namespace = incluster_config.default_ns.clone();
-    log::info!(
-        "Discovered Kuberentes API-server: url={} ns={}",
-        &incluster_config.cluster_url,
-        &incluster_config.default_ns
+    info!(cluster_api_url=%incluster_config.cluster_url,
+        namespace=%incluster_config.default_ns,
+        "Discovered Kuberentes API-server",
     );
     let client = kube::Client::new(incluster_config);
 
@@ -187,6 +199,8 @@ async fn get_config_from_k8s_inner() -> anyhow::Result<Option<invoker::config::I
         .get(&config_map_name)
         .await
         .context("can not read ConfigMap with configuration")?;
+
+    tracing::debug!("Resolved ConfigMap");
 
     let config_map_key_name =
         std::env::var("CONFIGMAP_KEY").unwrap_or_else(|_| "judge".to_string());

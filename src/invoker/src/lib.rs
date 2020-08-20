@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, type_alias_impl_trait)]
+#![type_length_limit = "4323264"]
 pub mod api;
 pub mod config;
 pub mod controller;

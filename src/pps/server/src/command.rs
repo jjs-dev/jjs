@@ -1,4 +1,5 @@
 // TODO: split all this stuff to separate library
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
 
@@ -11,8 +12,8 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn to_std_command(&self) -> std::process::Command {
-        let mut cmd = std::process::Command::new(&self.exe);
+    pub fn to_tokio_command(&self) -> tokio::process::Command {
+        let mut cmd = tokio::process::Command::new(&self.exe);
         cmd.args(self.argv.iter());
         if let Some(cwd) = &self.cwd {
             cmd.current_dir(cwd);
@@ -37,13 +38,13 @@ impl Command {
         out
     }
 
-    pub fn run_quiet(&mut self) -> std::process::Output {
+    pub async fn run_quiet(&mut self) -> anyhow::Result<std::process::Output> {
         use std::os::unix::process::ExitStatusExt;
-        let mut s = self.to_std_command();
-        let out = s.output().expect("couldn't spawn");
+        let mut s = self.to_tokio_command();
+        let out = s.output().await.context("couldn't spawn")?;
         let status = out.status;
         if status.success() {
-            return out;
+            return Ok(out);
         }
 
         let exit_code = if status.code().is_some() {
@@ -51,15 +52,13 @@ impl Command {
         } else {
             format!("signaled: {}", status.signal().unwrap())
         };
-        eprintln!(
-            "Child did not finished successfully (exit code {})",
-            exit_code
-        );
-
-        eprintln!("command: `{}`", self);
-        eprintln!("child stdout:\n{}", String::from_utf8_lossy(&out.stdout));
-        eprintln!("child stderr:\n{}", String::from_utf8_lossy(&out.stderr));
-        std::process::exit(1);
+        anyhow::bail!(
+            "child process did not finished successfully (exit code {})\ncommand: `{}`\nchild stdout:\n{}\nchild stderr:\n{}",
+            exit_code,
+            self,
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
     }
 }
 

@@ -1,3 +1,4 @@
+#![type_length_limit = "4323264"]
 use anyhow::Context;
 use invoker::controller::JudgeRequestAndCallbacks;
 use std::sync::Arc;

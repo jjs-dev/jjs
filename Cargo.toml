@@ -35,6 +35,7 @@ opt-level = 0
 
 [workspace]
 # TODO: add other as they are fixed
-members=["src/devtool", "src/gen-api-client", "src/cli", "src/client",
-  "src/problem-loader", "src/invoker",
-  "src/dist-files-generator", "src/dist-builder", "src/ppc", "src/svaluer", "src/invoker-api"]
+members=[ "src/devtool", "src/gen-api-client", "src/cli", "src/client",
+    "src/problem-loader", "src/invoker", "src/dist-files-generator",
+     "src/dist-builder", "src/svaluer", "src/invoker-api", "src/pps/api",
+     "src/pps/cli", "src/pps/server" ]

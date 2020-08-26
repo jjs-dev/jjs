@@ -19,11 +19,16 @@ pub(super) struct P;
 struct Visitor<'a> {
     config: &'a mut svaluer::Config,
     tests_info: std::collections::HashMap<u32, String>,
+    warnings: Vec<String>,
 }
 
 impl<'a> Visitor<'a> {
-    fn warn_not_sup(&self, feat: &str) {
-        eprintln!("not supported feature: {}", feat);
+    fn warn(&mut self, msg: String) {
+        self.warnings.push(msg);
+    }
+
+    fn warn_not_sup(&mut self, feat: &str) {
+        self.warn(format!("not supported feature: {}", feat));
     }
 
     fn visit_global_def(&mut self, _node: pest::iterators::Pair<'a, Rule>) {
@@ -64,7 +69,7 @@ impl<'a> Visitor<'a> {
                 assert!(num1 <= num2);
                 for tid in num1..=num2 {
                     if self.tests_info.insert(tid, group.name.clone()).is_some() {
-                        eprintln!("test {} is mentioned more than once", tid);
+                        self.warn(format!("test {} is mentioned more than once", tid));
                     }
                 }
             }
@@ -121,14 +126,18 @@ impl<'a> Visitor<'a> {
     }
 }
 
-pub(crate) fn import(path: &Path) -> Result<svaluer::Config, ImportValuerCfgError> {
-    let input = std::fs::read_to_string(path)?;
+pub(crate) async fn import(
+    path: &Path,
+) -> Result<(svaluer::Config, Vec<String>), ImportValuerCfgError> {
+    let input = tokio::fs::read_to_string(path).await?;
     let mut ast = P::parse(Rule::config, &input)?;
     let mut config = svaluer::Config { groups: Vec::new() };
     let mut visitor = Visitor {
         config: &mut config,
         tests_info: std::collections::HashMap::new(),
+        warnings: Vec::new(),
     };
     visitor.visit(ast.next().unwrap());
-    Ok(config)
+    let warnings = std::mem::take(&mut visitor.warnings);
+    Ok((config, warnings))
 }

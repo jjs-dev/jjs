@@ -5,12 +5,24 @@ use crate::{
     Params,
 };
 use anyhow::Context as _;
-use std::{io::Write, path::Path, process::Command};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+    process::Command,
+};
 use util::cmd::CommandExt;
 
 pub(crate) struct DockerEmitter;
 
 impl DockerEmitter {
+    fn package_name_to_path(pkg_name: &str) -> PathBuf {
+        if pkg_name.starts_with("pps-") {
+            pkg_name.replace('-', "/").into()
+        } else {
+            pkg_name.into()
+        }
+    }
+
     fn emit_inner(
         params: &Params,
         docker_context: &Path,
@@ -20,7 +32,13 @@ impl DockerEmitter {
         let mut cmd = Command::new(&params.cfg.build.tool_info.docker);
         cmd.arg("build");
         cmd.arg("-f");
-        cmd.arg(params.src.join("src").join(pkg_name).join("Dockerfile"));
+        cmd.arg(
+            params
+                .src
+                .join("src")
+                .join(Self::package_name_to_path(pkg_name))
+                .join("Dockerfile"),
+        );
         let tag = options
             .tag
             .clone()

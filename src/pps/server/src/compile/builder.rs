@@ -1,15 +1,14 @@
 use crate::{
     command::Command,
-    compile::{
-        build::{BuildBackend, Task, TaskError},
-        progress_notifier::Notifier,
-    },
+    compile::build::{BuildBackend, Task, TaskError},
 };
 use anyhow::Context as _;
 use pom::{FileRef, FileRefRoot, Limits};
+use pps_api::compile_problem::Update;
 use std::{
     collections::HashMap,
-    os::unix::{io::IntoRawFd, process::CommandExt},
+    fmt::Write,
+    os::unix::io::IntoRawFd,
     path::{Path, PathBuf},
 };
 
@@ -26,6 +25,8 @@ pub(crate) struct ProblemBuilder<'a> {
     pub(crate) jtl_dir: &'a Path,
     /// Used to execute build tasks (e.g. builds checker or solution)
     pub(crate) build_backend: &'a dyn BuildBackend,
+    /// Used to return live building progress
+    pub(crate) tx: &'a mut rpc::StreamingTx<Update, pps_api::SimpleFinish>,
 }
 
 /// Fills given buffer with random hex string
@@ -87,13 +88,29 @@ impl<'a> ProblemBuilder<'a> {
         match self.build_backend.process_task(task.clone()).await {
             Ok(cmd) => Ok(cmd.command),
             Err(err) => {
-                eprintln!("Build error: unable to run build task: {}", err);
+                let mut description = String::new();
+                writeln!(
+                    &mut description,
+                    "Build error: unable to run build task: {}",
+                    err
+                )
+                .unwrap();
                 if let TaskError::ExitCodeNonZero(out) = err {
-                    eprintln!("--- stdout ---\n{}", String::from_utf8_lossy(&out.stdout));
-                    eprintln!("--- stderr ---\n{}", String::from_utf8_lossy(&out.stderr));
+                    writeln!(
+                        &mut description,
+                        "--- stdout ---\n{}",
+                        String::from_utf8_lossy(&out.stdout)
+                    )
+                    .unwrap();
+                    writeln!(
+                        &mut description,
+                        "--- stderr ---\n{}",
+                        String::from_utf8_lossy(&out.stderr)
+                    )
+                    .unwrap();
                 }
-                eprintln!("Build task: {:#?}", task);
-                anyhow::bail!("task execution error")
+                writeln!(&mut description, "Build task: {:#?}", task).unwrap();
+                anyhow::bail!("task execution error: {}", description)
             }
         }
     }
@@ -118,14 +135,17 @@ impl<'a> ProblemBuilder<'a> {
     }
 
     /// Builds single solution
-    async fn build_solution(&self, sol_path: PathBuf) -> anyhow::Result<(String, Command)> {
+    async fn build_solution(&mut self, sol_path: PathBuf) -> anyhow::Result<(String, Command)> {
         let sol_id = sol_path
             .file_stem()
             .unwrap()
             .to_str()
             .context("path is not utf8")?
             .to_owned();
-        println!("Building solution {}", &sol_id);
+        self.tx
+            .send_event(Update::BuildSolution(sol_id.clone()))
+            .await?;
+
         let out_path = format!("{}/assets/sol-{}", self.out_dir.display(), &sol_id);
         Ok((
             sol_id,
@@ -134,7 +154,7 @@ impl<'a> ProblemBuilder<'a> {
     }
 
     /// Builds all solutions
-    async fn build_solutions(&self) -> anyhow::Result<HashMap<String, Command>> {
+    async fn build_solutions(&mut self) -> anyhow::Result<HashMap<String, Command>> {
         let mut out = HashMap::new();
         for solution_path in self.glob("solutions/*").await? {
             let (sol_id, cmd) = self.build_solution(solution_path).await?;
@@ -145,17 +165,19 @@ impl<'a> ProblemBuilder<'a> {
 
     /// Builds single testgen
     async fn build_testgen(
-        &self,
+        &mut self,
         testgen_path: &Path,
         testgen_name: &str,
     ) -> anyhow::Result<Command> {
-        println!("Building generator {}", testgen_name);
+        self.tx
+            .send_event(Update::BuildTestgen(testgen_name.to_string()))
+            .await?;
         let out_path = format!("{}/assets/testgen-{}", self.out_dir.display(), testgen_name);
         self.do_build(testgen_path, &Path::new(&out_path)).await
     }
 
     /// Builds all testgens
-    async fn build_testgens(&self) -> anyhow::Result<HashMap<String, Command>> {
+    async fn build_testgens(&mut self) -> anyhow::Result<HashMap<String, Command>> {
         let mut out = HashMap::new();
         for testgen in self.glob("generators/*").await? {
             let testgen_name = testgen
@@ -178,17 +200,23 @@ impl<'a> ProblemBuilder<'a> {
 
     /// Builds all tests
     async fn build_tests(
-        &self,
+        &mut self,
         testgens: &HashMap<String, Command>,
         gen_answers: Option<&Command>,
     ) -> anyhow::Result<Vec<pom::Test>> {
         let tests_path = format!("{}/assets/tests", self.out_dir.display());
         std::fs::create_dir_all(&tests_path).expect("couldn't create tests output dir");
-        let mut notifier = Notifier::new(self.cfg.tests.len());
+        self.tx
+            .send_event(Update::GenerateTests {
+                count: self.cfg.tests.len(),
+            })
+            .await?;
         let mut out = vec![];
         for (i, test_spec) in self.cfg.tests.iter().enumerate() {
             let tid = i + 1;
-            notifier.maybe_notify(tid);
+            self.tx
+                .send_event(Update::GenerateTest { test_id: tid })
+                .await?;
 
             let out_file_path = format!("{}/{}-in.txt", &tests_path, tid);
             match &test_spec.gen {
@@ -208,13 +236,15 @@ impl<'a> ProblemBuilder<'a> {
                     cmd.env("JJS_TEST_ID", &tid.to_string());
                     cmd.env("JJS_RANDOM_SEED", &entropy);
                     self.configure_command(&mut cmd);
-                    let gen_out = cmd.run_quiet();
-                    std::fs::write(&out_file_path, gen_out.stdout).expect("failed to write test");
+                    let gen_out = cmd.run_quiet().await?;
+                    tokio::fs::write(&out_file_path, gen_out.stdout)
+                        .await
+                        .context("failed to write test")?;
                 }
                 crate::manifest::TestGenSpec::File { path } => {
                     let src_path = self.problem_dir.join("tests").join(path);
                     if let Err(e) = std::fs::copy(&src_path, &out_file_path) {
-                        eprintln!(
+                        anyhow::bail!(
                             "Couldn't copy test data from {} to {}: {}",
                             src_path.display(),
                             out_file_path,
@@ -241,7 +271,7 @@ impl<'a> ProblemBuilder<'a> {
 
                 let mut cmd = cmd.clone();
                 self.configure_command(&mut cmd);
-                let mut cmd = cmd.to_std_command();
+                let mut cmd = cmd.to_tokio_command();
                 let mut close_handles = vec![];
                 unsafe {
                     let test_data_fd = test_data.into_std().await.into_raw_fd();
@@ -268,15 +298,13 @@ impl<'a> ProblemBuilder<'a> {
                     .stdout(crate::Stdio::piped())
                     .stderr(crate::Stdio::piped())
                     .output()
-                    .unwrap_or_else(|err| panic!("launch main solution error: {}", err));
+                    .await
+                    .context("launch main solution error: {}")?;
                 if !output.status.success() {
-                    eprintln!(
-                        "solution stderr: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    );
                     anyhow::bail!(
-                        "Error while generating correct answer for test {}: main solution failed",
-                        tid
+                        "Error while generating correct answer for test {}: main solution failed: {}",
+                        tid,
+                        String::from_utf8_lossy(&output.stderr)
                     );
                 }
                 let short_file_path = format!("tests/{}-out.txt", tid);
@@ -296,15 +324,16 @@ impl<'a> ProblemBuilder<'a> {
     }
 
     /// Builds all checkers (currently only one is supported)
-    async fn build_checkers(&self) -> anyhow::Result<FileRef> {
+    async fn build_checkers(&mut self) -> anyhow::Result<FileRef> {
         // TODO: support multi-file checkers
         let checker_path = format!("{}/checkers/main.cpp", self.problem_dir.display());
         self.build_checker(&checker_path).await
     }
 
     /// Builds single checker
-    async fn build_checker(&self, checker_path: &str) -> anyhow::Result<FileRef> {
+    async fn build_checker(&mut self, checker_path: &str) -> anyhow::Result<FileRef> {
         let out_path = self.out_dir.join("assets/checker");
+        self.tx.send_event(Update::BuildChecker).await?;
         match &self.cfg.check {
             crate::manifest::Check::Custom(_) => {
                 self.do_build(Path::new(checker_path), Path::new(&out_path))
@@ -318,11 +347,6 @@ impl<'a> ProblemBuilder<'a> {
                 let src_path = self
                     .jtl_dir
                     .join(format!("bin/builtin-checker-{}", bc.name));
-                println!(
-                    "Copying checker binary from {} to {}",
-                    src_path.to_str().unwrap(),
-                    out_path.join("bin").to_str().unwrap()
-                );
                 tokio::fs::create_dir(&out_path)
                     .await
                     .context("failed to create out directory")?;
@@ -355,18 +379,19 @@ impl<'a> ProblemBuilder<'a> {
 
     /// Copies files that should just be copied as is.
     /// Currently, only such file is valuer config
-    fn copy_raw(&self) -> std::io::Result<()> {
+    async fn copy_raw(&mut self) -> anyhow::Result<()> {
         let valuer_cfg_dir = self.out_dir.join("assets/valuer-cfg");
         if let Some(valuer_cfg) = &self.cfg.valuer_cfg {
-            println!("Valuer config");
+            self.tx.send_event(Update::CopyValuerConfig).await?;
+
             let src = self.problem_dir.join(valuer_cfg.trim_start_matches('/'));
             let dest = valuer_cfg_dir.join("cfg.yaml");
-            std::fs::create_dir(&valuer_cfg_dir)?;
+            tokio::fs::create_dir(&valuer_cfg_dir).await?;
             if src.is_file() {
-                std::fs::copy(&src, &dest)?;
+                tokio::fs::copy(&src, &dest).await?;
             } else {
                 // TODO
-                eprintln!("Multi-file valuer config is TODO");
+                anyhow::bail!("Multi-file valuer config is TODO");
             }
         }
         Ok(())
@@ -374,7 +399,7 @@ impl<'a> ProblemBuilder<'a> {
 
     /// Main method, which actually builds the problem into
     /// redistributable package.
-    pub async fn build(&self) -> anyhow::Result<()> {
+    pub async fn build(&mut self) -> anyhow::Result<()> {
         self.build_modules().await?;
         let solutions = self.build_solutions().await?;
         let testgen_launch_info = self.build_testgens().await?;
@@ -411,9 +436,7 @@ impl<'a> ProblemBuilder<'a> {
             };
             self.build_tests(&testgen_launch_info, gen_answers).await?
         };
-        if let Err(e) = self.copy_raw() {
-            eprintln!("Error: {}", e);
-        }
+        self.copy_raw().await?;
 
         let valuer_exe = {
             let src = self.jtl_dir.join("bin/jjs-svaluer");

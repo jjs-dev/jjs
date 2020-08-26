@@ -114,6 +114,9 @@ spec:
             - name: shared
               mountPath: /shared
           command: ["/bin/bash", "/cmap/init_problems"]
+          env:
+            - name: RUST_LOG
+              value: info,pps_cli=trace,pps_server=trace,pps_api=trace
         - name: problems-upload
           image: "{{ .Values.image.repositoryPrefix }}toolkit:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}

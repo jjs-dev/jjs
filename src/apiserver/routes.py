@@ -8,6 +8,7 @@ import typing
 import base64
 import pymongo
 import pydantic
+import os
 
 
 class RunSubmitSimpleParams(pydantic.BaseModel):
@@ -72,16 +73,12 @@ class SimpleAuthParams(pydantic.BaseModel):
     "User password (in plaintext)."
 
 
-class AuthResponse(pydantic.BaseModel):
-    token: str
-    "Session token for the newly-created user session."
-
-
 def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fastapi.FastAPI:
     app = fastapi.FastAPI()
 
     root_uuid = uuid.UUID('000000000000-0000-0000-000000000000')
     guest_uuid = uuid.UUID('000000000000-0000-0000-000000000001')
+    demo_uuid = uuid.UUID('000000000000-0000-0000-000000000002')
     security = fastapi.security.http.HTTPBearer()
 
     def get_db(db: pymongo.database.Database = fastapi.Depends(db_connect)) -> pymongo.database.Database:
@@ -193,7 +190,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
                                         detail='A user already exists with this username')
         return new_user
 
-    @app.post('/auth/simple', response_model=AuthResponse,
+    @app.post('/auth/simple', response_model=api_models.SessionToken,
               operation_id="login")
     def route_login(params: SimpleAuthParams, db: pymongo.database.Database = fastapi.Depends(get_db)):
         """
@@ -220,7 +217,7 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         token = 'UUID::'+str(uuid.uuid4())
         session = auth.Session(token=token, user_id=user.id, roles=user.roles)
         db.sessions.insert_one(dict(session))
-        return AuthResponse(token=session.token)
+        return api_models.SessionToken(data=session.token)
 
     @app.post('/runs', response_model=api_models.Run,
               operation_id="submitRun")
@@ -375,12 +372,12 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
             runs.append(doc)
         return runs
 
-    @app.put('/toolchains/', response_model=api_models.Toolchain, operation_id="putToolchain")
+    @app.put('/toolchains', response_model=api_models.Toolchain, operation_id="putToolchain")
     def route_put_tooclhain(toolchain: api_models.Toolchain, db: pymongo.database.Database = fastapi.Depends(get_db)):
         # TODO docs
         # TODO auth
         db.toolchains.insert_one(
-            {'name': toolchain.name, 'image': toolchain.image})
+            {'id': toolchain.id, 'description': toolchain.description, 'image': toolchain.image})
         return toolchain
 
     @app.get('/toolchains/{toolchain_id}', response_model=api_models.Toolchain, operation_id="getToolchain")
@@ -388,9 +385,14 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         # TODO docs
         # TODO auth
         # TODO error handling
-        doc = db.toolchains.find_one(filter={'name': toolchain_id})
+        doc = db.toolchains.find_one(filter={'id': toolchain_id})
         assert doc is not None
         return doc
+
+    @app.get('/toolchains', response_model=typing.List[api_models.Toolchain], operation_id="listToolchains")
+    def route_list_roolchains(db: pymongo.database.Database = fastapi.Depends(get_db)):
+        docs = db.toolchains.find()
+        return [d for d in docs]
 
     @app.put('/problems/{problem_id}', response_model=bool, operation_id="putProblem")
     def route_put_problem(problem_id: str, problem_manifest: bytes = fastapi.Form(...), problem_assets: str = fastapi.File(...), db: pymongo.database.Database = fastapi.Depends(get_db)):
@@ -404,5 +406,39 @@ def create_app(db_connect: typing.Callable[[], pymongo.database.Database]) -> fa
         db.problems.insert_one(doc)
         # TODO better return value
         return True
+
+    @app.get('/contests', response_model=typing.List[api_models.Contest], operation_id="listContests")
+    def route_list_contests():
+        # TODO docs
+        # TODO auth
+        # TODO stub
+
+        # Aside.
+        # theorem: python typing sucks.
+        # proof: exclude one of there parameters and observe absence of typing errors.
+        contest = api_models.Contest(id='trial', title='Trial Contest')
+        return [contest]
+
+    @app.get('/contests/{contest_name}', response_model=api_models.Contest, operation_id="getContest")
+    def route_get_contest(contest_name: str):
+        # TODO docs
+        # TODO auth
+        # TODO stub
+        if contest_name != "trial":
+            raise fastapi.HTTPException(
+                404, detail="only trial contest is supported")
+        return api_models.Contest(id='trial', title='Trial Contest')
+
+    @app.get('/contests/{contest_name}/problems', response_model=typing.List[api_models.Problem], operation_id="listContestProblems")
+    def route_list_contest_problems(contest_name: str):
+        # TODO docs
+        # TODO auth
+        # TODO stub
+        if contest_name != "trial":
+            raise fastapi.HTTPException(
+                404, detail="only trial contest is supported")
+        return [
+            api_models.Problem(name='a-plus-b', rel_name='A', title='A+B')
+        ]
 
     return app

@@ -54,6 +54,33 @@
                 }
             }
         },
+        "extras": {
+            "type": "object",
+            "description": "installs additional applications",
+            "properties": {
+                "ejui": {
+                    "type": "object",
+                    "description": "Simple GUI",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "image": {
+                            "type": "string",
+                            "description": "Image to use"
+                        },
+                        "imagePullSecretName": {
+                            "type": "string",
+                            "description": "Name of image pull secret to use when pulling ejui image"
+                        }
+                    },
+                    "required": [
+                        "enabled",
+                        "image"
+                    ]
+                }
+            }
+        },
         "networkPolicy": {
             "type": "object",
             "description": "configures default NetworkPolicy",

@@ -1,0 +1,53 @@
+#{{- if .Values.extras.ejui.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ejui
+  labels:
+    app: ejui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ejui
+  template:
+    metadata:
+      labels:
+        app: ejui
+    spec:
+      #{{- if .Values.extras.ejui.imagePullSecretName }}
+      imagePullSecrets:
+        - name: "{{ .Values.extras.ejui.imagePullSecretName }}"
+      #{{- end }}
+      containers:
+        - name: ejui
+          image: "{{ .Values.extras.ejui.image }}"
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 10779
+            runAsGroup: 10779
+          ports:
+            - name: ui
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "true"
+          args: ["0.0.0.0:8000", "http+jjs://apiserver:1779/?"]
+---
+# Allows all ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ejui
+spec:
+  podSelector:
+    matchLabels:
+      app: ejui
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+#{{- end }}

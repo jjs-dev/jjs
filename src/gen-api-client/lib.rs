@@ -9,12 +9,12 @@ pub mod api_version {
     include!("./api_version.rs");
 }
 
-pub mod auth_response {
-    include!("./auth_response.rs");
-}
-
 pub mod body_route_put_problem_problems_problem_id_put {
     include!("./body_route_put_problem_problems_problem_id_put.rs");
+}
+
+pub mod contest {
+    include!("./contest.rs");
 }
 
 pub mod http_validation_error {
@@ -29,6 +29,10 @@ pub mod miscellaneous {
     include!("./miscellaneous.rs");
 }
 
+pub mod problem {
+    include!("./problem.rs");
+}
+
 pub mod run {
     include!("./run.rs");
 }
@@ -39,6 +43,10 @@ pub mod run_patch {
 
 pub mod run_submit_simple_params {
     include!("./run_submit_simple_params.rs");
+}
+
+pub mod session_token {
+    include!("./session_token.rs");
 }
 
 pub mod simple_auth_params {

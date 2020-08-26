@@ -4,6 +4,10 @@ image:
   pullPolicy: Always
 toolchains:
   official: true
+extras:
+  ejui:
+    enabled: true
+    image: docker.pkg.github.com/sleirsgoevy/ejui/ejui:master
 services:
   apiserver:
     serviceType: ClusterIP

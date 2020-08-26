@@ -58,7 +58,7 @@ async fn obtain_token(ad: AuthData) -> anyhow::Result<String> {
                 .send(&client)
                 .await?
                 .object;
-            Ok(auth.token)
+            Ok(auth.data)
         }
     }
 }

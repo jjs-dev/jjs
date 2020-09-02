@@ -5,8 +5,8 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.3.14"
-serde = "1.0.111"
+structopt = "0.3.17"
+serde = "1.0.115"
 util = {path = "../util"}
-anyhow = "1.0.31"
-fs_extra = "1.1.0"
+anyhow = "1.0.32"
+fs_extra = "1.2.0"

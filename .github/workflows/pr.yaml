@@ -94,7 +94,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-07-27
+          toolchain: nightly-2020-08-28
           components: "clippy,rustfmt"
           override: true
       - name: check rust code formatting
@@ -200,7 +200,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2020-07-27
+          toolchain: nightly-2020-08-28
           components: "clippy,rustfmt"
           override: true
       - name: Log into Github Package Registry

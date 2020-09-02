@@ -11,7 +11,7 @@ serde_json = "1.0.57"
 anyhow = "1.0.32"
 toml = "0.5.6"
 thiserror = "1.0.20"
-async-trait = "0.1.38"
+async-trait = "0.1.40"
 getrandom = "0.1.14"
 glob = "0.3.0"
 pom = { path = "../../pom" }

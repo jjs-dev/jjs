@@ -147,7 +147,7 @@ impl MockDriver {
     }
 
     fn exec(&mut self, cfg: impl AsRef<str>) {
-        simple_logger::init().ok();
+        simple_logger::SimpleLogger::new().init().ok();
         let cfg = cfg.as_ref();
         let cfg = serde_yaml::from_str(cfg).expect("failed to parse config");
         let valuer = SimpleValuer::new(self, &cfg).unwrap();

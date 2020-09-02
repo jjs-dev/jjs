@@ -9,19 +9,19 @@ description = "JJS CLI client"
 util = {path = "../util"}
 client = {path = "../client"}
 pom = { path = "../pom" }
-base64 = "0.12.0"
-serde_json = "1.0.51"
-serde = "1.0.106"
-futures = { version = "0.3.4", features = ["compat"] }
-tokio = { version = "0.2.18", features = ["macros", "rt-core", "io-std", "process"] }
-log = "0.4.8"
-anyhow = "1.0.31"
+base64 = "0.12.3"
+serde_json = "1.0.57"
+serde = "1.0.115"
+futures = { version = "0.3.5", features = ["compat"] }
+tokio = { version = "0.2.22", features = ["macros", "rt-core", "io-std", "process"] }
+log = "0.4.11"
+anyhow = "1.0.32"
 clap = "3.0.0-beta.1"
-either = "1.5.3"
+either = "1.6.0"
 clap_generate = "3.0.0-beta.1"
 dialoguer = "0.6.2"
 xdg = "2.2.0"
 serde_yaml = "0.8.13"
-tar = "0.4.29"
+tar = "0.4.30"
 humansize = "1.1.0"
-flate2 = "1.0.16"
+flate2 = "1.0.17"

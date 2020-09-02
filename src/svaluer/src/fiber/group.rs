@@ -344,7 +344,7 @@ mod tests {
     use super::*;
     #[test]
     fn simple() {
-        simple_logger::init().ok();
+        simple_logger::SimpleLogger::new().init().ok();
         let st = || Status {
             kind: invoker_api::StatusKind::Accepted,
             code: "MOCK_OK".to_string(),

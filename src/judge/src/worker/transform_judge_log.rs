@@ -1,6 +1,6 @@
 use crate::worker::{LoweredJudgeRequest, Worker};
 use anyhow::Context;
-use invoker_api::{
+use judging_apis::{
     judge_log, status_codes, valuer_proto::TestVisibleComponents, Status, StatusKind,
 };
 use std::io::Read;
@@ -11,7 +11,7 @@ impl Worker {
     #[allow(clippy::verbose_file_reads)]
     pub(super) fn process_judge_log(
         &self,
-        valuer_log: &invoker_api::valuer_proto::JudgeLog,
+        valuer_log: &judging_apis::valuer_proto::JudgeLog,
         req: &LoweredJudgeRequest,
         test_results: &[(pom::TestId, crate::worker::exec_test::ExecOutcome)],
     ) -> anyhow::Result<judge_log::JudgeLog> {

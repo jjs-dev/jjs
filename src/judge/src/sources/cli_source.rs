@@ -1,6 +1,6 @@
 use crate::controller::{InvocationFinishReason, JudgeRequestAndCallbacks, JudgeResponseCallbacks};
 use anyhow::Context as _;
-use invoker_api::{CliJudgeRequest, JudgeRequest};
+use judging_apis::{CliJudgeRequest, JudgeRequest};
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
 use tracing::debug;
@@ -34,13 +34,13 @@ pub struct FinishedMessage {
 #[derive(serde::Serialize)]
 pub struct ProgressMessage {
     invocation_id: Uuid,
-    header: invoker_api::JudgeOutcomeHeader,
+    header: judging_apis::JudgeOutcomeHeader,
 }
 
 #[derive(serde::Serialize)]
 pub struct LsuMessage {
     invocation_id: Uuid,
-    update: invoker_api::LiveStatusUpdate,
+    update: judging_apis::LiveStatusUpdate,
 }
 
 struct Callbacks;
@@ -67,7 +67,7 @@ impl JudgeResponseCallbacks for Callbacks {
     async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
-        header: invoker_api::JudgeOutcomeHeader,
+        header: judging_apis::JudgeOutcomeHeader,
     ) -> anyhow::Result<()> {
         print_message(Message::Progress(ProgressMessage {
             invocation_id,
@@ -79,7 +79,7 @@ impl JudgeResponseCallbacks for Callbacks {
     async fn deliver_live_status_update(
         &self,
         invocation_id: Uuid,
-        update: invoker_api::LiveStatusUpdate,
+        update: judging_apis::LiveStatusUpdate,
     ) -> anyhow::Result<()> {
         print_message(Message::LiveStatusUpdate(LsuMessage {
             invocation_id,

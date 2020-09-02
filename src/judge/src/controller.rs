@@ -36,7 +36,7 @@ pub enum InvocationFinishReason {
 /// Contains both judging task and back address.
 /// Each task source is represented as mpsc channel of `TaskInfo`s
 pub struct JudgeRequestAndCallbacks {
-    pub request: invoker_api::JudgeRequest,
+    pub request: judging_apis::JudgeRequest,
     pub callbacks: Arc<dyn JudgeResponseCallbacks>,
 }
 
@@ -62,13 +62,13 @@ pub trait JudgeResponseCallbacks: Send + Sync {
     async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
-        header: invoker_api::JudgeOutcomeHeader,
+        header: judging_apis::JudgeOutcomeHeader,
     ) -> anyhow::Result<()>;
 
     async fn deliver_live_status_update(
         &self,
         invocation_id: Uuid,
-        lsu: invoker_api::LiveStatusUpdate,
+        lsu: judging_apis::LiveStatusUpdate,
     ) -> anyhow::Result<()>;
 }
 
@@ -77,7 +77,7 @@ pub struct Controller {
     scheduler: Arc<Scheduler>,
     problem_loader: Arc<problem_loader::Loader>,
     toolchains_dir: Arc<Path>,
-    _config: Arc<crate::config::InvokerConfig>,
+    _config: Arc<crate::config::JudgeConfig>,
     // used as RAII resource owner
     _temp_dir: Arc<tempfile::TempDir>,
     toolchain_loader: Arc<toolchains::ToolchainLoader>,
@@ -98,7 +98,7 @@ fn get_num_cpus() -> usize {
 impl Controller {
     pub async fn new(
         cfg_data: util::cfg::CfgData,
-        config: Arc<crate::config::InvokerConfig>,
+        config: Arc<crate::config::JudgeConfig>,
     ) -> anyhow::Result<Controller> {
         let worker_count = match config.workers {
             Some(cnt) => cnt,

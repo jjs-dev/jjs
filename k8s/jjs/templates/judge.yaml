@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: invoker
+  name: judge
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -10,27 +10,27 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: invoker
+  name: judge
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: invoker
+  name: judge
 subjects:
   - kind: ServiceAccount
-    name: invoker
+    name: judge
     apiGroup: ""
 roleRef:
   kind: Role
-  name: invoker
+  name: judge
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: invoker
+  name: judge
   labels:
-    app: invoker
+    app: judge
 # {{- if .Values.dev.kubeScore  }}
   annotations:
     kube-score/ignore: container-security-context
@@ -39,21 +39,21 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: invoker
+      app: judge
   template:
     metadata:
       labels:
-        app: invoker
+        app: judge
     spec:
-      serviceAccountName: invoker
+      serviceAccountName: judge
       containers:
-        - name: invoker
+        - name: judge
           env: 
             - name: RUST_LOG
-              value: info,invoker=trace,problem_loader=trace,puller=trace
+              value: info,judger=trace,problem_loader=trace,puller=trace
             - name: JJS_AUTH_DATA_INLINE
               value: '{"endpoint": "http://apiserver:1779/", "auth": {"byToken": {"token": "Dev::root"}}}'
-          image: "{{ .Values.image.repositoryPrefix }}invoker:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repositoryPrefix }}judge:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: 
             privileged: true
@@ -69,7 +69,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: invoker
+  name: judge
 spec:
   type: ClusterIP
   ports:
@@ -78,4 +78,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: invoker
+    app: judge

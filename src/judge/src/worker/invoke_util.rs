@@ -39,7 +39,7 @@ pub(crate) fn create_sandbox(
     req: &LoweredJudgeRequest,
     test_id: Option<u32>,
     backend: &dyn minion::erased::Backend,
-    config: &crate::config::InvokerConfig,
+    config: &crate::config::JudgeConfig,
 ) -> anyhow::Result<Sandbox> {
     let mut shared_dirs = vec![];
     if config.host_toolchains {

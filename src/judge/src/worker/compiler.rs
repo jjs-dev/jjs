@@ -1,6 +1,6 @@
 use crate::worker::{invoke_util, LoweredJudgeRequest};
 use anyhow::Context;
-use invoker_api::{status_codes, Status, StatusKind};
+use judging_apis::{status_codes, Status, StatusKind};
 use std::fs;
 
 pub(crate) enum BuildOutcome {
@@ -12,7 +12,7 @@ pub(crate) enum BuildOutcome {
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a LoweredJudgeRequest,
     pub(crate) minion: &'a dyn minion::erased::Backend,
-    pub(crate) config: &'a crate::config::InvokerConfig,
+    pub(crate) config: &'a crate::config::JudgeConfig,
 }
 
 impl<'a> Compiler<'a> {

@@ -1,6 +1,6 @@
 
 [package]
-name = "invoker"
+name = "judge"
 version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
@@ -11,7 +11,7 @@ serde = { version = "1.0.117", features = ["derive"] }
 serde_json = "1.0.59"
 dotenv = "0.15.0"
 aho-corasick = "0.7.14"
-invoker-api = {path = "../invoker-api"}
+judging-apis = {path = "../judging-apis"}
 pom = {path = "../pom"}
 libc = "0.2.80"
 nix = "0.19.0"

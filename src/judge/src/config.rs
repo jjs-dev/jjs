@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
-pub struct InvokerConfig {
+pub struct JudgeConfig {
     /// How many workers should be spawned
     /// By default equal to processor count
     #[serde(default)]

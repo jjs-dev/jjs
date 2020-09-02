@@ -1,6 +1,6 @@
 #![type_length_limit = "4323264"]
 use anyhow::Context;
-use invoker::controller::JudgeRequestAndCallbacks;
+use judge::controller::JudgeRequestAndCallbacks;
 use std::sync::Arc;
 use tracing::{info, instrument, warn};
 fn is_cli_mode() -> bool {
@@ -13,12 +13,12 @@ async fn start_request_providers(
 ) -> anyhow::Result<()> {
     if is_cli_mode() {
         info!("spawning CliSource");
-        tokio::task::spawn(invoker::sources::cli_source::run(chan, cancel));
+        tokio::task::spawn(judge::sources::cli_source::run(chan, cancel));
     } else {
         info!("Establishing apiserver connection");
         let api = client::infer().await.context("API connection failed")?;
         info!("Spawning ApiSource");
-        let api_source = invoker::sources::ApiSource::new(api, chan);
+        let api_source = judge::sources::ApiSource::new(api, chan);
         tokio::task::spawn(async move {
             api_source.run(cancel).await;
         });
@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     util::log::setup();
     if is_worker() {
-        invoker::init::init().context("failed to initialize")?;
+        judge::init::init().context("failed to initialize")?;
         worker_self_isolate()?;
     }
     let mut rt = tokio::runtime::Builder::new();
@@ -63,12 +63,12 @@ fn main() -> anyhow::Result<()> {
 }
 #[instrument(skip(judge_requests))]
 async fn start_controller(
-    config: Arc<invoker::config::InvokerConfig>,
+    config: Arc<judge::config::JudgeConfig>,
     system_config_data: util::cfg::CfgData,
     judge_requests: async_mpmc::Receiver<JudgeRequestAndCallbacks>,
 ) -> anyhow::Result<()> {
     info!("Starting controller");
-    let controller = invoker::controller::Controller::new(system_config_data, config)
+    let controller = judge::controller::Controller::new(system_config_data, config)
         .await
         .context("failed to start controller")?;
     controller.exec_on(judge_requests);
@@ -77,14 +77,14 @@ async fn start_controller(
 
 async fn real_main(cancel_token: tokio::sync::CancellationToken) -> anyhow::Result<()> {
     if is_worker() {
-        return invoker::worker::main().await;
+        return judge::worker::main().await;
     }
 
     let system_config_data = util::cfg::load_cfg_data()?;
 
     // now we should fetch InvokerConfig
     // we have generic `get_config_from_fs` and specific `get_config_from_k8s`
-    let invoker_config = {
+    let judge_config = {
         if let Some(cfg) = get_config_from_k8s().await? {
             info!("Got config from Kubernetes");
             cfg
@@ -94,14 +94,14 @@ async fn real_main(cancel_token: tokio::sync::CancellationToken) -> anyhow::Resu
         }
     };
     // TODO probably broken for IPv6
-    let bind_address = format!("{}:{}", invoker_config.api.address, invoker_config.api.port);
+    let bind_address = format!("{}:{}", judge_config.api.address, judge_config.api.port);
     let bind_address = bind_address
         .parse()
         .with_context(|| format!("invalid bind address {}", bind_address))?;
 
     let (judge_request_tx, judge_request_rx) = async_mpmc::channel();
 
-    invoker::api::start(cancel_token.clone(), bind_address, judge_request_tx.clone())
+    judge::api::start(cancel_token.clone(), bind_address, judge_request_tx.clone())
         .await
         .context("failed to start api")?;
 
@@ -109,13 +109,9 @@ async fn real_main(cancel_token: tokio::sync::CancellationToken) -> anyhow::Resu
     start_request_providers(cancel_token.clone(), judge_request_tx)
         .await
         .context("failed to initialize request providers")?;
-    start_controller(
-        Arc::new(invoker_config),
-        system_config_data,
-        judge_request_rx,
-    )
-    .await
-    .context("can not start controller")?;
+    start_controller(Arc::new(judge_config), system_config_data, judge_request_rx)
+        .await
+        .context("can not start controller")?;
     {
         let cancel_token = cancel_token.clone();
         tokio::task::spawn(async move {
@@ -141,26 +137,26 @@ async fn real_main(cancel_token: tokio::sync::CancellationToken) -> anyhow::Resu
 
 pub async fn get_config_from_fs(
     cfg_data: &util::cfg::CfgData,
-) -> anyhow::Result<invoker::config::InvokerConfig> {
-    let invoker_config_file_path = cfg_data.data_dir.join("etc/invoker.yaml");
-    let invoker_config_data = tokio::fs::read(&invoker_config_file_path)
+) -> anyhow::Result<judge::config::JudgeConfig> {
+    let judge_config_file_path = cfg_data.data_dir.join("etc/judge.yaml");
+    let judge_config_data = tokio::fs::read(&judge_config_file_path)
         .await
         .with_context(|| {
             format!(
                 "unable to read config from {}",
-                invoker_config_file_path.display()
+                judge_config_file_path.display()
             )
         })?;
 
-    info!(path=%invoker_config_file_path.display(), "Found config");
+    info!(path=%judge_config_file_path.display(), "Found config");
 
-    serde_yaml::from_slice(&invoker_config_data).context("config parse error")
+    serde_yaml::from_slice(&judge_config_data).context("config parse error")
 }
 
 /// Fetches config from Kubernetes ConfigMap.
 /// Returns Ok(Some(config)) on success, Err(err) on error
 /// and Ok(None) if not running inside kubernetes
-pub async fn get_config_from_k8s() -> anyhow::Result<Option<invoker::config::InvokerConfig>> {
+pub async fn get_config_from_k8s() -> anyhow::Result<Option<judge::config::JudgeConfig>> {
     #[cfg(feature = "k8s")]
     return get_config_from_k8s_inner().await;
     #[cfg(not(feature = "k8s"))]
@@ -168,7 +164,7 @@ pub async fn get_config_from_k8s() -> anyhow::Result<Option<invoker::config::Inv
 }
 
 #[cfg(feature = "k8s")]
-async fn get_config_from_k8s_inner() -> anyhow::Result<Option<invoker::config::InvokerConfig>> {
+async fn get_config_from_k8s_inner() -> anyhow::Result<Option<judge::config::JudgeConfig>> {
     let incluster_config = match kube::Config::from_cluster_env() {
         Ok(conf) => conf,
         Err(err) => {

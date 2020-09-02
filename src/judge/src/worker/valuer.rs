@@ -1,6 +1,6 @@
 use crate::worker::LoweredJudgeRequest;
 use anyhow::{bail, Context};
-use invoker_api::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
+use judging_apis::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use std::os::unix::io::IntoRawFd;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tracing::warn;

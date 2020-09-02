@@ -193,7 +193,7 @@ fn make_rust_package_list() -> Vec<RustPackage> {
     add("pps-cli", "jjs-pps", Section::Tool);
     //add("userlist", "jjs-userlist", Section::Tool);
     add("cli", "jjs-cli", Section::Tool);
-    add("invoker", "jjs-invoker", Section::Daemon);
+    add("judge", "jjs-judge", Section::Daemon);
     add("svaluer", "jjs-svaluer", Section::Tool);
     /*add(
         "configure-toolchains",

@@ -16,11 +16,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: builtin-invoker
+  name: builtin-judge
 spec:
   podSelector:
     matchLabels:
-      app: invoker
+      app: judge
   policyTypes:
   - Ingress
   ingress: []

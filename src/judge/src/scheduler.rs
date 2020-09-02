@@ -1,7 +1,7 @@
 // maybe it's overengineered but it's fun
 
 use crate::{
-    config::InvokerConfig,
+    config::JudgeConfig,
     worker::{Request, Response},
 };
 use anyhow::Context as _;
@@ -23,8 +23,8 @@ pub struct Scheduler {
 
 impl Scheduler {
     /// Creates new Scheduler with empty `workers` set
-    pub fn new(config: &InvokerConfig) -> anyhow::Result<Self> {
-        let config = serde_json::to_string(&config).context("failed to serialize InvokerConfig")?;
+    pub fn new(config: &JudgeConfig) -> anyhow::Result<Self> {
+        let config = serde_json::to_string(&config).context("failed to serialize JudgeConfig")?;
         Ok(Scheduler {
             workers: vec![],
             config,

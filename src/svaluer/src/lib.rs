@@ -11,7 +11,7 @@ pub use cfg::Config;
 
 use anyhow::{Context, Result};
 use fiber::{Fiber, FiberReply};
-use invoker_api::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};
+use judging_apis::valuer_proto::{JudgeLogKind, ProblemInfo, TestDoneNotification, ValuerResponse};
 use log::debug;
 use pom::TestId;
 use std::collections::HashSet;
@@ -169,17 +169,18 @@ impl<'a> SimpleValuer<'a> {
 }
 
 pub mod status_util {
-    pub fn make_ok_status() -> invoker_api::Status {
-        invoker_api::Status {
+    use judging_apis::{Status, StatusKind};
+    pub fn make_ok_status() -> Status {
+        Status {
             code: "OK".to_string(),
-            kind: invoker_api::StatusKind::Accepted,
+            kind: StatusKind::Accepted,
         }
     }
 
-    pub fn make_err_status() -> invoker_api::Status {
-        invoker_api::Status {
+    pub fn make_err_status() -> Status {
+        Status {
             code: "NOT_OK".to_string(),
-            kind: invoker_api::StatusKind::Rejected,
+            kind: StatusKind::Rejected,
         }
     }
 }

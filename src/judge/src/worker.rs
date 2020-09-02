@@ -12,7 +12,7 @@ mod valuer;
 use anyhow::Context;
 use compiler::{BuildOutcome, Compiler};
 use exec_test::{ExecRequest, TestExecutor};
-use invoker_api::{
+use judging_apis::{
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
 };
@@ -84,7 +84,7 @@ pub(crate) enum Request {
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) enum Response {
     JudgeDone(JudgeOutcome),
-    OutcomeHeader(invoker_api::JudgeOutcomeHeader),
+    OutcomeHeader(judging_apis::JudgeOutcomeHeader),
     LiveTest(u32),
     LiveScore(u32),
 }
@@ -92,12 +92,12 @@ pub(crate) enum Response {
 pub(crate) struct Worker {
     /// Minion backend to use for invocations
     minion: Arc<dyn minion::erased::Backend>,
-    /// Invoker configuration
-    config: crate::config::InvokerConfig,
+    /// Judge configuration
+    config: crate::config::JudgeConfig,
 }
 
 impl Worker {
-    pub(crate) fn new(config: crate::config::InvokerConfig) -> anyhow::Result<Worker> {
+    pub(crate) fn new(config: crate::config::JudgeConfig) -> anyhow::Result<Worker> {
         Ok(Worker {
             minion: minion::erased::setup()
                 .context("minion initialization failed")?
@@ -142,9 +142,9 @@ impl Worker {
                             error!("Invoke failed: {:#}", err);
                             self.create_fake_protocols(
                                 &judge_req,
-                                &invoker_api::Status {
-                                    kind: invoker_api::StatusKind::InternalError,
-                                    code: invoker_api::status_codes::JUDGE_FAULT.to_string(),
+                                &judging_apis::Status {
+                                    kind: judging_apis::StatusKind::InternalError,
+                                    code: judging_apis::status_codes::JUDGE_FAULT.to_string(),
                                 },
                             )
                             .await
@@ -198,10 +198,10 @@ impl Worker {
     async fn create_fake_protocols(
         &mut self,
         req: &LoweredJudgeRequest,
-        status: &invoker_api::Status,
+        status: &judging_apis::Status,
     ) -> anyhow::Result<()> {
-        for kind in invoker_api::judge_log::JudgeLogKind::list() {
-            let pseudo_valuer_proto = invoker_api::valuer_proto::JudgeLog {
+        for kind in judging_apis::judge_log::JudgeLogKind::list() {
+            let pseudo_valuer_proto = judging_apis::valuer_proto::JudgeLog {
                 kind,
                 tests: vec![],
                 subtasks: vec![],
@@ -218,10 +218,10 @@ impl Worker {
     async fn put_outcome(
         &mut self,
         score: u32,
-        status: invoker_api::Status,
-        kind: invoker_api::judge_log::JudgeLogKind,
+        status: judging_apis::Status,
+        kind: judging_apis::judge_log::JudgeLogKind,
     ) {
-        let header = invoker_api::JudgeOutcomeHeader {
+        let header = judging_apis::JudgeOutcomeHeader {
             score: Some(score),
             status,
             kind,
@@ -232,7 +232,7 @@ impl Worker {
     async fn put_protocol(
         &mut self,
         req: &LoweredJudgeRequest,
-        protocol: invoker_api::judge_log::JudgeLog,
+        protocol: judging_apis::judge_log::JudgeLog,
     ) -> anyhow::Result<()> {
         let protocol_file_name = format!("protocol-{}.json", protocol.kind.as_str());
         let protocol_path = req.out_dir.join(protocol_file_name);

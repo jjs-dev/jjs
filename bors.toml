@@ -7,7 +7,8 @@ status = [
 'udeps',
 'codegen',
 'py-test',
-'py-fmt'
+'py-fmt',
+'smoke'
 ]
 delete-merged-branches = true
 timeout-sec = 900

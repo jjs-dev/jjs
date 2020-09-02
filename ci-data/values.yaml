@@ -8,3 +8,6 @@ image:
 services:
   apiserver:
     serviceType: NodePort
+extras:
+  ejui:
+    enabled: false

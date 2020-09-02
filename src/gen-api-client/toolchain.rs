@@ -1,26 +1,34 @@
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Toolchain {
+    pub description: String,
+    pub id: String,
     pub image: String,
-    pub name: String,
 }
 
 impl Toolchain {
     /// Create a builder for this object.
     #[inline]
-    pub fn builder() -> ToolchainBuilder<crate::generics::MissingImage, crate::generics::MissingName> {
+    pub fn builder() -> ToolchainBuilder<crate::generics::MissingDescription, crate::generics::MissingId, crate::generics::MissingImage> {
         ToolchainBuilder {
             body: Default::default(),
+            _description: core::marker::PhantomData,
+            _id: core::marker::PhantomData,
             _image: core::marker::PhantomData,
-            _name: core::marker::PhantomData,
         }
     }
 
     #[inline]
-    pub fn put_toolchain() -> ToolchainPutBuilder<crate::generics::MissingImage, crate::generics::MissingName> {
+    pub fn list_toolchains() -> ToolchainGetBuilder {
+        ToolchainGetBuilder
+    }
+
+    #[inline]
+    pub fn put_toolchain() -> ToolchainPutBuilder<crate::generics::MissingDescription, crate::generics::MissingId, crate::generics::MissingImage> {
         ToolchainPutBuilder {
             body: Default::default(),
+            _description: core::marker::PhantomData,
+            _id: core::marker::PhantomData,
             _image: core::marker::PhantomData,
-            _name: core::marker::PhantomData,
         }
     }
 
@@ -33,13 +41,13 @@ impl Toolchain {
     }
 }
 
-impl Into<Toolchain> for ToolchainBuilder<crate::generics::ImageExists, crate::generics::NameExists> {
+impl Into<Toolchain> for ToolchainBuilder<crate::generics::DescriptionExists, crate::generics::IdExists, crate::generics::ImageExists> {
     fn into(self) -> Toolchain {
         self.body
     }
 }
 
-impl Into<Toolchain> for ToolchainPutBuilder<crate::generics::ImageExists, crate::generics::NameExists> {
+impl Into<Toolchain> for ToolchainPutBuilder<crate::generics::DescriptionExists, crate::generics::IdExists, crate::generics::ImageExists> {
     fn into(self) -> Toolchain {
         self.body
     }
@@ -47,55 +55,84 @@ impl Into<Toolchain> for ToolchainPutBuilder<crate::generics::ImageExists, crate
 
 /// Builder for [`Toolchain`](./struct.Toolchain.html) object.
 #[derive(Debug, Clone)]
-pub struct ToolchainBuilder<Image, Name> {
+pub struct ToolchainBuilder<Description, Id, Image> {
     body: self::Toolchain,
+    _description: core::marker::PhantomData<Description>,
+    _id: core::marker::PhantomData<Id>,
     _image: core::marker::PhantomData<Image>,
-    _name: core::marker::PhantomData<Name>,
 }
 
-impl<Image, Name> ToolchainBuilder<Image, Name> {
+impl<Description, Id, Image> ToolchainBuilder<Description, Id, Image> {
     #[inline]
-    pub fn image(mut self, value: impl Into<String>) -> ToolchainBuilder<crate::generics::ImageExists, Name> {
-        self.body.image = value.into();
+    pub fn description(mut self, value: impl Into<String>) -> ToolchainBuilder<crate::generics::DescriptionExists, Id, Image> {
+        self.body.description = value.into();
         unsafe { std::mem::transmute(self) }
     }
 
     #[inline]
-    pub fn name(mut self, value: impl Into<String>) -> ToolchainBuilder<Image, crate::generics::NameExists> {
-        self.body.name = value.into();
+    pub fn id(mut self, value: impl Into<String>) -> ToolchainBuilder<Description, crate::generics::IdExists, Image> {
+        self.body.id = value.into();
         unsafe { std::mem::transmute(self) }
+    }
+
+    #[inline]
+    pub fn image(mut self, value: impl Into<String>) -> ToolchainBuilder<Description, Id, crate::generics::ImageExists> {
+        self.body.image = value.into();
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+/// Builder created by [`Toolchain::list_toolchains`](./struct.Toolchain.html#method.list_toolchains) method for a `GET` operation associated with `Toolchain`.
+#[derive(Debug, Clone)]
+pub struct ToolchainGetBuilder;
+
+
+impl<Client: crate::client::ApiClient + Sync + 'static> crate::client::Sendable<Client> for ToolchainGetBuilder {
+    type Output = Vec<Toolchain>;
+
+    const METHOD: http::Method = http::Method::GET;
+
+    fn rel_path(&self) -> std::borrow::Cow<'static, str> {
+        "/toolchains".into()
     }
 }
 
 /// Builder created by [`Toolchain::put_toolchain`](./struct.Toolchain.html#method.put_toolchain) method for a `PUT` operation associated with `Toolchain`.
 #[derive(Debug, Clone)]
-pub struct ToolchainPutBuilder<Image, Name> {
+pub struct ToolchainPutBuilder<Description, Id, Image> {
     body: self::Toolchain,
+    _description: core::marker::PhantomData<Description>,
+    _id: core::marker::PhantomData<Id>,
     _image: core::marker::PhantomData<Image>,
-    _name: core::marker::PhantomData<Name>,
 }
 
-impl<Image, Name> ToolchainPutBuilder<Image, Name> {
+impl<Description, Id, Image> ToolchainPutBuilder<Description, Id, Image> {
     #[inline]
-    pub fn image(mut self, value: impl Into<String>) -> ToolchainPutBuilder<crate::generics::ImageExists, Name> {
+    pub fn description(mut self, value: impl Into<String>) -> ToolchainPutBuilder<crate::generics::DescriptionExists, Id, Image> {
+        self.body.description = value.into();
+        unsafe { std::mem::transmute(self) }
+    }
+
+    #[inline]
+    pub fn id(mut self, value: impl Into<String>) -> ToolchainPutBuilder<Description, crate::generics::IdExists, Image> {
+        self.body.id = value.into();
+        unsafe { std::mem::transmute(self) }
+    }
+
+    #[inline]
+    pub fn image(mut self, value: impl Into<String>) -> ToolchainPutBuilder<Description, Id, crate::generics::ImageExists> {
         self.body.image = value.into();
         unsafe { std::mem::transmute(self) }
     }
-
-    #[inline]
-    pub fn name(mut self, value: impl Into<String>) -> ToolchainPutBuilder<Image, crate::generics::NameExists> {
-        self.body.name = value.into();
-        unsafe { std::mem::transmute(self) }
-    }
 }
 
-impl<Client: crate::client::ApiClient + Sync + 'static> crate::client::Sendable<Client> for ToolchainPutBuilder<crate::generics::ImageExists, crate::generics::NameExists> {
+impl<Client: crate::client::ApiClient + Sync + 'static> crate::client::Sendable<Client> for ToolchainPutBuilder<crate::generics::DescriptionExists, crate::generics::IdExists, crate::generics::ImageExists> {
     type Output = crate::toolchain::Toolchain;
 
     const METHOD: http::Method = http::Method::PUT;
 
     fn rel_path(&self) -> std::borrow::Cow<'static, str> {
-        "/toolchains/".into()
+        "/toolchains".into()
     }
 
     fn modify(&self, req: Client::Request) -> Result<Client::Request, crate::client::ApiError<Client::Response>> {

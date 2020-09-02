@@ -85,7 +85,7 @@ impl<Login, Password> SimpleAuthParamsPostBuilder<Login, Password> {
 }
 
 impl<Client: crate::client::ApiClient + Sync + 'static> crate::client::Sendable<Client> for SimpleAuthParamsPostBuilder<crate::generics::LoginExists, crate::generics::PasswordExists> {
-    type Output = crate::auth_response::AuthResponse;
+    type Output = crate::session_token::SessionToken;
 
     const METHOD: http::Method = http::Method::POST;
 

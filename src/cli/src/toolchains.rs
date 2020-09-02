@@ -51,7 +51,8 @@ pub(crate) async fn exec(opt: &Opt, api: &client::ApiClient) -> anyhow::Result<(
 
     client::models::Toolchain::put_toolchain()
         .image(&opt.image)
-        .name(&toolchain_name)
+        .id(&toolchain_name)
+        .description("TODO")
         .send(api)
         .await?;
 

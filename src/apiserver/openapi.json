@@ -19,19 +19,6 @@
         "title": "ApiVersion",
         "type": "object"
       },
-      "AuthResponse": {
-        "properties": {
-          "token": {
-            "title": "Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
-        ],
-        "title": "AuthResponse",
-        "type": "object"
-      },
       "Body_route_put_problem_problems__problem_id__put": {
         "properties": {
           "problem_assets": {
@@ -49,6 +36,24 @@
           "problem_assets"
         ],
         "title": "Body_route_put_problem_problems__problem_id__put",
+        "type": "object"
+      },
+      "Contest": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Contest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -83,6 +88,29 @@
           "finished"
         ],
         "title": "LiveStatus",
+        "type": "object"
+      },
+      "Problem": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rel_name": {
+            "title": "Rel Name",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "rel_name",
+          "title"
+        ],
+        "title": "Problem",
         "type": "object"
       },
       "Run": {
@@ -177,6 +205,19 @@
         "title": "RunSubmitSimpleParams",
         "type": "object"
       },
+      "SessionToken": {
+        "properties": {
+          "data": {
+            "title": "Data",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionToken",
+        "type": "object"
+      },
       "SimpleAuthParams": {
         "properties": {
           "login": {
@@ -197,17 +238,22 @@
       },
       "Toolchain": {
         "properties": {
-          "image": {
-            "title": "Image",
+          "description": {
+            "title": "Description",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "title": "Image",
             "type": "string"
           }
         },
         "required": [
-          "name",
+          "id",
+          "description",
           "image"
         ],
         "title": "Toolchain",
@@ -330,7 +376,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/SessionToken"
                 }
               }
             },
@@ -348,6 +394,110 @@
           }
         },
         "summary": "Route Login"
+      }
+    },
+    "/contests": {
+      "get": {
+        "operationId": "listContests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Contest"
+                  },
+                  "title": "Response Route List Contests Contests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route List Contests"
+      }
+    },
+    "/contests/{contest_name}": {
+      "get": {
+        "operationId": "getContest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contest_name",
+            "required": true,
+            "schema": {
+              "title": "Contest Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Get Contest"
+      }
+    },
+    "/contests/{contest_name}/problems": {
+      "get": {
+        "operationId": "listContestProblems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contest_name",
+            "required": true,
+            "schema": {
+              "title": "Contest Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Problem"
+                  },
+                  "title": "Response Route List Contest Problems Contests  Contest Name  Problems Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route List Contest Problems"
       }
     },
     "/problems/{problem_id}": {
@@ -747,7 +897,27 @@
         "summary": "Route Is Dev"
       }
     },
-    "/toolchains/": {
+    "/toolchains": {
+      "get": {
+        "operationId": "listToolchains",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Toolchain"
+                  },
+                  "title": "Response Route List Roolchains Toolchains Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route List Roolchains"
+      },
       "put": {
         "operationId": "putToolchain",
         "requestBody": {

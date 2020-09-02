@@ -221,7 +221,7 @@ def test_unprivileged_user():
         'password': '12345'
     })
     session.raise_for_status()  # success
-    unpriv_auth = {'Authorization': 'Bearer '+session.json()['token']}
+    unpriv_auth = {'Authorization': 'Bearer '+session.json()['data']}
 
     runs = client.get('/runs', headers=unpriv_auth)
     assert runs.status_code == 403  # no permission
@@ -250,7 +250,7 @@ def test_observer():
         'password': '12345'
     })
     session.raise_for_status()  # success
-    unpriv_auth = {'Authorization': 'Bearer '+session.json()['token']}
+    unpriv_auth = {'Authorization': 'Bearer '+session.json()['data']}
 
     runs = client.get('/runs', headers=unpriv_auth)
     runs.raise_for_status()

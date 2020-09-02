@@ -292,7 +292,7 @@ mod tests {
     }
     #[test]
     fn simple() {
-        simple_logger::init().ok();
+        simple_logger::SimpleLogger::new().init().ok();
         let mut f = make_fiber(
             "
 groups:

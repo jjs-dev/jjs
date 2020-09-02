@@ -114,6 +114,7 @@ fn generate_man(params: &Params) -> anyhow::Result<()> {
         buffer_size: 64 * 1024,
         copy_inside: true,
         depth: 0,
+        content_only: true,
     };
     let src = book_dir.join("book");
     let dst = params.output.join("share/docs/man");
@@ -166,6 +167,7 @@ fn generate_rustdoc(params: &Params) -> anyhow::Result<()> {
         buffer_size: 64 * 1024,
         copy_inside: true,
         depth: 0,
+        content_only: true,
     };
     fs_extra::dir::copy(&src, &dest, &opts).unwrap();
 

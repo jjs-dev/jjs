@@ -37,5 +37,5 @@ opt-level = 0
 # TODO: add other as they are fixed
 members=[ "src/devtool", "src/gen-api-client", "src/cli", "src/client",
     "src/problem-loader", "src/judge", "src/dist-files-generator",
-     "src/dist-builder", "src/svaluer", "src/judging-apis", "src/pps/api",
+     "src/dist-builder", "src/svaluer", "src/judging-apis", "src/invoker", "src/pps/api",
      "src/pps/cli", "src/pps/server" ]

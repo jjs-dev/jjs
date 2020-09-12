@@ -11,7 +11,7 @@ use tracing::instrument;
 
 #[derive(Clone)]
 struct State {
-    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
+    task_tx: async_channel::Sender<JudgeRequestAndCallbacks>,
     cancel_token: tokio::sync::CancellationToken,
 }
 
@@ -36,7 +36,7 @@ async fn route_shutdown(state: web::Data<State>) -> impl Responder {
 async fn exec(
     cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
-    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
+    task_tx: async_channel::Sender<JudgeRequestAndCallbacks>,
 ) -> anyhow::Result<()> {
     let state = State {
         task_tx,
@@ -65,7 +65,7 @@ async fn exec(
 pub async fn start(
     cancel_token: tokio::sync::CancellationToken,
     bind_addr: std::net::SocketAddr,
-    task_tx: async_mpmc::Sender<JudgeRequestAndCallbacks>,
+    task_tx: async_channel::Sender<JudgeRequestAndCallbacks>,
 ) -> Result<(), anyhow::Error> {
     tokio::task::spawn_blocking(move || {
         if let Err(err) = exec(cancel_token, bind_addr, task_tx) {

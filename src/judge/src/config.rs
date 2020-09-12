@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -7,7 +8,12 @@ pub struct JudgeConfig {
     /// How many workers should be spawned
     /// By default equal to processor count
     #[serde(default)]
-    pub workers: Option<usize>,
+    pub managed_invokers: Option<usize>,
+    /// Path to invoker binary.
+    /// By default deduced from path to judge.
+    /// If `managed_invokers` set to 0, value does not matter
+    #[serde(default = "JudgeConfig::default_invoker_path")]
+    pub invoker_path: PathBuf,
     /// API service config
     #[serde(default)]
     pub api: ApiSvcConfig,
@@ -25,6 +31,16 @@ pub struct JudgeConfig {
     pub expose_host_dirs: Option<Vec<String>>,
     /// Configures how invoker should resolve problems
     pub problems: problem_loader::LoaderConfig,
+}
+
+impl JudgeConfig {
+    fn default_invoker_path() -> PathBuf {
+        let self_path = std::env::current_exe().expect("failed to get path to self");
+        let parent = self_path
+            .parent()
+            .expect("path to file must contain at least one component");
+        parent.join("jjs-invoker")
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]

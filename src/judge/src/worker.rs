@@ -2,16 +2,10 @@
 //!
 //! Worker is responsible for processing `InvokeRequest`s
 
-mod compiler;
-mod exec_test;
-mod invoke_util;
+
 mod os_util;
-mod transform_judge_log;
-mod valuer;
 
 use anyhow::Context;
-use compiler::{BuildOutcome, Compiler};
-use exec_test::{ExecRequest, TestExecutor};
 use judging_apis::{
     valuer_proto::{TestDoneNotification, ValuerResponse},
     Status,
@@ -25,69 +19,7 @@ use std::{
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tracing::{debug, error};
 use valuer::Valuer;
-#[derive(Default, Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct Command {
-    pub(crate) argv: Vec<String>,
-    pub(crate) env: Vec<String>,
-    pub(crate) cwd: String,
-}
 
-/// Submission information, sufficient for judging
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct LoweredJudgeRequest {
-    pub(crate) compile_commands: Vec<Command>,
-    pub(crate) execute_command: Command,
-    pub(crate) compile_limits: pom::Limits,
-    pub(crate) problem: pom::Problem,
-    /// Path to problem dir
-    pub(crate) problem_dir: PathBuf,
-    /// Path to file containing run source
-    pub(crate) run_source: PathBuf,
-    /// Name of source file in sandbox. E.g., `source.cpp` for C++.
-    pub(crate) source_file_name: String,
-    /// Directory for emitting files (source, build, judge log)
-    pub(crate) out_dir: PathBuf,
-    /// Toolchain directory (i.e. sysroot for command execution)
-    pub(crate) toolchain_dir: PathBuf,
-    /// UUID of request
-    pub(crate) judge_request_id: uuid::Uuid,
-}
-
-impl LoweredJudgeRequest {
-    pub(crate) fn resolve_asset(&self, short_path: &pom::FileRef) -> PathBuf {
-        let root: Cow<Path> = match short_path.root {
-            pom::FileRefRoot::Problem => self.problem_dir.join("assets").into(),
-            pom::FileRefRoot::Root => Path::new("/").into(),
-        };
-
-        debug!(
-            "full checker path: {}",
-            root.join(&short_path.path).to_str().unwrap()
-        );
-
-        root.join(&short_path.path)
-    }
-
-    pub(crate) fn step_dir(&self, test_id: Option<u32>) -> PathBuf {
-        match test_id {
-            Some(t) => self.out_dir.join(format!("t-{}", t)),
-            None => self.out_dir.join("compile"),
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-pub(crate) enum Request {
-    Judge(LoweredJudgeRequest),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) enum Response {
-    JudgeDone(JudgeOutcome),
-    OutcomeHeader(judging_apis::JudgeOutcomeHeader),
-    LiveTest(u32),
-    LiveScore(u32),
-}
 
 pub(crate) struct Worker {
     /// Minion backend to use for invocations
@@ -309,17 +241,6 @@ impl Worker {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Deserialize)]
-pub(crate) enum JudgeOutcome {
-    /// Compilation failed
-    CompileError(Status),
-    /// Run was executed on some tests successfully (i.e. without judge faults)
-    /// All protocols were sent already
-    TestingDone,
-    /// Run was not judged, because of invocation fault
-    /// Maybe, several protocols were emitted, but results are neither precise nor complete
-    Fault,
-}
 
 pub async fn main() -> anyhow::Result<()> {
     let config_data = std::env::var("__JJS_WORKER_INVOKER_CONFIG")

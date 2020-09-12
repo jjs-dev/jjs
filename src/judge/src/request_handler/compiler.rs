@@ -1,4 +1,4 @@
-use crate::worker::{invoke_util, LoweredJudgeRequest};
+use crate::request_handler::{invoke_util, LoweredJudgeRequest};
 use anyhow::Context;
 use judging_apis::{status_codes, Status, StatusKind};
 use std::fs;

@@ -1,5 +1,6 @@
 pub mod judge_log;
 pub mod valuer_proto;
+pub mod invoke;
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

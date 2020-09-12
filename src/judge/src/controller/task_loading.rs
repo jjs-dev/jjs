@@ -2,7 +2,10 @@
 use super::{
     notify::Notifier, Controller, JudgeRequestAndCallbacks, LoweredJudgeRequestExtensions,
 };
-use crate::worker::{self, LoweredJudgeRequest};
+use crate::{
+    request_handler::{Command, LoweredJudgeRequest},
+    worker,
+};
 use anyhow::Context;
 use std::{
     collections::{HashMap, HashSet},
@@ -72,8 +75,8 @@ fn interpolate_command(
     command: &super::toolchains::Command,
     dict: &HashMap<String, String>,
     toolchain_spec: &super::toolchains::ToolchainSpec,
-) -> Result<worker::Command, InterpolateError> {
-    let mut res: worker::Command = Default::default();
+) -> Result<Command, InterpolateError> {
+    let mut res: Command = Default::default();
     for arg in &command.argv {
         let interp = interpolate_string(arg, dict)?;
         res.argv.push(interp);

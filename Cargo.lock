@@ -1807,6 +1807,7 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "openssl",
+ "parking_lot 0.11.0",
  "pom",
  "problem-loader",
  "puller",

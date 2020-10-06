@@ -74,7 +74,7 @@ pub trait JudgeResponseCallbacks: Send + Sync {
 
 #[derive(Clone)]
 pub struct Controller {
-    invoker_set: Arc<InvokerSet>,
+    invoker_set: InvokerSet,
     problem_loader: Arc<problem_loader::Loader>,
     toolchains_dir: Arc<Path>,
     _config: Arc<crate::config::JudgeConfig>,
@@ -102,15 +102,17 @@ impl Controller {
             None => get_num_cpus(),
         };
         info!("Using {} workers", worker_count);
-        let mut invoker_set =
-            InvokerSet::new(&config).context("failed to initialize InvokerSet")?;
-        for _ in 0..worker_count {
-            invoker_set
-                .add_managed_worker()
-                .await
-                .context("failed to start a worker")?;
-        }
-        let invoker_set = Arc::new(invoker_set);
+
+        let invoker_set = {
+            let mut builder = InvokerSet::builder(&config);
+            for _ in 0..worker_count {
+                builder
+                    .add_managed_worker()
+                    .await
+                    .context("failed to start a worker")?;
+            }
+            builder.build()
+        };
 
         let temp_dir = tempfile::TempDir::new().context("can not find temporary dir")?;
 
@@ -158,10 +160,13 @@ impl Controller {
 
         debug!(lowered_judge_request = ?low_req, "created a lowered judge request");
 
-        // TODO currently the process of finding a worker is unfair
-        // we should fix it e.g. using a semaphore which permits finding
-        // worker.
-        let worker = self.invoker_set.find_free_worker().await;
+        let (judge_events_tx, judge_events_rx) = async_channel::bounded(1);
+        let engine = self.invoker_set.clone();
+        let judge_cx = crate::request_handler::JudgeContext {
+            events_tx: judge_events_tx,
+            invoker: rpc::Client::new(rpc::box_engine(engine), "http://does-not-matter".to_string()),
+        };
+
         // TODO: can we split into LoweredJudgeRequest and Extensions?
         let mut responses = worker
             .send(Request::Judge(low_req))

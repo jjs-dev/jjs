@@ -117,32 +117,3 @@ pub enum Action {
     /// Specifies that command should be executed
     ExecuteCommand(Command),
 }
-
-/// Wrapper for hyper::Request that can be sent over CLI
-#[derive(Serialize, Deserialize)]
-pub struct RequestWrapper {
-    uri: String,
-    body: String,
-}
-
-impl RequestWrapper {
-    pub async fn from_request(req: hyper::Request<hyper::Body>) -> anyhow::Result<Self> {
-        let uri = req.uri().to_string();
-        let body = req.into_body();
-        let body = hyper::body::to_bytes(body).await?;
-        let body = base64::encode(&body);
-        Ok(RequestWrapper { uri, body })
-    }
-
-    pub fn into_request(self) -> anyhow::Result<hyper::Request<hyper::Body>> {
-        let mut req = hyper::Request::builder();
-        req = req.method(hyper::Method::POST).uri(self.uri);
-        let body = base64::decode(&self.body)?;
-        let body = futures_util::stream::once(async { Ok::<_, std::convert::Infallible>(body) });
-        let req = req.body(hyper::Body::wrap_stream(body))?;
-        Ok(req)
-    }
-}
-
-/// Wrapper for hyper::Response that can be sent over CLI
-pub struct ResponseWrapper {}

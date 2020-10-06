@@ -24,9 +24,9 @@ pub type InvokerClient = rpc::Client<rpc::BoxEngine>;
 
 pub(crate) struct JudgeContext {
     /// Can be used to send requests to invoker
-    invoker: InvokerClient,
+    pub(crate) invoker: InvokerClient,
     /// Channel that should be used for sending updates
-    events_tx: tokio::sync::mpsc::Sender<Event>
+    pub(crate) events_tx: async_channel::Sender<Event>,
 }
 
 /// Note: this is not `judging_apis::invoke::Command`, it is higher-level.

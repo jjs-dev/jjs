@@ -72,8 +72,8 @@ pub struct Step {
 }
 
 /// Newtype identifier of file-like object, e.g. real file or pipe.
-#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
-pub struct FileId(pub usize);
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct FileId(pub String);
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Command {

@@ -1,4 +1,4 @@
-use crate::worker::LoweredJudgeRequest;
+use crate::request_handler::LoweredJudgeRequest;
 use anyhow::{bail, Context};
 use judging_apis::valuer_proto::{ProblemInfo, TestDoneNotification, ValuerResponse};
 use std::os::unix::io::IntoRawFd;

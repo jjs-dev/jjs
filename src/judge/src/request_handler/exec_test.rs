@@ -1,9 +1,9 @@
 mod checker_proto;
 
-use super::{invoke_util, JudgeContext, LoweredJudgeRequest};
+use super::{JudgeContext, LoweredJudgeRequest};
 use anyhow::Context;
 use judging_apis::{
-    invoke::{Command, Action, Step, Stdio, FileId},
+    invoke::{Action, Command, FileId, Input, InputSource, Stdio, Step},
     status_codes, Status, StatusKind,
 };
 use std::{fs, io::Write, path::PathBuf};
@@ -51,17 +51,47 @@ fn map_checker_outcome_to_status(out: checker_proto::Output) -> Status {
 }
 
 /// Runs Artifact on one test and produces output
-pub fn exec(judge_req: &LoweredJudgeRequest, ctx: &JudgeContext) -> anyhow::Result<ExecOutcome> {
+pub async fn exec(
+    judge_req: &LoweredJudgeRequest,
+    exec_req: ExecRequest<'_>,
+    cx: &JudgeContext,
+) -> anyhow::Result<ExecOutcome> {
     let mut invoke_request = judging_apis::invoke::InvokeRequest {
         steps: vec![],
         inputs: vec![],
         outputs: vec![],
     };
+    let input_file = judge_req.resolve_asset(&exec_req.test.path);
+    let test_data = std::fs::read(input_file).context("failed to read test")?;
     const EXEC_SOLUTION_GENERATION: u32 = 0;
-    const EXEC_SOLUTION_OUTPUT_FILE: FileId = FileId(0);
-    const EXEC_SOLUTION_ERROR_FILE: FileId = FileId(1);
-    
+    const TEST_DATA_INPUT_FILE: &str = "test-data";
+    const EXEC_SOLUTION_OUTPUT_FILE: &str = "solution-output";
+    const EXEC_SOLUTION_ERROR_FILE: &str = "solution-error";
+
     const EXEC_CHECKER_GENERATION: u32 = 1;
+    // create an input with the test date
+    {
+        let test_data_input = Input {
+            id: FileId(TEST_DATA_INPUT_FILE.to_string()),
+            source: cx.intern(&test_data).await?,
+        };
+        invoke_request.inputs.push(test_data_input);
+    }
+    // prepare files for stdout & stderr
+    {
+        invoke_request.steps.push(Step {
+            generation: EXEC_SOLUTION_GENERATION,
+            action: Action::CreateFile {
+                id: FileId(EXEC_SOLUTION_OUTPUT_FILE.to_string()),
+            },
+        });
+        invoke_request.steps.push(Step {
+            generation: EXEC_SOLUTION_GENERATION,
+            action: Action::CreateFile {
+                id: FileId(EXEC_SOLUTION_ERROR_FILE.to_string()),
+            },
+        })
+    }
     // produce a step for executing solution
     {
         let exec_solution_step = Step {
@@ -71,13 +101,14 @@ pub fn exec(judge_req: &LoweredJudgeRequest, ctx: &JudgeContext) -> anyhow::Resu
                 env: judge_req.execute_command.env.clone(),
                 cwd: judge_req.execute_command.cwd.clone(),
                 stdio: Stdio {
-
-                }
+                    stdin: FileId(TEST_DATA_INPUT_FILE.to_string()),
+                    stdout: FileId(EXEC_SOLUTION_OUTPUT_FILE.to_string()),
+                    stderr: FileId(EXEC_SOLUTION_ERROR_FILE.to_string()),
+                },
             }),
         };
+        invoke_request.steps.push(exec_solution_step);
     }
-    let input_file = self.req.resolve_asset(&self.exec.test.path);
-    let test_data = std::fs::read(input_file).context("failed to read test")?;
     let run_outcome = self.run_solution(&test_data, self.exec.test_id)?;
     let sol_file_path = match run_outcome.var {
         RunOutcomeVar::Success { out_data_path } => out_data_path,

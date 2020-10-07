@@ -164,21 +164,21 @@ impl Controller {
         let engine = self.invoker_set.clone();
         let judge_cx = crate::request_handler::JudgeContext {
             events_tx: judge_events_tx,
-            invoker: rpc::Client::new(rpc::box_engine(engine), "http://does-not-matter".to_string()),
+            invoker: rpc::Client::new(
+                rpc::box_engine(engine),
+                "http://does-not-matter".to_string(),
+            ),
         };
 
         // TODO: can we split into LoweredJudgeRequest and Extensions?
-        let mut responses = worker
-            .send(Request::Judge(low_req))
-            .await
-            .context("failed to submit lowered judge request")?;
+        crate::request_handler::do_judge(judge_cx, low_req);
         loop {
-            let message = responses
+            let message = judge_events_rx
                 .next()
                 .await
                 .context("failed to receive next worker message")?;
             match message {
-                Response::JudgeDone(judge_outcome) => {
+                Event::JudgeDone(judge_outcome) => {
                     debug!("Publising: JudgeOutcome {:?}", &judge_outcome);
                     let reason = match judge_outcome {
                         JudgeOutcome::Fault => InvocationFinishReason::Fault,
@@ -191,13 +191,13 @@ impl Controller {
                         .context("failed to set run outcome in DB")?;
                     break;
                 }
-                Response::LiveScore(score) => {
+                Event::LiveScore(score) => {
                     exts.notifier.set_score(score).await;
                 }
-                Response::LiveTest(test) => {
+                Event::LiveTest(test) => {
                     exts.notifier.set_test(test).await;
                 }
-                Response::OutcomeHeader(header) => {
+                Event::OutcomeHeader(header) => {
                     req.callbacks
                         .add_outcome_header(req.request.request_id, header)
                         .await?;

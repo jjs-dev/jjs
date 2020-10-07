@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{
     request_handler::{Command, LoweredJudgeRequest},
-    worker,
 };
 use anyhow::Context;
 use std::{

@@ -5,5 +5,4 @@ pub mod controller;
 pub mod init;
 mod invoker_set;
 pub mod sources;
-pub mod worker;
 mod request_handler;

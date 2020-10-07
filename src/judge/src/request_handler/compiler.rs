@@ -1,4 +1,4 @@
-use crate::request_handler::{invoke_util, LoweredJudgeRequest};
+use crate::request_handler::LoweredJudgeRequest;
 use anyhow::Context;
 use judging_apis::{status_codes, Status, StatusKind};
 use std::fs;
@@ -11,14 +11,17 @@ pub(crate) enum BuildOutcome {
 /// Compiler turns SubmissionInfo into Artifact
 pub(crate) struct Compiler<'a> {
     pub(crate) req: &'a LoweredJudgeRequest,
-    pub(crate) minion: &'a dyn minion::erased::Backend,
-    pub(crate) config: &'a crate::config::JudgeConfig,
+    // pub(crate) config: &'a crate::config::JudgeConfig,
 }
 
 impl<'a> Compiler<'a> {
     pub(crate) fn compile(&self) -> anyhow::Result<BuildOutcome> {
-        let sandbox = invoke_util::create_sandbox(self.req, None, self.minion, self.config)
-            .context("failed to create sandbox")?;
+        let mut graph = judging_apis::invoke::InvokeRequest {
+            inputs: vec![],
+            outputs: vec![],
+            steps: vec![],
+        };
+
         let step_dir = self.req.step_dir(None);
         fs::copy(
             &self.req.run_source,

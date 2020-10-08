@@ -10,22 +10,22 @@ use tracing::{debug, instrument};
 #[derive(Clone)]
 pub struct InvokerSet {
     /// Information abount spawned invokers
-    managed: Arc<[Arc<WorkerInfo>]>,
-    /// these field is used to signal that a worker is reclaimed
-    worker_reclamation: Arc<event_listener::Event>,
+    managed: Arc<[Arc<Invoker>]>,
+    /// these field is used to signal that an invoker lock was released
+    invoker_released: Arc<event_listener::Event>,
 }
 
 pub struct InvokerSetBuilder {
     /// Path to invoker binary
     invoker_path: PathBuf,
-    /// workers spawned so far
-    managed: Vec<Arc<WorkerInfo>>,
+    /// Managed invokers spawned so far
+    managed: Vec<Arc<Invoker>>,
 }
 
 impl InvokerSetBuilder {
     /// Starts new invoker process and adds it to this InvokerSet
     #[instrument(skip(self))]
-    pub async fn add_managed_worker(&mut self) -> anyhow::Result<()> {
+    pub async fn add_managed_invoker(&mut self) -> anyhow::Result<()> {
         let mut child = tokio::process::Command::new(&self.invoker_path)
             .arg("serve")
             .arg("--address=cli")
@@ -43,8 +43,8 @@ impl InvokerSetBuilder {
             req_rx,
             res_tx,
         ));
-        let info = WorkerInfo {
-            state: Mutex::new(WorkerState::Idle),
+        let info = Invoker {
+            state: Mutex::new(InvokerState::Idle),
             send_request: req_tx,
             recv_response: res_rx,
         };
@@ -56,7 +56,7 @@ impl InvokerSetBuilder {
     pub fn build(self) -> InvokerSet {
         InvokerSet {
             managed: self.managed.into(),
-            worker_reclamation: Arc::new(event_listener::Event::new()),
+            invoker_released: Arc::new(event_listener::Event::new()),
         }
     }
 }
@@ -77,9 +77,9 @@ impl InvokerSet {
         loop {
             debug!(attempt_id, "scanning all workers");
             attempt_id += 1;
-            let worker_reclaimed = self.worker_reclamation.listen();
-            for worker in &*self.managed {
-                if let Some(handle) = worker.try_lock(self.worker_reclamation.clone()) {
+            let released = self.invoker_released.listen();
+            for invoker in &*self.managed {
+                if let Some(handle) = invoker.try_lock(self.invoker_released.clone()) {
                     handle.send_request.send(req).await.expect("worker died");
                     let resp = handle
                         .recv_response
@@ -90,38 +90,36 @@ impl InvokerSet {
                 }
             }
 
-            worker_reclaimed.await;
+            released.await;
         }
     }
 }
 
 #[derive(Eq, PartialEq)]
-enum WorkerState {
-    /// Worker is ready for new tasks
+enum InvokerState {
+    /// Ready for new tasks
     Idle,
-    /// Worker is ready, but it is locked by a WorkerHandle
+    /// Ready, but it is locked by a WorkerHandle
     Locked,
-    /// Worker is juding run
-    Judge,
-    /// Worker has crashed
+    /// Crashed
     Crash,
 }
-struct WorkerInfo {
+struct Invoker {
     // could be AtomicU8, but mutex is simpler
-    state: Mutex<WorkerState>,
+    state: Mutex<InvokerState>,
     // Danger: must not be used concurrently, otherwise
     // we can receive wrong response
     send_request: async_channel::Sender<hyper::Request<hyper::Body>>,
     recv_response: async_channel::Receiver<hyper::Response<hyper::Body>>,
 }
-struct LockedWorker {
+struct LockedInvoker {
     send_request: async_channel::Sender<hyper::Request<hyper::Body>>,
     recv_response: async_channel::Receiver<hyper::Response<hyper::Body>>,
     notify_on_drop: Arc<event_listener::Event>,
-    worker: Arc<WorkerInfo>,
+    raw: Arc<Invoker>,
 }
 
-impl LockedWorker {
+impl LockedInvoker {
     async fn call(self, req: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
         let wake = {
             let ev = self.notify_on_drop.clone();
@@ -147,29 +145,29 @@ impl LockedWorker {
     }
 }
 
-impl Drop for LockedWorker {
+impl Drop for LockedInvoker {
     fn drop(&mut self) {
-        // mark Worker as idle
-        *self.worker.state.lock() = WorkerState::Idle;
+        // mark invoker as idle
+        *self.raw.state.lock() = InvokerState::Idle;
         // trigger event
         self.notify_on_drop.notify_additional(1);
     }
 }
 
-impl WorkerInfo {
+impl Invoker {
     fn try_lock(
         self: &Arc<Self>,
         notify_on_drop: Arc<event_listener::Event>,
-    ) -> Option<LockedWorker> {
+    ) -> Option<LockedInvoker> {
         let mut lock = self.state.lock();
-        if *lock != WorkerState::Idle {
+        if *lock != InvokerState::Idle {
             return None;
         }
-        *lock = WorkerState::Locked;
-        Some(LockedWorker {
+        *lock = InvokerState::Locked;
+        Some(LockedInvoker {
             send_request: self.send_request.clone(),
             recv_response: self.recv_response.clone(),
-            worker: self.clone(),
+            raw: self.clone(),
             notify_on_drop,
         })
     }

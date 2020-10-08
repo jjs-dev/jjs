@@ -3,10 +3,10 @@ mod checker_proto;
 use super::{JudgeContext, LoweredJudgeRequest};
 use anyhow::Context;
 use judging_apis::{
-    invoke::{Action, Command, FileId, Input, InputSource, Stdio, Step},
+    invoke::{Action, Command, EnvVarValue, Expose, FileId, Input, InputSource, Stdio, Step},
     status_codes, Status, StatusKind,
 };
-use std::{fs, io::Write, path::PathBuf};
+use std::{io::Write, path::PathBuf};
 use tracing::{debug, error};
 pub(crate) struct ExecRequest<'a> {
     pub(crate) test_id: u32,
@@ -63,13 +63,16 @@ pub async fn exec(
     };
     let input_file = judge_req.resolve_asset(&exec_req.test.path);
     let test_data = std::fs::read(input_file).context("failed to read test")?;
-    const EXEC_SOLUTION_GENERATION: u32 = 0;
+    const PREPARE_STAGE: u32 = 0;
+    const EXEC_SOLUTION_STAGE: u32 = 1;
     const TEST_DATA_INPUT_FILE: &str = "test-data";
     const EXEC_SOLUTION_OUTPUT_FILE: &str = "solution-output";
     const EXEC_SOLUTION_ERROR_FILE: &str = "solution-error";
+    const CORRECT_ANSWER_FILE: &str = "correct";
+    const EMPTY_FILE: &str = "empty";
 
-    const EXEC_CHECKER_GENERATION: u32 = 1;
-    // create an input with the test date
+    const EXEC_CHECKER_STAGE: u32 = 2;
+    // create an input with the test data
     {
         let test_data_input = Input {
             id: FileId(TEST_DATA_INPUT_FILE.to_string()),
@@ -77,16 +80,25 @@ pub async fn exec(
         };
         invoke_request.inputs.push(test_data_input);
     }
+    // prepare empty input
+    {
+        invoke_request.steps.push(Step {
+            stage: PREPARE_STAGE,
+            action: Action::OpenNullFile {
+                id: FileId(EMPTY_FILE.to_string()),
+            },
+        });
+    }
     // prepare files for stdout & stderr
     {
         invoke_request.steps.push(Step {
-            generation: EXEC_SOLUTION_GENERATION,
+            stage: EXEC_SOLUTION_STAGE,
             action: Action::CreateFile {
                 id: FileId(EXEC_SOLUTION_OUTPUT_FILE.to_string()),
             },
         });
         invoke_request.steps.push(Step {
-            generation: EXEC_SOLUTION_GENERATION,
+            stage: EXEC_SOLUTION_STAGE,
             action: Action::CreateFile {
                 id: FileId(EXEC_SOLUTION_ERROR_FILE.to_string()),
             },
@@ -95,74 +107,100 @@ pub async fn exec(
     // produce a step for executing solution
     {
         let exec_solution_step = Step {
-            generation: EXEC_SOLUTION_GENERATION,
+            stage: EXEC_SOLUTION_STAGE,
             action: Action::ExecuteCommand(Command {
                 argv: judge_req.execute_command.argv.clone(),
-                env: judge_req.execute_command.env.clone(),
+                env: judge_req
+                    .execute_command
+                    .env
+                    .iter()
+                    .cloned()
+                    .map(|(k, v)| (k, EnvVarValue::Plain(v)))
+                    .collect(),
                 cwd: judge_req.execute_command.cwd.clone(),
                 stdio: Stdio {
                     stdin: FileId(TEST_DATA_INPUT_FILE.to_string()),
                     stdout: FileId(EXEC_SOLUTION_OUTPUT_FILE.to_string()),
                     stderr: FileId(EXEC_SOLUTION_ERROR_FILE.to_string()),
                 },
+                expose: Vec::new(),
             }),
         };
         invoke_request.steps.push(exec_solution_step);
     }
-    let run_outcome = self.run_solution(&test_data, self.exec.test_id)?;
-    let sol_file_path = match run_outcome.var {
-        RunOutcomeVar::Success { out_data_path } => out_data_path,
-        RunOutcomeVar::Fail(status) => {
-            return Ok(ExecOutcome {
-                status,
-                resource_usage: run_outcome.resource_usage,
-            });
-        }
-    };
-    // run checker
-    let step_dir = self.req.step_dir(Some(self.exec.test_id));
-    let sol_file = fs::File::open(sol_file_path).context("failed to open run's answer")?;
-    let sol_handle = os_util::handle_inherit(sol_file.into_raw_fd().into(), true);
-    let full_checker_path = self.req.resolve_asset(&self.req.problem.checker_exe);
-    let mut cmd = std::process::Command::new(full_checker_path.clone());
-    debug!(
-        "full checker path: {}, short path: {}",
-        full_checker_path.to_str().unwrap(),
-        &self.req.problem.checker_exe.path
-    );
-    cmd.current_dir(&self.req.problem_dir);
+    // provide a correct answer if requested
+    {
+        let source = if let Some(corr_path) = &exec_req.test.correct {
+            let full_path = judge_req.resolve_asset(corr_path);
+            let data = tokio::fs::read(full_path)
+                .await
+                .context("failed to read correct answer")?;
+            cx.intern(&data).await?
+        } else {
+            cx.intern(&[]).await?
+        };
+    }
+    // generate checker feedback files
+    const CHECKER_DECISION: &str = "checker-decision";
+    const CHECKER_COMMENTS: &str = "checker-comment";
+    {
+        invoke_request.steps.push(Step {
+            stage: EXEC_CHECKER_STAGE,
+            action: Action::CreateFile {
+                id: FileId(CHECKER_DECISION.to_string()),
+            },
+        });
+        invoke_request.steps.push(Step {
+            stage: EXEC_CHECKER_STAGE,
+            action: Action::CreateFile {
+                id: FileId(CHECKER_COMMENTS.to_string()),
+            },
+        })
+    }
+    // produce a step for executing checker
+    {
+        let exec_checker_step = Step {
+            stage: EXEC_CHECKER_STAGE,
+            action: Action::ExecuteCommand(Command {
+                argv: judge_req.problem.checker_cmd.clone(),
+                env: vec![
+                    (
+                        "JJS_CORR".to_string(),
+                        EnvVarValue::File(FileId(CORRECT_ANSWER_FILE.to_string())),
+                    ),
+                    (
+                        "JJS_SOL".to_string(),
+                        EnvVarValue::File(FileId(EXEC_SOLUTION_OUTPUT_FILE.to_string())),
+                    ),
+                    (
+                        "JJS_TEST".to_string(),
+                        EnvVarValue::File(FileId(TEST_DATA_INPUT_FILE.to_string())),
+                    ),
+                    (
+                        "JJS_CHECKER_OUT".to_string(),
+                        EnvVarValue::File(FileId(CHECKER_DECISION.to_string())),
+                    ),
+                    (
+                        "JJS_CHECKER_COMMENT".to_string(),
+                        EnvVarValue::File(FileId(CHECKER_COMMENTS.to_string())),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+                cwd: "/".to_string(),
+                stdio: Stdio {
+                    stdin: FileId(EMPTY_FILE.to_string()),
+                    stdout: FileId(EMPTY_FILE.to_string()),
+                    stderr: FileId(EMPTY_FILE.to_string()),
+                },
+                expose: vec![Expose::Problem],
+            }),
+        };
 
-    for arg in &self.req.problem.checker_cmd {
-        cmd.arg(arg);
+        invoke_request.steps.push(exec_checker_step);
     }
 
-    let test_cfg = self.exec.test;
-
-    let corr_handle = if let Some(corr_path) = &test_cfg.correct {
-        let full_path = self.req.resolve_asset(corr_path);
-        let data = fs::read(full_path).context("failed to read correct answer")?;
-        os_util::buffer_to_file(&data, "invoker-correct-data")
-    } else {
-        os_util::buffer_to_file(&[], "invoker-correct-data")
-    };
-    let test_handle = os_util::buffer_to_file(&test_data, "invoker-test-data");
-
-    cmd.env("JJS_CORR", corr_handle.to_string());
-    cmd.env("JJS_SOL", sol_handle.to_string());
-    cmd.env("JJS_TEST", test_handle.to_string());
-
-    let (out_judge_side, out_checker_side) = os_util::make_pipe();
-    cmd.env("JJS_CHECKER_OUT", out_checker_side.to_string());
-    let (comments_judge_side, comments_checker_side) = os_util::make_pipe();
-    cmd.env("JJS_CHECKER_COMMENT", comments_checker_side.to_string());
     let st = cmd.output().context("failed to execute checker")?;
-    os_util::close(out_checker_side);
-    os_util::close(comments_checker_side);
-    os_util::close(corr_handle);
-    os_util::close(test_handle);
-    os_util::close(sol_handle);
-    // TODO: capture comments
-    os_util::close(comments_judge_side);
 
     let checker_out = std::fs::File::create(step_dir.join("check-log.txt"))?;
     let mut checker_out = std::io::BufWriter::new(checker_out);

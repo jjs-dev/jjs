@@ -26,7 +26,7 @@ pub type InvokerClient = rpc::Client<rpc::BoxEngine>;
 #[derive(Debug, Default)]
 pub(crate) struct Command {
     pub argv: Vec<String>,
-    pub env: Vec<String>,
+    pub env: Vec<(String, String)>,
     pub cwd: String,
 }
 
@@ -57,11 +57,6 @@ impl LoweredJudgeRequest {
             pom::FileRefRoot::Problem => self.problem_dir.join("assets").into(),
             pom::FileRefRoot::Root => Path::new("/").into(),
         };
-
-        debug!(
-            "full checker path: {}",
-            root.join(&short_path.path).to_str().unwrap()
-        );
 
         root.join(&short_path.path)
     }

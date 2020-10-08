@@ -78,9 +78,26 @@ pub struct FileId(pub String);
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Command {
     pub argv: Vec<String>,
-    pub env: Vec<String>,
+    pub env: Vec<(String, EnvVarValue)>,
     pub cwd: String,
     pub stdio: Stdio,
+    pub expose: Vec<Expose>,
+}
+
+/// What should be exposed to command
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum Expose {
+    /// Problem files (e.g. we expose it to checker)
+    Problem
+}
+
+/// Value of environment value
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum EnvVarValue {
+    /// Use this string as a value
+    Plain(String),
+    /// Pass handle (aka fd) of this file as a value
+    File(FileId)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

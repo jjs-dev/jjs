@@ -8,12 +8,12 @@ pub struct Invoke(std::convert::Infallible);
 /// Requests invoker to execute commands, specified in
 /// `steps` field in request.
 /// # Execution order
-/// Each step has assigned `generation`.
-/// Steps with equal generation will be executed in the same time.
-/// Such steps can share pipes. Sharing pipes between steps with
-/// different generations results in error. For each generation,
-/// Steps creating new IPC stuff are executed first.
-/// Step will not be executed until all steps with less `generation`
+/// Each step has assigned `stage`.
+/// Steps with equal stage will be executed in the same time.
+/// Such steps can share pipes. Sharing pipes between steps from
+/// different stages results in error. For each stage,
+/// steps creating new IPC stuff are executed first.
+/// Step will not be executed until all steps with less `stage`
 /// will be finished.
 /// # Data
 /// `InvokeRequest` can specify input data items, that can be further used
@@ -67,7 +67,7 @@ pub struct Output {}
 
 #[derive(Serialize, Deserialize)]
 pub struct Step {
-    pub generation: u32,
+    pub stage: u32,
     pub action: Action,
 }
 

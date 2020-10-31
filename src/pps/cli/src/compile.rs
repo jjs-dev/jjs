@@ -5,13 +5,13 @@ use std::path::PathBuf;
 #[derive(Debug, clap::Clap)]
 pub struct CompileArgs {
     /// Path to problem package root
-    #[clap(long = "pkg", short = "P")]
+    #[clap(long = "pkg", short = 'P')]
     pub pkg_path: Vec<PathBuf>,
     /// Output path
-    #[clap(long = "out", short = "O")]
+    #[clap(long = "out", short = 'O')]
     pub out_path: Vec<PathBuf>,
     /// Rewrite dir
-    #[clap(long, short = "F")]
+    #[clap(long, short = 'F')]
     pub force: bool,
 }
 

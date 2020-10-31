@@ -34,10 +34,7 @@ pub enum StatusKind {
 
 impl StatusKind {
     pub fn is_success(self) -> bool {
-        match self {
-            Self::Accepted => true,
-            _ => false,
-        }
+        matches!(self, Self::Accepted)
     }
 }
 

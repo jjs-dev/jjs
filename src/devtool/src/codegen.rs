@@ -2,10 +2,10 @@ use anyhow::Context as _;
 use std::{path::Path, process::Command};
 use util::cmd::CommandExt as _;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Clap)]
 pub(crate) struct Opts {
     /// Print debugging information (currently schema converted to v2)
-    #[structopt(long)]
+    #[clap(long)]
     debug: bool,
 }
 

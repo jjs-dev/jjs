@@ -4,7 +4,7 @@ use client::prelude::Sendable as _;
 pub struct Opt {
     /// Action: view, remove or rejudge
     action: String,
-    #[clap(long = "filter", short = "f", default_value = "true")]
+    #[clap(long = "filter", short = 'f', default_value = "true")]
     _filter: String,
 }
 

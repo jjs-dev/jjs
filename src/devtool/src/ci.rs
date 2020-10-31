@@ -70,20 +70,16 @@ pub struct BuildInfo {
 
 impl BuildInfo {
     pub fn is_deploy(&self) -> bool {
-        match self.ty {
-            BuildType::Deploy(_) => true,
-            _ => false,
-        }
+        matches!(self.ty, BuildType::Deploy(_))
     }
 
     pub fn is_pr_e2e(&self) -> bool {
-        match self.ty {
+        matches!(self.ty,
             BuildType::Check {
                 ty: CheckJobType::EndToEnd,
                 ..
-            } => true,
-            _ => false,
-        }
+            }
+        )
     }
 
     pub fn deploy_info(&self) -> Option<DeployKind> {
@@ -154,10 +150,7 @@ fn do_detect_build_type() -> BuildType {
     };
 
     let job_ty = CheckJobType::detect().expect("failed to detech check job");
-    let privileged = match branch_name {
-        "trying" | "staging" | "master" => true,
-        _ => false,
-    };
+    let privileged = matches!(branch_name, "trying" | "staging" | "master");
     BuildType::Check {
         ty: job_ty,
         privileged,

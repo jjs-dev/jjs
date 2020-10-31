@@ -1,40 +1,40 @@
 //! This package is responsible for generating various files useful
 //! in distibution package.
 use anyhow::Context as _;
+use clap::Clap as _;
 use std::{ffi::OsStr, path::PathBuf, process::Command};
-use structopt::StructOpt as _;
 use util::cmd::CommandExt as _;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Clap)]
 struct Opts {
     /// Build testlib
-    #[structopt(long)]
+    #[clap(long)]
     testlib: bool,
     /// Build user manual
-    #[structopt(long)]
+    #[clap(long)]
     man: bool,
     /// Build api docs
-    #[structopt(long)]
+    #[clap(long)]
     apidoc: bool,
     /// Build rustdoc
-    #[structopt(long)]
+    #[clap(long)]
     rustdoc: bool,
     /// Generate env activate script
-    #[structopt(long)]
+    #[clap(long)]
     envscript: bool,
     /// Source dir
-    #[structopt(long, default_value = ".")]
+    #[clap(long, default_value = ".")]
     source: PathBuf,
     /// Build dir
-    #[structopt(long, default_value = "target")]
+    #[clap(long, default_value = "target")]
     build: PathBuf,
     /// Output dir
-    #[structopt(long)]
+    #[clap(long)]
     output: PathBuf,
     /// CMake build type (as in -DCMAKE_BUILD_TYPE=...)
     ///
     /// For example: Debug (default), Release, RelWithDebugInfo,
-    #[structopt(long, default_value = "Debug")]
+    #[clap(long, default_value = "Debug")]
     cmake_build_type: String,
 }
 
@@ -46,7 +46,7 @@ struct Params {
 }
 
 fn main() -> anyhow::Result<()> {
-    let opts: Opts = Opts::from_args();
+    let opts: Opts = Opts::parse();
     let params = Params {
         source: opts.source.clone(),
         build: opts.build.clone(),

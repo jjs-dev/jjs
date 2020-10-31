@@ -1,17 +1,17 @@
+use clap::Clap;
 use std::process::Command;
-use structopt::StructOpt;
 use util::cmd::CommandExt;
-#[derive(StructOpt)]
+#[derive(Clap)]
 pub struct Opts {
-    #[structopt(long, short = "b")]
+    #[clap(long, short = 'b')]
     build: bool,
-    #[structopt(long, short = "t")]
+    #[clap(long, short = 't')]
     test: bool,
-    #[structopt(long)]
+    #[clap(long)]
     debug: bool,
-    #[structopt(long)]
+    #[clap(long)]
     nocapture: bool,
-    #[structopt(long)]
+    #[clap(long)]
     podman: bool,
 }
 pub fn task_run(opts: Opts) -> anyhow::Result<()> {

@@ -4,16 +4,16 @@ use either::Either;
 #[derive(clap::Clap)]
 pub struct Opt {
     /// problem code, e.g. "A"
-    #[clap(long, short = "p")]
+    #[clap(long, short = 'p')]
     problem: String,
-    #[clap(long, short = "t")]
+    #[clap(long, short = 't')]
     toolchain: String,
-    #[clap(long, short = "f")]
+    #[clap(long, short = 'f')]
     filename: String,
-    #[clap(long, short = "c")]
+    #[clap(long, short = 'c')]
     contest: String,
     /// Watch for judging finish
-    #[clap(long, short = "w")]
+    #[clap(long, short = 'w')]
     watch: bool,
 }
 

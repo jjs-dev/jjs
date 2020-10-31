@@ -11,7 +11,7 @@ pub(crate) struct Opt {
 }
 
 fn generate<G: clap_generate::Generator>() {
-    let mut app: clap::App = <crate::Opt as clap::derive::IntoApp>::into_app();
+    let mut app: clap::App = <crate::Opt as clap::IntoApp>::into_app();
     clap_generate::generate::<G, _>(&mut app, "jjs-cli", &mut std::io::stdout());
 }
 

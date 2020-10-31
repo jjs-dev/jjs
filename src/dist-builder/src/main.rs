@@ -28,59 +28,59 @@ use crate::{
     package::{CmakePackage, MetaPackage, OtherPackage, RustPackage, Section},
 };
 use anyhow::Context as _;
+use clap::Clap as _;
 use std::path::PathBuf;
-use structopt::StructOpt as _;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Clap)]
 struct Opt {
     /// Directory used for build files
-    #[structopt(long = "build-dir", default_value = "target")]
+    #[clap(long = "build-dir", default_value = "target")]
     build_dir: PathBuf,
     /// Components and sections to enable
     ///
     /// Available sections: tools, daemons, suggested.
     /// Available components: apiserver, invoker.
-    #[structopt(long = "enable")]
+    #[clap(long = "enable")]
     enable: Vec<String>,
     /// Cargo path
-    #[structopt(long, env = "CARGO")]
+    #[clap(long, env = "CARGO")]
     cargo: Option<String>,
     /// CMake path
-    #[structopt(long, env = "CMAKE")]
+    #[clap(long, env = "CMAKE")]
     cmake: Option<String>,
     /// Target triple
-    #[structopt(long = "target", short = "T")]
+    #[clap(long = "target", short = 'T')]
     target: Option<String>,
     /// Optimization
-    #[structopt(long = "optimize", short = "O")]
+    #[clap(long = "optimize", short = 'O')]
     optimize: bool,
     /// Debug symbols
-    #[structopt(long = "dbg-dym", short = "D")]
+    #[clap(long = "dbg-dym", short = 'D')]
     dbg_sym: bool,
     /// Emit verbose information about build
-    #[structopt(long = "verbose", short = "V")]
+    #[clap(long = "verbose", short = 'V')]
     verbose: bool,
     /// Destination for artifacts
-    #[structopt(long = "out", short = "P")]
+    #[clap(long = "out", short = 'P')]
     out_dir: PathBuf,
     /// Build docker images
-    #[structopt(long = "enable-docker")]
+    #[clap(long = "enable-docker")]
     docker: bool,
     /// Docker image tag
-    #[structopt(long)]
+    #[clap(long)]
     docker_tag: Option<String>,
     /// Docker build additional options
-    #[structopt(long)]
+    #[clap(long)]
     docker_build_opt: Vec<String>,
     /// Name or path to Docker or other tool which can run containers (e.g. Podman)
-    #[structopt(long = "with-docker")]
+    #[clap(long = "with-docker")]
     docker_name: Option<String>,
     /// If set, tags of built images will be written to this file,
     /// each file on separate line
-    #[structopt(long)]
+    #[clap(long)]
     docker_tags_log: Option<PathBuf>,
     /// Features to enable
-    #[structopt(long = "enable-feature")]
+    #[clap(long = "enable-feature")]
     features: Vec<String>,
 }
 
@@ -98,7 +98,7 @@ fn find_docker<'a>() -> &'a str {
 fn main() {
     util::log::setup();
     let jjs_src_path = std::env::current_dir().unwrap();
-    let opt: Opt = Opt::from_args();
+    let opt: Opt = Opt::parse();
 
     let tool_info = cfg::ToolInfo {
         cargo: opt.cargo.as_deref().unwrap_or_else(|| "cargo").to_string(),

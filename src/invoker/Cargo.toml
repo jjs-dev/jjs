@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+judging-apis = { path = "../judging-apis" }
+rpc = { git = "https://github.com/jjs-dev/commons" }
+minion = {git = "https://github.com/jjs-dev/minion"}
+hyper = "0.13.8"

@@ -1,20 +1,20 @@
 use anyhow::Context;
+use clap::Clap;
 use std::process::Command;
-use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 pub(crate) struct TestArgs {
-    #[structopt(long)]
+    #[clap(long)]
     verbose: bool,
-    #[structopt(long, short = "i")]
+    #[clap(long, short = 'i')]
     integration_tests: bool,
-    #[structopt(long)]
+    #[clap(long)]
     pub(crate) fail_fast: bool,
-    #[structopt(long)]
+    #[clap(long)]
     skip_unit: bool,
     /// Nocapture e2e
-    #[structopt(long)]
+    #[clap(long)]
     nocapture: bool,
 }
 

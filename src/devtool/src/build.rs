@@ -1,27 +1,27 @@
 use crate::ci::{detect_build_type, DeployKind};
+use clap::Clap;
 use std::process::Command;
-use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 pub(crate) struct RawBuildOpts {
     /// enable things that are not required for running tests
-    #[structopt(long)]
+    #[clap(long)]
     full: bool,
     /// Enable docker
-    #[structopt(long)]
+    #[clap(long)]
     docker: bool,
     /// Setup (useful for development)
-    #[structopt(long)]
+    #[clap(long)]
     setup: bool,
     /// Debian packages
-    #[structopt(long)]
+    #[clap(long)]
     deb: bool,
     /// Additional options to pass to configure
-    #[structopt(long = "configure-opt")]
+    #[clap(long = "configure-opt")]
     configure: Vec<String>,
     /// Build all docs
-    #[structopt(long)]
+    #[clap(long)]
     docs: bool,
 }
 

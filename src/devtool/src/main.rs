@@ -8,12 +8,12 @@ mod glob_util;
 mod run;
 mod tests;
 
+use clap::Clap;
 use std::{env::set_current_dir, path::Path, process::Command};
-use structopt::StructOpt;
 use tests::{task_test, TestArgs};
 use util::cmd::{CommandExt, Runner};
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 enum CliArgs {
     /// Lint project
     Check(check::CheckOpts),
@@ -117,7 +117,7 @@ fn main() {
     }
     env_logger::init();
     set_current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).unwrap();
-    let args = CliArgs::from_args();
+    let args = CliArgs::parse();
     let mut runner = Runner::new();
     let err = match args {
         CliArgs::Check(opts) => {

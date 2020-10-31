@@ -5,17 +5,17 @@ use std::path::{Path, PathBuf};
 #[derive(clap::Clap, Debug)]
 pub struct ImportArgs {
     /// Path to package being imported
-    #[clap(long = "in", short = "I")]
+    #[clap(long = "in", short = 'I')]
     pub in_path: PathBuf,
     /// Out path (will contain ppc package)
-    #[clap(long = "out", short = "O")]
+    #[clap(long = "out", short = 'O')]
     pub out_path: PathBuf,
     /// Rewrite dir
-    #[clap(long, short = "F")]
+    #[clap(long, short = 'F')]
     pub force: bool,
     /// Imported contest name
     /// This option can only be used when importing contest
-    #[clap(long, short = "N")]
+    #[clap(long, short = 'N')]
     pub contest_name: Option<String>,
 }
 

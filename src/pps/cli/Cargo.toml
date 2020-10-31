@@ -5,15 +5,15 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0.115", features = ["derive"] }
-serde_json = "1.0.57"
-anyhow = "1.0.32"
+serde = { version = "1.0.117", features = ["derive"] }
+serde_json = "1.0.59"
+anyhow = "1.0.33"
 tokio = { version = "0.2.22", features = ["process", "macros", "rt-threaded", "fs"] }
-clap = "3.0.0-beta.1"
+clap = "3.0.0-beta.2"
 pps-api = { path = "../api" }
 pps-server = { path = "../server" }
 rand = "0.7.3"
 util = { path = "../../util" }
-tracing = "0.1.19"
+tracing = "0.1.21"
 tracing-futures = "0.2.4"
 rpc = { git = "https://github.com/jjs-dev/commons" }

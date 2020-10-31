@@ -1,7 +1,7 @@
 use anyhow::Context as _;
+use clap::Clap;
 use log::{debug, info};
 use std::process::Command;
-use structopt::StructOpt;
 use util::cmd::{CommandExt, Runner};
 
 fn cmake_bin() -> &'static str {
@@ -83,25 +83,25 @@ fn check_testlib(runner: &Runner) {
         .run_on(runner);
 }
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 pub struct CheckOpts {
     /// Run autopep8
-    #[structopt(long)]
+    #[clap(long)]
     autopep8: bool,
     /// Run shellcheck
-    #[structopt(long)]
+    #[clap(long)]
     shellcheck: bool,
     /// Build testlib
-    #[structopt(long)]
+    #[clap(long)]
     testlib: bool,
     /// Analyze testlib
-    #[structopt(long)]
+    #[clap(long)]
     clang_analyzer: bool,
     /// Do not run default checks
-    #[structopt(long)]
+    #[clap(long)]
     no_default: bool,
     /// Exit with status 1 as soon as any invoked command fails
-    #[structopt(long)]
+    #[clap(long)]
     pub(crate) fail_fast: bool,
 }
 

@@ -2,9 +2,7 @@
 use super::{
     notify::Notifier, Controller, JudgeRequestAndCallbacks, LoweredJudgeRequestExtensions,
 };
-use crate::{
-    request_handler::{Command, LoweredJudgeRequest},
-};
+use crate::request_handler::{Command, LoweredJudgeRequest};
 use anyhow::Context;
 use std::{
     collections::{HashMap, HashSet},

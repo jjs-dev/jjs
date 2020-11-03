@@ -1,4 +1,4 @@
-use crate::request_handler::{LoweredJudgeRequest, JudgeContext};
+use crate::request_handler::{JudgeContext, LoweredJudgeRequest};
 use anyhow::Context;
 use judging_apis::{
     judge_log, status_codes, valuer_proto::TestVisibleComponents, Status, StatusKind,

@@ -1,9 +1,9 @@
-mod invoke_util;
-mod transport;
 mod config;
-mod print_invoke_request;
-mod init;
 mod graph_exec;
+mod init;
+mod invoke_util;
+mod print_invoke_request;
+mod transport;
 
 #[derive(Clone)]
 struct RpcHandler;

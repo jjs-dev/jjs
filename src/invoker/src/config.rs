@@ -18,5 +18,5 @@ pub struct Config {
     #[serde(default)]
     pub expose_host_dirs: Option<Vec<String>>,
     /// Directory which will contain temporary invocation data.
-    pub work_root: PathBuf
+    pub work_root: PathBuf,
 }

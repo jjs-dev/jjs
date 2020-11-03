@@ -36,6 +36,8 @@ pub struct InvokeRequest {
     pub inputs: Vec<Input>,
     /// Binary data produced by executing commands
     pub outputs: Vec<OutputRequest>,
+    /// Toolchain to use
+    pub toolchain_dir: PathBuf,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -88,7 +90,7 @@ pub struct Command {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Expose {
     /// Problem files (e.g. we expose it to checker)
-    Problem
+    Problem,
 }
 
 /// Value of environment value
@@ -97,7 +99,7 @@ pub enum EnvVarValue {
     /// Use this string as a value
     Plain(String),
     /// Pass handle (aka fd) of this file as a value
-    File(FileId)
+    File(FileId),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -105,6 +107,15 @@ pub struct Stdio {
     pub stdin: FileId,
     pub stdout: FileId,
     pub stderr: FileId,
+}
+
+/// Sandbox settings
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Sandbox {
+    /// Limits enforced for processes in the sandbox.
+    pub limits: pom::Limits,
+    /// Sandbox name.
+    pub name: String,
 }
 
 /// Single action of execution plan.
@@ -133,4 +144,6 @@ pub enum Action {
     OpenNullFile { id: FileId },
     /// Specifies that command should be executed
     ExecuteCommand(Command),
+    /// Specifies that sandbox should be created
+    CreateSandbox(Sandbox),
 }

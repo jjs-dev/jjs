@@ -1,5 +1,5 @@
 use anyhow::Context;
-use judging_apis::invoke::{Command, InvokeRequest};
+use judging_apis::invoke::{Command, EnvVarValue, InvokeRequest};
 use std::{
     path::{Path, PathBuf},
     time::Duration,
@@ -59,7 +59,7 @@ pub(crate) async fn create_sandbox(
         }
     } else {
         let toolchain_dir = &req.toolchain_dir;
-        let opt_items = fs::read_dir(&toolchain_dir)
+        let mut opt_items = fs::read_dir(&toolchain_dir)
             .await
             .context("failed to list toolchains sysroot")?;
         while let Some(item) = opt_items.next_entry().await? {
@@ -97,7 +97,9 @@ pub(crate) async fn create_sandbox(
     });
     let cpu_time_limit = Duration::from_millis(settings.limits.time() as u64);
     let real_time_limit = Duration::from_millis(settings.limits.time() * 3 as u64);
-    tokio::fs::create_dir(work_dir.join("root")).await.context("failed to create chroot dir")?;
+    tokio::fs::create_dir(work_dir.join("root"))
+        .await
+        .context("failed to create chroot dir")?;
     // TODO adjust integer types
     let sandbox_options = minion::SandboxOptions {
         max_alive_process_count: settings.limits.process_count() as _,
@@ -123,17 +125,35 @@ pub(crate) fn log_execute_command(command_interp: &Command) {
 pub(crate) fn command_set_from_judge_req(cmd: &mut minion::Command, command: &Command) {
     cmd.path(&command.argv[0]);
     cmd.args(&command.argv[1..]);
-    cmd.envs(&command.env);
+    cmd.envs(
+        command
+            .env
+            .iter()
+            .map(|(name, value)| -> std::ffi::OsString {
+                match value {
+                    EnvVarValue::Plain(p) => format!("{}={}", name, p).into(),
+                    EnvVarValue::File(_) => unreachable!(),
+                }
+            }),
+    );
 }
 
-pub(crate) fn command_set_stdio(cmd: &mut minion::Command, stdout_path: &Path, stderr_path: &Path) {
-    let stdout_file = fs::File::create(stdout_path).expect("io error");
+pub(crate) async fn command_set_stdio(
+    cmd: &mut minion::Command,
+    stdout_path: &Path,
+    stderr_path: &Path,
+) {
+    let stdout_file = fs::File::create(stdout_path).await.expect("io error");
 
-    let stderr_file = fs::File::create(stderr_path).expect("io error");
+    let stderr_file = fs::File::create(stderr_path).await.expect("io error");
     // Safety: std::fs::File owns it's handle
     unsafe {
-        cmd.stdout(minion::OutputSpecification::handle_of(stdout_file));
+        cmd.stdout(minion::OutputSpecification::handle_of(
+            stdout_file.into_std().await,
+        ));
 
-        cmd.stderr(minion::OutputSpecification::handle_of(stderr_file));
+        cmd.stderr(minion::OutputSpecification::handle_of(
+            stderr_file.into_std().await,
+        ));
     }
 }

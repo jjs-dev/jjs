@@ -4,7 +4,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 
-struct StdioClient {
+pub(crate) struct StdioClient {
     stdin: tokio::io::Stdin,
     stdout: tokio::io::Stdout,
 }

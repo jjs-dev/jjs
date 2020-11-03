@@ -107,7 +107,7 @@ impl Controller {
             let mut builder = InvokerSet::builder(&config);
             for _ in 0..worker_count {
                 builder
-                    .add_managed_worker()
+                    .add_managed_invoker()
                     .await
                     .context("failed to start a worker")?;
             }

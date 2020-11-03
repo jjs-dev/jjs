@@ -60,13 +60,6 @@ impl LoweredJudgeRequest {
 
         root.join(&short_path.path)
     }
-
-    pub(crate) fn step_dir(&self, test_id: Option<u32>) -> PathBuf {
-        match test_id {
-            Some(t) => self.out_dir.join(format!("t-{}", t)),
-            None => self.out_dir.join("compile"),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -123,7 +116,7 @@ pub fn do_judge(mut cx: JudgeContext, judge_req: LoweredJudgeRequest) {
 
 impl JudgeContext {
     async fn judge(&mut self, req: &LoweredJudgeRequest) -> anyhow::Result<JudgeOutcome> {
-        let compiler = Compiler { req };
+        let compiler = Compiler { req, cx: self };
 
         if !req.run_source.exists() {
             anyhow::bail!("Run source file not exists");
@@ -133,7 +126,7 @@ impl JudgeContext {
             anyhow::bail!("Run output dir not exists");
         }
 
-        let compiler_response = compiler.compile();
+        let compiler_response = compiler.compile().await;
 
         let outcome;
 
@@ -227,6 +220,7 @@ impl JudgeContext {
                     };
 
                     let judge_response = exec_test::exec(&req, exec_request, self)
+                        .await
                         .with_context(|| format!("failed to judge solution on test {}", tid))?;
                     test_results.push((tid, judge_response.clone()));
                     valuer

@@ -83,7 +83,6 @@ pub struct Command {
     pub env: Vec<(String, EnvVarValue)>,
     pub cwd: String,
     pub stdio: Stdio,
-    pub expose: Vec<Expose>,
 }
 
 /// What should be exposed to command
@@ -116,6 +115,8 @@ pub struct Sandbox {
     pub limits: pom::Limits,
     /// Sandbox name.
     pub name: String,
+    /// Paths to mount into sandbox
+    pub expose: Vec<Expose>,
 }
 
 /// Single action of execution plan.

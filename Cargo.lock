@@ -1784,6 +1784,7 @@ dependencies = [
  "event-listener",
  "fs_extra",
  "futures-util",
+ "hyper",
  "judging-apis",
  "k8s-openapi",
  "kube",

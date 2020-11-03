@@ -1,10 +1,10 @@
-use crate::worker::{Command, LoweredJudgeRequest};
 use anyhow::Context;
+use judging_apis::invoke::{Command, EnvVarValue, InvokeRequest};
 use std::{
-    fs,
     path::{Path, PathBuf},
     time::Duration,
 };
+use tokio::fs;
 use tracing::{debug, error};
 
 pub(crate) struct Sandbox {
@@ -35,11 +35,12 @@ static DEFAULT_HOST_MOUNTS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync
     ]
 });
 
-pub(crate) fn create_sandbox(
-    req: &LoweredJudgeRequest,
-    test_id: Option<u32>,
+pub(crate) async fn create_sandbox(
+    config: &crate::config::Config,
+    req: &InvokeRequest,
+    req_id: &str,
     backend: &dyn minion::erased::Backend,
-    config: &crate::config::InvokerConfig,
+    settings: judging_apis::invoke::Sandbox,
 ) -> anyhow::Result<Sandbox> {
     let mut shared_dirs = vec![];
     if config.host_toolchains {
@@ -58,10 +59,10 @@ pub(crate) fn create_sandbox(
         }
     } else {
         let toolchain_dir = &req.toolchain_dir;
-        let opt_items =
-            fs::read_dir(&toolchain_dir).context("failed to list toolchains sysroot")?;
-        for item in opt_items {
-            let item = item.context("failed to stat toolchains sysroot item")?;
+        let mut opt_items = fs::read_dir(&toolchain_dir)
+            .await
+            .context("failed to list toolchains sysroot")?;
+        while let Some(item) = opt_items.next_entry().await? {
             let name = item.file_name();
             let shared_dir = minion::SharedDir {
                 src: toolchain_dir.join(&name),
@@ -72,40 +73,39 @@ pub(crate) fn create_sandbox(
         }
     }
 
-    let limits = if let Some(test_id) = test_id {
-        req.problem.tests[(test_id - 1) as usize].limits
-    } else {
-        req.compile_limits
-    };
-    let out_dir = req.step_dir(test_id);
-    std::fs::create_dir_all(&out_dir).context("failed to create step directory")?;
+    let work_dir = config.work_root.join(req_id);
+    tokio::fs::create_dir_all(&work_dir)
+        .await
+        .context("failed to create working directory")?;
     let umount_path;
     #[cfg(target_os = "linux")]
     {
-        let quota = limits.work_dir_size();
+        let quota = settings.limits.work_dir_size();
         let quota = minion::linux::ext::Quota::bytes(quota);
-        minion::linux::ext::make_tmpfs(&out_dir.join("data"), quota)
+        minion::linux::ext::make_tmpfs(&work_dir.join("data"), quota)
             .context("failed to set size limit on shared directory")?;
-        umount_path = Some(out_dir.join("data"));
+        umount_path = Some(work_dir.join("data"));
     }
     #[cfg(not(target_os = "linux"))]
     {
         umount_path = None;
     }
     shared_dirs.push(minion::SharedDir {
-        src: out_dir.join("data"),
+        src: work_dir.join("data"),
         dest: PathBuf::from("/jjs"),
         kind: minion::SharedDirKind::Full,
     });
-    let cpu_time_limit = Duration::from_millis(limits.time() as u64);
-    let real_time_limit = Duration::from_millis(limits.time() * 3 as u64);
-    std::fs::create_dir(out_dir.join("root")).context("failed to create chroot dir")?;
+    let cpu_time_limit = Duration::from_millis(settings.limits.time() as u64);
+    let real_time_limit = Duration::from_millis(settings.limits.time() * 3 as u64);
+    tokio::fs::create_dir(work_dir.join("root"))
+        .await
+        .context("failed to create chroot dir")?;
     // TODO adjust integer types
     let sandbox_options = minion::SandboxOptions {
-        max_alive_process_count: limits.process_count() as _,
-        memory_limit: limits.memory() as _,
+        max_alive_process_count: settings.limits.process_count() as _,
+        memory_limit: settings.limits.memory() as _,
         exposed_paths: shared_dirs,
-        isolation_root: out_dir.join("root"),
+        isolation_root: work_dir.join("root"),
         cpu_time_limit,
         real_time_limit,
     };
@@ -125,17 +125,35 @@ pub(crate) fn log_execute_command(command_interp: &Command) {
 pub(crate) fn command_set_from_judge_req(cmd: &mut minion::Command, command: &Command) {
     cmd.path(&command.argv[0]);
     cmd.args(&command.argv[1..]);
-    cmd.envs(&command.env);
+    cmd.envs(
+        command
+            .env
+            .iter()
+            .map(|(name, value)| -> std::ffi::OsString {
+                match value {
+                    EnvVarValue::Plain(p) => format!("{}={}", name, p).into(),
+                    EnvVarValue::File(_) => unreachable!(),
+                }
+            }),
+    );
 }
 
-pub(crate) fn command_set_stdio(cmd: &mut minion::Command, stdout_path: &Path, stderr_path: &Path) {
-    let stdout_file = fs::File::create(stdout_path).expect("io error");
+pub(crate) async fn command_set_stdio(
+    cmd: &mut minion::Command,
+    stdout_path: &Path,
+    stderr_path: &Path,
+) {
+    let stdout_file = fs::File::create(stdout_path).await.expect("io error");
 
-    let stderr_file = fs::File::create(stderr_path).expect("io error");
+    let stderr_file = fs::File::create(stderr_path).await.expect("io error");
     // Safety: std::fs::File owns it's handle
     unsafe {
-        cmd.stdout(minion::OutputSpecification::handle_of(stdout_file));
+        cmd.stdout(minion::OutputSpecification::handle_of(
+            stdout_file.into_std().await,
+        ));
 
-        cmd.stderr(minion::OutputSpecification::handle_of(stderr_file));
+        cmd.stderr(minion::OutputSpecification::handle_of(
+            stderr_file.into_std().await,
+        ));
     }
 }

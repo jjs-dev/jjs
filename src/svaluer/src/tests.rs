@@ -1,5 +1,5 @@
 use super::*;
-use invoker_api::{
+use judging_apis::{
     valuer_proto::{
         JudgeLog, JudgeLogSubtaskRow, JudgeLogTestRow, SubtaskId, SubtaskVisibleComponents,
         TestVisibleComponents,

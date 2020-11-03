@@ -2,7 +2,7 @@ mod group;
 
 use crate::cfg::Config;
 use group::Group;
-use invoker_api::{
+use judging_apis::{
     valuer_proto::{
         JudgeLog, JudgeLogKind, ProblemInfo, SubtaskVisibleComponents, TestVisibleComponents,
     },
@@ -126,7 +126,7 @@ impl Fiber {
         }
     }
 
-    pub(crate) fn add(&mut self, notification: &invoker_api::valuer_proto::TestDoneNotification) {
+    pub(crate) fn add(&mut self, notification: &judging_apis::valuer_proto::TestDoneNotification) {
         if !self.visible_tests.contains(&notification.test_id) {
             return;
         }
@@ -276,7 +276,7 @@ impl Fiber {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use invoker_api::valuer_proto::{
+    use judging_apis::valuer_proto::{
         JudgeLogSubtaskRow, JudgeLogTestRow, SubtaskId, SubtaskVisibleComponents,
         TestVisibleComponents,
     };

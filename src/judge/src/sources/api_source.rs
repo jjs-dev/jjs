@@ -54,7 +54,7 @@ impl JudgeResponseCallbacks for Callbacks {
     async fn add_outcome_header(
         &self,
         invocation_id: uuid::Uuid,
-        header: invoker_api::JudgeOutcomeHeader,
+        header: judging_apis::JudgeOutcomeHeader,
     ) -> anyhow::Result<()> {
         let run_id = self
             .inner
@@ -85,7 +85,7 @@ impl JudgeResponseCallbacks for Callbacks {
     async fn deliver_live_status_update(
         &self,
         invocation_id: Uuid,
-        _lsu: invoker_api::LiveStatusUpdate,
+        _lsu: judging_apis::LiveStatusUpdate,
     ) -> anyhow::Result<()> {
         let mapping = self.inner.run_mapping.lock().await;
         let run_id = match mapping.get(&invocation_id) {
@@ -120,7 +120,7 @@ impl ApiSource {
         })
     }
 
-    async fn get_tasks_from_api(&self) -> anyhow::Result<Vec<invoker_api::JudgeRequest>> {
+    async fn get_tasks_from_api(&self) -> anyhow::Result<Vec<judging_apis::JudgeRequest>> {
         let runs = client::models::Run::pop_run_from_queue()
             .limit(1_i64)
             .send(&self.inner.api)
@@ -147,7 +147,7 @@ impl ApiSource {
                 .await
                 .context("toolchain resolution failed")?;
 
-            let task = invoker_api::JudgeRequest {
+            let task = judging_apis::JudgeRequest {
                 problem_id: run.problem_name,
                 request_id,
                 revision: 0,

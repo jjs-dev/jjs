@@ -5,7 +5,7 @@ authors = ["Mikail Bagishov <bagishov.mikail@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-invoker-api = {path = "../invoker-api"}
+judging-apis = { path = "../judging-apis" }
 anyhow = "1.0.33"
 pom  = {path = "../pom"}
 crossbeam-channel = "0.5.0"

@@ -8,8 +8,8 @@ mod task_loading;
 mod toolchains;
 
 use crate::{
-    scheduler::Scheduler,
-    worker::{JudgeOutcome, Request, Response},
+    invoker_set::InvokerSet,
+    request_handler::{Event, JudgeContext, JudgeOutcome},
 };
 use anyhow::Context;
 use notify::Notifier;
@@ -36,7 +36,7 @@ pub enum InvocationFinishReason {
 /// Contains both judging task and back address.
 /// Each task source is represented as mpsc channel of `TaskInfo`s
 pub struct JudgeRequestAndCallbacks {
-    pub request: invoker_api::JudgeRequest,
+    pub request: judging_apis::JudgeRequest,
     pub callbacks: Arc<dyn JudgeResponseCallbacks>,
 }
 
@@ -62,57 +62,57 @@ pub trait JudgeResponseCallbacks: Send + Sync {
     async fn add_outcome_header(
         &self,
         invocation_id: Uuid,
-        header: invoker_api::JudgeOutcomeHeader,
+        header: judging_apis::JudgeOutcomeHeader,
     ) -> anyhow::Result<()>;
 
     async fn deliver_live_status_update(
         &self,
         invocation_id: Uuid,
-        lsu: invoker_api::LiveStatusUpdate,
+        lsu: judging_apis::LiveStatusUpdate,
     ) -> anyhow::Result<()>;
 }
 
 #[derive(Clone)]
 pub struct Controller {
-    scheduler: Arc<Scheduler>,
+    invoker_set: InvokerSet,
     problem_loader: Arc<problem_loader::Loader>,
     toolchains_dir: Arc<Path>,
-    _config: Arc<crate::config::InvokerConfig>,
+    _config: Arc<crate::config::JudgeConfig>,
     // used as RAII resource owner
     _temp_dir: Arc<tempfile::TempDir>,
     toolchain_loader: Arc<toolchains::ToolchainLoader>,
 }
 
 fn get_num_cpus() -> usize {
-    static CACHE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    let old = CACHE.load(std::sync::atomic::Ordering::Relaxed);
-    if old != 0 {
-        return old;
-    }
-    let corr = num_cpus::get();
-    assert_ne!(corr, 0);
-    CACHE.store(corr, std::sync::atomic::Ordering::Relaxed);
-    corr
+    static NUM_CPUS: once_cell::sync::Lazy<usize> = once_cell::sync::Lazy::new(|| {
+        let cnt = num_cpus::get();
+        assert_ne!(cnt, 0);
+        cnt
+    });
+    *NUM_CPUS
 }
 
 impl Controller {
     pub async fn new(
         cfg_data: util::cfg::CfgData,
-        config: Arc<crate::config::InvokerConfig>,
+        config: Arc<crate::config::JudgeConfig>,
     ) -> anyhow::Result<Controller> {
-        let worker_count = match config.workers {
+        let worker_count = match config.managed_invokers {
             Some(cnt) => cnt,
             None => get_num_cpus(),
         };
         info!("Using {} workers", worker_count);
-        let mut scheduler = Scheduler::new(&config).context("failed to initialize Scheduler")?;
-        for _ in 0..worker_count {
-            scheduler
-                .add_worker()
-                .await
-                .context("failed to start a worker")?;
-        }
-        let scheduler = Arc::new(scheduler);
+
+        let invoker_set = {
+            let mut builder = InvokerSet::builder(&config);
+            for _ in 0..worker_count {
+                builder
+                    .add_managed_invoker()
+                    .await
+                    .context("failed to start a worker")?;
+            }
+            builder.build()
+        };
 
         let temp_dir = tempfile::TempDir::new().context("can not find temporary dir")?;
 
@@ -126,7 +126,7 @@ impl Controller {
                 .context("toolchain loader initialization error")?,
         );
         Ok(Controller {
-            scheduler,
+            invoker_set,
             problem_loader: Arc::new(problem_loader),
             toolchains_dir: cfg_data.data_dir.join("opt").into(),
             _config: config,
@@ -136,19 +136,18 @@ impl Controller {
     }
 
     #[instrument(skip(self, chan))]
-    pub fn exec_on(self, chan: async_mpmc::Receiver<JudgeRequestAndCallbacks>) {
-        chan.process_all(move |req| {
+    pub async fn exec(self, chan: async_channel::Receiver<JudgeRequestAndCallbacks>) {
+        while let Ok(req) = chan.recv().await {
             let this = self.clone();
-
-            async move {
-                let request_id = req.request.request_id;
+            let request_id = req.request.request_id;
+            tokio::task::spawn(async move {
                 if let Err(err) = this.process_request(req).await {
                     tracing::warn!(request_id = %request_id,
-                    err = %format_args!("{:#}", err), 
-                    "Failed to process a judge request");
+                        err = %format_args!("{:#}", err), 
+                        "Failed to process a judge request");
                 }
-            }
-        });
+            });
+        }
     }
 
     /// This function drives lifecycle of single judge request.
@@ -161,22 +160,25 @@ impl Controller {
 
         debug!(lowered_judge_request = ?low_req, "created a lowered judge request");
 
-        // TODO currently the process of finding a worker is unfair
-        // we should fix it e.g. using a semaphore which permits finding
-        // worker.
-        let worker = self.scheduler.find_free_worker().await;
+        let (judge_events_tx, judge_events_rx) = async_channel::bounded(1);
+        let engine = self.invoker_set.clone();
+        let judge_cx = crate::request_handler::JudgeContext {
+            events_tx: judge_events_tx,
+            invoker: rpc::Client::new(
+                rpc::box_engine(engine),
+                "http://does-not-matter".to_string(),
+            ),
+        };
+
         // TODO: can we split into LoweredJudgeRequest and Extensions?
-        let mut responses = worker
-            .send(Request::Judge(low_req))
-            .await
-            .context("failed to submit lowered judge request")?;
+        crate::request_handler::do_judge(judge_cx, low_req);
         loop {
-            let message = responses
+            let message = judge_events_rx
                 .next()
                 .await
                 .context("failed to receive next worker message")?;
             match message {
-                Response::JudgeDone(judge_outcome) => {
+                Event::JudgeDone(judge_outcome) => {
                     debug!("Publising: JudgeOutcome {:?}", &judge_outcome);
                     let reason = match judge_outcome {
                         JudgeOutcome::Fault => InvocationFinishReason::Fault,
@@ -189,13 +191,13 @@ impl Controller {
                         .context("failed to set run outcome in DB")?;
                     break;
                 }
-                Response::LiveScore(score) => {
+                Event::LiveScore(score) => {
                     exts.notifier.set_score(score).await;
                 }
-                Response::LiveTest(test) => {
+                Event::LiveTest(test) => {
                     exts.notifier.set_test(test).await;
                 }
-                Response::OutcomeHeader(header) => {
+                Event::OutcomeHeader(header) => {
                     req.callbacks
                         .add_outcome_header(req.request.request_id, header)
                         .await?;

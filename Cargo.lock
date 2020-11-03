@@ -316,15 +316,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.33"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1fd36ffbb1fb7c834eac128ea8d0e310c5aeb635548f9d58861e1308d46e71c"
-
-[[package]]
-name = "arc-swap"
-version = "0.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d25d88fd6b8041580a654f9d0c581a047baee2b3efee13275f2fc392fc75034"
+checksum = "bf8dcb5b4bbaa28653b647d8c77bd4ed40183b48882e130c1f1ffb73de069fd7"
 
 [[package]]
 name = "array_tool"
@@ -345,6 +339,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "async-channel"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59740d83946db6a5af71ae25ddf9562c2b176b2ca42cf99a455f09f4a220d6b9"
+dependencies = [
+ "concurrent-queue",
+ "event-listener",
+ "futures-core",
+]
+
+[[package]]
 name = "async-compression"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -355,17 +360,6 @@ dependencies = [
  "futures-core",
  "memchr",
  "pin-project-lite",
-]
-
-[[package]]
-name = "async-mpmc"
-version = "0.1.0"
-source = "git+https://github.com/jjs-dev/commons#f25926f9adecfb364ceb2e791867d4a7afa11fab"
-dependencies = [
- "tokio",
- "tracing",
- "tracing-futures",
- "triomphe",
 ]
 
 [[package]]
@@ -494,9 +488,9 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "blake2b_simd"
-version = "0.5.10"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8fb2d74254a3a0b5cac33ac9f8ed0e44aa50378d9dbb2e5d83bd21ed1dc2c8a"
+checksum = "afa748e348ad3be8263be728124b24a24f268266f6f5d58af9d75f6a40b5c587"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -590,6 +584,12 @@ checksum = "fc7c05fa5172da78a62d9949d662d2ac89d4cc7355d7b49adee5163f1fb3f363"
 dependencies = [
  "bytes",
 ]
+
+[[package]]
+name = "cache-padded"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "631ae5198c9be5e753e5cc215e1bd73c2b466a3565173db433f52bb9d3e66dba"
 
 [[package]]
 name = "cc"
@@ -738,6 +738,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "concurrent-queue"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30ed07550be01594c6026cff2a1d7fe9c8f683caa798e12b68694ac9e88286a3"
+dependencies = [
+ "cache-padded",
+]
+
+[[package]]
 name = "console"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -755,9 +764,9 @@ dependencies = [
 
 [[package]]
 name = "const_fn"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce90df4c658c62f12d78f7508cf92f9173e5184a539c10bfe54a3107b3ffd0f2"
+checksum = "c478836e029dcef17fb47c89023448c64f781a046e0300e257ad8225ae59afab"
 
 [[package]]
 name = "constant_time_eq"
@@ -1062,11 +1071,11 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.24"
+version = "0.8.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a51b8cf747471cb9499b6d59e59b0444f4c90eba8968c4e44874e92b5b64ace2"
+checksum = "801bbab217d7f79c0062f4f7205b5d4427c6d1a7bd7aafdd1475f7c59d62b283"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -1153,6 +1162,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "event-listener"
+version = "2.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
+
+[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1172,11 +1187,11 @@ dependencies = [
 
 [[package]]
 name = "flate2"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da80be589a72651dcda34d8b35bcdc9b7254ad06325611074d9cc0fbb19f60ee"
+checksum = "7411863d55df97a419aa64cb4d2f167103ea9d767e2c54a1868b7ac3f6b47129"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "crc32fast",
  "libc",
  "miniz_oxide",
@@ -1573,9 +1588,9 @@ checksum = "3c1ad908cc71012b7bea4d0c53ba96a8cba9962f048fa68d143376143d863b7a"
 
 [[package]]
 name = "hyper"
-version = "0.13.8"
+version = "0.13.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f3afcfae8af5ad0576a31e768415edb627824129e8e5a29b8bfccb2f234e835"
+checksum = "f6ad767baac13b44d4529fcf58ba2cd0995e36e7b435bc5b039de6f47e880dbf"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1587,7 +1602,7 @@ dependencies = [
  "httparse",
  "httpdate",
  "itoa",
- "pin-project 0.4.27",
+ "pin-project 1.0.1",
  "socket2",
  "tokio",
  "tower-service",
@@ -1682,56 +1697,17 @@ dependencies = [
 name = "invoker"
 version = "0.1.0"
 dependencies = [
- "actix-rt",
- "actix-web",
- "aho-corasick",
  "anyhow",
- "async-mpmc",
- "async-trait",
- "base64 0.13.0",
- "bitflags",
- "chrono",
- "client",
- "dkregistry",
- "dotenv",
- "fs_extra",
- "invoker-api",
- "k8s-openapi",
- "kube",
- "libc",
+ "futures-util",
+ "hyper",
+ "judging-apis",
  "minion",
- "multiwake",
  "nix 0.19.0",
- "num_cpus",
  "once_cell",
- "openssl",
- "pom",
- "problem-loader",
- "puller",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons)",
  "serde",
- "serde_json",
- "serde_yaml",
- "strum",
- "strum_macros",
- "tempfile",
- "thiserror",
  "tokio",
  "tracing",
- "tracing-futures",
- "util",
- "uuid",
-]
-
-[[package]]
-name = "invoker-api"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "pom",
- "serde",
- "strum",
- "strum_macros",
- "uuid",
 ]
 
 [[package]]
@@ -1787,6 +1763,71 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "judge"
+version = "0.1.0"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "aho-corasick",
+ "anyhow",
+ "async-channel",
+ "async-trait",
+ "base64 0.13.0",
+ "bitflags",
+ "chrono",
+ "client",
+ "dkregistry",
+ "dotenv",
+ "event-listener",
+ "fs_extra",
+ "futures-util",
+ "hyper",
+ "judging-apis",
+ "k8s-openapi",
+ "kube",
+ "libc",
+ "nix 0.19.0",
+ "num_cpus",
+ "once_cell",
+ "openssl",
+ "parking_lot 0.11.0",
+ "pom",
+ "problem-loader",
+ "puller",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons?branch=rpc-box-engine)",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tower-service",
+ "tracing",
+ "tracing-futures",
+ "util",
+ "uuid",
+]
+
+[[package]]
+name = "judging-apis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.12.3",
+ "bitflags",
+ "futures-util",
+ "hyper",
+ "pom",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons)",
+ "serde",
+ "strum",
+ "strum_macros",
+ "uuid",
 ]
 
 [[package]]
@@ -2163,11 +2204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multiwake"
-version = "0.1.0"
-source = "git+https://github.com/jjs-dev/commons#f25926f9adecfb364ceb2e791867d4a7afa11fab"
-
-[[package]]
 name = "native-tls"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2220,12 +2256,6 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
 ]
-
-[[package]]
-name = "nodrop"
-version = "0.1.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "num-integer"
@@ -2579,7 +2609,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "reqwest",
- "rpc",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons)",
  "serde",
  "serde_json",
  "tokio",
@@ -2595,7 +2625,7 @@ dependencies = [
  "pps-api",
  "pps-server",
  "rand 0.7.3",
- "rpc",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons)",
  "serde",
  "serde_json",
  "tokio",
@@ -2623,7 +2653,7 @@ dependencies = [
  "pom",
  "pps-api",
  "roxmltree",
- "rpc",
+ "rpc 0.1.0 (git+https://github.com/jjs-dev/commons)",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2637,9 +2667,9 @@ dependencies = [
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c36fa947111f5c62a733b652544dd0016a43ce89619538a8ef92724a6f501a20"
+checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
 name = "problem-loader"
@@ -2953,9 +2983,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.4.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8963b85b8ce3074fecffde43b4b0dded83ce2f367dc8d363afc56679f3ee820b"
+checksum = "38cf2c13ed4745de91a5eb834e11c00bcc3709e773173b2ce4c56c9fbde04b9c"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2975,9 +3005,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.20"
+version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cab7a364d15cde1e505267766a2d3c4e22a843e1a601f0fa7564c0f82ced11c"
+checksum = "3b181ba2dcf07aaccad5448e8ead58db5b742cf85dfe035e2227f137a539a189"
 
 [[package]]
 name = "remove_dir_all"
@@ -3074,6 +3104,23 @@ name = "rpc"
 version = "0.1.0"
 source = "git+https://github.com/jjs-dev/commons#f25926f9adecfb364ceb2e791867d4a7afa11fab"
 dependencies = [
+ "futures-util",
+ "hyper",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tower-util",
+ "tracing",
+]
+
+[[package]]
+name = "rpc"
+version = "0.1.0"
+source = "git+https://github.com/jjs-dev/commons?branch=rpc-box-engine#a64c6d3ee7d415ceabe1f03d6f28ae8f8f54d0da"
+dependencies = [
+ "anyhow",
  "futures-util",
  "hyper",
  "reqwest",
@@ -3403,11 +3450,10 @@ dependencies = [
 
 [[package]]
 name = "signal-hook-registry"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3e12110bc539e657a646068aaf5eb5b63af9d0c1f7b29c97113fad80e15f035"
+checksum = "ce32ea0c6c56d5eacaeb814fbed9960547021d3edd010ded1425f180536b20ab"
 dependencies = [
- "arc-swap",
  "libc",
 ]
 
@@ -3462,12 +3508,6 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "stable_deref_trait"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "standback"
@@ -3586,7 +3626,7 @@ dependencies = [
  "anyhow",
  "crossbeam-channel",
  "either",
- "invoker-api",
+ "judging-apis",
  "log",
  "pom",
  "serde",
@@ -4011,9 +4051,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2810660b9d5b18895d140caba6401765749a6a162e5d0736cfc44ea50db9d79d"
+checksum = "a1fa8f0c8f4c594e4fc9debc1990deab13238077271ba84dd853d54902ee3401"
 dependencies = [
  "ansi_term",
  "chrono",
@@ -4029,17 +4069,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "triomphe"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fda3a502873984dadbac264124e561c7bda47319733644c2c53c6e67155a53ba"
-dependencies = [
- "nodrop",
- "serde",
- "stable_deref_trait",
 ]
 
 [[package]]

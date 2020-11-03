@@ -1,16 +1,10 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
-pub struct InvokerConfig {
-    /// How many workers should be spawned
-    /// By default equal to processor count
-    #[serde(default)]
-    pub workers: Option<usize>,
-    /// API service config
-    #[serde(default)]
-    pub api: ApiSvcConfig,
+pub struct Config {
     /// If enabled, invoker will directly mount host filesystem instead of
     /// toolchain image.
     #[serde(default)]
@@ -23,36 +17,6 @@ pub struct InvokerConfig {
     /// As usual, all mounts will be no-suid and read-only.
     #[serde(default)]
     pub expose_host_dirs: Option<Vec<String>>,
-    /// Configures how invoker should resolve problems
-    pub problems: problem_loader::LoaderConfig,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct ApiSvcConfig {
-    /// Override bind IP
-    #[serde(default = "ApiSvcConfig::default_address")]
-    pub address: String,
-    /// Override bind port
-    #[serde(default = "ApiSvcConfig::default_port")]
-    pub port: u16,
-}
-
-impl ApiSvcConfig {
-    fn default_address() -> String {
-        "0.0.0.0".to_string()
-    }
-
-    fn default_port() -> u16 {
-        1789
-    }
-}
-
-impl Default for ApiSvcConfig {
-    fn default() -> Self {
-        ApiSvcConfig {
-            address: ApiSvcConfig::default_address(),
-            port: ApiSvcConfig::default_port(),
-        }
-    }
+    /// Directory which will contain temporary invocation data.
+    pub work_root: PathBuf,
 }

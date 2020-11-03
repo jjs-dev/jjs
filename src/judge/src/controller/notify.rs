@@ -69,7 +69,7 @@ impl Notifier {
 
     #[instrument(skip(self), fields(judge_request_id=%self.judge_request_id))]
     async fn drain(&mut self) {
-        let event = invoker_api::LiveStatusUpdate {
+        let event = judging_apis::LiveStatusUpdate {
             score: self.score.take().map(|x| x as i32),
             current_test: self.test.take(),
         };

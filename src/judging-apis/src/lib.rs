@@ -1,3 +1,4 @@
+pub mod invoke;
 pub mod judge_log;
 pub mod valuer_proto;
 

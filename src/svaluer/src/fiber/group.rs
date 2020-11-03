@@ -1,5 +1,5 @@
 use either::{Left, Right};
-use invoker_api::{
+use judging_apis::{
     valuer_proto::{
         JudgeLog, JudgeLogSubtaskRow, JudgeLogTestRow, SubtaskId, SubtaskVisibleComponents,
         TestVisibleComponents,
@@ -100,7 +100,7 @@ impl Group {
 
     pub(crate) fn set_tests_vis(
         &mut self,
-        vis: invoker_api::valuer_proto::TestVisibleComponents,
+        vis: judging_apis::valuer_proto::TestVisibleComponents,
     ) -> &mut Self {
         self.check_mutable();
         self.test_vis_flags = vis;
@@ -109,7 +109,7 @@ impl Group {
 
     pub(crate) fn set_group_vis(
         &mut self,
-        vis: invoker_api::valuer_proto::SubtaskVisibleComponents,
+        vis: judging_apis::valuer_proto::SubtaskVisibleComponents,
     ) -> &mut Self {
         self.check_mutable();
         self.subtask_vis_flags = vis;
@@ -346,7 +346,7 @@ mod tests {
     fn simple() {
         simple_logger::SimpleLogger::new().init().ok();
         let st = || Status {
-            kind: invoker_api::StatusKind::Accepted,
+            kind: judging_apis::StatusKind::Accepted,
             code: "MOCK_OK".to_string(),
         };
         let mut g = Group::new();

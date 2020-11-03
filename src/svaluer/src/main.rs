@@ -8,13 +8,13 @@ use std::collections::HashSet;
 #[derive(Debug)]
 struct TermDriver {
     current_tests: HashSet<TestId>,
-    full_judge_log: Option<invoker_api::valuer_proto::JudgeLog>,
+    full_judge_log: Option<judging_apis::valuer_proto::JudgeLog>,
 }
 
 mod term_driver {
     use super::TermDriver;
     use anyhow::{Context, Result};
-    use invoker_api::valuer_proto;
+    use judging_apis::valuer_proto;
     use pom::TestId;
     use std::{
         io::{stdin, stdout, Write},
@@ -88,7 +88,7 @@ mod term_driver {
         }
 
         fn poll_notification(&mut self) -> Result<Option<valuer_proto::TestDoneNotification>> {
-            fn create_status(ok: bool) -> invoker_api::Status {
+            fn create_status(ok: bool) -> judging_apis::Status {
                 if ok {
                     svaluer::status_util::make_ok_status()
                 } else {
@@ -148,8 +148,8 @@ mod json_driver {
     #[derive(Deserialize)]
     #[serde(untagged)]
     enum Message {
-        ProblemInfo(invoker_api::valuer_proto::ProblemInfo),
-        TestDoneNotify(invoker_api::valuer_proto::TestDoneNotification),
+        ProblemInfo(judging_apis::valuer_proto::ProblemInfo),
+        TestDoneNotify(judging_apis::valuer_proto::TestDoneNotification),
     }
     fn json_driver_thread_func(chan: crossbeam_channel::Sender<Message>) {
         let mut buf = String::new();
@@ -194,7 +194,7 @@ mod json_driver {
     }
 
     impl ValuerDriver for JsonDriver {
-        fn problem_info(&mut self) -> Result<invoker_api::valuer_proto::ProblemInfo> {
+        fn problem_info(&mut self) -> Result<judging_apis::valuer_proto::ProblemInfo> {
             let begin_time = Instant::now();
             const TIMEOUT: Duration = Duration::from_secs(1);
             let message = loop {
@@ -213,7 +213,7 @@ mod json_driver {
             Ok(problem_info)
         }
 
-        fn send_command(&mut self, cmd: &invoker_api::valuer_proto::ValuerResponse) -> Result<()> {
+        fn send_command(&mut self, cmd: &judging_apis::valuer_proto::ValuerResponse) -> Result<()> {
             let cmd = serde_json::to_string(cmd).context("failed to serialize")?;
             println!("{}", cmd);
             std::io::stdout().flush().context("failed to flush")?;
@@ -222,7 +222,7 @@ mod json_driver {
 
         fn poll_notification(
             &mut self,
-        ) -> Result<Option<invoker_api::valuer_proto::TestDoneNotification>> {
+        ) -> Result<Option<judging_apis::valuer_proto::TestDoneNotification>> {
             match self.poll() {
                 None => Ok(None),
                 Some(msg) => match msg {

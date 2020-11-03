@@ -2,7 +2,7 @@
 use super::{
     notify::Notifier, Controller, JudgeRequestAndCallbacks, LoweredJudgeRequestExtensions,
 };
-use crate::worker::{self, LoweredJudgeRequest};
+use crate::request_handler::{Command, LoweredJudgeRequest};
 use anyhow::Context;
 use std::{
     collections::{HashMap, HashSet},
@@ -72,8 +72,8 @@ fn interpolate_command(
     command: &super::toolchains::Command,
     dict: &HashMap<String, String>,
     toolchain_spec: &super::toolchains::ToolchainSpec,
-) -> Result<worker::Command, InterpolateError> {
-    let mut res: worker::Command = Default::default();
+) -> Result<Command, InterpolateError> {
+    let mut res: Command = Default::default();
     for arg in &command.argv {
         let interp = interpolate_string(arg, dict)?;
         res.argv.push(interp);
@@ -82,13 +82,13 @@ fn interpolate_command(
     for (name, val) in &command.env {
         let name = interpolate_string(name, dict)?;
         let val = interpolate_string(val, dict)?;
-        res.env.push(format!("{}={}", name, val));
+        res.env.push((name, val));
         used_env_vars.insert(name);
     }
     res.cwd = interpolate_string(&command.cwd, dict)?;
     for (default_key, default_val) in &toolchain_spec.env {
         if !used_env_vars.contains(default_key) {
-            res.env.push(format!("{}={}", default_key, default_val));
+            res.env.push((default_key.clone(), default_val.clone()));
         }
     }
     Ok(res)

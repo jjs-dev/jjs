@@ -60,6 +60,7 @@ pub async fn exec(
         steps: vec![],
         inputs: vec![],
         outputs: vec![],
+        toolchain_dir: judge_req.toolchain_dir.clone(),
     };
     let input_file = judge_req.resolve_asset(&exec_req.test.path);
     let test_data = std::fs::read(input_file).context("failed to read test")?;

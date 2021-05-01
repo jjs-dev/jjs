@@ -39,7 +39,6 @@ fn shellcheck(runner: &Runner) {
     }
 }
 
-
 #[derive(Clap)]
 pub struct CheckOpts {
     /// Run autopep8

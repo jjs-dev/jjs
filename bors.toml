@@ -8,7 +8,7 @@ status = [
 'codegen',
 'py-test',
 'py-fmt',
-'smoke'
+# 'smoke'
 ]
 delete-merged-branches = true
 timeout-sec = 900

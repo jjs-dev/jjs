@@ -86,12 +86,6 @@ impl DockerEmitter {
                     .context("context preparation error")?;
                     Self::emit_inner(params, &ctx_dir, &rs_art.package_name, &options)?;
                 }
-                Artifact::Cmake(cm_art) => {
-                    let install_dir = params.build.join("jjs-out").join(&cm_art.package_name);
-                    std::fs::create_dir_all(&install_dir)?;
-
-                    Self::emit_inner(params, &install_dir, &cm_art.package_name, &options)?;
-                }
             }
         }
         for oth_pkg in other_packages {

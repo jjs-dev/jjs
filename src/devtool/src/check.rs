@@ -1,4 +1,3 @@
-use anyhow::Context as _;
 use clap::Clap;
 use log::{debug, info};
 use std::process::Command;

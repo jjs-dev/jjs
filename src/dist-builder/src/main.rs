@@ -25,7 +25,7 @@ mod package;
 
 use crate::{
     cfg::BuildProfile,
-    package::{CmakePackage, MetaPackage, OtherPackage, RustPackage, Section},
+    package::{MetaPackage, OtherPackage, RustPackage, Section},
 };
 use anyhow::Context as _;
 use clap::Clap as _;
@@ -190,11 +190,8 @@ fn make_rust_package_list() -> Vec<RustPackage> {
     //add("cleanup", "jjs-cleanup", Section::Tool);
     //add("envck", "jjs-env-check", Section::Tool);
     //add("setup", "jjs-setup", Section::Tool);
-    add("pps-cli", "jjs-pps", Section::Tool);
     //add("userlist", "jjs-userlist", Section::Tool);
     add("cli", "jjs-cli", Section::Tool);
-    add("invoker", "jjs-invoker", Section::Daemon);
-    add("svaluer", "jjs-svaluer", Section::Tool);
     /*add(
         "configure-toolchains",
         "jjs-configure-toolchains",
@@ -209,15 +206,6 @@ fn make_other_package_list() -> Vec<OtherPackage> {
     pkgs.push(OtherPackage {
         name: "apiserver".to_string(),
         section: Section::Daemon,
-    });
-    pkgs
-}
-
-fn make_cmake_package_list() -> Vec<CmakePackage> {
-    let mut pkgs = Vec::new();
-    pkgs.push(CmakePackage {
-        name: "jtl".to_string(),
-        section: Section::Tool,
     });
     pkgs
 }
@@ -265,10 +253,6 @@ fn build_jjs_components(params: &Params) -> anyhow::Result<()> {
         .into_iter()
         .filter(|pkg| check_filter(&params.cfg.components, &pkg.name, pkg.section))
         .collect::<Vec<_>>();
-    let cmake_pkgs = make_cmake_package_list()
-        .into_iter()
-        .filter(|pkg| check_filter(&params.cfg.components, &pkg.name, pkg.section))
-        .collect::<Vec<_>>();
     let meta_pkgs = make_meta_package_list()
         .into_iter()
         .filter(|pkg| check_meta_pkg_filter(&params.cfg.components, pkg.section))
@@ -278,10 +262,6 @@ fn build_jjs_components(params: &Params) -> anyhow::Result<()> {
     for pkg in rust_pkgs {
         println!("Will build: {}", &pkg.name);
         builder.push_rust(pkg);
-    }
-    for pkg in cmake_pkgs {
-        println!("Will build: {}", &pkg.name);
-        builder.push_cmake(pkg);
     }
     let artifacts = builder.build().context("build error")?;
 

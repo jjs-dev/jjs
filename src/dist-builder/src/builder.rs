@@ -1,7 +1,7 @@
 use crate::{
     artifact::{Artifact, RustArtifact},
     cfg::BuildProfile,
-    package::{RustPackage},
+    package::RustPackage,
     Params,
 };
 use anyhow::Context as _;

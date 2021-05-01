@@ -1,12 +1,7 @@
-use anyhow::Context as _;
 use clap::Clap;
 use log::{debug, info};
 use std::process::Command;
 use util::cmd::{CommandExt, Runner};
-
-fn cmake_bin() -> &'static str {
-    "cmake"
-}
 
 fn autopep8(runner: &Runner) {
     info!("running autopep8");
@@ -39,50 +34,6 @@ fn shellcheck(runner: &Runner) {
     }
 }
 
-fn static_analysis() -> anyhow::Result<()> {
-    std::fs::remove_dir_all("src/jtl/cmake-build-analysis").ok();
-    std::fs::create_dir_all("src/jtl/cmake-build-analysis")?;
-    Command::new("scan-build")
-        .arg(cmake_bin())
-        .current_dir("./src/jtl/cmake-build-analysis")
-        .arg("..")
-        .try_exec()?;
-
-    let analysis_output_dir = tempfile::TempDir::new().context("failed to get temp dir")?;
-
-    Command::new("scan-build")
-        .current_dir("./src/jtl/cmake-build-analysis")
-        .arg("-o")
-        .arg(&analysis_output_dir.path())
-        .arg("make")
-        .args(&["-j", "4"])
-        .try_exec()?;
-
-    let dir_items = std::fs::read_dir(analysis_output_dir.path())?.count();
-    if dir_items != 0 {
-        // make sure dir is saved
-        analysis_output_dir.into_path();
-        anyhow::bail!("Analyzer found bugs");
-    }
-
-    Ok(())
-}
-
-fn check_testlib(runner: &Runner) {
-    info!("checking testlib");
-    std::fs::create_dir("src/jtl/cmake-build-debug").ok();
-    Command::new(cmake_bin())
-        .current_dir("./src/jtl/cmake-build-debug")
-        .arg("-DCMAKE_EXPORT_COMPILE_COMMANDS=On")
-        .arg("..")
-        .run_on(runner);
-    Command::new(cmake_bin())
-        .current_dir("./src/jtl/cmake-build-debug")
-        .args(&["--build", "."])
-        .args(&["--target", "all"])
-        .run_on(runner);
-}
-
 #[derive(Clap)]
 pub struct CheckOpts {
     /// Run autopep8
@@ -91,12 +42,6 @@ pub struct CheckOpts {
     /// Run shellcheck
     #[clap(long)]
     shellcheck: bool,
-    /// Build testlib
-    #[clap(long)]
-    testlib: bool,
-    /// Analyze testlib
-    #[clap(long)]
-    clang_analyzer: bool,
     /// Do not run default checks
     #[clap(long)]
     no_default: bool,
@@ -111,12 +56,6 @@ pub fn check(opts: &CheckOpts, runner: &Runner) -> anyhow::Result<()> {
     }
     if opts.shellcheck || !opts.no_default {
         shellcheck(runner);
-    }
-    if opts.testlib || !opts.no_default {
-        check_testlib(runner);
-    }
-    if opts.clang_analyzer {
-        static_analysis().context("static analysis failed")?;
     }
     Ok(())
 }

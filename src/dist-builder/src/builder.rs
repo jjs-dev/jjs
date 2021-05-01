@@ -1,7 +1,7 @@
 use crate::{
-    artifact::{Artifact, CmakeArtifact, RustArtifact},
+    artifact::{Artifact, RustArtifact},
     cfg::BuildProfile,
-    package::{CmakePackage, RustPackage},
+    package::RustPackage,
     Params,
 };
 use anyhow::Context as _;
@@ -12,7 +12,6 @@ use util::cmd::CommandExt as _;
 pub struct Builder<'a> {
     params: &'a Params,
     rust_packages: Vec<RustPackage>,
-    cmake_packages: Vec<CmakePackage>,
 }
 
 impl<'a> Builder<'a> {
@@ -20,16 +19,11 @@ impl<'a> Builder<'a> {
         Builder {
             params,
             rust_packages: Vec::new(),
-            cmake_packages: Vec::new(),
         }
     }
 
     pub(crate) fn push_rust(&mut self, pkg: RustPackage) {
         self.rust_packages.push(pkg);
-    }
-
-    pub(crate) fn push_cmake(&mut self, pkg: CmakePackage) {
-        self.cmake_packages.push(pkg);
     }
 
     fn build_rust(&self) -> anyhow::Result<Vec<Artifact>> {
@@ -72,44 +66,8 @@ impl<'a> Builder<'a> {
         Ok(artifacts)
     }
 
-    fn build_cmake(&self) -> anyhow::Result<Vec<Artifact>> {
-        let mut artifacts = Vec::new();
-        for pkg in &self.cmake_packages {
-            let install_dir = self
-                .params
-                .build
-                .canonicalize()?
-                .join("jjs-out")
-                .join(&pkg.name);
-            let build_dir = self.params.build.join("cmake-builds").join(&pkg.name);
-            std::fs::create_dir_all(&build_dir).ok();
-
-            let mut cmd_configure = Command::new("cmake");
-            cmd_configure.arg(format!(
-                "-DCMAKE_BUILD_TYPE={}",
-                self.params.cfg.build.profile.as_str()
-            ));
-            cmd_configure.arg(format!("-DCMAKE_INSTALL_PREFIX={}", install_dir.display()));
-            cmd_configure.arg(self.params.src.join("src").join(&pkg.name));
-            cmd_configure.current_dir(&build_dir);
-            cmd_configure.try_exec().context("failed to configure")?;
-
-            let mut cmd_build = Command::new("cmake");
-            cmd_build.current_dir(&build_dir);
-            cmd_build.args(&["--build", ".", "--target", "install"]);
-            cmd_build.try_exec().context("build error")?;
-
-            artifacts.push(Artifact::Cmake(CmakeArtifact {
-                package_name: pkg.name.clone(),
-            }));
-        }
-        Ok(artifacts)
-    }
-
     pub(crate) fn build(self) -> anyhow::Result<Vec<Artifact>> {
-        let mut rust_artifacts = self.build_rust()?;
-        let mut cmake_packages = self.build_cmake()?;
-        rust_artifacts.append(&mut cmake_packages);
+        let rust_artifacts = self.build_rust()?;
         Ok(rust_artifacts)
     }
 }

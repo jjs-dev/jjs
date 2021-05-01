@@ -74,7 +74,8 @@ impl BuildInfo {
     }
 
     pub fn is_pr_e2e(&self) -> bool {
-        matches!(self.ty,
+        matches!(
+            self.ty,
             BuildType::Check {
                 ty: CheckJobType::EndToEnd,
                 ..

@@ -120,25 +120,6 @@ jobs:
         with:
           command: clippy
           args: "--workspace -- -Dwarnings"
-  cpp:
-    name: cpp
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install system dependencies
-        run: sudo apt-get install -y libssl-dev cmake
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: "clippy,rustfmt"
-          override: true
-      - name: Install clang static analyzer
-        run: sudo apt install clang-tools
-      - name: compile testlib
-        run: cargo jjs-check --no-default --testlib
-      - name: Run static analyzer
-        run: cargo jjs-check --no-default --clang-analyzer
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-18.04

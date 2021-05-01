@@ -7,11 +7,6 @@ pub(crate) struct RustPackage {
     pub(crate) section: Section,
 }
 
-pub(crate) struct CmakePackage {
-    pub(crate) name: String,
-    pub(crate) section: Section,
-}
-
 #[derive(Debug)]
 pub(crate) struct OtherPackage {
     /// As in sources

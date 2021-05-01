@@ -101,8 +101,8 @@ fn main() {
     let opt: Opt = Opt::parse();
 
     let tool_info = cfg::ToolInfo {
-        cargo: opt.cargo.as_deref().unwrap_or_else(|| "cargo").to_string(),
-        cmake: opt.cmake.as_deref().unwrap_or_else(|| "cmake").to_string(),
+        cargo: opt.cargo.as_deref().unwrap_or("cargo").to_string(),
+        cmake: opt.cmake.as_deref().unwrap_or("cmake").to_string(),
         docker: opt
             .docker_name
             .as_deref()
@@ -202,20 +202,18 @@ fn make_rust_package_list() -> Vec<RustPackage> {
 }
 
 fn make_other_package_list() -> Vec<OtherPackage> {
-    let mut pkgs = Vec::new();
-    pkgs.push(OtherPackage {
+    let pkgs = vec![OtherPackage {
         name: "apiserver".to_string(),
         section: Section::Daemon,
-    });
+    }];
     pkgs
 }
 
 fn make_meta_package_list() -> Vec<MetaPackage> {
-    let mut pkgs = Vec::new();
-    pkgs.push(MetaPackage {
+    let pkgs = vec![MetaPackage {
         name: "toolkit".to_string(),
         section: Section::Tool,
-    });
+    }];
     pkgs
 }
 

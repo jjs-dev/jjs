@@ -3,10 +3,6 @@ use log::{debug, info};
 use std::process::Command;
 use util::cmd::{CommandExt, Runner};
 
-fn cmake_bin() -> &'static str {
-    "cmake"
-}
-
 fn autopep8(runner: &Runner) {
     info!("running autopep8");
     let python_files: Vec<_> =

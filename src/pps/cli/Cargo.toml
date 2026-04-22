@@ -12,7 +12,7 @@ tokio = { version = "0.2.22", features = ["process", "macros", "rt-threaded", "f
 clap = "3.0.0-beta.2"
 pps-api = { path = "../api" }
 pps-server = { path = "../server" }
-rand = "0.7.3"
+rand = "0.8.6"
 util = { path = "../../util" }
 tracing = "0.1.21"
 tracing-futures = "0.2.4"
